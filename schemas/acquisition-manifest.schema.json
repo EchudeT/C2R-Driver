@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://driver-port-factory.local/schemas/acquisition-manifest.schema.json",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "project_id",
+    "migration_envelope_sha256",
+    "checkouts",
+    "target_worktree",
+    "source_identity_verification",
+    "commands",
+    "coverage_inventory"
+  ],
+  "properties": {
+    "schema_version": {"const": 1},
+    "migration_envelope_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "checkouts": {
+      "type": "array",
+      "minItems": 3,
+      "maxItems": 3,
+      "items": {
+        "type": "object",
+        "required": [
+          "role",
+          "source_url",
+          "requested_ref",
+          "resolved_commit",
+          "tree_id",
+          "checkout_path",
+          "lock_sha256"
+        ]
+      }
+    },
+    "source_identity_verification": {
+      "type": "object",
+      "required": ["consistent", "source_entry", "observations", "conflicts"]
+    }
+  },
+  "additionalProperties": true
+}

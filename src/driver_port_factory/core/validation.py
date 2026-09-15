@@ -83,6 +83,35 @@ def validate_artifact(kind: str, data: bytes) -> None:
                 raise WorkflowError(
                     f"revision_manifest.{component}.revision must be a non-empty pinned value"
                 )
+    elif kind == "acquisition_plan":
+        value = _json_object(data, kind)
+        repositories = value.get("repositories")
+        if not isinstance(repositories, list):
+            raise WorkflowError("acquisition_plan.repositories must be a list")
+        roles = {entry.get("role") for entry in repositories if isinstance(entry, dict)}
+        if roles != {"source", "target", "qemu"}:
+            raise WorkflowError("acquisition_plan requires source, target, and qemu repositories")
+        for entry in repositories:
+            revision = entry.get("resolved_commit", "")
+            if not isinstance(revision, str) or len(revision) not in {40, 64}:
+                raise WorkflowError("each acquisition repository needs a full Git commit")
+    elif kind == "acquisition_manifest":
+        value = _json_object(data, kind)
+        if not isinstance(value.get("checkouts"), list) or len(value["checkouts"]) != 3:
+            raise WorkflowError("acquisition_manifest requires three controlled checkouts")
+        if not isinstance(value.get("source_identity_verification"), dict):
+            raise WorkflowError("acquisition_manifest requires source identity verification")
+    elif kind == "materials_manifest":
+        try:
+            lines = [json.loads(line) for line in data.decode("utf-8").splitlines() if line]
+        except (UnicodeDecodeError, json.JSONDecodeError) as error:
+            raise WorkflowError("materials_manifest must be JSON Lines") from error
+        if not lines or any("sha256" not in line or "revision" not in line for line in lines):
+            raise WorkflowError("materials_manifest entries require sha256 and revision")
+    elif kind == "source_identity_verification":
+        value = _json_object(data, kind)
+        if not isinstance(value.get("consistent"), bool):
+            raise WorkflowError("source_identity_verification.consistent must be boolean")
     elif kind == "candidate_digest_anchor":
         value = _json_object(data, kind)
         digest = value.get("candidate_sha256")

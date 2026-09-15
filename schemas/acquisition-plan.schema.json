@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://driver-port-factory.local/schemas/acquisition-plan.schema.json",
+  "type": "object",
+  "required": ["schema_version", "repositories", "migration_envelope_digest", "planned_at"],
+  "properties": {
+    "schema_version": {"const": 1},
+    "migration_envelope_digest": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "planned_at": {"type": "string"},
+    "repositories": {
+      "type": "array",
+      "minItems": 3,
+      "maxItems": 3,
+      "items": {
+        "type": "object",
+        "required": [
+          "role",
+          "platform",
+          "url",
+          "requested_ref",
+          "resolved_commit",
+          "selection_rule"
+        ],
+        "properties": {
+          "role": {"enum": ["source", "target", "qemu"]},
+          "resolved_commit": {"type": "string", "pattern": "^(?:[0-9a-f]{40}|[0-9a-f]{64})$"}
+        },
+        "additionalProperties": true
+      }
+    }
+  },
+  "additionalProperties": true
+}

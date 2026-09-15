@@ -1,13 +1,13 @@
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import StrEnum
 from typing import Any
 
 
 def utc_now() -> str:
-    return datetime.now(timezone.utc).isoformat()
+    return datetime.now(UTC).isoformat()
 
 
 class ActorRole(StrEnum):
@@ -106,7 +106,7 @@ class ProjectConfig:
         return value
 
     @classmethod
-    def from_dict(cls, value: dict[str, Any]) -> "ProjectConfig":
+    def from_dict(cls, value: dict[str, Any]) -> ProjectConfig:
         data = dict(value)
         data["evaluation_mode"] = EvaluationMode(data["evaluation_mode"])
         data["actor_role"] = ActorRole(data["actor_role"])

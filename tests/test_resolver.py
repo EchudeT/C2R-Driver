@@ -11,9 +11,7 @@ from driver_port_factory.intake.resolver import (
     SourceEntryVerifier,
 )
 
-NE2000_FIXTURE = (
-    Path(__file__).parents[1] / "examples" / "fixtures" / "linux-ne2000.catalog.json"
-)
+NE2000_FIXTURE = Path(__file__).parents[1] / "examples" / "fixtures" / "linux-ne2000.catalog.json"
 
 
 class GenericResolverTests(unittest.TestCase):

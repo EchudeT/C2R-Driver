@@ -1,0 +1,26 @@
+{
+  "schema_version": 1,
+  "repositories": [
+    {
+      "canonical_platform": "linux",
+      "aliases": ["Linux kernel", "Linux内核"],
+      "url": "https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git",
+      "default_ref": "master",
+      "selection_rule": "resolve the public upstream branch head once, then freeze the full commit"
+    },
+    {
+      "canonical_platform": "asterinas",
+      "aliases": ["Asterinas", "星绽OS", "星绽 OS"],
+      "url": "https://github.com/asterinas/asterinas.git",
+      "default_ref": "main",
+      "selection_rule": "resolve the public upstream branch head once, then freeze the full commit"
+    },
+    {
+      "canonical_platform": "qemu",
+      "aliases": ["QEMU"],
+      "url": "https://gitlab.com/qemu-project/qemu.git",
+      "default_ref": "master",
+      "selection_rule": "resolve the public upstream branch head once, then freeze the full commit"
+    }
+  ]
+}

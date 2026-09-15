@@ -21,12 +21,11 @@ def make_config(role: ActorRole, mode: EvaluationMode) -> ProjectConfig:
 
 class RoleBoundaryTests(unittest.TestCase):
     def test_developer_cannot_claim_blind_mode(self) -> None:
-        with tempfile.TemporaryDirectory() as temporary:
-            with self.assertRaises(WorkflowError):
-                Project.initialize(
-                    Path(temporary) / "run",
-                    make_config(ActorRole.DEVELOPER, EvaluationMode.PROSPECTIVE_BLIND),
-                )
+        with tempfile.TemporaryDirectory() as temporary, self.assertRaises(WorkflowError):
+            Project.initialize(
+                Path(temporary) / "run",
+                make_config(ActorRole.DEVELOPER, EvaluationMode.PROSPECTIVE_BLIND),
+            )
 
     def test_prospective_migrator_requires_blind_binding_stage(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
@@ -46,7 +45,9 @@ class RoleBoundaryTests(unittest.TestCase):
                 make_config(ActorRole.CURATOR, EvaluationMode.POST_HOC_SEALED_BLIND),
             )
             names = [stage.name for stage in project.store.stages()]
-            self.assertLess(names.index("opaque_candidate_acceptance"), names.index("contract_freeze"))
+            self.assertLess(
+                names.index("opaque_candidate_acceptance"), names.index("contract_freeze")
+            )
 
     def test_evaluator_has_no_migration_implementation_stage(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:

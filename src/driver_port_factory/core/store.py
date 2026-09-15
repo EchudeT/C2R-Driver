@@ -3,9 +3,10 @@ from __future__ import annotations
 import hashlib
 import json
 import sqlite3
+from collections.abc import Iterable, Iterator
 from contextlib import contextmanager
 from pathlib import Path
-from typing import Any, Iterable, Iterator
+from typing import Any
 
 from .models import (
     ActorRole,
@@ -33,9 +34,7 @@ class RunStore:
             raise WorkflowError(f"run database does not exist: {self.path}")
 
     @classmethod
-    def create(
-        cls, path: Path, config: ProjectConfig, stages: Iterable[StageSpec]
-    ) -> "RunStore":
+    def create(cls, path: Path, config: ProjectConfig, stages: Iterable[StageSpec]) -> RunStore:
         path = path.resolve()
         path.parent.mkdir(parents=True, exist_ok=True)
         if path.exists():
@@ -273,9 +272,7 @@ class RunStore:
             if row is None:
                 raise WorkflowError(f"unknown stage: {name}")
             if StageStatus(row["status"]) is not StageStatus.WAITING_FOR_USER:
-                raise WorkflowError(
-                    f"stage {name} is {row['status']}, not WAITING_FOR_USER"
-                )
+                raise WorkflowError(f"stage {name} is {row['status']}, not WAITING_FOR_USER")
             allowed = {ActorRole(value) for value in json.loads(row["allowed_roles"])}
             if actor_role not in allowed or actor_role is not self.config.actor_role:
                 raise WorkflowError(f"role {actor_role.value} may not resume {name}")
@@ -288,9 +285,7 @@ class RunStore:
             {"stage": name, "actor_role": actor_role.value, "answer": answer},
         )
 
-    def register_artifact(
-        self, ref: ArtifactRef, *, stage: str, direction: str = "output"
-    ) -> None:
+    def register_artifact(self, ref: ArtifactRef, *, stage: str, direction: str = "output") -> None:
         if direction not in {"input", "output"}:
             raise WorkflowError(f"invalid artifact direction: {direction}")
         stage_view = self.stage(stage)
@@ -318,7 +313,9 @@ class RunStore:
             {"stage": stage, "direction": direction, "artifact": ref.to_dict()},
         )
 
-    def artifact_refs(self, *, stage: str | None = None, direction: str | None = None) -> list[ArtifactRef]:
+    def artifact_refs(
+        self, *, stage: str | None = None, direction: str | None = None
+    ) -> list[ArtifactRef]:
         query = "SELECT a.* FROM artifacts a"
         parameters: list[Any] = []
         conditions: list[str] = []

@@ -168,7 +168,9 @@ class SkillPromptComposer:
             "You are executing one bounded Driver Port Factory stage.",
             "The controller, not you, owns workflow state and gate outcomes.",
             "Follow the supplied upstream Skill text as normative task instructions.",
-            "<job>\n" + json.dumps(header, ensure_ascii=False, sort_keys=True, indent=2) + "\n</job>",
+            "<job>\n"
+            + json.dumps(header, ensure_ascii=False, sort_keys=True, indent=2)
+            + "\n</job>",
         ]
         for document in documents:
             pieces.append(

@@ -25,7 +25,7 @@ class Project:
         self.artifacts = ArtifactStore(self.control / "cas")
 
     @classmethod
-    def initialize(cls, root: Path, config: ProjectConfig) -> "Project":
+    def initialize(cls, root: Path, config: ProjectConfig) -> Project:
         validate_project_config(config)
         root = root.resolve()
         control = root / cls.CONTROL_DIR
@@ -34,7 +34,9 @@ class Project:
         root.mkdir(parents=True, exist_ok=True)
         control.mkdir(parents=True)
         config_path = control / "project.json"
-        config_json = json.dumps(config.to_dict(), ensure_ascii=False, sort_keys=True, indent=2) + "\n"
+        config_json = (
+            json.dumps(config.to_dict(), ensure_ascii=False, sort_keys=True, indent=2) + "\n"
+        )
         config_path.write_text(config_json, encoding="utf-8")
         store = RunStore.create(control / "run.sqlite3", config, workflow_for(config))
         artifact_store = ArtifactStore(control / "cas")
@@ -52,9 +54,7 @@ class Project:
     def config(self) -> ProjectConfig:
         return self.store.config
 
-    def add_artifact(
-        self, stage: str, kind: str, path: Path, *, direction: str = "output"
-    ) -> str:
+    def add_artifact(self, stage: str, kind: str, path: Path, *, direction: str = "output") -> str:
         data = path.resolve().read_bytes()
         validate_artifact(kind, data)
         ref = self.artifacts.put_bytes(data, kind=kind, source=str(path.resolve()))
@@ -78,9 +78,7 @@ class Project:
     def start(self, stage: str) -> None:
         self.store.start_stage(stage, self.config.actor_role)
 
-    def complete(
-        self, stage: str, outcome: StageStatus, *, message: str | None = None
-    ) -> None:
+    def complete(self, stage: str, outcome: StageStatus, *, message: str | None = None) -> None:
         self.store.complete_stage(stage, outcome, message=message)
 
     def ensure_role(self, *roles: ActorRole) -> None:
@@ -89,3 +87,20 @@ class Project:
             raise WorkflowError(
                 f"operation requires role {expected}, current role is {self.config.actor_role.value}"
             )
+
+    def artifact(self, stage: str, kind: str, *, direction: str = "output"):
+        refs = [
+            ref
+            for ref in self.store.artifact_refs(stage=stage, direction=direction)
+            if ref.kind == kind
+        ]
+        if len(refs) != 1:
+            raise WorkflowError(f"expected one {kind} artifact in {stage}, found {len(refs)}")
+        return refs[0]
+
+    def load_json_artifact(self, stage: str, kind: str, *, direction: str = "output") -> dict:
+        ref = self.artifact(stage, kind, direction=direction)
+        value = json.loads(self.artifacts.read(ref))
+        if not isinstance(value, dict):
+            raise WorkflowError(f"{kind} in {stage} is not a JSON object")
+        return value

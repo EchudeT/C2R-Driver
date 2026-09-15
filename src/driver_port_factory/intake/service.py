@@ -70,9 +70,7 @@ class IntakeService:
             "match_type": resolution.match_type,
             "auto_confirmable": resolution.auto_confirmable,
             "metadata_scope": "LIGHTWEIGHT_ONLY",
-            "metadata_sources": [
-                source.to_dict() for source in resolution.metadata_sources
-            ],
+            "metadata_sources": [source.to_dict() for source in resolution.metadata_sources],
             "candidates": [candidate.to_dict() for candidate in resolution.candidates],
         }
         self._add_json(
@@ -335,14 +333,4 @@ class IntakeService:
 
     @staticmethod
     def _load_json(project: Project, stage: str, kind: str) -> dict[str, Any]:
-        refs = [
-            ref
-            for ref in project.store.artifact_refs(stage=stage, direction="output")
-            if ref.kind == kind
-        ]
-        if len(refs) != 1:
-            raise WorkflowError(f"expected one {kind} artifact in {stage}, found {len(refs)}")
-        value = json.loads(project.artifacts.read(refs[0]))
-        if not isinstance(value, dict):
-            raise WorkflowError(f"{kind} is not a JSON object")
-        return value
+        return project.load_json_artifact(stage, kind)

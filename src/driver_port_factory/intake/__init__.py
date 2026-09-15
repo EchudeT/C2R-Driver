@@ -13,6 +13,7 @@ from .resolver import (
 from .service import IntakeAnalysisResult, IntakeService
 
 __all__ = [
+    "CompositeSourceDriverResolver",
     "DriverCandidate",
     "DriverCatalog",
     "DriverMetadataProvider",
@@ -25,5 +26,4 @@ __all__ = [
     "SourceDriverResolver",
     "SourceEntryVerifier",
     "SourceIdentityVerification",
-    "CompositeSourceDriverResolver",
 ]

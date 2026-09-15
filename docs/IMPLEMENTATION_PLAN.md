@@ -16,6 +16,7 @@
 - SHA256 CAS；
 - 角色化 WorkflowDefinition；
 - clone 前请求解析、通用 Resolver/MetadataProvider、单次确认与范围冻结；
+- source/target/QEMU revision 解析、bare repository、受控 worktree 和 materials manifest；
 - 阶段依赖及 required-output Gate；
 - Skill Prompt composer；
 - Codex exec/SDK Gateway；
@@ -24,10 +25,10 @@
 
 验收：能初始化 NE2000 项目、展示 DAG、快照 Prompt、登记证据并阻止非法状态转换。
 
-## Milestone 2：NE2000 纵向闭环
+## Milestone 2：首个驱动纵向闭环
 
 - Linux 与星绽OS平台插件；
-- NE2000/PCI 身份解析和版本 pin；
+- 选择一个具体驱动作为首个集成样例，但不向通用控制面加入驱动特例；
 - 接入现有 `kb.py`；
 - Clang compile database、AST/CFG/layout/effect 导出；
 - NetworkScenario 及 Linux/星绽OS adapter；

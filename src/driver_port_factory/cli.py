@@ -5,6 +5,7 @@ import json
 import sys
 from pathlib import Path
 
+from .acquisition.service import AcquisitionService
 from .codex.gateway import CodexExecGateway, CodexJob, CodexSdkGateway
 from .codex.prompts import SkillPromptComposer
 from .core.models import ActorRole, EvaluationMode, ProjectConfig, StageStatus, WorkflowError
@@ -102,6 +103,47 @@ def command_intake_show(arguments: argparse.Namespace) -> None:
     print(json.dumps(IntakeService().show(project), ensure_ascii=False, sort_keys=True, indent=2))
 
 
+def command_acquire_plan(arguments: argparse.Namespace) -> None:
+    project = _project(arguments.path)
+    plan = AcquisitionService().plan(
+        project,
+        source_url=arguments.source_url,
+        source_ref=arguments.source_ref,
+        target_url=arguments.target_url,
+        target_ref=arguments.target_ref,
+        qemu_url=arguments.qemu_url,
+        qemu_ref=arguments.qemu_ref,
+        registry_path=Path(arguments.registry).resolve() if arguments.registry else None,
+    )
+    print(json.dumps(plan.to_dict(), ensure_ascii=False, sort_keys=True, indent=2))
+
+
+def command_acquire_run(arguments: argparse.Namespace) -> None:
+    project = _project(arguments.path)
+    result = AcquisitionService().acquire(project)
+    print(
+        json.dumps(
+            {
+                "status": result.status.value,
+                "target_worktree": result.target_worktree,
+                "source_identity_consistent": result.source_identity_consistent,
+                "checkouts": [record.to_dict() for record in result.checkouts],
+            },
+            ensure_ascii=False,
+            sort_keys=True,
+            indent=2,
+        )
+    )
+
+
+def command_acquire_verify(arguments: argparse.Namespace) -> None:
+    project = _project(arguments.path)
+    result = AcquisitionService().verify(project)
+    print(json.dumps(result, ensure_ascii=False, sort_keys=True, indent=2))
+    if not result["valid"]:
+        raise WorkflowError("one or more acquired repositories failed verification")
+
+
 def command_stage_start(arguments: argparse.Namespace) -> None:
     project = _project(arguments.path)
     project.start(arguments.stage)
@@ -125,9 +167,7 @@ def command_artifact_add(arguments: argparse.Namespace) -> None:
     print(digest)
 
 
-def _render_prompt(
-    project: Project, stage: str, objective: str, context_path: str | None
-):
+def _render_prompt(project: Project, stage: str, objective: str, context_path: str | None):
     if not project.config.skill_root:
         raise WorkflowError("project has no skill_root; initialize it with --skill-root")
     context = None
@@ -174,9 +214,7 @@ def command_codex_run(arguments: argparse.Namespace) -> None:
     if stage.status is StageStatus.READY:
         project.start(arguments.stage)
     elif stage.status is not StageStatus.RUNNING:
-        raise WorkflowError(
-            f"Codex stage must be READY or RUNNING, got {stage.status.value}"
-        )
+        raise WorkflowError(f"Codex stage must be READY or RUNNING, got {stage.status.value}")
     rendered = _render_prompt(project, arguments.stage, arguments.objective, arguments.context)
     project.add_bytes(
         arguments.stage,
@@ -206,7 +244,9 @@ def command_codex_run(arguments: argparse.Namespace) -> None:
         sandbox=arguments.sandbox,
         thread_id=arguments.thread_id,
     )
-    gateway = CodexExecGateway(arguments.codex_bin) if arguments.backend == "exec" else CodexSdkGateway()
+    gateway = (
+        CodexExecGateway(arguments.codex_bin) if arguments.backend == "exec" else CodexSdkGateway()
+    )
     result = gateway.run(job)
     if not output_path.exists():
         output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -215,7 +255,9 @@ def command_codex_run(arguments: argparse.Namespace) -> None:
         try:
             json.loads(output_path.read_text(encoding="utf-8"))
         except json.JSONDecodeError as error:
-            raise WorkflowError("Codex output is not valid JSON despite an output schema") from error
+            raise WorkflowError(
+                "Codex output is not valid JSON despite an output schema"
+            ) from error
     project.add_artifact(arguments.stage, arguments.result_kind, output_path)
     if result.events:
         event_data = "\n".join(json.dumps(event, sort_keys=True) for event in result.events) + "\n"
@@ -300,6 +342,27 @@ def parser() -> argparse.ArgumentParser:
     show = intake_commands.add_parser("show")
     show.add_argument("path")
     show.set_defaults(handler=command_intake_show)
+
+    acquire = commands.add_parser(
+        "acquire", help="pin and acquire source, target, and QEMU repositories"
+    )
+    acquire_commands = acquire.add_subparsers(dest="acquire_command", required=True)
+    acquire_plan = acquire_commands.add_parser("plan")
+    acquire_plan.add_argument("path")
+    acquire_plan.add_argument("--source-url")
+    acquire_plan.add_argument("--source-ref")
+    acquire_plan.add_argument("--target-url")
+    acquire_plan.add_argument("--target-ref")
+    acquire_plan.add_argument("--qemu-url")
+    acquire_plan.add_argument("--qemu-ref")
+    acquire_plan.add_argument("--registry")
+    acquire_plan.set_defaults(handler=command_acquire_plan)
+    acquire_run = acquire_commands.add_parser("run")
+    acquire_run.add_argument("path")
+    acquire_run.set_defaults(handler=command_acquire_run)
+    acquire_verify = acquire_commands.add_parser("verify")
+    acquire_verify.add_argument("path")
+    acquire_verify.set_defaults(handler=command_acquire_verify)
 
     stage = commands.add_parser("stage", help="manually drive a stage")
     stage_commands = stage.add_subparsers(dest="stage_command", required=True)

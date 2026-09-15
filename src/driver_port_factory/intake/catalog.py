@@ -42,7 +42,7 @@ class DriverCandidate:
         return value
 
     @classmethod
-    def from_dict(cls, value: dict[str, Any]) -> "DriverCandidate":
+    def from_dict(cls, value: dict[str, Any]) -> DriverCandidate:
         data = dict(value)
         for key in (
             "aliases",
@@ -61,7 +61,7 @@ class Resolution:
     candidates: tuple[DriverCandidate, ...]
     match_type: str
     auto_confirmable: bool
-    metadata_sources: tuple["MetadataSource", ...] = ()
+    metadata_sources: tuple[MetadataSource, ...] = ()
 
 
 @dataclass(frozen=True, slots=True)
@@ -94,7 +94,7 @@ class DriverCatalog:
         self.source = source
 
     @classmethod
-    def from_file(cls, path: Path) -> "DriverCatalog":
+    def from_file(cls, path: Path) -> DriverCatalog:
         path = path.resolve()
         try:
             data = path.read_bytes()
@@ -137,11 +137,15 @@ class DriverCatalog:
                 exact.append(candidate)
                 continue
             candidate_tokens = set().union(*(name.split() for name in normalized_names))
-            if normalized_query and any(
-                normalized_query in name or name in normalized_query for name in normalized_names
+            if (
+                normalized_query
+                and any(
+                    normalized_query in name or name in normalized_query
+                    for name in normalized_names
+                )
+                or query_tokens
+                and len(query_tokens & candidate_tokens) >= min(2, len(query_tokens))
             ):
-                fuzzy.append(candidate)
-            elif query_tokens and len(query_tokens & candidate_tokens) >= min(2, len(query_tokens)):
                 fuzzy.append(candidate)
         if exact:
             return Resolution(

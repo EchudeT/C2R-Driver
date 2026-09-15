@@ -1,8 +1,9 @@
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Protocol, Sequence
+from typing import Protocol
 
 from ..core.models import WorkflowError
 from .catalog import DriverCandidate, DriverCatalog, MetadataSource, Resolution
@@ -57,7 +58,7 @@ class CompositeSourceDriverResolver:
     @classmethod
     def from_catalogs(
         cls, source_platform: str, catalog_paths: Sequence[Path]
-    ) -> "CompositeSourceDriverResolver":
+    ) -> CompositeSourceDriverResolver:
         return cls(
             source_platform,
             tuple(DriverCatalog.from_file(path) for path in catalog_paths),
@@ -83,9 +84,7 @@ class CompositeSourceDriverResolver:
             for candidate in resolution.candidates
         )
         all_metadata_sources = (
-            source
-            for resolution in resolutions
-            for source in resolution.metadata_sources
+            source for resolution in resolutions for source in resolution.metadata_sources
         )
         metadata_sources = tuple(
             {
@@ -150,9 +149,7 @@ class PinnedSourceIdentityVerifier(Protocol):
 class SourceEntryVerifier:
     """Generic minimum verifier; platform plugins add device-table and bus checks."""
 
-    def verify(
-        self, envelope: dict[str, object], source_root: Path
-    ) -> SourceIdentityVerification:
+    def verify(self, envelope: dict[str, object], source_root: Path) -> SourceIdentityVerification:
         root = source_root.resolve()
         entry = str(envelope["source_driver_entry_or_repository_hint"])
         candidate = (root / entry).resolve()

@@ -84,11 +84,7 @@ class CodexExecGateway:
                 f"codex exec failed with exit {completed.returncode}: {completed.stderr.strip()}"
             )
         thread_id = next(
-            (
-                event.get("thread_id")
-                for event in events
-                if event.get("type") == "thread.started"
-            ),
+            (event.get("thread_id") for event in events if event.get("type") == "thread.started"),
             None,
         )
         if job.output_path and job.output_path.exists():

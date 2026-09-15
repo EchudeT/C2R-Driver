@@ -4,6 +4,7 @@ import hashlib
 import json
 from dataclasses import dataclass
 from pathlib import Path
+from typing import ClassVar
 
 from ..core.models import ActorRole, ArtifactRef, StageStatus, WorkflowError
 from ..core.project import Project
@@ -18,7 +19,7 @@ class CandidateSeal:
 
 
 class CandidateSealer:
-    REQUIRED_KINDS = {
+    REQUIRED_KINDS: ClassVar[set[str]] = {
         "identity_record",
         "revision_manifest",
         "driver_source",
@@ -63,6 +64,9 @@ class CandidateSealer:
         project.store.register_artifact(ref, stage="candidate_sealing")
         if output is not None:
             output.parent.mkdir(parents=True, exist_ok=True)
-            output.write_text(json.dumps(manifest, ensure_ascii=False, sort_keys=True, indent=2) + "\n", encoding="utf-8")
+            output.write_text(
+                json.dumps(manifest, ensure_ascii=False, sort_keys=True, indent=2) + "\n",
+                encoding="utf-8",
+            )
         project.complete("candidate_sealing", StageStatus.PASS)
         return CandidateSeal(digest=digest, manifest=manifest, artifact=ref)
