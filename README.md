@@ -1,0 +1,45 @@
+# Driver Port Factory
+
+Driver Port Factory（DPF）把 C 驱动跨平台迁移、公开验证、候选物封存和独立盲测组织成可审计的程序工作流。它严格区分确定性控制代码与 Codex 判断任务：程序拥有状态、门禁、哈希和执行结果，Codex 只提交有类型的分析或补丁产物。
+
+本项目的规范来源是 `C-kernel-to-Rust` 的三个 Skill：
+
+- `open-kernel-driver-port`：身份、采集、环境恢复和知识库；
+- `knowledge-guided-driver-port`：目标研究、结构化翻译、测试迁移和 QEMU 验证；
+- `blind-c2rust-driver-evaluation`：角色隔离、封存和私有评测。
+
+DPF 允许把 Skill 原文及其 references 直接组合进阶段 Prompt。每次组合都会记录文档 SHA256，并把完整 Prompt 放入内容寻址存储。
+
+## 当前可运行能力
+
+- 按角色与评测模式生成阶段 DAG；
+- SQLite 保存阶段状态和哈希链事件；
+- SHA256 内容寻址产物库；
+- 阶段依赖、必需输出和角色门禁；
+- Skill Prompt 选择、组合和快照；
+- `codex exec` 结构化调用及 Python SDK Gateway；
+- 来源平台、目标平台、设备类别与 QEMU 插件协议；
+- 候选物 canonical manifest 和封存摘要；
+- 开发、前瞻盲测、事后封存盲测三种模式的时序骨架。
+
+## 快速开始
+
+```sh
+python -m driver_port_factory.cli init ./runs/ne2000 \
+  --source linux --target asterinas --driver ne2k-pci \
+  --mode developer-evidence --role developer \
+  --skill-root /path/to/C-kernel-to-Rust/skill
+
+python -m driver_port_factory.cli status ./runs/ne2000
+python -m driver_port_factory.cli prompt render ./runs/ne2000 driver_identity \
+  --objective "确认 NE2000 PCI 驱动的唯一源码和设备范围"
+```
+
+在源码仓库中直接运行时：
+
+```sh
+PYTHONPATH=src python -m driver_port_factory.cli --help
+python -m unittest discover -s tests -v
+```
+
+详细设计见 [架构](docs/ARCHITECTURE.md)、[阶段工作流](docs/WORKFLOW.md)、[实施计划](docs/IMPLEMENTATION_PLAN.md) 和 [Codex 任务契约](docs/CODEX_JOBS.md)。

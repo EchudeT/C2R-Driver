@@ -1,0 +1,310 @@
+from __future__ import annotations
+
+import argparse
+import json
+import sys
+from pathlib import Path
+
+from .codex.gateway import CodexExecGateway, CodexJob, CodexSdkGateway
+from .codex.prompts import SkillPromptComposer
+from .core.models import ActorRole, EvaluationMode, ProjectConfig, StageStatus, WorkflowError
+from .core.project import Project
+from .sealing.candidate import CandidateSealer
+
+
+def _project(path: str) -> Project:
+    return Project(Path(path))
+
+
+def command_init(arguments: argparse.Namespace) -> None:
+    root = Path(arguments.path).resolve()
+    config = ProjectConfig(
+        project_id=arguments.project_id or root.name,
+        source_platform=arguments.source,
+        target_platform=arguments.target,
+        driver_name=arguments.driver,
+        evaluation_mode=EvaluationMode(arguments.mode),
+        actor_role=ActorRole(arguments.role),
+        skill_root=str(Path(arguments.skill_root).resolve()) if arguments.skill_root else None,
+    )
+    Project.initialize(root, config)
+    print(root)
+
+
+def command_status(arguments: argparse.Namespace) -> None:
+    project = _project(arguments.path)
+    print(
+        f"project={project.config.project_id} role={project.config.actor_role.value} "
+        f"mode={project.config.evaluation_mode.value}"
+    )
+    for stage in project.store.stages():
+        dependencies = ",".join(stage.dependencies) or "-"
+        print(
+            f"{stage.position + 1:02d} {stage.status.value:14} {stage.owner.value:11} "
+            f"{stage.name:28} deps={dependencies}"
+        )
+
+
+def command_stage_start(arguments: argparse.Namespace) -> None:
+    project = _project(arguments.path)
+    project.start(arguments.stage)
+    print(f"started {arguments.stage}")
+
+
+def command_stage_complete(arguments: argparse.Namespace) -> None:
+    project = _project(arguments.path)
+    project.complete(arguments.stage, StageStatus(arguments.outcome), message=arguments.message)
+    print(f"{arguments.stage} -> {arguments.outcome}")
+
+
+def command_artifact_add(arguments: argparse.Namespace) -> None:
+    project = _project(arguments.path)
+    digest = project.add_artifact(
+        arguments.stage,
+        arguments.kind,
+        Path(arguments.file),
+        direction=arguments.direction,
+    )
+    print(digest)
+
+
+def _render_prompt(
+    project: Project, stage: str, objective: str, context_path: str | None
+):
+    if not project.config.skill_root:
+        raise WorkflowError("project has no skill_root; initialize it with --skill-root")
+    context = None
+    if context_path:
+        context = json.loads(Path(context_path).read_text(encoding="utf-8"))
+        if not isinstance(context, dict):
+            raise WorkflowError("Prompt context must be a JSON object")
+    composer = SkillPromptComposer(Path(project.config.skill_root))
+    return composer.render(
+        stage=stage,
+        actor_role=project.config.actor_role,
+        objective=objective,
+        context=context,
+    )
+
+
+def command_prompt_render(arguments: argparse.Namespace) -> None:
+    project = _project(arguments.path)
+    stage = project.store.stage(arguments.stage)
+    if stage.status not in {StageStatus.READY, StageStatus.RUNNING}:
+        raise WorkflowError(
+            f"Prompt may only be rendered for a READY/RUNNING stage, got {stage.status.value}"
+        )
+    rendered = _render_prompt(project, arguments.stage, arguments.objective, arguments.context)
+    project.add_bytes(
+        arguments.stage,
+        "codex_prompt",
+        rendered.text.encode("utf-8"),
+        source=f"generated:prompt:{rendered.digest}",
+        direction="input",
+    )
+    if arguments.output:
+        output = Path(arguments.output).resolve()
+        output.parent.mkdir(parents=True, exist_ok=True)
+        output.write_text(rendered.text, encoding="utf-8")
+        print(json.dumps({"prompt_sha256": rendered.digest, "output": str(output)}))
+    else:
+        sys.stdout.write(rendered.text)
+
+
+def command_codex_run(arguments: argparse.Namespace) -> None:
+    project = _project(arguments.path)
+    stage = project.store.stage(arguments.stage)
+    if stage.status is StageStatus.READY:
+        project.start(arguments.stage)
+    elif stage.status is not StageStatus.RUNNING:
+        raise WorkflowError(
+            f"Codex stage must be READY or RUNNING, got {stage.status.value}"
+        )
+    rendered = _render_prompt(project, arguments.stage, arguments.objective, arguments.context)
+    project.add_bytes(
+        arguments.stage,
+        "codex_prompt",
+        rendered.text.encode("utf-8"),
+        source=f"generated:prompt:{rendered.digest}",
+        direction="input",
+    )
+    codex_dir = project.control / "codex"
+    codex_dir.mkdir(parents=True, exist_ok=True)
+    output_path = (
+        Path(arguments.output).resolve()
+        if arguments.output
+        else codex_dir / f"{arguments.stage}-{rendered.digest[:12]}.json"
+    )
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    schema = Path(arguments.schema).resolve() if arguments.schema else None
+    job = CodexJob(
+        stage=arguments.stage,
+        actor_role=project.config.actor_role,
+        objective=arguments.objective,
+        prompt=rendered.text,
+        workspace=project.root,
+        output_schema=schema,
+        output_path=output_path,
+        model=arguments.model,
+        sandbox=arguments.sandbox,
+        thread_id=arguments.thread_id,
+    )
+    gateway = CodexExecGateway(arguments.codex_bin) if arguments.backend == "exec" else CodexSdkGateway()
+    result = gateway.run(job)
+    if not output_path.exists():
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        output_path.write_text(result.final_response, encoding="utf-8")
+    if schema:
+        try:
+            json.loads(output_path.read_text(encoding="utf-8"))
+        except json.JSONDecodeError as error:
+            raise WorkflowError("Codex output is not valid JSON despite an output schema") from error
+    project.add_artifact(arguments.stage, arguments.result_kind, output_path)
+    if result.events:
+        event_data = "\n".join(json.dumps(event, sort_keys=True) for event in result.events) + "\n"
+        project.add_bytes(
+            arguments.stage,
+            "codex_event_log",
+            event_data.encode("utf-8"),
+            source=f"generated:codex-job:{result.job_id}",
+        )
+    if arguments.complete:
+        project.complete(arguments.stage, StageStatus.PASS)
+    print(
+        json.dumps(
+            {
+                "job_id": result.job_id,
+                "thread_id": result.thread_id,
+                "prompt_sha256": rendered.digest,
+                "output": str(output_path),
+            },
+            ensure_ascii=False,
+        )
+    )
+
+
+def command_seal(arguments: argparse.Namespace) -> None:
+    project = _project(arguments.path)
+    seal = CandidateSealer().seal(
+        project, output=Path(arguments.output).resolve() if arguments.output else None
+    )
+    print(seal.digest)
+
+
+def command_ledger_verify(arguments: argparse.Namespace) -> None:
+    project = _project(arguments.path)
+    valid = project.store.verify_event_chain()
+    print("PASS" if valid else "FAIL")
+    if not valid:
+        raise WorkflowError("event ledger verification failed")
+
+
+def parser() -> argparse.ArgumentParser:
+    root = argparse.ArgumentParser(prog="dpf", description="Driver Port Factory")
+    commands = root.add_subparsers(dest="command", required=True)
+
+    init = commands.add_parser("init", help="initialize a role-specific project workspace")
+    init.add_argument("path")
+    init.add_argument("--project-id")
+    init.add_argument("--source", required=True)
+    init.add_argument("--target", required=True)
+    init.add_argument("--driver", required=True)
+    init.add_argument("--mode", choices=[value.value for value in EvaluationMode], required=True)
+    init.add_argument("--role", choices=[value.value for value in ActorRole], required=True)
+    init.add_argument("--skill-root")
+    init.set_defaults(handler=command_init)
+
+    status = commands.add_parser("status", help="show the stage DAG and current status")
+    status.add_argument("path")
+    status.set_defaults(handler=command_status)
+
+    stage = commands.add_parser("stage", help="manually drive a stage")
+    stage_commands = stage.add_subparsers(dest="stage_command", required=True)
+    start = stage_commands.add_parser("start")
+    start.add_argument("path")
+    start.add_argument("stage")
+    start.set_defaults(handler=command_stage_start)
+    complete = stage_commands.add_parser("complete")
+    complete.add_argument("path")
+    complete.add_argument("stage")
+    complete.add_argument(
+        "--outcome",
+        required=True,
+        choices=[
+            StageStatus.PASS.value,
+            StageStatus.FAIL.value,
+            StageStatus.BLOCKED.value,
+            StageStatus.INCONCLUSIVE.value,
+            StageStatus.NOT_APPLICABLE.value,
+        ],
+    )
+    complete.add_argument("--message")
+    complete.set_defaults(handler=command_stage_complete)
+
+    artifact = commands.add_parser("artifact", help="register immutable stage artifacts")
+    artifact_commands = artifact.add_subparsers(dest="artifact_command", required=True)
+    add = artifact_commands.add_parser("add")
+    add.add_argument("path")
+    add.add_argument("stage")
+    add.add_argument("kind")
+    add.add_argument("file")
+    add.add_argument("--direction", choices=["input", "output"], default="output")
+    add.set_defaults(handler=command_artifact_add)
+
+    prompt = commands.add_parser("prompt", help="compose versioned prompts from upstream Skills")
+    prompt_commands = prompt.add_subparsers(dest="prompt_command", required=True)
+    render = prompt_commands.add_parser("render")
+    render.add_argument("path")
+    render.add_argument("stage")
+    render.add_argument("--objective", required=True)
+    render.add_argument("--context")
+    render.add_argument("--output")
+    render.set_defaults(handler=command_prompt_render)
+
+    codex = commands.add_parser("codex", help="run a bounded Codex stage job")
+    codex_commands = codex.add_subparsers(dest="codex_command", required=True)
+    run = codex_commands.add_parser("run")
+    run.add_argument("path")
+    run.add_argument("stage")
+    run.add_argument("--objective", required=True)
+    run.add_argument("--context")
+    run.add_argument("--schema")
+    run.add_argument("--result-kind", required=True)
+    run.add_argument("--output")
+    run.add_argument("--backend", choices=["exec", "sdk"], default="exec")
+    run.add_argument("--codex-bin", default="codex")
+    run.add_argument("--model")
+    run.add_argument(
+        "--sandbox",
+        choices=["read-only", "workspace-write", "danger-full-access"],
+        default="workspace-write",
+    )
+    run.add_argument("--thread-id")
+    run.add_argument("--complete", action="store_true")
+    run.set_defaults(handler=command_codex_run)
+
+    seal = commands.add_parser("seal", help="create the canonical candidate manifest")
+    seal.add_argument("path")
+    seal.add_argument("--output")
+    seal.set_defaults(handler=command_seal)
+
+    ledger = commands.add_parser("ledger", help="audit the hash-chained event log")
+    ledger_commands = ledger.add_subparsers(dest="ledger_command", required=True)
+    verify = ledger_commands.add_parser("verify")
+    verify.add_argument("path")
+    verify.set_defaults(handler=command_ledger_verify)
+    return root
+
+
+def main(argv: list[str] | None = None) -> int:
+    try:
+        arguments = parser().parse_args(argv)
+        arguments.handler(arguments)
+    except (WorkflowError, ValueError, OSError, json.JSONDecodeError) as error:
+        print(f"error: {error}", file=sys.stderr)
+        return 2
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://driver-port-factory.local/schemas/codex-job-result.schema.json",
+  "type": "object",
+  "required": ["stage", "summary", "outputs", "evidence", "unresolved"],
+  "properties": {
+    "stage": {"type": "string"},
+    "summary": {"type": "string"},
+    "outputs": {"type": "array", "items": {"type": "object"}},
+    "evidence": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["path", "locator", "claim"],
+        "properties": {
+          "path": {"type": "string"},
+          "locator": {"type": "string"},
+          "claim": {"type": "string"},
+          "sha256": {"type": "string"}
+        },
+        "additionalProperties": false
+      }
+    },
+    "unresolved": {"type": "array", "items": {"type": "string"}},
+    "suggested_outcome": {
+      "enum": ["PASS", "FAIL", "BLOCKED", "INCONCLUSIVE", "NOT_APPLICABLE"]
+    }
+  },
+  "additionalProperties": false
+}

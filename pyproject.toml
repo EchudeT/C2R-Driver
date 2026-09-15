@@ -1,0 +1,31 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "driver-port-factory"
+version = "0.1.0"
+description = "Evidence-driven C-to-Rust driver migration workflow engine"
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "Proprietary" }
+authors = [{ name = "C2R Driver Project" }]
+dependencies = []
+
+[project.optional-dependencies]
+codex = ["openai-codex"]
+dev = ["pytest>=8", "ruff>=0.6"]
+
+[project.scripts]
+dpf = "driver_port_factory.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"

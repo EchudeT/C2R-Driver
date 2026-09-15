@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://driver-port-factory.local/schemas/revision-manifest.schema.json",
+  "type": "object",
+  "required": ["source", "target", "qemu"],
+  "properties": {
+    "source": {"$ref": "#/$defs/revision"},
+    "target": {"$ref": "#/$defs/revision"},
+    "qemu": {"$ref": "#/$defs/revision"}
+  },
+  "$defs": {
+    "revision": {
+      "type": "object",
+      "required": ["revision"],
+      "properties": {
+        "revision": {"type": "string", "minLength": 1},
+        "url": {"type": "string"},
+        "tree_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+      },
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": false
+}
