@@ -15,6 +15,10 @@ from driver_port_factory.core.models import (
 from driver_port_factory.core.project import Project
 from driver_port_factory.intake.service import IntakeService
 
+NE2000_FIXTURE = (
+    Path(__file__).parents[1] / "examples" / "fixtures" / "linux-ne2000.catalog.json"
+)
+
 
 def project_config(driver_name: str) -> ProjectConfig:
     return ProjectConfig(
@@ -36,6 +40,7 @@ class IntakeServiceTests(unittest.TestCase):
             result = IntakeService().analyze(
                 project,
                 raw_request="把 Linux ne2k-pci 迁移到星绽OS",
+                catalog_paths=(NE2000_FIXTURE,),
             )
             self.assertEqual(result.status, IntakeStatus.FROZEN)
             self.assertEqual(result.selected_candidate_id, "linux-ne2k-pci")
@@ -54,6 +59,7 @@ class IntakeServiceTests(unittest.TestCase):
             result = service.analyze(
                 project,
                 raw_request="把 Linux NE2000 驱动迁移到星绽OS",
+                catalog_paths=(NE2000_FIXTURE,),
             )
             self.assertEqual(result.status, IntakeStatus.WAITING_FOR_USER)
             self.assertEqual(len(result.candidates), 3)
@@ -80,7 +86,10 @@ class IntakeServiceTests(unittest.TestCase):
             )
             shown = service.show(project)
             self.assertIn("ne:ISA", shown["migration_envelope"]["excluded_variants"])
-            self.assertEqual(len(shown["resolution"]["catalog"]["sha256"]), 64)
+            self.assertEqual(len(shown["resolution"]["metadata_sources"]), 1)
+            self.assertEqual(
+                len(shown["resolution"]["metadata_sources"][0]["digest"]), 64
+            )
             self.assertEqual(shown["question"]["question_count"], 1)
             self.assertTrue(project.store.verify_event_chain())
 

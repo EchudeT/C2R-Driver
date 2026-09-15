@@ -61,6 +61,18 @@ class Resolution:
     candidates: tuple[DriverCandidate, ...]
     match_type: str
     auto_confirmable: bool
+    metadata_sources: tuple["MetadataSource", ...] = ()
+
+
+@dataclass(frozen=True, slots=True)
+class MetadataSource:
+    provider_id: str
+    version: int
+    digest: str
+    source: str
+
+    def to_dict(self) -> dict[str, Any]:
+        return asdict(self)
 
 
 class DriverCatalog:
@@ -100,18 +112,13 @@ class DriverCatalog:
             source=str(path),
         )
 
-    @classmethod
-    def builtin(cls, source_platform: str) -> "DriverCatalog":
-        catalog_path = Path(__file__).parent / "catalogs" / f"{normalize_name(source_platform)}.json"
-        if catalog_path.exists():
-            return cls.from_file(catalog_path)
-        return cls(
-            source_platform,
-            (),
-            catalog_id="empty-catalog",
-            catalog_version=1,
-            digest=hashlib.sha256(b"empty-catalog-v1").hexdigest(),
-            source="generated:no-built-in-catalog",
+    @property
+    def metadata_source(self) -> MetadataSource:
+        return MetadataSource(
+            provider_id=self.catalog_id,
+            version=self.catalog_version,
+            digest=self.digest,
+            source=self.source,
         )
 
     def resolve(self, query: str) -> Resolution:
@@ -137,7 +144,19 @@ class DriverCatalog:
             elif query_tokens and len(query_tokens & candidate_tokens) >= min(2, len(query_tokens)):
                 fuzzy.append(candidate)
         if exact:
-            return Resolution(query, tuple(exact), "EXACT", len(exact) == 1)
+            return Resolution(
+                query,
+                tuple(exact),
+                "EXACT",
+                len(exact) == 1,
+                (self.metadata_source,),
+            )
         if fuzzy:
-            return Resolution(query, tuple(fuzzy), "FUZZY", False)
-        return Resolution(query, (), "NO_MATCH", False)
+            return Resolution(
+                query,
+                tuple(fuzzy),
+                "FUZZY",
+                False,
+                (self.metadata_source,),
+            )
+        return Resolution(query, (), "NO_MATCH", False, (self.metadata_source,))

@@ -22,9 +22,6 @@ dpf = "driver_port_factory.cli:main"
 [tool.setuptools.packages.find]
 where = ["src"]
 
-[tool.setuptools.package-data]
-driver_port_factory = ["intake/catalogs/*.json"]
-
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-q"

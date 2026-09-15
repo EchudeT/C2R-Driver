@@ -33,11 +33,12 @@ python -m driver_port_factory.cli init ./runs/ne2000 \
 
 python -m driver_port_factory.cli status ./runs/ne2000
 python -m driver_port_factory.cli intake analyze ./runs/ne2000 \
-  --request "把 Linux 的 NE2000 PCI 驱动迁移到星绽OS"
+  --request "把 Linux 的 NE2000 PCI 驱动迁移到星绽OS" \
+  --catalog examples/fixtures/linux-ne2000.catalog.json
 python -m driver_port_factory.cli intake show ./runs/ne2000
 ```
 
-如果输入只有 `NE2000`，程序会冻结一个包含 PCI、ISA、PCMCIA 候选的合并问题并进入 `WAITING_FOR_USER`。随后执行：
+这里的 NE2000 catalog 只是集成测试 fixture，不会安装进生产包。正式运行由源平台 Resolver 加载一个或多个带来源、版本和 SHA256 的轻量元数据 provider。如果输入只有 `NE2000`，fixture 会产生 PCI、ISA、PCMCIA 候选的合并问题并进入 `WAITING_FOR_USER`。随后执行：
 
 ```sh
 python -m driver_port_factory.cli intake answer ./runs/ne2000 \

@@ -7,7 +7,8 @@ from typing import Any
 
 from ..core.models import ActorRole, IntakeStatus, StageStatus, WorkflowError, utc_now
 from ..core.project import Project
-from .catalog import DriverCandidate, DriverCatalog, Resolution
+from .catalog import DriverCandidate, Resolution
+from .resolver import CompositeSourceDriverResolver, DriverRequest, SourceDriverResolver
 
 
 @dataclass(frozen=True, slots=True)
@@ -26,7 +27,8 @@ class IntakeService:
         project: Project,
         *,
         raw_request: str,
-        catalog_path: Path | None = None,
+        catalog_paths: tuple[Path, ...] = (),
+        resolver: SourceDriverResolver | None = None,
     ) -> IntakeAnalysisResult:
         project.ensure_role(*self.ROLES)
         if not raw_request.strip():
@@ -35,16 +37,11 @@ class IntakeService:
             raise WorkflowError(
                 "intake was already analyzed; use `dpf intake show` or answer the stored question"
             )
-        catalog = (
-            DriverCatalog.from_file(catalog_path)
-            if catalog_path
-            else DriverCatalog.builtin(project.config.source_platform)
+        if resolver is not None and catalog_paths:
+            raise WorkflowError("supply either a resolver or metadata catalogs, not both")
+        active_resolver = resolver or CompositeSourceDriverResolver.from_catalogs(
+            project.config.source_platform, catalog_paths
         )
-        if catalog.source_platform.casefold() != project.config.source_platform.casefold():
-            raise WorkflowError(
-                f"catalog platform {catalog.source_platform} does not match "
-                f"{project.config.source_platform}"
-            )
         project.start("request_intake")
         request = {
             "schema_version": 1,
@@ -59,19 +56,23 @@ class IntakeService:
         project.complete("request_intake", StageStatus.PASS)
 
         project.start("driver_candidate_resolution")
-        resolution = catalog.resolve(project.config.driver_name)
+        resolution = active_resolver.resolve(
+            DriverRequest(
+                source_platform=project.config.source_platform,
+                target_platform=project.config.target_platform,
+                driver_name=project.config.driver_name,
+                raw_request=raw_request,
+            )
+        )
         candidate_record = {
             "schema_version": 1,
             "query": resolution.query,
             "match_type": resolution.match_type,
             "auto_confirmable": resolution.auto_confirmable,
             "metadata_scope": "LIGHTWEIGHT_ONLY",
-            "catalog": {
-                "id": catalog.catalog_id,
-                "version": catalog.catalog_version,
-                "sha256": catalog.digest,
-                "source": catalog.source,
-            },
+            "metadata_sources": [
+                source.to_dict() for source in resolution.metadata_sources
+            ],
             "candidates": [candidate.to_dict() for candidate in resolution.candidates],
         }
         self._add_json(
@@ -90,7 +91,10 @@ class IntakeService:
                 answer="Automatically confirmed from one exact catalog match.",
                 confirmation_basis=[
                     f"exact canonical/alias/source match: {project.config.driver_name}",
-                    f"catalog:{catalog.catalog_id}@{catalog.catalog_version}:{catalog.digest}",
+                    *(
+                        f"provider:{source.provider_id}@{source.version}:{source.digest}"
+                        for source in resolution.metadata_sources
+                    ),
                 ],
                 automatic=True,
             )

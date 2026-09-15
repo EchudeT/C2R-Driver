@@ -22,7 +22,7 @@ WAITING_FOR_USER + answer -> CONFIRMED -> FROZEN
 3. 本地现有源码索引；
 4. 轻量官方元数据或 Codex 分析任务。
 
-不得在这一阶段 clone 完整内核、下载镜像、手册或工具链。内置 Linux 目录只作为 bootstrap 元数据，每次使用都记录目录版本和 SHA256；固定源码取得后仍需验证源码入口与设备表。发现实质冲突时重新打开身份门。
+不得在这一阶段 clone 完整内核、下载镜像、手册或工具链。`SourceDriverResolver` 从一个或多个版本化 `DriverMetadataProvider` 合并候选，每个 provider 都记录平台、来源、版本和 SHA256。生产包不内置具体驱动目录；NE2000 目录只存在于 `examples/fixtures`。固定源码取得后仍需验证源码入口与设备表，发现实质冲突时重新打开身份门。
 
 ## 冻结输出
 
@@ -33,7 +33,9 @@ WAITING_FOR_USER + answer -> CONFIRMED -> FROZEN
 ## CLI
 
 ```sh
-dpf intake analyze ./run --request "把 Linux 的 NE2000 驱动迁移到星绽OS"
+dpf intake analyze ./run \
+  --request "把 Linux 的 NE2000 驱动迁移到星绽OS" \
+  --catalog examples/fixtures/linux-ne2000.catalog.json
 dpf intake show ./run
 dpf intake answer ./run --candidate-id linux-ne2k-pci \
   --answer "选择 PCI ne2k-pci，排除 ISA 和 PCMCIA"

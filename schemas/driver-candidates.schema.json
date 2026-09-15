@@ -2,12 +2,26 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://driver-port-factory.local/schemas/driver-candidates.schema.json",
   "type": "object",
-  "required": ["query", "match_type", "auto_confirmable", "metadata_scope", "candidates"],
+  "required": [
+    "query",
+    "match_type",
+    "auto_confirmable",
+    "metadata_scope",
+    "metadata_sources",
+    "candidates"
+  ],
   "properties": {
     "query": {"type": "string"},
     "match_type": {"enum": ["EXACT", "FUZZY", "NO_MATCH"]},
     "auto_confirmable": {"type": "boolean"},
     "metadata_scope": {"const": "LIGHTWEIGHT_ONLY"},
+    "metadata_sources": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["provider_id", "version", "digest", "source"]
+      }
+    },
     "candidates": {
       "type": "array",
       "items": {

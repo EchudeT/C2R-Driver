@@ -51,7 +51,7 @@ def command_intake_analyze(arguments: argparse.Namespace) -> None:
     result = IntakeService().analyze(
         project,
         raw_request=arguments.request,
-        catalog_path=Path(arguments.catalog).resolve() if arguments.catalog else None,
+        catalog_paths=tuple(Path(path).resolve() for path in (arguments.catalog or ())),
     )
     print(
         json.dumps(
@@ -280,7 +280,11 @@ def parser() -> argparse.ArgumentParser:
     analyze = intake_commands.add_parser("analyze")
     analyze.add_argument("path")
     analyze.add_argument("--request", required=True)
-    analyze.add_argument("--catalog", help="optional lightweight driver catalog JSON")
+    analyze.add_argument(
+        "--catalog",
+        action="append",
+        help="versioned lightweight metadata catalog JSON; may be repeated",
+    )
     analyze.set_defaults(handler=command_intake_analyze)
     answer = intake_commands.add_parser("answer")
     answer.add_argument("path")

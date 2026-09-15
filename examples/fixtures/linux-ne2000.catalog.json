@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "catalog_id": "linux-driver-intake-bootstrap",
+  "catalog_id": "linux-ne2000-test-fixture",
   "catalog_version": 1,
   "source_platform": "linux",
   "drivers": [

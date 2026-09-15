@@ -14,6 +14,10 @@ from driver_port_factory.core.models import (
 from driver_port_factory.core.project import Project
 from driver_port_factory.intake.service import IntakeService
 
+NE2000_FIXTURE = (
+    Path(__file__).parents[1] / "examples" / "fixtures" / "linux-ne2000.catalog.json"
+)
+
 
 def config(**overrides) -> ProjectConfig:
     values = {
@@ -41,6 +45,7 @@ class WorkflowTests(unittest.TestCase):
             result = IntakeService().analyze(
                 project,
                 raw_request="Port Linux ne2k-pci to Asterinas",
+                catalog_paths=(NE2000_FIXTURE,),
             )
             self.assertEqual(result.status.value, "FROZEN")
             self.assertEqual(project.store.stage("revision_selection").status, StageStatus.READY)
