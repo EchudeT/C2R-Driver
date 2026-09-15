@@ -63,7 +63,19 @@ def prepare_project(root: Path) -> tuple[Project, dict[str, CheckoutRecord]]:
     source = repository(
         root,
         "source",
-        {"drivers/example.c": "example driver source entry and initialization\n"},
+        {
+            "drivers/example.c": (
+                "/* example driver source entry and initialization */\n"
+                '#include "example.h"\n'
+                "int example_init(void) { return shared_value(); }\n"
+            ),
+            "drivers/example.h": "int shared_value(void);\n",
+            "drivers/shared.c": (
+                '#include "example.h"\nint shared_value(void) { return EXAMPLE_FEATURE; }\n'
+            ),
+            "include/example-config.h": "#define EXAMPLE_CONFIGURED 1\n",
+            "tests/example-driver-test.c": "/* source test for the example device */\n",
+        },
     )
     target = repository(
         root,

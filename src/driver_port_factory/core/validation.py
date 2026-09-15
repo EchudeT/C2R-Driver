@@ -6,11 +6,15 @@ from typing import Any
 from .models import WorkflowError
 
 
-def _json_object(data: bytes, kind: str) -> dict[str, Any]:
+def _json_value(data: bytes, kind: str) -> Any:
     try:
-        value = json.loads(data)
+        return json.loads(data)
     except (UnicodeDecodeError, json.JSONDecodeError) as error:
         raise WorkflowError(f"{kind} must be a UTF-8 JSON document") from error
+
+
+def _json_object(data: bytes, kind: str) -> dict[str, Any]:
+    value = _json_value(data, kind)
     if not isinstance(value, dict):
         raise WorkflowError(f"{kind} must be a JSON object")
     return value
@@ -101,7 +105,11 @@ def validate_artifact(kind: str, data: bytes) -> None:
             raise WorkflowError("acquisition_manifest requires three controlled checkouts")
         if not isinstance(value.get("source_identity_verification"), dict):
             raise WorkflowError("acquisition_manifest requires source identity verification")
-    elif kind in {"materials_manifest", "knowledge_materials_manifest"}:
+    elif kind in {
+        "materials_manifest",
+        "knowledge_materials_manifest",
+        "source_closure_materials_manifest",
+    }:
         try:
             lines = [json.loads(line) for line in data.decode("utf-8").splitlines() if line]
         except (UnicodeDecodeError, json.JSONDecodeError) as error:
@@ -216,6 +224,55 @@ def validate_artifact(kind: str, data: bytes) -> None:
         value = _json_object(data, kind)
         if value.get("status") != "PASS" or value.get("errors"):
             raise WorkflowError("target_study_report must pass without validation errors")
+    elif kind == "source_closure":
+        value = _json_object(data, kind)
+        if value.get("schema_version") != 1 or value.get("closure_status") != "CLOSED":
+            raise WorkflowError("source_closure must be schema_version=1 and CLOSED")
+        if not isinstance(value.get("compiler"), dict):
+            raise WorkflowError("source_closure requires a compiler identity")
+        if not isinstance(value.get("translation_units"), list) or not value["translation_units"]:
+            raise WorkflowError("source_closure requires translation units")
+        if value.get("unresolved_dependencies") != []:
+            raise WorkflowError("source_closure cannot contain unresolved dependencies")
+    elif kind in {"source_closure_report", "source_closure_validation_attempt"}:
+        value = _json_object(data, kind)
+        errors = value.get("errors")
+        if kind == "source_closure_report" and (value.get("status") != "PASS" or errors != []):
+            raise WorkflowError("source_closure_report must pass without errors")
+        if kind == "source_closure_validation_attempt" and (
+            value.get("status") != "FAIL" or not isinstance(errors, list) or not errors
+        ):
+            raise WorkflowError("source_closure_validation_attempt must preserve a failed attempt")
+    elif kind == "compile_manifest":
+        value = _json_object(data, kind)
+        compiler = value.get("compiler")
+        units = value.get("translation_units")
+        if value.get("schema_version") != 1 or not value.get("source_revision"):
+            raise WorkflowError("compile_manifest requires its source revision")
+        if not isinstance(compiler, dict) or len(str(compiler.get("sha256", ""))) != 64:
+            raise WorkflowError("compile_manifest requires a hashed compiler")
+        if not isinstance(units, list) or not units:
+            raise WorkflowError("compile_manifest requires translation units")
+    elif kind == "compilation_database":
+        value = _json_value(data, kind)
+        if not isinstance(value, list) or not value:
+            raise WorkflowError("compilation_database must be a non-empty JSON array")
+        for entry in value:
+            if not isinstance(entry, dict) or not all(
+                entry.get(field) for field in ("directory", "file", "arguments")
+            ):
+                raise WorkflowError("compilation_database entries require directory, file, argv")
+            if not isinstance(entry["arguments"], list):
+                raise WorkflowError("compilation_database arguments must be an argv list")
+    elif kind == "knowledge_revision":
+        value = _json_object(data, kind)
+        index_status = value.get("index_status")
+        if value.get("schema_version") != 1 or len(str(value.get("manifest_sha256", ""))) != 64:
+            raise WorkflowError("knowledge_revision requires a hashed schema_version=1 manifest")
+        if not isinstance(value.get("added_materials"), list):
+            raise WorkflowError("knowledge_revision.added_materials must be a list")
+        if not isinstance(index_status, dict) or index_status.get("status") != "READY":
+            raise WorkflowError("knowledge_revision requires a rebuilt READY index")
     elif kind == "candidate_digest_anchor":
         value = _json_object(data, kind)
         digest = value.get("candidate_sha256")

@@ -15,6 +15,7 @@ from .intake.service import IntakeService
 from .knowledge.index import KnowledgeIndex
 from .knowledge.service import DOMAINS, KnowledgeService
 from .sealing.candidate import CandidateSealer
+from .source_analysis.closure import SourceClosureService
 from .target_study.service import TargetStudyService
 
 
@@ -306,6 +307,27 @@ def command_target_study_validate(arguments: argparse.Namespace) -> None:
         json.dumps(
             {
                 "status": result.status,
+                "stage_status": result.stage_status.value,
+                "report_path": result.report_path,
+                "errors": list(result.errors),
+            },
+            ensure_ascii=False,
+            sort_keys=True,
+            indent=2,
+        )
+    )
+
+
+def command_source_closure_validate(arguments: argparse.Namespace) -> None:
+    project = _project(arguments.path)
+    result = SourceClosureService().validate(
+        project,
+        closure_path=Path(arguments.closure),
+    )
+    print(
+        json.dumps(
+            {
+                "status": result.status.value,
                 "stage_status": result.stage_status.value,
                 "report_path": result.report_path,
                 "errors": list(result.errors),
@@ -648,6 +670,17 @@ def parser() -> argparse.ArgumentParser:
     target_study_validate.add_argument("--analogous-trace", required=True)
     target_study_validate.add_argument("--change-plan", required=True)
     target_study_validate.set_defaults(handler=command_target_study_validate)
+
+    source_closure = commands.add_parser(
+        "source-closure", help="validate and freeze the behaviorally required C source closure"
+    )
+    source_closure_commands = source_closure.add_subparsers(
+        dest="source_closure_command", required=True
+    )
+    source_closure_validate = source_closure_commands.add_parser("validate")
+    source_closure_validate.add_argument("path")
+    source_closure_validate.add_argument("--closure", required=True)
+    source_closure_validate.set_defaults(handler=command_source_closure_validate)
 
     stage = commands.add_parser("stage", help="manually drive a stage")
     stage_commands = stage.add_subparsers(dest="stage_command", required=True)

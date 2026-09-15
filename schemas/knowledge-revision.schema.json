@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://c2r-driver.local/schemas/knowledge-revision.schema.json",
+  "title": "Knowledge corpus revision produced by source closure",
+  "type": "object",
+  "required": ["schema_version", "reason", "added_materials", "manifest_sha256", "index_status"],
+  "properties": {
+    "schema_version": {"const": 1},
+    "reason": {"type": "string", "minLength": 1},
+    "added_materials": {"type": "array"},
+    "manifest_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "index_status": {
+      "type": "object",
+      "required": ["status", "manifest_fingerprint", "chunks_sha256"],
+      "properties": {"status": {"const": "READY"}}
+    }
+  }
+}

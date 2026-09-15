@@ -29,7 +29,8 @@
 
 - 通用环境清单、artifact-mode 发现、恢复尝试和真实 `EXPERIMENT_READY` 运行；
 - 接入现有 `kb.py`；
-- Clang compile database、AST/CFG/layout/effect 导出；
+- 基于已冻结 compile database 的 AST/CFG/layout/effect 导出；
+- 固定编译器与 compile database、验证七类 C 源码闭包并把新增原文回写知识库；
 - 目标平台画像、API 证据表、analog trace 和检索修复；
 - 目标 artifact identity 和 QEMU runner 插件契约。
 

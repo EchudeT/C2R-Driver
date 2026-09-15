@@ -14,7 +14,7 @@
 | 8 | environment_recovery | 混合 | artifact mode、experiment route |
 | 9 | knowledge_base | 静态 | KB integrity、query contract、target probes、生成的项目 KB Skill |
 | 10 | target_platform_study | Codex+Gate | target profile、API evidence、analog trace、target-change plan |
-| 11 | source_closure | 混合 | behaviorally required closure |
+| 11 | source_closure | Codex+静态 Gate | frozen compile manifest、compiler-discovered closure、KB revision |
 | 12 | structured_c_analysis | 静态 | AST/CFG/layout/effect facts |
 | 13 | migration_contracts | 混合 | evidence-backed contracts |
 | 14 | test_adaptation | 混合 | retained/adapted/excluded matrix |

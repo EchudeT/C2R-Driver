@@ -129,7 +129,14 @@ def migration_workflow(config: ProjectConfig) -> list[StageSpec]:
             "source_closure",
             "Close the behaviorally required C dependency set.",
             StageOwner.HYBRID,
-            ("source_closure",),
+            (
+                "source_closure",
+                "source_closure_report",
+                "compile_manifest",
+                "compilation_database",
+                "source_closure_materials_manifest",
+                "knowledge_revision",
+            ),
         ),
         (
             "structured_c_analysis",
