@@ -4,6 +4,7 @@ import hashlib
 import json
 import os
 import subprocess
+import time
 from collections.abc import Mapping, Sequence
 from dataclasses import asdict, dataclass
 from pathlib import Path
@@ -18,7 +19,10 @@ class CommandResult:
     started_at: str
     completed_at: str
     exit_code: int
+    launched: bool
+    launch_error: str | None
     timed_out: bool
+    duration_milliseconds: int
     stdout_sha256: str
     stderr_sha256: str
     stdout_path: str
@@ -49,7 +53,11 @@ class CommandRunner:
         run_dir = self.runs_root / run_id
         run_dir.mkdir()
         timed_out = False
+        launched = False
+        launch_error = None
+        monotonic_start = time.monotonic()
         try:
+            launched = True
             completed = subprocess.run(
                 list(argv),
                 cwd=cwd.resolve(),
@@ -66,6 +74,13 @@ class CommandRunner:
             stdout = error.stdout or b""
             stderr = error.stderr or b""
             exit_code = 124
+        except OSError as error:
+            launched = False
+            launch_error = f"{type(error).__name__}: {error}"
+            stdout = b""
+            stderr = (launch_error + "\n").encode("utf-8", errors="replace")
+            exit_code = 127
+        duration_milliseconds = round((time.monotonic() - monotonic_start) * 1000)
         stdout_path = run_dir / "stdout.bin"
         stderr_path = run_dir / "stderr.bin"
         stdout_path.write_bytes(stdout)
@@ -76,7 +91,10 @@ class CommandRunner:
             started_at=started_at,
             completed_at=utc_now(),
             exit_code=exit_code,
+            launched=launched,
+            launch_error=launch_error,
             timed_out=timed_out,
+            duration_milliseconds=duration_milliseconds,
             stdout_sha256=hashlib.sha256(stdout).hexdigest(),
             stderr_sha256=hashlib.sha256(stderr).hexdigest(),
             stdout_path=str(stdout_path),

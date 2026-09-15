@@ -91,7 +91,13 @@ def migration_workflow(config: ProjectConfig) -> list[StageSpec]:
             "environment_recovery",
             "Establish artifact mode and a concrete executable experiment route.",
             StageOwner.HYBRID,
-            ("experiment_route",),
+            (
+                "environment_inventory",
+                "artifact_mode_candidates",
+                "artifact_mode_record",
+                "experiment_ready_run",
+                "experiment_route",
+            ),
         ),
         (
             "knowledge_base",

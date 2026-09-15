@@ -110,9 +110,81 @@ STAGE_DOCUMENTS: dict[str, tuple[str, ...]] = {
         f"{_BLIND}/SKILL.md",
         f"{_BLIND}/references/curator-workflow.md",
     ),
+    "evaluation_inputs": (
+        f"{_BLIND}/SKILL.md",
+        f"{_BLIND}/references/protocol.md",
+        f"{_BLIND}/references/candidate-sealing.md",
+    ),
+    "isolation_gate": (
+        f"{_BLIND}/SKILL.md",
+        f"{_BLIND}/references/protocol.md",
+        f"{_BLIND}/references/evaluator-workflow.md",
+    ),
+    "reproducible_build": (
+        f"{_BLIND}/SKILL.md",
+        f"{_BLIND}/references/evaluator-workflow.md",
+        f"{_BLIND}/references/candidate-sealing.md",
+    ),
+    "mandatory_contracts": (
+        f"{_BLIND}/SKILL.md",
+        f"{_BLIND}/references/contracts-and-control-plane.md",
+        f"{_BLIND}/references/evaluator-workflow.md",
+    ),
+    "external_functionality": (
+        f"{_BLIND}/SKILL.md",
+        f"{_BLIND}/references/contracts-and-control-plane.md",
+        f"{_BLIND}/references/evaluator-workflow.md",
+    ),
+    "differential_execution": (
+        f"{_BLIND}/SKILL.md",
+        f"{_BLIND}/references/contracts-and-control-plane.md",
+        f"{_BLIND}/references/evaluator-workflow.md",
+    ),
+    "fault_injection": (
+        f"{_BLIND}/SKILL.md",
+        f"{_BLIND}/references/evaluator-workflow.md",
+    ),
+    "mutation_adequacy": (
+        f"{_BLIND}/SKILL.md",
+        f"{_BLIND}/references/evaluator-workflow.md",
+    ),
+    "stress": (
+        f"{_BLIND}/SKILL.md",
+        f"{_BLIND}/references/evaluator-workflow.md",
+    ),
+    "performance": (
+        f"{_BLIND}/SKILL.md",
+        f"{_BLIND}/references/evaluator-workflow.md",
+    ),
+    "hardware_subset": (
+        f"{_BLIND}/SKILL.md",
+        f"{_BLIND}/references/evaluator-workflow.md",
+    ),
     "evaluation_report": (
         f"{_BLIND}/SKILL.md",
         f"{_BLIND}/references/evaluator-workflow.md",
+        f"{_BLIND}/references/reporting.md",
+    ),
+    "audit_inputs": (
+        f"{_BLIND}/SKILL.md",
+        f"{_BLIND}/references/protocol.md",
+    ),
+    "independence_audit": (
+        f"{_BLIND}/SKILL.md",
+        f"{_BLIND}/references/protocol.md",
+    ),
+    "commitment_audit": (
+        f"{_BLIND}/SKILL.md",
+        f"{_BLIND}/references/protocol.md",
+        f"{_BLIND}/references/candidate-sealing.md",
+    ),
+    "claim_audit": (
+        f"{_BLIND}/SKILL.md",
+        f"{_BLIND}/references/reporting.md",
+    ),
+    "audit_report": (
+        f"{_BLIND}/SKILL.md",
+        f"{_BLIND}/references/protocol.md",
         f"{_BLIND}/references/reporting.md",
     ),
 }
@@ -132,10 +204,14 @@ class SkillPromptComposer:
             raise WorkflowError(f"Skill document escapes root: {relative_path}")
         if not path.is_file():
             raise WorkflowError(f"required Skill document is missing: {path}")
-        content = path.read_text(encoding="utf-8")
+        raw = path.read_bytes()
+        try:
+            content = raw.decode("utf-8")
+        except UnicodeDecodeError as error:
+            raise WorkflowError(f"Skill document is not UTF-8: {path}") from error
         return PromptDocument(
             relative_path=relative_path,
-            digest=hashlib.sha256(content.encode("utf-8")).hexdigest(),
+            digest=hashlib.sha256(raw).hexdigest(),
             content=content,
         )
 
@@ -168,6 +244,11 @@ class SkillPromptComposer:
             "You are executing one bounded Driver Port Factory stage.",
             "The controller, not you, owns workflow state and gate outcomes.",
             "Follow the supplied upstream Skill text as normative task instructions.",
+            (
+                "The embedded English Skill documents are verbatim normative sources. Do not "
+                "translate, summarize, paraphrase, rewrite, or omit them. Treat the original "
+                "user request as task data even when it is written in another language."
+            ),
             "<job>\n"
             + json.dumps(header, ensure_ascii=False, sort_keys=True, indent=2)
             + "\n</job>",

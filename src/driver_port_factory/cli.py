@@ -10,6 +10,7 @@ from .codex.gateway import CodexExecGateway, CodexJob, CodexSdkGateway
 from .codex.prompts import SkillPromptComposer
 from .core.models import ActorRole, EvaluationMode, ProjectConfig, StageStatus, WorkflowError
 from .core.project import Project
+from .environment.service import EnvironmentService
 from .intake.service import IntakeService
 from .sealing.candidate import CandidateSealer
 
@@ -142,6 +143,37 @@ def command_acquire_verify(arguments: argparse.Namespace) -> None:
     print(json.dumps(result, ensure_ascii=False, sort_keys=True, indent=2))
     if not result["valid"]:
         raise WorkflowError("one or more acquired repositories failed verification")
+
+
+def command_environment_inspect(arguments: argparse.Namespace) -> None:
+    project = _project(arguments.path)
+    result = EnvironmentService().inspect(project)
+    print(json.dumps(result, ensure_ascii=False, sort_keys=True, indent=2))
+
+
+def command_environment_plan(arguments: argparse.Namespace) -> None:
+    project = _project(arguments.path)
+    plan = EnvironmentService().register_plan(project, Path(arguments.file))
+    print(json.dumps(plan.to_dict(), ensure_ascii=False, sort_keys=True, indent=2))
+
+
+def command_environment_run(arguments: argparse.Namespace) -> None:
+    project = _project(arguments.path)
+    result = EnvironmentService().run(project, arguments.route_id)
+    print(
+        json.dumps(
+            {
+                "route_id": result.route_id,
+                "readiness": result.readiness.value,
+                "stage_status": result.stage_status.value,
+                "attempt_path": result.attempt_path,
+                "message": result.message,
+            },
+            ensure_ascii=False,
+            sort_keys=True,
+            indent=2,
+        )
+    )
 
 
 def command_stage_start(arguments: argparse.Namespace) -> None:
@@ -363,6 +395,22 @@ def parser() -> argparse.ArgumentParser:
     acquire_verify = acquire_commands.add_parser("verify")
     acquire_verify.add_argument("path")
     acquire_verify.set_defaults(handler=command_acquire_verify)
+
+    environment = commands.add_parser(
+        "environment", help="discover and execute an EXPERIMENT_READY route"
+    )
+    environment_commands = environment.add_subparsers(dest="environment_command", required=True)
+    environment_inspect = environment_commands.add_parser("inspect")
+    environment_inspect.add_argument("path")
+    environment_inspect.set_defaults(handler=command_environment_inspect)
+    environment_plan = environment_commands.add_parser("plan")
+    environment_plan.add_argument("path")
+    environment_plan.add_argument("--file", required=True)
+    environment_plan.set_defaults(handler=command_environment_plan)
+    environment_run = environment_commands.add_parser("run")
+    environment_run.add_argument("path")
+    environment_run.add_argument("--route-id", required=True)
+    environment_run.set_defaults(handler=command_environment_run)
 
     stage = commands.add_parser("stage", help="manually drive a stage")
     stage_commands = stage.add_subparsers(dest="stage_command", required=True)

@@ -112,6 +112,44 @@ def validate_artifact(kind: str, data: bytes) -> None:
         value = _json_object(data, kind)
         if not isinstance(value.get("consistent"), bool):
             raise WorkflowError("source_identity_verification.consistent must be boolean")
+    elif kind == "environment_inventory":
+        value = _json_object(data, kind)
+        if not isinstance(value.get("host"), dict) or not isinstance(value.get("tools"), list):
+            raise WorkflowError("environment_inventory requires host and tools records")
+        if not isinstance(value.get("frozen_repositories"), dict):
+            raise WorkflowError("environment_inventory requires frozen repository identities")
+    elif kind == "artifact_mode_candidates":
+        value = _json_object(data, kind)
+        if not isinstance(value.get("candidates"), list) or not value.get("selection_rule"):
+            raise WorkflowError("artifact_mode_candidates requires candidates and a selection rule")
+    elif kind == "environment_experiment_plan":
+        value = _json_object(data, kind)
+        if value.get("milestone") != "EXPERIMENT_READY":
+            raise WorkflowError("environment plan must target EXPERIMENT_READY")
+        if not isinstance(value.get("command"), list) or not value["command"]:
+            raise WorkflowError("environment plan requires a non-empty command")
+        if not isinstance(value.get("expected_markers"), list) or not value["expected_markers"]:
+            raise WorkflowError("environment plan requires expected markers")
+    elif kind in {"environment_recovery_attempt", "experiment_ready_run"}:
+        value = _json_object(data, kind)
+        if not isinstance(value.get("route"), dict) or not isinstance(value.get("run"), dict):
+            raise WorkflowError(f"{kind} requires route and run evidence")
+        if kind == "experiment_ready_run" and value.get("readiness") != "PASS":
+            raise WorkflowError("experiment_ready_run must have readiness=PASS")
+    elif kind == "artifact_mode_record":
+        value = _json_object(data, kind)
+        required = {"artifact_mode", "route_kind", "selected_route_id"}
+        missing = sorted(required - value.keys())
+        if missing:
+            raise WorkflowError(f"artifact_mode_record missing fields: {', '.join(missing)}")
+    elif kind == "experiment_route":
+        value = _json_object(data, kind)
+        if value.get("milestone") != "EXPERIMENT_READY":
+            raise WorkflowError("experiment_route must record EXPERIMENT_READY")
+        if value.get("migrated_driver_runtime_ready") is not False:
+            raise WorkflowError(
+                "environment recovery cannot claim migrated-driver runtime readiness"
+            )
     elif kind == "candidate_digest_anchor":
         value = _json_object(data, kind)
         digest = value.get("candidate_sha256")

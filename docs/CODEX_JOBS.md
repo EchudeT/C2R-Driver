@@ -10,6 +10,7 @@
 4. 任务目标与输出 JSON Schema。
 
 Skill 原文不是隐式的“最新文件”：组合器记录每份文档的 SHA256，完整 Prompt 也进入 CAS。由此可以重放某次迁移实际使用的 Prompt。
+普通开发项目不锁定 Skill 文件，后续 Job 可以使用调整后的版本并产生新的摘要。只有正式 held-out 批次才通过独立实验配置显式冻结 migrator、Prompt、Skill 和预算。
 
 ## Job 模型
 

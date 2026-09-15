@@ -23,18 +23,17 @@
 - 插件协议和候选物封存；
 - 单元测试。
 
-验收：能初始化 NE2000 项目、展示 DAG、快照 Prompt、登记证据并阻止非法状态转换。
+验收：能用任意版本化驱动 catalog 初始化项目、展示 DAG、快照 Prompt、登记证据并阻止非法状态转换；具体驱动只能存在于 fixture 或插件数据中。
 
-## Milestone 2：首个驱动纵向闭环
+## Milestone 2：环境、知识与结构化语义闭环
 
-- Linux 与星绽OS平台插件；
-- 选择一个具体驱动作为首个集成样例，但不向通用控制面加入驱动特例；
+- 通用环境清单、artifact-mode 发现、恢复尝试和真实 `EXPERIMENT_READY` 运行；
 - 接入现有 `kb.py`；
 - Clang compile database、AST/CFG/layout/effect 导出；
-- NetworkScenario 及 Linux/星绽OS adapter；
-- 目标 artifact identity 和 QEMU runner。
+- 目标平台画像、API 证据表、analog trace 和检索修复；
+- 目标 artifact identity 和 QEMU runner 插件契约。
 
-验收：从输入三元组推进到公开 QEMU 结果和可重放候选封存。
+验收：任意驱动能从输入三元组推进到结构化迁移 handoff；每个 `PASS` 都满足 Skill 对应门禁，不能由占位产物通过。
 
 ## Milestone 3：Codex 修复循环
 
@@ -45,9 +44,10 @@
 
 验收：Codex 不能绕过 Gate；每轮诊断、补丁、命令和结果均可追溯。
 
-## Milestone 4：设备类扩展
+## Milestone 4：设备类纵向样例与扩展
 
-- Block、Serial，然后 I2C/SPI、USB；
+- 分别选择 Network、Block、Serial 的首个集成样例，不向核心加入样例特例；
+- 然后扩展 I2C/SPI、USB；
 - 可复用 source/target test adapter；
 - 差分与 fault injection 后端。
 

@@ -15,6 +15,7 @@ DPF 允许把 Skill 原文及其 references 直接组合进阶段 Prompt。每�
 - 按角色与评测模式生成阶段 DAG；
 - clone 前的请求解析、候选驱动发现、单次确认和迁移范围冻结；
 - source/target/QEMU 的轻量 revision 解析、任务本地 bare fetch 和受控 worktree；
+- 主机/目标/QEMU 路线发现、不可覆盖恢复尝试和真实 `EXPERIMENT_READY` 门禁；
 - SQLite 保存阶段状态和哈希链事件；
 - SHA256 内容寻址产物库；
 - 阶段依赖、必需输出和角色门禁；
@@ -40,6 +41,7 @@ python -m driver_port_factory.cli intake show ./runs/ne2000
 python -m driver_port_factory.cli acquire plan ./runs/ne2000
 python -m driver_port_factory.cli acquire run ./runs/ne2000
 python -m driver_port_factory.cli acquire verify ./runs/ne2000
+python -m driver_port_factory.cli environment inspect ./runs/ne2000
 ```
 
 这里的 NE2000 catalog 只是集成测试 fixture，不会安装进生产包。正式运行由源平台 Resolver 加载一个或多个带来源、版本和 SHA256 的轻量元数据 provider。如果输入只有 `NE2000`，fixture 会产生 PCI、ISA、PCMCIA 候选的合并问题并进入 `WAITING_FOR_USER`。随后执行：
@@ -57,4 +59,4 @@ PYTHONPATH=src python -m driver_port_factory.cli --help
 python -m unittest discover -s tests -v
 ```
 
-详细设计见 [架构](docs/ARCHITECTURE.md)、[迁移需求门](docs/INTAKE.md)、[Git acquisition](docs/ACQUISITION.md)、[阶段工作流](docs/WORKFLOW.md)、[实施计划](docs/IMPLEMENTATION_PLAN.md) 和 [Codex 任务契约](docs/CODEX_JOBS.md)。
+详细设计见 [Skill 规范追踪矩阵](docs/SKILL_TRACEABILITY.md)、[架构](docs/ARCHITECTURE.md)、[迁移需求门](docs/INTAKE.md)、[Git acquisition](docs/ACQUISITION.md)、[环境恢复](docs/ENVIRONMENT_RECOVERY.md)、[阶段工作流](docs/WORKFLOW.md)、[实施计划](docs/IMPLEMENTATION_PLAN.md) 和 [Codex 任务契约](docs/CODEX_JOBS.md)。
