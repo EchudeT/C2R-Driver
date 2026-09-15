@@ -23,7 +23,7 @@ dpf = "driver_port_factory.cli:main"
 where = ["src"]
 
 [tool.setuptools.package-data]
-driver_port_factory = ["data/*.json"]
+driver_port_factory = ["data/*.json", "data/prompt-packs/*/*.json", "data/prompt-packs/*/*.md"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

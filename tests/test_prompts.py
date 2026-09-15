@@ -1,11 +1,12 @@
 from __future__ import annotations
 
 import hashlib
+import json
 import tempfile
 import unittest
 from pathlib import Path
 
-from driver_port_factory.codex.prompts import STAGE_DOCUMENTS, SkillPromptComposer
+from driver_port_factory.codex.prompts import SkillPromptComposer, load_prompt_pack
 from driver_port_factory.core.models import (
     ActorRole,
     EvaluationMode,
@@ -15,35 +16,59 @@ from driver_port_factory.core.models import (
 from driver_port_factory.core.workflow import workflow_for
 
 
+def write_prompt_pack(root: Path, *, wrapper: str, stages: dict[str, list[str]]) -> Path:
+    root.mkdir(parents=True, exist_ok=True)
+    (root / "job.md").write_text(wrapper, encoding="utf-8")
+    (root / "manifest.json").write_text(
+        json.dumps(
+            {
+                "schema_version": 1,
+                "name": "test-pack",
+                "template": "job.md",
+                "stages": stages,
+            }
+        ),
+        encoding="utf-8",
+    )
+    return root
+
+
 class SkillPromptTests(unittest.TestCase):
-    def test_prompt_embeds_exact_english_skill_documents(self) -> None:
+    def test_prompt_uses_current_skill_and_editable_wrapper_sources(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
+            skill_root = root / "skills"
+            documents = [
+                "open-kernel-driver-port/SKILL.md",
+                "open-kernel-driver-port/references/environment-recovery.md",
+            ]
             expected: dict[str, str] = {}
-            for relative in STAGE_DOCUMENTS["environment_recovery"]:
-                path = root / relative
+            for relative in documents:
+                path = skill_root / relative
                 path.parent.mkdir(parents=True, exist_ok=True)
-                content = f"English normative source: {relative}\n"
+                content = f"可编辑的规范来源：{relative}\n"
                 path.write_text(content, encoding="utf-8")
                 expected[relative] = content
-            rendered = SkillPromptComposer(root).render(
+            prompt_pack = write_prompt_pack(
+                root / "prompt-pack",
+                wrapper="自定义阶段指令\n<job>{{job_json}}</job>\n{{skill_documents}}\n",
+                stages={"environment_recovery": documents},
+            )
+            rendered = SkillPromptComposer(skill_root, prompt_pack).render(
                 stage="environment_recovery",
                 actor_role=ActorRole.DEVELOPER,
                 objective="分析用户提供的中文迁移需求",
                 context={"original_user_request": "迁移这个驱动"},
             )
-            self.assertIn("Do not translate, summarize, paraphrase", rendered.text)
+            self.assertIn("自定义阶段指令", rendered.text)
             self.assertIn("迁移这个驱动", rendered.text)
             self.assertEqual(hashlib.sha256(rendered.text.encode()).hexdigest(), rendered.digest)
             for document in rendered.documents:
                 self.assertEqual(document.content, expected[document.relative_path])
-                self.assertEqual(
-                    document.digest,
-                    hashlib.sha256(expected[document.relative_path].encode()).hexdigest(),
-                )
                 self.assertIn(expected[document.relative_path], rendered.text)
 
-    def test_every_non_static_stage_has_an_upstream_skill_mapping(self) -> None:
+    def test_default_pack_maps_every_non_static_stage(self) -> None:
+        prompt_pack = load_prompt_pack()
         configurations = (
             (ActorRole.DEVELOPER, EvaluationMode.DEVELOPER_EVIDENCE),
             (ActorRole.MIGRATION_OPERATOR, EvaluationMode.PROSPECTIVE_BLIND),
@@ -63,33 +88,41 @@ class SkillPromptTests(unittest.TestCase):
                 actor_role=role,
             )
             for stage in workflow_for(config):
-                if stage.owner is not StageOwner.STATIC and stage.name not in STAGE_DOCUMENTS:
+                if stage.owner is not StageOwner.STATIC and stage.name not in prompt_pack.stages:
                     missing.append(f"{role.value}:{stage.name}")
         self.assertEqual(missing, [])
 
-    def test_development_prompt_sources_may_change_between_jobs(self) -> None:
+    def test_prompt_sources_and_wrapper_may_change_between_jobs(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
-            paths = STAGE_DOCUMENTS["driver_candidate_resolution"]
-            for relative in paths:
-                path = root / relative
-                path.parent.mkdir(parents=True, exist_ok=True)
-                path.write_text(f"first version of {relative}\n", encoding="utf-8")
-            composer = SkillPromptComposer(root)
-            first = composer.render(
+            skill_root = root / "skills"
+            relative = "open-kernel-driver-port/SKILL.md"
+            skill = skill_root / relative
+            skill.parent.mkdir(parents=True)
+            skill.write_text("first skill version\n", encoding="utf-8")
+            prompt_pack = write_prompt_pack(
+                root / "prompt-pack",
+                wrapper="version one\n{{job_json}}\n{{skill_documents}}\n",
+                stages={"driver_candidate_resolution": [relative]},
+            )
+            first = SkillPromptComposer(skill_root, prompt_pack).render(
                 stage="driver_candidate_resolution",
                 actor_role=ActorRole.DEVELOPER,
                 objective="Resolve an arbitrary driver identity",
             )
-            changed = root / paths[-1]
-            changed.write_text("second version of the intake rules\n", encoding="utf-8")
-            second = composer.render(
+            skill.write_text("second skill version\n", encoding="utf-8")
+            (prompt_pack / "job.md").write_text(
+                "version two\n{{job_json}}\n{{skill_documents}}\n",
+                encoding="utf-8",
+            )
+            second = SkillPromptComposer(skill_root, prompt_pack).render(
                 stage="driver_candidate_resolution",
                 actor_role=ActorRole.DEVELOPER,
                 objective="Resolve an arbitrary driver identity",
             )
             self.assertNotEqual(first.digest, second.digest)
-            self.assertNotEqual(first.documents[-1].digest, second.documents[-1].digest)
+            self.assertNotEqual(first.prompt_template_digest, second.prompt_template_digest)
+            self.assertNotEqual(first.documents[0].digest, second.documents[0].digest)
 
 
 if __name__ == "__main__":

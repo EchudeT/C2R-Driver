@@ -79,6 +79,12 @@ class StageOwner(StrEnum):
     INDEPENDENT = "independent"
 
 
+class StageName(StrEnum):
+    PROJECT_INIT = "project_init"
+    SOURCE_CLOSURE = "source_closure"
+    STRUCTURED_C_ANALYSIS = "structured_c_analysis"
+
+
 class IntakeStatus(StrEnum):
     UNRESOLVED = "UNRESOLVED"
     ANALYZING = "ANALYZING"
@@ -97,6 +103,7 @@ class ProjectConfig:
     evaluation_mode: EvaluationMode
     actor_role: ActorRole
     skill_root: str | None = None
+    prompt_pack: str | None = None
     created_at: str = field(default_factory=utc_now)
 
     def to_dict(self) -> dict[str, Any]:

@@ -32,6 +32,7 @@ def command_init(arguments: argparse.Namespace) -> None:
         evaluation_mode=EvaluationMode(arguments.mode),
         actor_role=ActorRole(arguments.role),
         skill_root=str(Path(arguments.skill_root).resolve()) if arguments.skill_root else None,
+        prompt_pack=str(Path(arguments.prompt_pack).resolve()) if arguments.prompt_pack else None,
     )
     Project.initialize(root, config)
     print(root)
@@ -339,7 +340,13 @@ def command_artifact_add(arguments: argparse.Namespace) -> None:
     print(digest)
 
 
-def _render_prompt(project: Project, stage: str, objective: str, context_path: str | None):
+def _render_prompt(
+    project: Project,
+    stage: str,
+    objective: str,
+    context_path: str | None,
+    prompt_pack_path: str | None,
+):
     if not project.config.skill_root:
         raise WorkflowError("project has no skill_root; initialize it with --skill-root")
     context = None
@@ -347,7 +354,11 @@ def _render_prompt(project: Project, stage: str, objective: str, context_path: s
         context = json.loads(Path(context_path).read_text(encoding="utf-8"))
         if not isinstance(context, dict):
             raise WorkflowError("Prompt context must be a JSON object")
-    composer = SkillPromptComposer(Path(project.config.skill_root))
+    configured_pack = prompt_pack_path or project.config.prompt_pack
+    composer = SkillPromptComposer(
+        Path(project.config.skill_root),
+        Path(configured_pack) if configured_pack else None,
+    )
     return composer.render(
         stage=stage,
         actor_role=project.config.actor_role,
@@ -363,7 +374,13 @@ def command_prompt_render(arguments: argparse.Namespace) -> None:
         raise WorkflowError(
             f"Prompt may only be rendered for a READY/RUNNING stage, got {stage.status.value}"
         )
-    rendered = _render_prompt(project, arguments.stage, arguments.objective, arguments.context)
+    rendered = _render_prompt(
+        project,
+        arguments.stage,
+        arguments.objective,
+        arguments.context,
+        arguments.prompt_pack,
+    )
     project.add_bytes(
         arguments.stage,
         "codex_prompt",
@@ -387,7 +404,13 @@ def command_codex_run(arguments: argparse.Namespace) -> None:
         project.start(arguments.stage)
     elif stage.status is not StageStatus.RUNNING:
         raise WorkflowError(f"Codex stage must be READY or RUNNING, got {stage.status.value}")
-    rendered = _render_prompt(project, arguments.stage, arguments.objective, arguments.context)
+    rendered = _render_prompt(
+        project,
+        arguments.stage,
+        arguments.objective,
+        arguments.context,
+        arguments.prompt_pack,
+    )
     project.add_bytes(
         arguments.stage,
         "codex_prompt",
@@ -483,6 +506,7 @@ def parser() -> argparse.ArgumentParser:
     init.add_argument("--mode", choices=[value.value for value in EvaluationMode], required=True)
     init.add_argument("--role", choices=[value.value for value in ActorRole], required=True)
     init.add_argument("--skill-root")
+    init.add_argument("--prompt-pack", help="editable prompt-pack directory used by default")
     init.set_defaults(handler=command_init)
 
     status = commands.add_parser("status", help="show the stage DAG and current status")
@@ -665,6 +689,7 @@ def parser() -> argparse.ArgumentParser:
     render.add_argument("stage")
     render.add_argument("--objective", required=True)
     render.add_argument("--context")
+    render.add_argument("--prompt-pack", help="override the project's prompt pack for this job")
     render.add_argument("--output")
     render.set_defaults(handler=command_prompt_render)
 
@@ -675,6 +700,7 @@ def parser() -> argparse.ArgumentParser:
     run.add_argument("stage")
     run.add_argument("--objective", required=True)
     run.add_argument("--context")
+    run.add_argument("--prompt-pack", help="override the project's prompt pack for this job")
     run.add_argument("--schema")
     run.add_argument("--result-kind", required=True)
     run.add_argument("--output")

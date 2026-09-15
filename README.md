@@ -8,7 +8,9 @@ Driver Port Factory（DPF）把 C 驱动跨平台迁移、公开验证、候选�
 - `knowledge-guided-driver-port`：目标研究、结构化翻译、测试迁移和 QEMU 验证；
 - `blind-c2rust-driver-evaluation`：角色隔离、封存和私有评测。
 
-DPF 允许把 Skill 原文及其 references 直接组合进阶段 Prompt。每次组合都会记录文档 SHA256，并把完整 Prompt 放入内容寻址存储。
+DPF 通过可编辑的 Prompt Pack 把 Skill 原文及其 references 组合进阶段 Prompt。阶段映射位于
+`manifest.json`，外层提示词位于 `job.md`，不写死在 Python 控制器中。每次组合都会记录
+Prompt Pack、模板、Skill 文档和完整 Prompt 的 SHA256，但普通开发不会冻结它们。
 
 ## 当前可运行能力
 
@@ -33,7 +35,8 @@ DPF 允许把 Skill 原文及其 references 直接组合进阶段 Prompt。每�
 python -m driver_port_factory.cli init ./runs/ne2000 \
   --source linux --target asterinas --driver ne2k-pci \
   --mode developer-evidence --role developer \
-  --skill-root /path/to/C-kernel-to-Rust/skill
+  --skill-root /path/to/C-kernel-to-Rust/skill \
+  --prompt-pack /path/to/editable/prompt-pack
 
 python -m driver_port_factory.cli status ./runs/ne2000
 python -m driver_port_factory.cli intake analyze ./runs/ne2000 \
@@ -45,6 +48,10 @@ python -m driver_port_factory.cli acquire run ./runs/ne2000
 python -m driver_port_factory.cli acquire verify ./runs/ne2000
 python -m driver_port_factory.cli environment inspect ./runs/ne2000
 ```
+
+`--prompt-pack` 可省略以使用随包提供的默认 Pack，也可在每次 `dpf prompt render` 或
+`dpf codex run` 时覆盖。修改 Pack 或 Skill 后无需改代码、重建数据库或迁移旧摘要；已运行 Job
+仍由 CAS 中的完整 Prompt 和 SHA256 复现。只有正式 held-out batch 才在实验层冻结所选版本。
 
 这里的 NE2000 catalog 只是集成测试 fixture，不会安装进生产包。正式运行由源平台 Resolver 加载一个或多个带来源、版本和 SHA256 的轻量元数据 provider。如果输入只有 `NE2000`，fixture 会产生 PCI、ISA、PCMCIA 候选的合并问题并进入 `WAITING_FOR_USER`。随后执行：
 
