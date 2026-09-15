@@ -5,9 +5,10 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from ..core.models import ActorRole, IntakeStatus, StageStatus, WorkflowError, utc_now
+from ..core.models import ActorRole, GeneratedArtifact, StageStatus, WorkflowError, utc_now
 from ..core.project import Project
 from .catalog import DriverCandidate, Resolution
+from .contracts import IntakeArtifact, IntakeStage, IntakeStatus, MetadataScope
 from .resolver import CompositeSourceDriverResolver, DriverRequest, SourceDriverResolver
 
 
@@ -33,7 +34,7 @@ class IntakeService:
         project.ensure_role(*self.ROLES)
         if not raw_request.strip():
             raise WorkflowError("raw migration request must not be empty")
-        if project.store.stage("request_intake").status is not StageStatus.READY:
+        if project.stage(IntakeStage.REQUEST).status is not StageStatus.READY:
             raise WorkflowError(
                 "intake was already analyzed; use `dpf intake show` or answer the stored question"
             )
@@ -42,7 +43,7 @@ class IntakeService:
         active_resolver = resolver or CompositeSourceDriverResolver.from_catalogs(
             project.config.source_platform, catalog_paths
         )
-        project.start("request_intake")
+        project.start(IntakeStage.REQUEST)
         request = {
             "schema_version": 1,
             "source_platform": project.config.source_platform,
@@ -52,10 +53,12 @@ class IntakeService:
             "recorded_at": utc_now(),
             "intake_status": IntakeStatus.ANALYZING.value,
         }
-        self._add_json(project, "request_intake", "request_record", request)
-        project.complete("request_intake", StageStatus.PASS)
+        project.finalize_stage(
+            IntakeStage.REQUEST,
+            (self._json_artifact(IntakeArtifact.REQUEST_RECORD, request),),
+        )
 
-        project.start("driver_candidate_resolution")
+        project.start(IntakeStage.CANDIDATE_RESOLUTION)
         resolution = active_resolver.resolve(
             DriverRequest(
                 source_platform=project.config.source_platform,
@@ -69,19 +72,16 @@ class IntakeService:
             "query": resolution.query,
             "match_type": resolution.match_type,
             "auto_confirmable": resolution.auto_confirmable,
-            "metadata_scope": "LIGHTWEIGHT_ONLY",
+            "metadata_scope": MetadataScope.LIGHTWEIGHT_ONLY,
             "metadata_sources": [source.to_dict() for source in resolution.metadata_sources],
             "candidates": [candidate.to_dict() for candidate in resolution.candidates],
         }
-        self._add_json(
-            project,
-            "driver_candidate_resolution",
-            "driver_candidates",
-            candidate_record,
+        project.finalize_stage(
+            IntakeStage.CANDIDATE_RESOLUTION,
+            (self._json_artifact(IntakeArtifact.DRIVER_CANDIDATES, candidate_record),),
         )
-        project.complete("driver_candidate_resolution", StageStatus.PASS)
 
-        project.start("scope_confirmation")
+        project.start(IntakeStage.SCOPE_CONFIRMATION)
         if resolution.auto_confirmable:
             selected = resolution.candidates[0]
             confirmation = self._confirmation(
@@ -96,13 +96,10 @@ class IntakeService:
                 ],
                 automatic=True,
             )
-            self._add_json(
-                project,
-                "scope_confirmation",
-                "scope_confirmation",
-                confirmation,
+            project.finalize_stage(
+                IntakeStage.SCOPE_CONFIRMATION,
+                (self._json_artifact(IntakeArtifact.SCOPE_CONFIRMATION, confirmation),),
             )
-            project.complete("scope_confirmation", StageStatus.PASS)
             self._freeze(project, selected, confirmation, resolution.candidates)
             return IntakeAnalysisResult(
                 IntakeStatus.FROZEN,
@@ -111,19 +108,22 @@ class IntakeService:
             )
 
         question = self._question(resolution)
-        self._add_json(
-            project,
-            "scope_confirmation",
-            "confirmation_question",
-            {
-                "schema_version": 1,
-                "question": question,
-                "candidate_ids": [candidate.candidate_id for candidate in resolution.candidates],
-                "question_count": 1,
-                "intake_status": IntakeStatus.WAITING_FOR_USER.value,
-            },
+        project.record_artifact(
+            IntakeStage.SCOPE_CONFIRMATION,
+            self._json_artifact(
+                IntakeArtifact.CONFIRMATION_QUESTION,
+                {
+                    "schema_version": 1,
+                    "question": question,
+                    "candidate_ids": [
+                        candidate.candidate_id for candidate in resolution.candidates
+                    ],
+                    "question_count": 1,
+                    "intake_status": IntakeStatus.WAITING_FOR_USER.value,
+                },
+            ),
         )
-        project.store.wait_for_user("scope_confirmation", question=question)
+        project.wait_for_user(IntakeStage.SCOPE_CONFIRMATION, question=question)
         return IntakeAnalysisResult(
             IntakeStatus.WAITING_FOR_USER,
             resolution.candidates,
@@ -144,10 +144,10 @@ class IntakeService:
         excluded_variants: tuple[str, ...] = (),
     ) -> IntakeAnalysisResult:
         project.ensure_role(*self.ROLES)
-        if project.store.stage("scope_confirmation").status is not StageStatus.WAITING_FOR_USER:
+        if project.stage(IntakeStage.SCOPE_CONFIRMATION).status is not StageStatus.WAITING_FOR_USER:
             raise WorkflowError("scope_confirmation is not waiting for a user answer")
-        candidate_record = self._load_json(
-            project, "driver_candidate_resolution", "driver_candidates"
+        candidate_record = project.load_json_artifact(
+            IntakeStage.CANDIDATE_RESOLUTION, IntakeArtifact.DRIVER_CANDIDATES
         )
         candidates = tuple(
             DriverCandidate.from_dict(item) for item in candidate_record["candidates"]
@@ -179,11 +179,7 @@ class IntakeService:
                 aliases=(project.config.driver_name,),
                 device_scope=intended_subset or (str(device_family),),
             )
-        project.store.resume_after_user(
-            "scope_confirmation",
-            project.config.actor_role,
-            answer=answer_text,
-        )
+        project.resume_after_user(IntakeStage.SCOPE_CONFIRMATION, answer=answer_text)
         confirmation = self._confirmation(
             selected,
             answer=answer_text,
@@ -192,13 +188,10 @@ class IntakeService:
             intended_subset=intended_subset,
             excluded_variants=excluded_variants,
         )
-        self._add_json(
-            project,
-            "scope_confirmation",
-            "scope_confirmation",
-            confirmation,
+        project.finalize_stage(
+            IntakeStage.SCOPE_CONFIRMATION,
+            (self._json_artifact(IntakeArtifact.SCOPE_CONFIRMATION, confirmation),),
         )
-        project.complete("scope_confirmation", StageStatus.PASS)
         self._freeze(project, selected, confirmation, candidates)
         return IntakeAnalysisResult(
             IntakeStatus.FROZEN,
@@ -208,23 +201,23 @@ class IntakeService:
 
     def show(self, project: Project) -> dict[str, Any]:
         names = (
-            "request_intake",
-            "driver_candidate_resolution",
-            "scope_confirmation",
-            "migration_envelope_freeze",
+            IntakeStage.REQUEST,
+            IntakeStage.CANDIDATE_RESOLUTION,
+            IntakeStage.SCOPE_CONFIRMATION,
+            IntakeStage.ENVELOPE_FREEZE,
         )
         result: dict[str, Any] = {
             "project_id": project.config.project_id,
-            "stages": {name: project.store.stage(name).status.value for name in names},
+            "stages": {name.value: project.stage(name).status.value for name in names},
         }
         for stage, kind, key in (
-            ("driver_candidate_resolution", "driver_candidates", "resolution"),
-            ("scope_confirmation", "confirmation_question", "question"),
-            ("scope_confirmation", "scope_confirmation", "confirmation"),
-            ("migration_envelope_freeze", "migration_envelope", "migration_envelope"),
+            (IntakeStage.CANDIDATE_RESOLUTION, IntakeArtifact.DRIVER_CANDIDATES, "resolution"),
+            (IntakeStage.SCOPE_CONFIRMATION, IntakeArtifact.CONFIRMATION_QUESTION, "question"),
+            (IntakeStage.SCOPE_CONFIRMATION, IntakeArtifact.SCOPE_CONFIRMATION, "confirmation"),
+            (IntakeStage.ENVELOPE_FREEZE, IntakeArtifact.MIGRATION_ENVELOPE, "migration_envelope"),
         ):
             try:
-                result[key] = self._load_json(project, stage, kind)
+                result[key] = project.load_json_artifact(stage, kind)
             except WorkflowError:
                 continue
         return result
@@ -236,7 +229,7 @@ class IntakeService:
         confirmation: dict[str, Any],
         candidates: tuple[DriverCandidate, ...],
     ) -> None:
-        project.start("migration_envelope_freeze")
+        project.start(IntakeStage.ENVELOPE_FREEZE)
         excluded = list(confirmation["excluded_variants"])
         if not excluded:
             excluded = [
@@ -271,19 +264,13 @@ class IntakeService:
             "excluded_variants": excluded,
             "confirmation_basis": list(confirmation["confirmation_basis"]),
         }
-        self._add_json(
-            project,
-            "migration_envelope_freeze",
-            "migration_envelope",
-            envelope,
+        project.finalize_stage(
+            IntakeStage.ENVELOPE_FREEZE,
+            (
+                self._json_artifact(IntakeArtifact.MIGRATION_ENVELOPE, envelope),
+                self._json_artifact(IntakeArtifact.IDENTITY_RECORD, identity_record),
+            ),
         )
-        self._add_json(
-            project,
-            "migration_envelope_freeze",
-            "identity_record",
-            identity_record,
-        )
-        project.complete("migration_envelope_freeze", StageStatus.PASS)
 
     @staticmethod
     def _confirmation(
@@ -321,16 +308,11 @@ class IntakeService:
         return f"“{resolution.query}”对应多个驱动范围：{options}。请选择一个 candidate_id。"
 
     @staticmethod
-    def _add_json(project: Project, stage: str, kind: str, value: dict[str, Any]) -> None:
-        project.add_bytes(
-            stage,
+    def _json_artifact(kind: IntakeArtifact, value: dict[str, Any]) -> GeneratedArtifact:
+        return GeneratedArtifact(
             kind,
             (json.dumps(value, ensure_ascii=False, sort_keys=True, indent=2) + "\n").encode(
                 "utf-8"
             ),
-            source=f"generated:intake:{kind}",
+            source=f"generated:intake:{kind.value}",
         )
-
-    @staticmethod
-    def _load_json(project: Project, stage: str, kind: str) -> dict[str, Any]:
-        return project.load_json_artifact(stage, kind)

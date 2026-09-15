@@ -32,3 +32,13 @@ addopts = "-q"
 [tool.ruff]
 line-length = 100
 target-version = "py311"
+
+[tool.ruff.lint]
+extend-select = ["C901", "E501", "PLR0912", "PLR0915"]
+
+[tool.ruff.lint.mccabe]
+max-complexity = 12
+
+[tool.ruff.lint.pylint]
+max-branches = 12
+max-statements = 60

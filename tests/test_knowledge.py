@@ -7,8 +7,11 @@ import tempfile
 import unittest
 from pathlib import Path
 
+from driver_port_factory.acquisition.contracts import AcquisitionArtifact, AcquisitionStage
+from driver_port_factory.acquisition.execution import EvidenceAcquirer
 from driver_port_factory.acquisition.models import CheckoutRecord
-from driver_port_factory.acquisition.service import AcquisitionService
+from driver_port_factory.acquisition.planning import AcquisitionPlanner
+from driver_port_factory.composition import initialize_project
 from driver_port_factory.core.models import (
     ActorRole,
     EvaluationMode,
@@ -17,10 +20,15 @@ from driver_port_factory.core.models import (
     WorkflowError,
 )
 from driver_port_factory.core.project import Project
-from driver_port_factory.environment.service import EnvironmentService
+from driver_port_factory.environment.execution import ExperimentExecutor
+from driver_port_factory.environment.inventory import EnvironmentInspector
+from driver_port_factory.environment.planning import ExperimentPlanRegistrar
 from driver_port_factory.intake.service import IntakeService
+from driver_port_factory.knowledge.bootstrap import KnowledgeBootstrapper
+from driver_port_factory.knowledge.contracts import KnowledgeDomain, KnowledgeStage
 from driver_port_factory.knowledge.index import KnowledgeIndex
-from driver_port_factory.knowledge.service import KnowledgeService
+from driver_port_factory.knowledge.materials import KnowledgeMaterialRegistrar
+from driver_port_factory.target_study.contracts import TargetStudyStage
 
 PROJECT_KB_TEMPLATE = """---
 name: {{knowledge_skill_name}}
@@ -124,7 +132,7 @@ def prepare_project(root: Path) -> tuple[Project, dict[str, CheckoutRecord]]:
         ),
         encoding="utf-8",
     )
-    project = Project.initialize(
+    project = initialize_project(
         root / "run",
         ProjectConfig(
             project_id="knowledge-test",
@@ -141,8 +149,7 @@ def prepare_project(root: Path) -> tuple[Project, dict[str, CheckoutRecord]]:
         raw_request="Port the example driver",
         catalog_paths=(catalog,),
     )
-    acquisition = AcquisitionService()
-    acquisition.plan(
+    AcquisitionPlanner().plan(
         project,
         source_url=str(source),
         source_ref="main",
@@ -151,14 +158,16 @@ def prepare_project(root: Path) -> tuple[Project, dict[str, CheckoutRecord]]:
         qemu_url=str(qemu),
         qemu_ref="main",
     )
-    acquisition.acquire(project)
-    manifest = project.load_json_artifact("evidence_acquisition", "acquisition_manifest")
+    EvidenceAcquirer().acquire(project)
+    manifest = project.load_json_artifact(
+        AcquisitionStage.EVIDENCE_ACQUISITION,
+        AcquisitionArtifact.ACQUISITION_MANIFEST,
+    )
     checkouts = {
         record.role.value: record
         for record in (CheckoutRecord.from_dict(item) for item in manifest["checkouts"])
     }
-    environment = EnvironmentService()
-    environment.inspect(project)
+    EnvironmentInspector().inspect(project)
     harness = project.root / "qmp-harness.py"
     harness.write_text("print('QMP_READY')\n", encoding="utf-8")
     route_plan = project.root / "environment-plan.json"
@@ -190,8 +199,8 @@ def prepare_project(root: Path) -> tuple[Project, dict[str, CheckoutRecord]]:
         ),
         encoding="utf-8",
     )
-    environment.register_plan(project, route_plan)
-    environment.run(project, "knowledge-prerequisite-smoke")
+    ExperimentPlanRegistrar().register(project, route_plan)
+    ExperimentExecutor().run(project, "knowledge-prerequisite-smoke")
     return project, checkouts
 
 
@@ -269,33 +278,33 @@ def probe_plan(root: Path, *, break_topic: str | None = None) -> Path:
 
 
 def add_controlled_materials(project: Project, checkouts: dict[str, CheckoutRecord]) -> None:
-    service = KnowledgeService()
+    registrar = KnowledgeMaterialRegistrar()
     target_path = project.root / checkouts["target"].checkout_path / "docs" / "driver-contract.md"
     qemu_path = project.root / checkouts["qemu"].checkout_path / "hw" / "example" / "device.c"
-    service.add_material(
+    registrar.add(
         project,
         identifier="target-contract",
-        domain="target",
+        domain=KnowledgeDomain.TARGET,
         path=target_path,
         source_url=checkouts["target"].source_url,
         revision=checkouts["target"].resolved_commit,
         category="target-api-and-runtime",
         authority="pinned-target-source",
     )
-    service.add_material(
+    registrar.add(
         project,
         identifier="qemu-model",
-        domain="qemu",
+        domain=KnowledgeDomain.QEMU,
         path=qemu_path,
         source_url=checkouts["qemu"].source_url,
         revision=checkouts["qemu"].resolved_commit,
         category="device-model",
         authority="pinned-qemu-source",
     )
-    service.add_gap(
+    registrar.add_gap(
         project,
         identifier="hardware-gap",
-        domain="hardware",
+        domain=KnowledgeDomain.HARDWARE,
         reason="hardware manual unavailable explicit evidence gap",
         revision="not-available",
         category="primary-device-manual",
@@ -307,10 +316,15 @@ class KnowledgeBootstrapTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temporary:
             project, checkouts = prepare_project(Path(temporary))
             add_controlled_materials(project, checkouts)
-            result = KnowledgeService().bootstrap(project, probe_plan_path=probe_plan(project.root))
+            result = KnowledgeBootstrapper().bootstrap(
+                project, probe_plan_path=probe_plan(project.root)
+            )
             self.assertEqual(result.readiness, "PASS")
-            self.assertEqual(project.store.stage("knowledge_base").status, StageStatus.PASS)
-            self.assertEqual(project.store.stage("target_platform_study").status, StageStatus.READY)
+            self.assertEqual(
+                project.stage(KnowledgeStage.KNOWLEDGE_BASE).status,
+                StageStatus.PASS,
+            )
+            self.assertEqual(project.stage(TargetStudyStage.STUDY).status, StageStatus.READY)
             generated = Path(result.generated_skill_path or "")
             self.assertTrue(generated.is_file())
             generated_text = generated.read_text(encoding="utf-8")
@@ -318,7 +332,7 @@ class KnowledgeBootstrapTests(unittest.TestCase):
             self.assertIn("knowledge search", generated_text)
 
             index = KnowledgeIndex(project.root)
-            search = index.search("interrupts deferred work", domain="target")
+            search = index.search("interrupts deferred work", domain=KnowledgeDomain.TARGET)
             self.assertGreater(search["count"], 0)
             shown = index.show(search["results"][0]["chunk_id"])
             self.assertEqual(shown["result"]["record_id"], "target-contract")
@@ -332,16 +346,19 @@ class KnowledgeBootstrapTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temporary:
             project, checkouts = prepare_project(Path(temporary))
             add_controlled_materials(project, checkouts)
-            result = KnowledgeService().bootstrap(
+            result = KnowledgeBootstrapper().bootstrap(
                 project,
                 probe_plan_path=probe_plan(project.root, break_topic="interrupts-concurrency"),
             )
             self.assertEqual(result.readiness, "FAIL")
             self.assertIn("target-interrupts", result.failed_probe_ids)
-            self.assertEqual(project.store.stage("knowledge_base").status, StageStatus.RUNNING)
+            self.assertEqual(
+                project.stage(KnowledgeStage.KNOWLEDGE_BASE).status,
+                StageStatus.RUNNING,
+            )
             attempts = [
                 ref
-                for ref in project.store.artifact_refs(stage="knowledge_base")
+                for ref in project.artifact_refs(stage=KnowledgeStage.KNOWLEDGE_BASE)
                 if ref.kind == "kb_probe_attempt"
             ]
             self.assertEqual(len(attempts), 1)

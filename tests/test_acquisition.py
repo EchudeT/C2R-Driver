@@ -6,7 +6,11 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from driver_port_factory.acquisition.service import AcquisitionService
+from driver_port_factory.acquisition.contracts import AcquisitionArtifact, AcquisitionStage
+from driver_port_factory.acquisition.execution import EvidenceAcquirer
+from driver_port_factory.acquisition.planning import AcquisitionPlanner
+from driver_port_factory.acquisition.verification import AcquisitionVerifier
+from driver_port_factory.composition import initialize_project
 from driver_port_factory.core.models import (
     ActorRole,
     EvaluationMode,
@@ -14,7 +18,7 @@ from driver_port_factory.core.models import (
     StageStatus,
     WorkflowError,
 )
-from driver_port_factory.core.project import Project
+from driver_port_factory.environment.contracts import EnvironmentStage
 from driver_port_factory.intake.service import IntakeService
 
 
@@ -57,9 +61,9 @@ def project_config() -> ProjectConfig:
 class AcquisitionTests(unittest.TestCase):
     def test_plan_is_rejected_before_driver_scope_is_frozen(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
-            project = Project.initialize(Path(temporary) / "run", project_config())
+            project = initialize_project(Path(temporary) / "run", project_config())
             with self.assertRaises(WorkflowError):
-                AcquisitionService().plan(project)
+                AcquisitionPlanner().plan(project)
 
     def test_local_repositories_are_pinned_acquired_and_verified(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
@@ -93,14 +97,13 @@ class AcquisitionTests(unittest.TestCase):
                 ),
                 encoding="utf-8",
             )
-            project = Project.initialize(root / "run", project_config())
+            project = initialize_project(root / "run", project_config())
             IntakeService().analyze(
                 project,
                 raw_request="port an arbitrary example driver",
                 catalog_paths=(catalog,),
             )
-            service = AcquisitionService()
-            plan = service.plan(
+            plan = AcquisitionPlanner().plan(
                 project,
                 source_url=str(source),
                 source_ref="main",
@@ -114,14 +117,17 @@ class AcquisitionTests(unittest.TestCase):
                 all(len(repository.resolved_commit) == 40 for repository in plan.repositories)
             )
             self.assertEqual(
-                project.store.stage("revision_selection").status,
+                project.stage(AcquisitionStage.REVISION_SELECTION).status,
                 StageStatus.PASS,
             )
-            result = service.acquire(project)
+            result = EvidenceAcquirer().acquire(project)
             self.assertEqual(result.status, StageStatus.PASS)
             self.assertTrue(result.source_identity_consistent)
             self.assertTrue((project.root / result.target_worktree / ".git").exists())
-            materials_ref = project.artifact("evidence_acquisition", "materials_manifest")
+            materials_ref = project.artifact(
+                AcquisitionStage.EVIDENCE_ACQUISITION,
+                AcquisitionArtifact.MATERIALS_MANIFEST,
+            )
             materials = [
                 json.loads(line)
                 for line in project.artifacts.read(materials_ref).decode().splitlines()
@@ -130,13 +136,13 @@ class AcquisitionTests(unittest.TestCase):
                 all((project.root / material["path"]).is_file() for material in materials)
             )
             self.assertEqual(
-                project.store.stage("environment_recovery").status,
+                project.stage(EnvironmentStage.RECOVERY).status,
                 StageStatus.READY,
             )
-            verification = service.verify(project)
+            verification = AcquisitionVerifier().verify(project)
             self.assertTrue(verification["valid"])
             self.assertEqual(len(verification["repositories"]), 3)
-            self.assertTrue(project.store.verify_event_chain())
+            self.assertTrue(project.verify_event_chain())
 
     def test_ref_change_after_plan_is_recorded_as_failed_acquisition(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
@@ -164,14 +170,13 @@ class AcquisitionTests(unittest.TestCase):
                 ),
                 encoding="utf-8",
             )
-            project = Project.initialize(root / "run", project_config())
+            project = initialize_project(root / "run", project_config())
             IntakeService().analyze(
                 project,
                 raw_request="port example",
                 catalog_paths=(catalog,),
             )
-            service = AcquisitionService()
-            service.plan(
+            AcquisitionPlanner().plan(
                 project,
                 source_url=str(source),
                 source_ref="main",
@@ -184,12 +189,15 @@ class AcquisitionTests(unittest.TestCase):
             git("add", ".", cwd=source)
             git("commit", "-m", "move ref after plan", cwd=source)
             with self.assertRaises(WorkflowError):
-                service.acquire(project)
+                EvidenceAcquirer().acquire(project)
             self.assertEqual(
-                project.store.stage("evidence_acquisition").status,
+                project.stage(AcquisitionStage.EVIDENCE_ACQUISITION).status,
                 StageStatus.FAIL,
             )
-            failure = project.load_json_artifact("evidence_acquisition", "acquisition_failure")
+            failure = project.load_json_artifact(
+                AcquisitionStage.EVIDENCE_ACQUISITION,
+                AcquisitionArtifact.ACQUISITION_ATTEMPT,
+            )
             self.assertTrue(failure["partial_paths_preserved"])
 
 

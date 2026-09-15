@@ -8,8 +8,9 @@ from collections.abc import Iterable
 from pathlib import Path
 from typing import Any
 
+from ..core.ledger import canonical_json
 from ..core.models import WorkflowError
-from ..core.store import canonical_json
+from .contracts import KnowledgeDomain, KnowledgeIndexStatus
 
 MANIFEST = Path("knowledge/manifests/materials.jsonl")
 INDEX_DIR = Path("knowledge/index")
@@ -87,10 +88,17 @@ class KnowledgeIndex:
                 raise WorkflowError(
                     f"knowledge manifest line {line_number} missing: {', '.join(missing)}"
                 )
+            try:
+                domain = KnowledgeDomain(record["domain"])
+            except (TypeError, ValueError) as error:
+                raise WorkflowError(
+                    f"knowledge manifest line {line_number} has an invalid domain"
+                ) from error
             identifier = str(record["id"])
             if identifier in identifiers:
                 raise WorkflowError(f"duplicate knowledge manifest id: {identifier}")
             identifiers.add(identifier)
+            record["domain"] = domain.value
             records.append(record)
         if not records:
             raise WorkflowError("knowledge manifest has no records")
@@ -192,7 +200,7 @@ class KnowledgeIndex:
         )
         state = {
             "schema_version": 1,
-            "status": "READY",
+            "status": KnowledgeIndexStatus.READY.value,
             "manifest_fingerprint": self._manifest_fingerprint(records),
             "record_count": len(records),
             "indexed_record_count": sum(1 for record in records if self._is_text(record)),
@@ -231,13 +239,17 @@ class KnowledgeIndex:
 
     def status(self) -> dict[str, Any]:
         records, state = self._current()
-        return {**state, "status": "READY", "record_count": len(records)}
+        return {
+            **state,
+            "status": KnowledgeIndexStatus.READY.value,
+            "record_count": len(records),
+        }
 
-    def inventory(self, *, domain: str | None = None) -> dict[str, Any]:
+    def inventory(self, *, domain: KnowledgeDomain | None = None) -> dict[str, Any]:
         records, state = self._current()
         selected = []
         for record in records:
-            if domain and record["domain"] != domain:
+            if domain and record["domain"] != domain.value:
                 continue
             selected.append(
                 {
@@ -260,8 +272,8 @@ class KnowledgeIndex:
             )
         selected.sort(key=lambda item: (str(item["domain"]), str(item["path"]), str(item["id"])))
         return {
-            "status": "READY",
-            "domain": domain,
+            "status": KnowledgeIndexStatus.READY.value,
+            "domain": domain.value if domain else None,
             "count": len(selected),
             "domain_record_counts": state.get("domain_record_counts", {}),
             "records": selected,
@@ -283,7 +295,7 @@ class KnowledgeIndex:
         self,
         query: str,
         *,
-        domain: str | None = None,
+        domain: KnowledgeDomain | None = None,
         record_id: str | None = None,
         path_prefix: str | None = None,
         limit: int = 10,
@@ -297,7 +309,7 @@ class KnowledgeIndex:
         phrase = query.casefold()
         ranked: list[tuple[float, dict[str, Any]]] = []
         for chunk in self._load_chunks():
-            if domain and chunk["domain"] != domain:
+            if domain and chunk["domain"] != domain.value:
                 continue
             if record_id and chunk["record_id"] != record_id:
                 continue
@@ -317,10 +329,15 @@ class KnowledgeIndex:
             result = dict(chunk)
             result["score"] = round(score, 6)
             results.append(result)
-        return {"status": "READY", "query": query, "count": len(results), "results": results}
+        return {
+            "status": KnowledgeIndexStatus.READY.value,
+            "query": query,
+            "count": len(results),
+            "results": results,
+        }
 
     def show(self, chunk_id: str) -> dict[str, Any]:
         for chunk in self._load_chunks():
             if chunk["chunk_id"] == chunk_id:
-                return {"status": "READY", "result": chunk}
+                return {"status": KnowledgeIndexStatus.READY.value, "result": chunk}
         raise WorkflowError(f"unknown knowledge chunk id: {chunk_id}")

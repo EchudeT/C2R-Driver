@@ -8,10 +8,18 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from driver_port_factory.core.models import StageName, StageStatus, WorkflowError
+from driver_port_factory.core.models import (
+    ArtifactDirection,
+    StageStatus,
+    WorkflowError,
+)
+from driver_port_factory.knowledge.bootstrap import KnowledgeBootstrapper
 from driver_port_factory.knowledge.index import CHUNKS, KnowledgeIndex, file_sha256
-from driver_port_factory.knowledge.service import KnowledgeService
 from driver_port_factory.source_analysis.closure import SourceClosureService
+from driver_port_factory.source_analysis.compiler import GccCompatibleCommand
+from driver_port_factory.source_analysis.contracts import (
+    SourceAnalysisStage,
+)
 from driver_port_factory.target_study.service import TargetStudyService
 from tests.test_knowledge import add_controlled_materials, prepare_project, probe_plan
 from tests.test_target_study import target_study_inputs
@@ -25,14 +33,14 @@ def write_json(path: Path, value: dict) -> Path:
 def ready_project(root: Path):
     project, checkouts = prepare_project(root)
     add_controlled_materials(project, checkouts)
-    KnowledgeService().bootstrap(project, probe_plan_path=probe_plan(project.root))
+    KnowledgeBootstrapper().bootstrap(project, probe_plan_path=probe_plan(project.root))
     target_inputs, _ = target_study_inputs(project.root, project, checkouts)
     TargetStudyService().validate(project, **target_inputs)
     return project, checkouts
 
 
 def source_closure(project, checkouts) -> dict:
-    compiler = shutil.which("cc")
+    compiler = shutil.which("clang")
     if not compiler:
         raise unittest.SkipTest("test requires a C compiler")
     version = subprocess.run(
@@ -59,6 +67,13 @@ def source_closure(project, checkouts) -> dict:
         "include/example-config.h",
         "-fsyntax-only",
     ]
+    target_triple = GccCompatibleCommand.effective_target_triple(
+        [*common_arguments, "drivers/example.c"], source_root
+    )
+    target_abi = GccCompatibleCommand.abi_signature(
+        [*common_arguments, "drivers/example.c"],
+        source_root,
+    )
     units = []
     for unit_id, relative in (
         ("example-driver", "drivers/example.c"),
@@ -93,7 +108,8 @@ def source_closure(project, checkouts) -> dict:
             "family": "gcc-compatible",
             "executable": compiler,
             "version": version,
-            "target_abi": "host-test-abi",
+            "target_triple": target_triple,
+            "target_abi": target_abi,
             "language_mode": "gnu11",
         },
         "defines": ["EXAMPLE_FEATURE=1"],
@@ -116,6 +132,41 @@ def source_closure(project, checkouts) -> dict:
 
 
 class SourceClosureTests(unittest.TestCase):
+    def test_compiler_target_triple_and_abi_are_verified(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            project, checkouts = ready_project(Path(temporary))
+            closure = source_closure(project, checkouts)
+            actual_triple = closure["compiler"]["target_triple"]
+            closure["compiler"]["target_triple"] = "wrong-unknown-target"
+            service = SourceClosureService()
+            wrong_triple = service.validate(
+                project,
+                closure_path=write_json(project.root / "source-closure.json", closure),
+            )
+            self.assertEqual(wrong_triple.status.value, "FAIL")
+            self.assertIn("target_triple", wrong_triple.errors[0])
+
+            closure["compiler"]["target_triple"] = actual_triple
+            closure["compiler"]["target_abi"]["pointer_width_bits"] += 8
+            wrong_abi = service.validate(
+                project,
+                closure_path=write_json(project.root / "source-closure.json", closure),
+            )
+            self.assertEqual(wrong_abi.status.value, "FAIL")
+            self.assertIn("target_abi", wrong_abi.errors[0])
+
+    def test_shared_core_must_be_a_translation_unit(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            project, checkouts = ready_project(Path(temporary))
+            closure = source_closure(project, checkouts)
+            closure["translation_units"] = closure["translation_units"][:1]
+            result = SourceClosureService().validate(
+                project,
+                closure_path=write_json(project.root / "source-closure.json", closure),
+            )
+            self.assertEqual(result.status.value, "FAIL")
+            self.assertIn("shared core files", result.errors[0])
+
     def test_hash_and_omitted_dependency_fail_then_corrected_closure_passes(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             project, checkouts = ready_project(Path(temporary))
@@ -132,7 +183,7 @@ class SourceClosureTests(unittest.TestCase):
             self.assertEqual(failed_hash.status.value, "FAIL")
             self.assertIn("hash mismatch", failed_hash.errors[0])
             self.assertEqual(
-                project.store.stage(StageName.SOURCE_CLOSURE).status,
+                project.stage(SourceAnalysisStage.SOURCE_CLOSURE).status,
                 StageStatus.RUNNING,
             )
 
@@ -154,11 +205,11 @@ class SourceClosureTests(unittest.TestCase):
             )
             self.assertEqual(passed.status.value, "PASS")
             self.assertEqual(
-                project.store.stage(StageName.SOURCE_CLOSURE).status,
+                project.stage(SourceAnalysisStage.SOURCE_CLOSURE).status,
                 StageStatus.PASS,
             )
             self.assertEqual(
-                project.store.stage(StageName.STRUCTURED_C_ANALYSIS).status,
+                project.stage(SourceAnalysisStage.STRUCTURED_C_ANALYSIS).status,
                 StageStatus.READY,
             )
             self.assertEqual(KnowledgeIndex(project.root).status()["status"], "READY")
@@ -170,9 +221,9 @@ class SourceClosureTests(unittest.TestCase):
             )
             output_kinds = {
                 artifact.kind
-                for artifact in project.store.artifact_refs(
-                    stage=StageName.SOURCE_CLOSURE,
-                    direction="output",
+                for artifact in project.artifact_refs(
+                    stage=SourceAnalysisStage.SOURCE_CLOSURE,
+                    direction=ArtifactDirection.OUTPUT,
                 )
             }
             self.assertIn("source_closure_report", output_kinds)

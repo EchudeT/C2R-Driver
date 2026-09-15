@@ -7,8 +7,12 @@ from pathlib import Path
 
 from driver_port_factory.acquisition.models import CheckoutRecord
 from driver_port_factory.core.models import StageStatus
+from driver_port_factory.environment.contracts import EnvironmentArtifact, EnvironmentStage
+from driver_port_factory.knowledge.bootstrap import KnowledgeBootstrapper
+from driver_port_factory.knowledge.contracts import KnowledgeDomain
 from driver_port_factory.knowledge.index import KnowledgeIndex
-from driver_port_factory.knowledge.service import KnowledgeService
+from driver_port_factory.source_analysis.contracts import SourceAnalysisStage
+from driver_port_factory.target_study.contracts import TargetStudyArtifact, TargetStudyStage
 from driver_port_factory.target_study.service import (
     PROFILE_HEADINGS,
     TRACE_STEPS,
@@ -28,8 +32,10 @@ def target_study_inputs(
     checkouts: dict[str, CheckoutRecord],
 ) -> tuple[dict[str, Path], dict[str, str]]:
     index = KnowledgeIndex(project.root)
-    target_hit = index.search("registration lifecycle", domain="target")["results"][0]
-    source_hit = index.search("example driver source entry", domain="source")["results"][0]
+    target_hit = index.search("registration lifecycle", domain=KnowledgeDomain.TARGET)["results"][0]
+    source_hit = index.search("example driver source entry", domain=KnowledgeDomain.SOURCE)[
+        "results"
+    ][0]
     target_ref = {
         "chunk_id": target_hit["chunk_id"],
         "record_id": target_hit["record_id"],
@@ -39,9 +45,9 @@ def target_study_inputs(
         "record_id": source_hit["record_id"],
     }
     target = checkouts["target"]
-    artifact_mode = project.load_json_artifact("environment_recovery", "artifact_mode_record")[
-        "artifact_mode"
-    ]
+    artifact_mode = project.load_json_artifact(
+        EnvironmentStage.RECOVERY, EnvironmentArtifact.MODE_RECORD
+    )["artifact_mode"]
     section = {
         "summary": "Verified from the pinned target source and its in-tree driver contract.",
         "evidence_refs": [target_ref],
@@ -142,7 +148,7 @@ class TargetStudyTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temporary:
             project, checkouts = prepare_project(Path(temporary))
             add_controlled_materials(project, checkouts)
-            KnowledgeService().bootstrap(project, probe_plan_path=probe_plan(project.root))
+            KnowledgeBootstrapper().bootstrap(project, probe_plan_path=probe_plan(project.root))
             paths, chunks = target_study_inputs(project.root, project, checkouts)
             api = json.loads(paths["api_table"].read_text(encoding="utf-8"))
             api["entries"][0]["definition_evidence"] = {
@@ -155,7 +161,7 @@ class TargetStudyTests(unittest.TestCase):
             self.assertEqual(failed.status, "FAIL")
             self.assertIn("not in the target domain", failed.errors[0])
             self.assertEqual(
-                project.store.stage("target_platform_study").status,
+                project.stage(TargetStudyStage.STUDY).status,
                 StageStatus.RUNNING,
             )
 
@@ -167,11 +173,14 @@ class TargetStudyTests(unittest.TestCase):
             passed = service.validate(project, **paths)
             self.assertEqual(passed.status, "PASS")
             self.assertEqual(
-                project.store.stage("target_platform_study").status,
+                project.stage(TargetStudyStage.STUDY).status,
                 StageStatus.PASS,
             )
-            self.assertEqual(project.store.stage("source_closure").status, StageStatus.READY)
-            report = project.load_json_artifact("target_platform_study", "target_study_report")
+            self.assertEqual(
+                project.stage(SourceAnalysisStage.SOURCE_CLOSURE).status,
+                StageStatus.READY,
+            )
+            report = project.load_json_artifact(TargetStudyStage.STUDY, TargetStudyArtifact.REPORT)
             self.assertEqual(report["status"], "PASS")
             self.assertEqual(report["details"]["api_table"]["entry_count"], 1)
 

@@ -6,8 +6,8 @@ from dataclasses import asdict
 from pathlib import Path
 
 from ..core.execution import CommandResult, CommandRunner
+from ..core.ledger import canonical_json
 from ..core.models import WorkflowError, utc_now
-from ..core.store import canonical_json
 from .models import CheckoutRecord, RepositoryRole, RepositorySpec
 
 _OBJECT_ID = re.compile(r"^[0-9a-fA-F]{40}(?:[0-9a-fA-F]{24})?$")
@@ -156,9 +156,10 @@ class GitAcquirer:
 
     def create_target_worktree(self, spec: RepositorySpec, project_id: str) -> str:
         bare = self.control_root / "git" / f"{spec.role.value}.git"
-        target = self.control_root / "worktrees" / "target-working"
+        target = self.project_root / "work" / "target-working"
         if spec.role is not RepositoryRole.TARGET:
             raise WorkflowError("a writable worktree can only be created for the target repository")
+        target.parent.mkdir(parents=True, exist_ok=True)
         safe_id = re.sub(r"[^A-Za-z0-9._-]+", "-", project_id).strip("-") or "run"
         branch = f"dpf/{safe_id}"
         self._git(

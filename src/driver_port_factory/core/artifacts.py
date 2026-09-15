@@ -4,7 +4,7 @@ import hashlib
 import os
 from pathlib import Path
 
-from .models import ArtifactRef, WorkflowError
+from .models import ArtifactContent, ArtifactRef, WorkflowError
 
 
 class ArtifactStore:
@@ -20,7 +20,7 @@ class ArtifactStore:
             raise WorkflowError(f"invalid SHA256 digest: {digest}")
         return self.objects / digest[:2] / digest[2:]
 
-    def put_bytes(self, data: bytes, *, kind: str, source: str | None = None) -> ArtifactRef:
+    def put_bytes(self, data: bytes, *, kind: str) -> ArtifactContent:
         digest = hashlib.sha256(data).hexdigest()
         target = self._path_for_digest(digest)
         target.parent.mkdir(parents=True, exist_ok=True)
@@ -31,28 +31,26 @@ class ArtifactStore:
             temporary = target.with_suffix(f".tmp-{os.getpid()}")
             temporary.write_bytes(data)
             os.replace(temporary, target)
-        return ArtifactRef(
+        return ArtifactContent(
             digest=digest,
             kind=kind,
             size=len(data),
-            cas_path=str(target.relative_to(self.root)),
-            source=source,
+            cas_path=target.relative_to(self.root).as_posix(),
         )
 
-    def put_file(self, path: Path, *, kind: str) -> ArtifactRef:
-        path = path.resolve()
-        if not path.is_file():
-            raise WorkflowError(f"artifact is not a regular file: {path}")
-        return self.put_bytes(path.read_bytes(), kind=kind, source=str(path))
-
-    def read(self, ref: ArtifactRef) -> bytes:
-        path = self.root / ref.cas_path
+    def read(self, ref: ArtifactContent | ArtifactRef) -> bytes:
+        path = self._path_for_digest(ref.digest)
+        canonical = path.relative_to(self.root).as_posix()
+        if ref.cas_path != canonical:
+            raise WorkflowError(f"artifact has non-canonical CAS path: {ref.digest}")
         data = path.read_bytes()
+        if len(data) != ref.size:
+            raise WorkflowError(f"artifact size metadata is invalid: {ref.digest}")
         if hashlib.sha256(data).hexdigest() != ref.digest:
             raise WorkflowError(f"artifact failed integrity verification: {ref.digest}")
         return data
 
-    def verify(self, ref: ArtifactRef) -> bool:
+    def verify(self, ref: ArtifactContent | ArtifactRef) -> bool:
         try:
             self.read(ref)
         except (OSError, WorkflowError):

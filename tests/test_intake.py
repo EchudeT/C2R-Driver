@@ -4,15 +4,16 @@ import tempfile
 import unittest
 from pathlib import Path
 
+from driver_port_factory.acquisition.contracts import AcquisitionStage
+from driver_port_factory.composition import initialize_project
 from driver_port_factory.core.models import (
     ActorRole,
     EvaluationMode,
-    IntakeStatus,
     ProjectConfig,
     StageStatus,
     WorkflowError,
 )
-from driver_port_factory.core.project import Project
+from driver_port_factory.intake.contracts import IntakeStage, IntakeStatus
 from driver_port_factory.intake.service import IntakeService
 
 NE2000_FIXTURE = Path(__file__).parents[1] / "examples" / "fixtures" / "linux-ne2000.catalog.json"
@@ -32,7 +33,7 @@ def project_config(driver_name: str) -> ProjectConfig:
 class IntakeServiceTests(unittest.TestCase):
     def test_exact_driver_is_frozen_without_question(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
-            project = Project.initialize(Path(temporary) / "run", project_config("ne2k-pci"))
+            project = initialize_project(Path(temporary) / "run", project_config("ne2k-pci"))
             result = IntakeService().analyze(
                 project,
                 raw_request="把 Linux ne2k-pci 迁移到星绽OS",
@@ -41,7 +42,7 @@ class IntakeServiceTests(unittest.TestCase):
             self.assertEqual(result.status, IntakeStatus.FROZEN)
             self.assertEqual(result.selected_candidate_id, "linux-ne2k-pci")
             self.assertEqual(
-                project.store.stage("migration_envelope_freeze").status,
+                project.stage(IntakeStage.ENVELOPE_FREEZE).status,
                 StageStatus.PASS,
             )
             envelope = IntakeService().show(project)["migration_envelope"]
@@ -50,7 +51,7 @@ class IntakeServiceTests(unittest.TestCase):
 
     def test_ambiguous_name_waits_once_then_resumes_same_stage(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
-            project = Project.initialize(Path(temporary) / "run", project_config("NE2000"))
+            project = initialize_project(Path(temporary) / "run", project_config("NE2000"))
             service = IntakeService()
             result = service.analyze(
                 project,
@@ -60,11 +61,11 @@ class IntakeServiceTests(unittest.TestCase):
             self.assertEqual(result.status, IntakeStatus.WAITING_FOR_USER)
             self.assertEqual(len(result.candidates), 3)
             self.assertEqual(
-                project.store.stage("scope_confirmation").status,
+                project.stage(IntakeStage.SCOPE_CONFIRMATION).status,
                 StageStatus.WAITING_FOR_USER,
             )
             self.assertEqual(
-                project.store.stage("revision_selection").status,
+                project.stage(AcquisitionStage.REVISION_SELECTION).status,
                 StageStatus.PENDING,
             )
             with self.assertRaises(WorkflowError):
@@ -77,7 +78,7 @@ class IntakeServiceTests(unittest.TestCase):
             )
             self.assertEqual(answered.status, IntakeStatus.FROZEN)
             self.assertEqual(
-                project.store.stage("revision_selection").status,
+                project.stage(AcquisitionStage.REVISION_SELECTION).status,
                 StageStatus.READY,
             )
             shown = service.show(project)
@@ -85,11 +86,11 @@ class IntakeServiceTests(unittest.TestCase):
             self.assertEqual(len(shown["resolution"]["metadata_sources"]), 1)
             self.assertEqual(len(shown["resolution"]["metadata_sources"][0]["digest"]), 64)
             self.assertEqual(shown["question"]["question_count"], 1)
-            self.assertTrue(project.store.verify_event_chain())
+            self.assertTrue(project.verify_event_chain())
 
     def test_unknown_driver_requires_explicit_manual_identity(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
-            project = Project.initialize(Path(temporary) / "run", project_config("my-special-uart"))
+            project = initialize_project(Path(temporary) / "run", project_config("my-special-uart"))
             service = IntakeService()
             result = service.analyze(project, raw_request="迁移一个内部 UART 驱动")
             self.assertEqual(result.status, IntakeStatus.WAITING_FOR_USER)

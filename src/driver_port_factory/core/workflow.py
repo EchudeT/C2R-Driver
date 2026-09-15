@@ -1,429 +1,175 @@
 from __future__ import annotations
 
-from .models import ActorRole, EvaluationMode, ProjectConfig, StageOwner, StageSpec
+from collections import Counter
+from collections.abc import Iterable, Mapping
+from dataclasses import dataclass
+from types import MappingProxyType
+
+from .contracts import ArtifactKey, StageKey
+from .models import ArtifactRequirement, OutputCardinality, StageSpec, WorkflowError
+from .validation import ValidationRegistry
 
 
-def _stage(
-    name: str,
-    description: str,
-    owner: StageOwner,
-    dependency: str | None,
-    outputs: tuple[str, ...] = (),
-    roles: tuple[ActorRole, ...] = (),
-    *,
-    accept_failed: bool = False,
-) -> StageSpec:
-    return StageSpec(
-        name=name,
-        description=description,
-        owner=owner,
-        dependencies=(dependency,) if dependency else (),
-        required_outputs=outputs,
-        allowed_roles=roles,
-        accept_failed_dependencies=accept_failed,
-    )
+@dataclass(frozen=True, slots=True)
+class StageOutputContract:
+    stage: StageKey
+    required: Mapping[str, ArtifactRequirement]
+    auxiliary: Mapping[str, ArtifactKey]
 
-
-def migration_workflow(config: ProjectConfig) -> list[StageSpec]:
-    roles = (ActorRole.DEVELOPER, ActorRole.MIGRATION_OPERATOR)
-    specs = [
-        _stage(
-            "project_init",
-            "Freeze project identity and control configuration.",
-            StageOwner.STATIC,
-            None,
-            ("project_manifest",),
-            roles,
-        ),
-    ]
-    previous = "project_init"
-    if config.evaluation_mode is EvaluationMode.PROSPECTIVE_BLIND:
-        specs.append(
-            _stage(
-                "blind_binding",
-                "Import the prospective public bundle and curator commitment.",
-                StageOwner.STATIC,
-                previous,
-                ("public_bundle", "curator_commitment"),
-                roles,
+    def require_auxiliary(self, value: str) -> ArtifactKey:
+        if value in self.required:
+            raise WorkflowError(
+                f"required output {value} for stage {self.stage.value} "
+                "may only be written by complete finalization"
             )
-        )
-        previous = "blind_binding"
+        try:
+            return self.auxiliary[value]
+        except KeyError as error:
+            raise WorkflowError(
+                f"output {value} is not declared for stage {self.stage.value}"
+            ) from error
 
-    rows = [
-        (
-            "request_intake",
-            "Persist the original request and required platform/driver fields.",
-            StageOwner.STATIC,
-            ("request_record",),
-        ),
-        (
-            "driver_candidate_resolution",
-            "Resolve canonical driver candidates using lightweight metadata only.",
-            StageOwner.HYBRID,
-            ("driver_candidates",),
-        ),
-        (
-            "scope_confirmation",
-            "Auto-confirm a unique scope or persist one consolidated user question.",
-            StageOwner.HYBRID,
-            ("scope_confirmation",),
-        ),
-        (
-            "migration_envelope_freeze",
-            "Freeze the canonical source entry, device, bus, included subset, and exclusions.",
-            StageOwner.STATIC,
-            ("migration_envelope", "identity_record"),
-        ),
-        (
-            "revision_selection",
-            "Pin source, target, and QEMU revisions.",
-            StageOwner.HYBRID,
-            ("revision_manifest", "acquisition_plan"),
-        ),
-        (
-            "evidence_acquisition",
-            "Acquire the minimum provenance-tracked evidence closure.",
-            StageOwner.HYBRID,
-            ("acquisition_manifest", "materials_manifest", "source_identity_verification"),
-        ),
-        (
-            "environment_recovery",
-            "Establish artifact mode and a concrete executable experiment route.",
-            StageOwner.HYBRID,
-            (
-                "environment_inventory",
-                "artifact_mode_candidates",
-                "artifact_mode_record",
-                "experiment_ready_run",
-                "experiment_route",
-            ),
-        ),
-        (
-            "knowledge_base",
-            "Build or validate the evidence knowledge base and query contract.",
-            StageOwner.STATIC,
-            (
-                "knowledge_materials_manifest",
-                "kb_status",
-                "kb_query_contract",
-                "generated_kb_skill",
-                "kb_readiness_report",
-                "target_probe_results",
-            ),
-        ),
-        (
-            "target_platform_study",
-            "Build the target profile, API evidence table, and analogous call chain.",
-            StageOwner.CODEX,
-            (
-                "target_profile",
-                "target_profile_structured",
-                "target_api_evidence",
-                "analogous_driver_trace",
-                "target_change_plan",
-                "target_study_report",
-            ),
-        ),
-        (
-            "source_closure",
-            "Close the behaviorally required C dependency set.",
-            StageOwner.HYBRID,
-            (
-                "source_closure",
-                "source_closure_report",
-                "compile_manifest",
-                "compilation_database",
-                "source_closure_materials_manifest",
-                "knowledge_revision",
-            ),
-        ),
-        (
-            "structured_c_analysis",
-            "Extract typed AST, CFG, layout, call, global, and effect facts.",
-            StageOwner.STATIC,
-            ("structured_c_facts",),
-        ),
-        (
-            "migration_contracts",
-            "Convert evidence into hardware, platform, safety, and lifecycle obligations.",
-            StageOwner.HYBRID,
-            ("migration_contracts",),
-        ),
-        (
-            "test_adaptation",
-            "Triage source tests and preserve portable device scenarios and oracles.",
-            StageOwner.HYBRID,
-            ("test_port_matrix",),
-        ),
-        (
-            "rust_design",
-            "Design ownership, concurrency, error, and unsafe boundaries.",
-            StageOwner.CODEX,
-            ("rust_design",),
-        ),
-        (
-            "rust_implementation",
-            "Implement the evidenced contracts incrementally in Rust.",
-            StageOwner.CODEX,
-            ("driver_source",),
-        ),
-        (
-            "target_compliance",
-            "Review target API, style, safety, lifecycle, and integration rules.",
-            StageOwner.HYBRID,
-            ("compliance_report",),
-        ),
-        (
-            "artifact_preparation",
-            "Build or inject the runtime artifact and prove its identity.",
-            StageOwner.STATIC,
-            ("runtime_artifact", "artifact_identity"),
-        ),
-        (
-            "public_qemu_validation",
-            "Run the public QEMU evidence ladder.",
-            StageOwner.STATIC,
-            ("public_qemu_report",),
-        ),
-    ]
-    for name, description, owner, outputs in rows:
-        specs.append(_stage(name, description, owner, previous, outputs, roles))
-        previous = name
-
-    specs.append(
-        _stage(
-            "public_repair",
-            "Diagnose public failures and run bounded narrow repair attempts.",
-            StageOwner.HYBRID,
-            previous,
-            ("public_repair_report",),
-            roles,
-            accept_failed=True,
-        )
-    )
-    previous = "public_repair"
-    tail = [
-        (
-            "completion_audit",
-            "Audit contract, implementation, test, and runtime coverage.",
-            StageOwner.STATIC,
-            ("evidence_audit",),
-        ),
-        (
-            "candidate_sealing",
-            "Seal an immutable candidate manifest and digest.",
-            StageOwner.STATIC,
-            ("candidate_manifest",),
-        ),
-    ]
-    for name, description, owner, outputs in tail:
-        specs.append(_stage(name, description, owner, previous, outputs, roles))
-        previous = name
-
-    if config.evaluation_mode is EvaluationMode.POST_HOC_SEALED_BLIND:
-        specs.append(
-            _stage(
-                "opaque_digest_export",
-                "Export and externally anchor only the opaque candidate digest.",
-                StageOwner.STATIC,
-                previous,
-                ("candidate_digest_anchor",),
-                roles,
+    def validate_final_bundle(self, values: Iterable[str]) -> None:
+        counts = Counter(values)
+        unexpected = sorted(set(counts) - set(self.required))
+        cardinality_errors = self._cardinality_errors(counts)
+        if cardinality_errors or unexpected:
+            details = []
+            if cardinality_errors:
+                details.extend(cardinality_errors)
+            if unexpected:
+                details.append("unexpected: " + ", ".join(unexpected))
+            raise WorkflowError(
+                f"invalid final output bundle for stage {self.stage.value}: " + "; ".join(details)
             )
-        )
-    elif config.evaluation_mode is EvaluationMode.PROSPECTIVE_BLIND:
-        specs.append(
-            _stage(
-                "candidate_transfer",
-                "Transfer the sealed candidate to the independent evaluator.",
-                StageOwner.STATIC,
-                previous,
-                ("candidate_transfer_record",),
-                roles,
+
+    def validate_existing_auxiliary(self, values: Iterable[str]) -> None:
+        actual = set(values)
+        invalid = sorted(actual - set(self.auxiliary))
+        if invalid:
+            raise WorkflowError(
+                f"stage {self.stage.value} has invalid pre-finalization outputs: "
+                + ", ".join(invalid)
             )
-        )
-    return specs
+
+    def validate_persisted(self, values: Iterable[str]) -> None:
+        counts = Counter(values)
+        actual = set(counts)
+        allowed = set(self.required) | set(self.auxiliary)
+        unexpected = sorted(actual - allowed)
+        if self._cardinality_errors(counts) or unexpected:
+            raise WorkflowError(f"persisted outputs violate stage {self.stage.value} contract")
+
+    def _cardinality_errors(self, counts: Mapping[str, int]) -> list[str]:
+        errors: list[str] = []
+        for value, requirement in self.required.items():
+            count = counts.get(value, 0)
+            if requirement.cardinality is OutputCardinality.EXACTLY_ONE and count != 1:
+                errors.append(f"{value}: expected exactly one, found {count}")
+            elif requirement.cardinality is OutputCardinality.ONE_OR_MORE and count < 1:
+                errors.append(f"{value}: expected one or more, found {count}")
+        return errors
 
 
-def curator_workflow(config: ProjectConfig) -> list[StageSpec]:
-    role = (ActorRole.CURATOR,)
-    specs = [
-        _stage(
-            "project_init",
-            "Freeze curator project configuration.",
-            StageOwner.STATIC,
-            None,
-            ("project_manifest",),
-            role,
-        )
-    ]
-    previous = "project_init"
-    if config.evaluation_mode is EvaluationMode.POST_HOC_SEALED_BLIND:
-        specs.append(
-            _stage(
-                "opaque_candidate_acceptance",
-                "Accept and anchor an opaque candidate digest before candidate inspection.",
-                StageOwner.STATIC,
-                previous,
-                ("candidate_digest_anchor",),
-                role,
+@dataclass(frozen=True, slots=True)
+class WorkflowDefinition:
+    stages: tuple[StageSpec, ...]
+    _stage_index: Mapping[str, StageKey]
+    _spec_index: Mapping[str, StageSpec]
+    _output_contracts: Mapping[str, StageOutputContract]
+
+    @classmethod
+    def build(
+        cls,
+        stages: tuple[StageSpec, ...],
+        validators: ValidationRegistry,
+    ) -> WorkflowDefinition:
+        stage_index: dict[str, StageKey] = {}
+        output_contracts: dict[str, StageOutputContract] = {}
+        for stage in stages:
+            if stage.name.value in stage_index:
+                raise WorkflowError(f"duplicate workflow stage: {stage.name.value}")
+            stage_index[stage.name.value] = stage.name
+            required = {output.value: output for output in stage.required_outputs}
+            auxiliary = {output.value: output for output in stage.auxiliary_outputs}
+            if len(required) != len(stage.required_outputs):
+                raise WorkflowError(f"stage {stage.name.value} repeats a required output")
+            if len(auxiliary) != len(stage.auxiliary_outputs):
+                raise WorkflowError(f"stage {stage.name.value} repeats an auxiliary output")
+            overlap = sorted(set(required) & set(auxiliary))
+            if overlap:
+                raise WorkflowError(
+                    f"stage {stage.name.value} declares outputs as required and auxiliary: "
+                    + ", ".join(overlap)
+                )
+            for output in stage.required_outputs:
+                if not validators.contains(output.kind):
+                    raise WorkflowError(
+                        f"stage {stage.name.value} has no validator for {output.value}"
+                    )
+            for output in stage.auxiliary_outputs:
+                if not validators.contains(output):
+                    raise WorkflowError(
+                        f"stage {stage.name.value} has no validator for {output.value}"
+                    )
+            output_contracts[stage.name.value] = StageOutputContract(
+                stage.name,
+                MappingProxyType(required),
+                MappingProxyType(auxiliary),
             )
+        known = set(stage_index)
+        for stage in stages:
+            unknown = [item.value for item in stage.dependencies if item.value not in known]
+            if unknown:
+                raise WorkflowError(
+                    f"stage {stage.name.value} has unknown dependencies: {', '.join(unknown)}"
+                )
+        return cls(
+            stages,
+            MappingProxyType(stage_index),
+            MappingProxyType({stage.name.value: stage for stage in stages}),
+            MappingProxyType(output_contracts),
         )
-        previous = "opaque_candidate_acceptance"
-    elif config.evaluation_mode is not EvaluationMode.PROSPECTIVE_BLIND:
-        raise ValueError("curator role requires a blind evaluation mode")
 
-    for name, description, owner, outputs in [
-        (
-            "driver_split",
-            "Freeze driver family and task splits.",
-            StageOwner.HYBRID,
-            ("split_manifest",),
-        ),
-        (
-            "contract_freeze",
-            "Freeze evidence-backed PMC and private PEA.",
-            StageOwner.CODEX,
-            ("public_contract", "private_assertions"),
-        ),
-        (
-            "reference_calibration",
-            "Validate assertions against the C reference and mutations.",
-            StageOwner.HYBRID,
-            ("reference_calibration",),
-        ),
-        (
-            "private_bundle_sealing",
-            "Freeze thresholds, generators, harness, and commitment.",
-            StageOwner.STATIC,
-            ("private_bundle_commitment",),
-        ),
-        (
-            "public_bundle_export",
-            "Export only the public task bundle.",
-            StageOwner.STATIC,
-            ("public_bundle",),
-        ),
-    ]:
-        specs.append(_stage(name, description, owner, previous, outputs, role))
-        previous = name
-    return specs
+    def parse_stage(self, value: str) -> StageKey:
+        try:
+            return self._stage_index[value]
+        except KeyError as error:
+            raise WorkflowError(f"unknown stage: {value}") from error
+
+    def output_contract(self, stage: StageKey) -> StageOutputContract:
+        try:
+            return self._output_contracts[stage.value]
+        except KeyError as error:
+            raise WorkflowError(f"stage is not in this workflow: {stage.value}") from error
+
+    @property
+    def stage_values(self) -> tuple[str, ...]:
+        return tuple(self._stage_index)
+
+    def spec(self, stage: StageKey) -> StageSpec:
+        try:
+            return self._spec_index[stage.value]
+        except KeyError as error:
+            raise WorkflowError(f"stage is not in this workflow: {stage.value}") from error
 
 
-def evaluator_workflow(config: ProjectConfig) -> list[StageSpec]:
-    role = (ActorRole.EVALUATOR,)
-    specs = [
-        _stage(
-            "project_init",
-            "Freeze evaluator project configuration.",
-            StageOwner.STATIC,
-            None,
-            ("project_manifest",),
-            role,
-        )
-    ]
-    previous = "project_init"
-    rows = [
-        (
-            "evaluation_inputs",
-            "Accept candidate, commitment, chronology, and environment identity.",
-            ("evaluation_input_manifest",),
-        ),
-        (
-            "isolation_gate",
-            "Verify role, material, credential, and feedback boundaries.",
-            ("isolation_report",),
-        ),
-        (
-            "reproducible_build",
-            "Build the exact sealed candidate from frozen inputs.",
-            ("reproducible_build_report",),
-        ),
-        ("mandatory_contracts", "Run frozen mandatory contract gates.", ("contract_report",)),
-        (
-            "external_functionality",
-            "Run external black-box functionality tests.",
-            ("functionality_report",),
-        ),
-        (
-            "differential_execution",
-            "Compare C reference and Rust candidate behavior.",
-            ("differential_report",),
-        ),
-        ("fault_injection", "Run frozen fault schedules.", ("fault_report",)),
-        (
-            "mutation_adequacy",
-            "Measure private assertion mutation sensitivity.",
-            ("mutation_report",),
-        ),
-        ("stress", "Run frozen stress and concurrency tests.", ("stress_report",)),
-        ("performance", "Run frozen performance thresholds.", ("performance_report",)),
-        ("hardware_subset", "Run the preselected real-hardware subset.", ("hardware_report",)),
-        (
-            "evaluation_report",
-            "Seal complete results without candidate repair.",
-            ("evaluation_report",),
-        ),
-    ]
-    for name, description, outputs in rows:
-        specs.append(_stage(name, description, StageOwner.INDEPENDENT, previous, outputs, role))
-        previous = name
-    return specs
+@dataclass(frozen=True, slots=True)
+class StageCatalog:
+    """All stage identities admitted by the installed domain workflows."""
 
+    _stages: Mapping[str, StageKey]
 
-def auditor_workflow(config: ProjectConfig) -> list[StageSpec]:
-    role = (ActorRole.AUDITOR,)
-    specs = [
-        _stage(
-            "project_init",
-            "Freeze read-only auditor project configuration.",
-            StageOwner.STATIC,
-            None,
-            ("project_manifest",),
-            role,
-        )
-    ]
-    previous = "project_init"
-    for name, description, outputs in [
-        (
-            "audit_inputs",
-            "Import manifests, commitments, ledgers, and claims read-only.",
-            ("audit_input_manifest",),
-        ),
-        (
-            "independence_audit",
-            "Verify actor, context, workspace, material, and feedback separation.",
-            ("independence_report",),
-        ),
-        (
-            "commitment_audit",
-            "Verify chronology, commitments, bundle digests, and candidate identity.",
-            ("commitment_report",),
-        ),
-        (
-            "claim_audit",
-            "Check reported claims against frozen modes and observed evidence.",
-            ("claim_report",),
-        ),
-        (
-            "audit_report",
-            "Seal verified and missing independence evidence without changing bundles.",
-            ("audit_report",),
-        ),
-    ]:
-        specs.append(_stage(name, description, StageOwner.INDEPENDENT, previous, outputs, role))
-        previous = name
-    return specs
+    @classmethod
+    def compose(cls, groups: Iterable[Iterable[StageKey]]) -> StageCatalog:
+        stages: dict[str, StageKey] = {}
+        for group in groups:
+            for stage in group:
+                registered = stages.get(stage.value)
+                if registered is not None and registered is not stage:
+                    raise ValueError(f"duplicate stage identity: {stage.value}")
+                stages[stage.value] = stage
+        return cls(MappingProxyType(stages))
 
-
-def workflow_for(config: ProjectConfig) -> list[StageSpec]:
-    if config.actor_role in {ActorRole.DEVELOPER, ActorRole.MIGRATION_OPERATOR}:
-        return migration_workflow(config)
-    if config.actor_role is ActorRole.CURATOR:
-        return curator_workflow(config)
-    if config.actor_role is ActorRole.EVALUATOR:
-        return evaluator_workflow(config)
-    if config.actor_role is ActorRole.AUDITOR:
-        return auditor_workflow(config)
-    raise ValueError(f"unsupported actor role: {config.actor_role.value}")
+    def contains(self, value: str) -> bool:
+        return value in self._stages

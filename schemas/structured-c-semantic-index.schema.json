@@ -1,0 +1,60 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://c2r-driver.local/schemas/structured-c-semantic-index.schema.json",
+  "title": "Clang AST-derived code property graph",
+  "type": "object",
+  "required": ["schema_version", "unit_id", "source_path", "graph_model", "nodes", "relations", "indexes", "counts", "effect_classification"],
+  "properties": {
+    "schema_version": {"const": 1},
+    "unit_id": {"type": "string", "minLength": 1},
+    "source_path": {"type": "string", "minLength": 1},
+    "graph_model": {"const": "clang-ast code-property graph"},
+    "nodes": {"type": "array", "minItems": 1},
+    "relations": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["kind", "source", "target"],
+        "properties": {
+          "kind": {"enum": ["AST_CHILD", "REFERENCES_DECL", "DIRECT_CALL_TARGET", "FUNCTION_POINTER_TARGET", "INDIRECT_CALL_TARGET"]},
+          "source": {"type": "string", "minLength": 1},
+          "target": {"type": "string", "minLength": 1}
+        }
+      }
+    },
+    "indexes": {
+      "type": "object",
+      "required": ["functions", "function_definitions", "record_definitions", "globals", "calls", "control_flow", "effects", "function_pointer_bindings"],
+      "properties": {
+        "calls": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["node_id", "dispatch"],
+            "properties": {
+              "node_id": {"type": "string", "minLength": 1},
+              "dispatch": {"enum": ["DIRECT", "INDIRECT_RESOLVED", "INDIRECT_UNRESOLVED"]},
+              "candidate_target_ids": {"type": "array", "items": {"type": "string", "minLength": 1}},
+              "target_set_complete": {"type": "boolean"}
+            }
+          }
+        },
+        "function_pointer_bindings": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["object_id", "holder_id", "status", "candidate_target_ids"],
+            "properties": {
+              "status": {"enum": ["EXACT", "UNKNOWN"]}
+            }
+          }
+        }
+      }
+    },
+    "counts": {
+      "type": "object",
+      "required": ["nodes", "relations", "functions", "function_definitions", "record_definitions", "globals", "calls", "direct_calls", "indirect_calls", "resolved_indirect_calls", "unresolved_indirect_calls", "control_flow", "effects", "source_spans"]
+    },
+    "effect_classification": {"type": "string", "minLength": 1}
+  }
+}

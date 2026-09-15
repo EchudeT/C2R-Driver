@@ -12,7 +12,7 @@
 ## Milestone 1：可运行控制骨架（本轮）
 
 - Python 包和 CLI；
-- SQLite RunStore 与哈希链事件；
+- 私有 SQLite persistence、content/occurrence 分离与哈希链事件；
 - SHA256 CAS；
 - 角色化 WorkflowDefinition；
 - clone 前请求解析、通用 Resolver/MetadataProvider、单次确认与范围冻结；
@@ -20,7 +20,7 @@
 - 阶段依赖及 required-output Gate；
 - Skill Prompt composer；
 - Codex exec/SDK Gateway；
-- 插件协议和候选物封存；
+- 领域 adapter 契约和候选物封存；
 - 单元测试。
 
 验收：能用任意版本化驱动 catalog 初始化项目、展示 DAG、快照 Prompt、登记证据并阻止非法状态转换；具体驱动只能存在于 fixture 或插件数据中。
@@ -32,7 +32,7 @@
 - 基于已冻结 compile database 的 AST/CFG/layout/effect 导出；
 - 固定编译器与 compile database、验证七类 C 源码闭包并把新增原文回写知识库；
 - 目标平台画像、API 证据表、analog trace 和检索修复；
-- 目标 artifact identity 和 QEMU runner 插件契约。
+- 目标 artifact identity 和 QEMU runner adapter 契约。
 
 验收：任意驱动能从输入三元组推进到结构化迁移 handoff；每个 `PASS` 都满足 Skill 对应门禁，不能由占位产物通过。
 

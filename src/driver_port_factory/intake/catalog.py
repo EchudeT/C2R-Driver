@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Any
 
 from ..core.models import WorkflowError
+from .contracts import ResolutionMatch
 
 
 def normalize_name(value: str) -> str:
@@ -59,7 +60,7 @@ class DriverCandidate:
 class Resolution:
     query: str
     candidates: tuple[DriverCandidate, ...]
-    match_type: str
+    match_type: ResolutionMatch
     auto_confirmable: bool
     metadata_sources: tuple[MetadataSource, ...] = ()
 
@@ -151,7 +152,7 @@ class DriverCatalog:
             return Resolution(
                 query,
                 tuple(exact),
-                "EXACT",
+                ResolutionMatch.EXACT,
                 len(exact) == 1,
                 (self.metadata_source,),
             )
@@ -159,8 +160,14 @@ class DriverCatalog:
             return Resolution(
                 query,
                 tuple(fuzzy),
-                "FUZZY",
+                ResolutionMatch.FUZZY,
                 False,
                 (self.metadata_source,),
             )
-        return Resolution(query, (), "NO_MATCH", False, (self.metadata_source,))
+        return Resolution(
+            query,
+            (),
+            ResolutionMatch.NO_MATCH,
+            False,
+            (self.metadata_source,),
+        )

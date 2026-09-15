@@ -10,7 +10,7 @@
     "source_root": {"type": "string", "minLength": 1},
     "compiler": {
       "type": "object",
-      "required": ["family", "executable", "version", "target_abi", "language_mode", "resolved_path", "sha256", "version_output_sha256"]
+      "required": ["family", "executable", "version", "target_triple", "target_abi", "language_mode", "resolved_path", "sha256", "version_output_sha256", "verified_target_triple", "verified_target_abi"]
     },
     "defines": {"type": "array", "items": {"type": "string"}},
     "include_paths": {"type": "array", "items": {"type": "string"}},

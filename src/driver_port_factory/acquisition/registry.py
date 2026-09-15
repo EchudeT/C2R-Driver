@@ -43,5 +43,6 @@ class RepositoryRegistry:
             return self._entries[normalize_name(platform)]
         except KeyError as error:
             raise WorkflowError(
-                f"no repository registered for platform {platform!r}; provide an explicit URL and ref"
+                f"no repository registered for platform {platform!r}; "
+                "provide an explicit URL and ref"
             ) from error

@@ -7,13 +7,16 @@ import unittest
 from pathlib import Path
 
 from driver_port_factory.codex.prompts import SkillPromptComposer, load_prompt_pack
+from driver_port_factory.composition import WORKFLOW_STAGE_CATALOG, workflow_for
 from driver_port_factory.core.models import (
     ActorRole,
     EvaluationMode,
     ProjectConfig,
     StageOwner,
+    WorkflowError,
 )
-from driver_port_factory.core.workflow import workflow_for
+from driver_port_factory.environment.contracts import EnvironmentStage
+from driver_port_factory.intake.contracts import IntakeStage
 
 
 def write_prompt_pack(root: Path, *, wrapper: str, stages: dict[str, list[str]]) -> Path:
@@ -54,8 +57,13 @@ class SkillPromptTests(unittest.TestCase):
                 wrapper="自定义阶段指令\n<job>{{job_json}}</job>\n{{skill_documents}}\n",
                 stages={"environment_recovery": documents},
             )
-            rendered = SkillPromptComposer(skill_root, prompt_pack).render(
-                stage="environment_recovery",
+            rendered = SkillPromptComposer(
+                skill_root,
+                WORKFLOW_STAGE_CATALOG,
+                (EnvironmentStage.RECOVERY.value,),
+                prompt_pack,
+            ).render(
+                stage=EnvironmentStage.RECOVERY,
                 actor_role=ActorRole.DEVELOPER,
                 objective="分析用户提供的中文迁移需求",
                 context={"original_user_request": "迁移这个驱动"},
@@ -68,7 +76,6 @@ class SkillPromptTests(unittest.TestCase):
                 self.assertIn(expected[document.relative_path], rendered.text)
 
     def test_default_pack_maps_every_non_static_stage(self) -> None:
-        prompt_pack = load_prompt_pack()
         configurations = (
             (ActorRole.DEVELOPER, EvaluationMode.DEVELOPER_EVIDENCE),
             (ActorRole.MIGRATION_OPERATOR, EvaluationMode.PROSPECTIVE_BLIND),
@@ -77,7 +84,6 @@ class SkillPromptTests(unittest.TestCase):
             (ActorRole.EVALUATOR, EvaluationMode.PROSPECTIVE_BLIND),
             (ActorRole.AUDITOR, EvaluationMode.PROSPECTIVE_BLIND),
         )
-        missing: list[str] = []
         for role, mode in configurations:
             config = ProjectConfig(
                 project_id=f"{role.value}-{mode.value}",
@@ -87,10 +93,16 @@ class SkillPromptTests(unittest.TestCase):
                 evaluation_mode=mode,
                 actor_role=role,
             )
-            for stage in workflow_for(config):
-                if stage.owner is not StageOwner.STATIC and stage.name not in prompt_pack.stages:
-                    missing.append(f"{role.value}:{stage.name}")
-        self.assertEqual(missing, [])
+            definition = workflow_for(config)
+            prompt_pack = load_prompt_pack(None, WORKFLOW_STAGE_CATALOG)
+            missing: list[str] = []
+            for stage in definition.stages:
+                if (
+                    stage.owner is not StageOwner.STATIC
+                    and stage.name.value not in prompt_pack.stages
+                ):
+                    missing.append(f"{role.value}:{stage.name.value}")
+            self.assertEqual(missing, [])
 
     def test_prompt_sources_and_wrapper_may_change_between_jobs(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
@@ -105,8 +117,13 @@ class SkillPromptTests(unittest.TestCase):
                 wrapper="version one\n{{job_json}}\n{{skill_documents}}\n",
                 stages={"driver_candidate_resolution": [relative]},
             )
-            first = SkillPromptComposer(skill_root, prompt_pack).render(
-                stage="driver_candidate_resolution",
+            first = SkillPromptComposer(
+                skill_root,
+                WORKFLOW_STAGE_CATALOG,
+                (IntakeStage.CANDIDATE_RESOLUTION.value,),
+                prompt_pack,
+            ).render(
+                stage=IntakeStage.CANDIDATE_RESOLUTION,
                 actor_role=ActorRole.DEVELOPER,
                 objective="Resolve an arbitrary driver identity",
             )
@@ -115,14 +132,69 @@ class SkillPromptTests(unittest.TestCase):
                 "version two\n{{job_json}}\n{{skill_documents}}\n",
                 encoding="utf-8",
             )
-            second = SkillPromptComposer(skill_root, prompt_pack).render(
-                stage="driver_candidate_resolution",
+            second = SkillPromptComposer(
+                skill_root,
+                WORKFLOW_STAGE_CATALOG,
+                (IntakeStage.CANDIDATE_RESOLUTION.value,),
+                prompt_pack,
+            ).render(
+                stage=IntakeStage.CANDIDATE_RESOLUTION,
                 actor_role=ActorRole.DEVELOPER,
                 objective="Resolve an arbitrary driver identity",
             )
             self.assertNotEqual(first.digest, second.digest)
             self.assertNotEqual(first.prompt_template_digest, second.prompt_template_digest)
             self.assertNotEqual(first.documents[0].digest, second.documents[0].digest)
+
+    def test_prompt_pack_cannot_silently_drop_skill_documents(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            prompt_pack = write_prompt_pack(
+                root / "prompt-pack",
+                wrapper="{{job_json}}\n",
+                stages={"driver_candidate_resolution": ["open-kernel-driver-port/SKILL.md"]},
+            )
+            with self.assertRaisesRegex(WorkflowError, "skill_documents"):
+                load_prompt_pack(prompt_pack, WORKFLOW_STAGE_CATALOG)
+
+    def test_current_workflow_limits_rendering_without_weakening_pack_catalog(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            skill_root = root / "skills"
+            document = "open-kernel-driver-port/SKILL.md"
+            path = skill_root / document
+            path.parent.mkdir(parents=True)
+            path.write_text("skill\n", encoding="utf-8")
+            prompt_pack = write_prompt_pack(
+                root / "prompt-pack",
+                wrapper="{{job_json}}\n{{skill_documents}}\n",
+                stages={
+                    EnvironmentStage.RECOVERY.value: [document],
+                    IntakeStage.CANDIDATE_RESOLUTION.value: [document],
+                },
+            )
+            composer = SkillPromptComposer(
+                skill_root,
+                WORKFLOW_STAGE_CATALOG,
+                (EnvironmentStage.RECOVERY.value,),
+                prompt_pack,
+            )
+            with self.assertRaisesRegex(WorkflowError, "outside the current project workflow"):
+                composer.render(
+                    stage=IntakeStage.CANDIDATE_RESOLUTION,
+                    actor_role=ActorRole.DEVELOPER,
+                    objective="must not render",
+                )
+
+    def test_prompt_manifest_unknown_stage_fails_closed(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            prompt_pack = write_prompt_pack(
+                Path(temporary) / "prompt-pack",
+                wrapper="{{job_json}}\n{{skill_documents}}\n",
+                stages={"misspelled_stage": ["SKILL.md"]},
+            )
+            with self.assertRaisesRegex(WorkflowError, "unknown stage"):
+                load_prompt_pack(prompt_pack, WORKFLOW_STAGE_CATALOG)
 
 
 if __name__ == "__main__":

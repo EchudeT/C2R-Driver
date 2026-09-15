@@ -25,7 +25,7 @@
 |---|---|---|---|
 | 先完成目标平台画像、API 表和相似驱动端到端链路 | `target_platform_study` | target profile、API evidence、analog trace | IMPLEMENTED |
 | 固定真实 C 编译配置并递归关闭共享源码、头、配置、callback、注册表、测试和框架依赖 | `source_closure`、`source_analysis/` | compiler identity、compile database、依赖扫描、七类 closure、KB revision | IMPLEMENTED |
-| 导出 AST/CPG/CFG/layout/call/global/effect 和精确 source spans | `structured_c_analysis` | 带工具与输入摘要的结构化 facts | PLANNED |
+| 导出 AST/CPG/CFG/layout/preprocessor/call/global/effect 和精确 source spans | `structured_c_analysis`、`source_analysis/` | Clang/LLVM 原始 facts、AST-derived CPG、工具/命令/输入摘要；bundle gate 重新绑定 checkout/compiler/argv/bytes/unit，重建 AST semantic index，并重放冻结命令拒绝同步伪造 | IMPLEMENTED |
 | 在编码前建立硬件/源/目标/QEMU 四域迁移合同 | `migration_contracts` | 每项证据、Rust 设计、验证 oracle、独立状态 | PARTIAL |
 | 驱动逻辑按合同重构而非逐行或按名称猜测 | `rust_design`、`rust_implementation` | source-to-contract coverage 与 unsafe obligations | PARTIAL |
 | 修改既有目标文件前证明必要性并选择最低 change level | target-change gate | necessity record、baseline、patch、rollback | PARTIAL |

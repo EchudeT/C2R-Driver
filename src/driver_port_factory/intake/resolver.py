@@ -7,6 +7,7 @@ from typing import Protocol
 
 from ..core.models import WorkflowError
 from .catalog import DriverCandidate, DriverCatalog, MetadataSource, Resolution
+from .contracts import ResolutionMatch
 
 
 @dataclass(frozen=True, slots=True)
@@ -74,13 +75,13 @@ class CompositeSourceDriverResolver:
         exact = self._deduplicate(
             candidate
             for resolution in resolutions
-            if resolution.match_type == "EXACT"
+            if resolution.match_type is ResolutionMatch.EXACT
             for candidate in resolution.candidates
         )
         fuzzy = self._deduplicate(
             candidate
             for resolution in resolutions
-            if resolution.match_type == "FUZZY"
+            if resolution.match_type is ResolutionMatch.FUZZY
             for candidate in resolution.candidates
         )
         all_metadata_sources = (
@@ -96,7 +97,7 @@ class CompositeSourceDriverResolver:
             return Resolution(
                 request.driver_name,
                 exact,
-                "EXACT",
+                ResolutionMatch.EXACT,
                 len(exact) == 1,
                 metadata_sources,
             )
@@ -104,14 +105,14 @@ class CompositeSourceDriverResolver:
             return Resolution(
                 request.driver_name,
                 fuzzy,
-                "FUZZY",
+                ResolutionMatch.FUZZY,
                 False,
                 metadata_sources,
             )
         return Resolution(
             request.driver_name,
             (),
-            "NO_MATCH",
+            ResolutionMatch.NO_MATCH,
             False,
             metadata_sources,
         )
@@ -147,7 +148,7 @@ class PinnedSourceIdentityVerifier(Protocol):
 
 
 class SourceEntryVerifier:
-    """Generic minimum verifier; platform plugins add device-table and bus checks."""
+    """Generic minimum verifier; platform adapters add device-table and bus checks."""
 
     def verify(self, envelope: dict[str, object], source_root: Path) -> SourceIdentityVerification:
         root = source_root.resolve()

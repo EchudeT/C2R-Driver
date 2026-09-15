@@ -1,4 +1,14 @@
+from .bootstrap import KnowledgeBootstrapper, KnowledgeBootstrapResult
 from .index import KnowledgeIndex
-from .service import KnowledgeBootstrapResult, KnowledgeService
+from .materials import KnowledgeMaterialRegistrar
+from .probe_execution import KnowledgeProbeExecutor
+from .skill_generation import ProjectKnowledgeSkillGenerator
 
-__all__ = ["KnowledgeBootstrapResult", "KnowledgeIndex", "KnowledgeService"]
+__all__ = [
+    "KnowledgeBootstrapResult",
+    "KnowledgeBootstrapper",
+    "KnowledgeIndex",
+    "KnowledgeMaterialRegistrar",
+    "KnowledgeProbeExecutor",
+    "ProjectKnowledgeSkillGenerator",
+]

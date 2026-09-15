@@ -6,7 +6,9 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from ..core.contracts import StageKey
 from ..core.models import ActorRole, WorkflowError
+from ..core.workflow import StageCatalog
 
 
 @dataclass(frozen=True, slots=True)
@@ -41,48 +43,66 @@ def default_prompt_pack_path() -> Path:
     return Path(__file__).resolve().parent.parent / "data" / "prompt-packs" / "default"
 
 
-def load_prompt_pack(path: Path | None = None) -> PromptPack:
+def _load_manifest(path: Path) -> tuple[dict[str, Any], bytes]:
+    if not path.is_file():
+        raise WorkflowError(f"prompt pack manifest does not exist: {path}")
+    raw = path.read_bytes()
+    try:
+        value = json.loads(raw.decode("utf-8"))
+    except (UnicodeDecodeError, json.JSONDecodeError) as error:
+        raise WorkflowError(f"prompt pack manifest is not valid UTF-8 JSON: {path}") from error
+    if not isinstance(value, dict) or value.get("schema_version") != 1:
+        raise WorkflowError("prompt pack manifest must be a schema_version=1 object")
+    return value, raw
+
+
+def _pack_file(root: Path, value: Any, label: str) -> tuple[Path, bytes]:
+    if not isinstance(value, str) or not value:
+        raise WorkflowError(f"prompt pack {label} must be a relative path")
+    path = (root / value).resolve()
+    if root not in path.parents or not path.is_file():
+        raise WorkflowError(f"prompt pack {label} is missing or escapes its root: {value}")
+    return path, path.read_bytes()
+
+
+def _prompt_stages(value: Any, catalog: StageCatalog) -> dict[str, tuple[str, ...]]:
+    if not isinstance(value, dict):
+        raise WorkflowError("prompt pack stages must be an object")
+    stages: dict[str, tuple[str, ...]] = {}
+    for stage, documents in value.items():
+        if not isinstance(stage, str) or not stage:
+            raise WorkflowError("prompt pack stage names must be non-empty strings")
+        if not catalog.contains(stage):
+            raise WorkflowError(f"prompt pack contains an unknown stage: {stage}")
+        if (
+            not isinstance(documents, list)
+            or not documents
+            or not all(isinstance(document, str) and document for document in documents)
+        ):
+            raise WorkflowError(f"prompt pack stage {stage} needs a non-empty document list")
+        stages[stage] = tuple(documents)
+    return stages
+
+
+def load_prompt_pack(path: Path | None, stage_catalog: StageCatalog) -> PromptPack:
     root = (path or default_prompt_pack_path()).resolve()
     manifest_path = root / "manifest.json"
-    if not manifest_path.is_file():
-        raise WorkflowError(f"prompt pack manifest does not exist: {manifest_path}")
-    raw_manifest = manifest_path.read_bytes()
-    try:
-        manifest = json.loads(raw_manifest.decode("utf-8"))
-    except (UnicodeDecodeError, json.JSONDecodeError) as error:
-        raise WorkflowError(
-            f"prompt pack manifest is not valid UTF-8 JSON: {manifest_path}"
-        ) from error
-    if not isinstance(manifest, dict) or manifest.get("schema_version") != 1:
-        raise WorkflowError("prompt pack manifest must be a schema_version=1 object")
+    manifest, raw_manifest = _load_manifest(manifest_path)
     name = manifest.get("name")
-    template_name = manifest.get("template")
-    stage_values = manifest.get("stages")
     if not isinstance(name, str) or not name.strip():
         raise WorkflowError("prompt pack name must be a non-empty string")
-    if not isinstance(template_name, str) or not template_name:
-        raise WorkflowError("prompt pack template must be a relative path")
-    template_path = (root / template_name).resolve()
-    if root not in template_path.parents or not template_path.is_file():
-        raise WorkflowError(f"prompt pack template is missing or escapes its root: {template_name}")
-    template_raw = template_path.read_bytes()
+    template_path, template_raw = _pack_file(root, manifest.get("template"), "template")
     try:
         template = template_raw.decode("utf-8")
     except UnicodeDecodeError as error:
         raise WorkflowError(f"prompt pack template is not UTF-8: {template_path}") from error
-    if not isinstance(stage_values, dict):
-        raise WorkflowError("prompt pack stages must be an object")
-    stages: dict[str, tuple[str, ...]] = {}
-    for stage, values in stage_values.items():
-        if not isinstance(stage, str) or not stage:
-            raise WorkflowError("prompt pack stage names must be non-empty strings")
-        if (
-            not isinstance(values, list)
-            or not values
-            or not all(isinstance(value, str) and value for value in values)
-        ):
-            raise WorkflowError(f"prompt pack stage {stage} needs a non-empty document list")
-        stages[stage] = tuple(values)
+    required_markers = {"{{job_json}}", "{{skill_documents}}"}
+    missing_markers = sorted(marker for marker in required_markers if marker not in template)
+    if missing_markers:
+        raise WorkflowError(
+            "prompt pack template is missing structural markers: " + ", ".join(missing_markers)
+        )
+    stages = _prompt_stages(manifest.get("stages"), stage_catalog)
     return PromptPack(
         name=name,
         root=root,
@@ -97,11 +117,18 @@ def load_prompt_pack(path: Path | None = None) -> PromptPack:
 class SkillPromptComposer:
     """Compose a stage prompt from an editable prompt pack and current Skill sources."""
 
-    def __init__(self, skill_root: Path, prompt_pack: Path | None = None) -> None:
+    def __init__(
+        self,
+        skill_root: Path,
+        stage_catalog: StageCatalog,
+        allowed_stage_names: tuple[str, ...],
+        prompt_pack: Path | None = None,
+    ) -> None:
         self.skill_root = skill_root.resolve()
         if not self.skill_root.is_dir():
             raise WorkflowError(f"Skill root does not exist: {self.skill_root}")
-        self.prompt_pack = load_prompt_pack(prompt_pack)
+        self.allowed_stages = frozenset(allowed_stage_names)
+        self.prompt_pack = load_prompt_pack(prompt_pack, stage_catalog)
 
     def _read_document(self, relative_path: str) -> PromptDocument:
         path = (self.skill_root / relative_path).resolve()
@@ -120,25 +147,28 @@ class SkillPromptComposer:
             content=content,
         )
 
-    def documents_for_stage(self, stage: str) -> tuple[PromptDocument, ...]:
-        paths = self.prompt_pack.stages.get(stage)
+    def documents_for_stage(self, stage: StageKey) -> tuple[PromptDocument, ...]:
+        if stage.value not in self.allowed_stages:
+            raise WorkflowError(f"stage {stage.value} is outside the current project workflow")
+        paths = self.prompt_pack.stages.get(stage.value)
         if not paths:
             raise WorkflowError(
-                f"stage {stage} has no document mapping in prompt pack {self.prompt_pack.name}"
+                f"stage {stage.value} has no document mapping in prompt pack "
+                f"{self.prompt_pack.name}"
             )
         return tuple(self._read_document(path) for path in paths)
 
     def render(
         self,
         *,
-        stage: str,
+        stage: StageKey,
         actor_role: ActorRole,
         objective: str,
         context: dict[str, object] | None = None,
     ) -> RenderedPrompt:
         documents = self.documents_for_stage(stage)
         header: dict[str, Any] = {
-            "stage": stage,
+            "stage": stage.value,
             "actor_role": actor_role.value,
             "objective": objective,
             "context": context or {},

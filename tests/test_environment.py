@@ -8,7 +8,9 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from driver_port_factory.acquisition.service import AcquisitionService
+from driver_port_factory.acquisition.execution import EvidenceAcquirer
+from driver_port_factory.acquisition.planning import AcquisitionPlanner
+from driver_port_factory.composition import initialize_project
 from driver_port_factory.core.models import (
     ActorRole,
     EvaluationMode,
@@ -17,7 +19,10 @@ from driver_port_factory.core.models import (
     WorkflowError,
 )
 from driver_port_factory.core.project import Project
-from driver_port_factory.environment.service import EnvironmentService
+from driver_port_factory.environment.contracts import EnvironmentArtifact, EnvironmentStage
+from driver_port_factory.environment.execution import ExperimentExecutor
+from driver_port_factory.environment.inventory import EnvironmentInspector
+from driver_port_factory.environment.planning import ExperimentPlanRegistrar
 from driver_port_factory.intake.service import IntakeService
 
 
@@ -76,7 +81,7 @@ def acquired_project(root: Path) -> Project:
         ),
         encoding="utf-8",
     )
-    project = Project.initialize(
+    project = initialize_project(
         root / "run",
         ProjectConfig(
             project_id="environment-test",
@@ -92,8 +97,7 @@ def acquired_project(root: Path) -> Project:
         raw_request="Port the example driver",
         catalog_paths=(catalog,),
     )
-    acquisition = AcquisitionService()
-    acquisition.plan(
+    AcquisitionPlanner().plan(
         project,
         source_url=str(source),
         source_ref="main",
@@ -102,7 +106,7 @@ def acquired_project(root: Path) -> Project:
         qemu_url=str(qemu),
         qemu_ref="main",
     )
-    acquisition.acquire(project)
+    EvidenceAcquirer().acquire(project)
     return project
 
 
@@ -146,8 +150,10 @@ class EnvironmentRecoveryTests(unittest.TestCase):
     def test_failed_attempt_is_preserved_before_distinct_successful_route(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             project = acquired_project(Path(temporary))
-            service = EnvironmentService()
-            discovery = service.inspect(project)
+            inspector = EnvironmentInspector()
+            registrar = ExperimentPlanRegistrar()
+            executor = ExperimentExecutor()
+            discovery = inspector.inspect(project)
             modes = {
                 candidate["artifact_mode"]
                 for candidate in discovery["artifact_mode_candidates"]["candidates"]
@@ -155,7 +161,8 @@ class EnvironmentRecoveryTests(unittest.TestCase):
             self.assertIn("source-build", modes)
             self.assertIn("ci-derived-build", modes)
             self.assertEqual(
-                project.store.stage("environment_recovery").status, StageStatus.RUNNING
+                project.stage(EnvironmentStage.RECOVERY).status,
+                StageStatus.RUNNING,
             )
 
             failed_harness = project.root / "failed-qmp-harness.py"
@@ -170,12 +177,13 @@ class EnvironmentRecoveryTests(unittest.TestCase):
                     "failed-qmp-harness.py",
                 ],
             )
-            service.register_plan(project, failed_plan)
-            failed = service.run(project, "missing-marker-001")
+            registrar.register(project, failed_plan)
+            failed = executor.run(project, "missing-marker-001")
             self.assertEqual(failed.readiness.value, "FAIL")
             self.assertTrue(Path(failed.attempt_path).is_file())
             self.assertEqual(
-                project.store.stage("environment_recovery").status, StageStatus.RUNNING
+                project.stage(EnvironmentStage.RECOVERY).status,
+                StageStatus.RUNNING,
             )
 
             passed_harness = project.root / "passing-qmp-harness.py"
@@ -190,19 +198,20 @@ class EnvironmentRecoveryTests(unittest.TestCase):
                     "passing-qmp-harness.py",
                 ],
             )
-            service.register_plan(project, passed_plan)
-            passed = service.run(project, "harness-smoke-002")
+            registrar.register(project, passed_plan)
+            passed = executor.run(project, "harness-smoke-002")
             self.assertEqual(passed.readiness.value, "PASS")
-            self.assertEqual(project.store.stage("environment_recovery").status, StageStatus.PASS)
-            route = project.load_json_artifact("environment_recovery", "experiment_route")
+            self.assertEqual(project.stage(EnvironmentStage.RECOVERY).status, StageStatus.PASS)
+            route = project.load_json_artifact(
+                EnvironmentStage.RECOVERY, EnvironmentArtifact.EXPERIMENT_ROUTE
+            )
             self.assertEqual(route["milestone"], "EXPERIMENT_READY")
             self.assertFalse(route["migrated_driver_runtime_ready"])
 
     def test_direct_qemu_route_rejects_non_qemu_executable(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             project = acquired_project(Path(temporary))
-            service = EnvironmentService()
-            service.inspect(project)
+            EnvironmentInspector().inspect(project)
             plan = write_plan(
                 project.root,
                 route_id="not-qemu",
@@ -211,14 +220,13 @@ class EnvironmentRecoveryTests(unittest.TestCase):
                 accepted_exit_codes=[0],
             )
             with self.assertRaises(WorkflowError):
-                service.register_plan(project, plan)
+                ExperimentPlanRegistrar().register(project, plan)
 
     @unittest.skipUnless(shutil.which("qemu-system-riscv64"), "qemu-system-riscv64 is unavailable")
     def test_real_qemu_qmp_smoke_reaches_experiment_ready(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             project = acquired_project(Path(temporary))
-            service = EnvironmentService()
-            service.inspect(project)
+            EnvironmentInspector().inspect(project)
             plan = write_plan(
                 project.root,
                 route_id="real-qemu-qmp-001",
@@ -238,10 +246,12 @@ class EnvironmentRecoveryTests(unittest.TestCase):
                 accepted_exit_codes=[0],
                 accept_timeout=True,
             )
-            service.register_plan(project, plan)
-            result = service.run(project, "real-qemu-qmp-001")
+            ExperimentPlanRegistrar().register(project, plan)
+            result = ExperimentExecutor().run(project, "real-qemu-qmp-001")
             self.assertEqual(result.readiness.value, "PASS")
-            run = project.load_json_artifact("environment_recovery", "experiment_ready_run")
+            run = project.load_json_artifact(
+                EnvironmentStage.RECOVERY, EnvironmentArtifact.EXPERIMENT_READY_RUN
+            )
             self.assertTrue(run["run"]["launched"])
             self.assertTrue(run["run"]["timed_out"] or run["run"]["exit_code"] == 0)
 

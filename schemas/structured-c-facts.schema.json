@@ -1,0 +1,48 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://c2r-driver.local/schemas/structured-c-facts.schema.json",
+  "title": "Frozen structured C semantic fact bundle",
+  "type": "object",
+  "required": ["schema_version", "status", "source_revision", "source_root", "source_checkout_identity", "compile_manifest_sha256", "compilation_database_sha256", "analyzer", "fact_domains", "semantic_counts", "units", "unresolved_fact_domains", "semantic_policy", "semantic_limits"],
+  "properties": {
+    "schema_version": {"const": 1},
+    "status": {"const": "READY"},
+    "source_revision": {"type": "string", "minLength": 1},
+    "source_root": {"type": "string", "minLength": 1},
+    "compile_manifest_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "compilation_database_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "analyzer": {
+      "type": "object",
+      "required": ["family", "requested_executable", "resolved_path", "sha256", "version_output", "version_output_sha256", "requested_target_triple", "observed_target_triple", "target_abi"],
+      "properties": {
+        "family": {"const": "clang-llvm"},
+        "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "version_output_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+      }
+    },
+    "fact_domains": {
+      "type": "object",
+      "required": ["typed_ast", "code_property_graph", "cfg", "record_layout", "preprocessor", "llvm_ir", "calls", "globals", "effects", "source_spans"],
+      "additionalProperties": {"enum": ["STRUCTURED", "RAW_VALIDATED", "EMPTY_VALID"]}
+    },
+    "semantic_counts": {"type": "object"},
+    "units": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["unit_id", "source_path", "source_sha256", "raw_facts", "semantic_index", "command_records", "semantic_counts", "analyzer_target_triple", "verified_target_abi"],
+        "properties": {
+          "unit_id": {"type": "string", "minLength": 1},
+          "source_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+          "raw_facts": {
+            "type": "object",
+            "required": ["typed_ast", "preprocessed_source", "record_layout", "llvm_ir", "cfg"]
+          }
+        }
+      }
+    },
+    "unresolved_fact_domains": {"type": "array", "maxItems": 0},
+    "semantic_policy": {"type": "string", "minLength": 1}
+  }
+}

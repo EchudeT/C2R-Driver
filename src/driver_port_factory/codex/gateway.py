@@ -5,23 +5,23 @@ import subprocess
 import uuid
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Protocol
+from typing import Any
 
+from ..core.contracts import StageKey
 from ..core.models import ActorRole, WorkflowError
+from .contracts import CodexExecEventType, CodexExecItemType, CodexSandbox
 
 
 @dataclass(frozen=True, slots=True)
 class CodexJob:
-    stage: str
+    stage: StageKey
     actor_role: ActorRole
     objective: str
     prompt: str
-    workspace: Path
+    execution_root: Path
+    sandbox: CodexSandbox
     output_schema: Path | None = None
-    output_path: Path | None = None
     model: str | None = None
-    sandbox: str = "workspace-write"
-    thread_id: str | None = None
     job_id: str = field(default_factory=lambda: str(uuid.uuid4()))
 
 
@@ -33,10 +33,6 @@ class CodexResult:
     events: tuple[dict[str, Any], ...] = ()
 
 
-class CodexGateway(Protocol):
-    def run(self, job: CodexJob) -> CodexResult: ...
-
-
 class CodexExecGateway:
     """Structured subprocess gateway for `codex exec`."""
 
@@ -44,31 +40,25 @@ class CodexExecGateway:
         self.codex_bin = codex_bin
 
     def run(self, job: CodexJob) -> CodexResult:
-        workspace = job.workspace.resolve()
-        if not workspace.is_dir():
-            raise WorkflowError(f"Codex workspace does not exist: {workspace}")
-        if job.thread_id:
-            raise WorkflowError(
-                "CodexExecGateway runs ephemeral jobs; use CodexSdkGateway to resume a thread"
-            )
+        execution_root = job.execution_root.resolve()
+        if not execution_root.is_dir():
+            raise WorkflowError(f"Codex execution root does not exist: {execution_root}")
         command = [
             self.codex_bin,
             "exec",
             "--json",
             "--ephemeral",
             "--sandbox",
-            job.sandbox,
+            job.sandbox.value,
         ]
         if job.model:
             command.extend(["--model", job.model])
         if job.output_schema:
             command.extend(["--output-schema", str(job.output_schema.resolve())])
-        if job.output_path:
-            command.extend(["--output-last-message", str(job.output_path.resolve())])
         command.append(job.prompt)
         completed = subprocess.run(
             command,
-            cwd=workspace,
+            cwd=execution_root,
             text=True,
             capture_output=True,
             check=False,
@@ -84,21 +74,22 @@ class CodexExecGateway:
                 f"codex exec failed with exit {completed.returncode}: {completed.stderr.strip()}"
             )
         thread_id = next(
-            (event.get("thread_id") for event in events if event.get("type") == "thread.started"),
+            (
+                event.get("thread_id")
+                for event in events
+                if event.get("type") == CodexExecEventType.THREAD_STARTED.value
+            ),
             None,
         )
-        if job.output_path and job.output_path.exists():
-            final_response = job.output_path.read_text(encoding="utf-8")
-        else:
-            final_response = next(
-                (
-                    event["item"].get("text", "")
-                    for event in reversed(events)
-                    if event.get("type") == "item.completed"
-                    and event.get("item", {}).get("type") == "agent_message"
-                ),
-                "",
-            )
+        final_response = next(
+            (
+                event["item"].get("text", "")
+                for event in reversed(events)
+                if event.get("type") == CodexExecEventType.ITEM_COMPLETED.value
+                and event.get("item", {}).get("type") == CodexExecItemType.AGENT_MESSAGE.value
+            ),
+            "",
+        )
         return CodexResult(job.job_id, final_response, thread_id, tuple(events))
 
 
@@ -113,34 +104,21 @@ class CodexSdkGateway:
                 "Python Codex SDK is not installed; install driver-port-factory[codex]"
             ) from error
         sandbox_names = {
-            "read-only": Sandbox.read_only,
-            "workspace-write": Sandbox.workspace_write,
-            "danger-full-access": Sandbox.full_access,
+            CodexSandbox.READ_ONLY: Sandbox.read_only,
+            CodexSandbox.WORKSPACE_WRITE: Sandbox.workspace_write,
         }
         try:
             sandbox = sandbox_names[job.sandbox]
         except KeyError as error:
-            raise WorkflowError(f"unsupported Codex sandbox: {job.sandbox}") from error
-        options: dict[str, Any] = {"sandbox": sandbox, "cwd": str(job.workspace.resolve())}
+            raise WorkflowError(f"unsupported Codex sandbox: {job.sandbox.value}") from error
+        options: dict[str, Any] = {
+            "sandbox": sandbox,
+            "cwd": str(job.execution_root.resolve()),
+        }
         if job.model:
             options["model"] = job.model
         with Codex() as codex:
-            if job.thread_id:
-                thread = codex.thread_resume(job.thread_id)
-            else:
-                thread = codex.thread_start(**options)
+            thread = codex.thread_start(**options)
             result = thread.run(job.prompt)
             thread_id = getattr(thread, "id", None) or getattr(thread, "thread_id", None)
             return CodexResult(job.job_id, result.final_response, thread_id)
-
-
-class RecordingGateway:
-    """Deterministic gateway used by tests and dry runs."""
-
-    def __init__(self, response: str = "{}") -> None:
-        self.response = response
-        self.jobs: list[CodexJob] = []
-
-    def run(self, job: CodexJob) -> CodexResult:
-        self.jobs.append(job)
-        return CodexResult(job.job_id, self.response, f"recording-{job.job_id}")

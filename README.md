@@ -1,6 +1,8 @@
 # Driver Port Factory
 
-Driver Port Factory（DPF）把 C 驱动跨平台迁移、公开验证、候选物封存和独立盲测组织成可审计的程序工作流。它严格区分确定性控制代码与 Codex 判断任务：程序拥有状态、门禁、哈希和执行结果，Codex 只提交有类型的分析或补丁产物。
+Driver Port Factory（DPF）把 C 驱动跨平台迁移、公开验证、候选物封存和独立盲测组织成可审计的
+程序工作流。它严格区分确定性控制代码与 Codex 判断任务：程序拥有状态、门禁、哈希和执行结果；
+Codex Prompt、原始响应和事件只作辅助证据，required artifact 由明确的领域 adapter 生成和验证。
 
 本项目的规范来源是 `C-kernel-to-Rust` 的三个 Skill：
 
@@ -21,6 +23,7 @@ Prompt Pack、模板、Skill 文档和完整 Prompt 的 SHA256，但普通开发
 - provenance-checked 本地知识库、目标专项 probes 和项目 KB Skill 生成；
 - 目标平台画像、API 原文证据、相似驱动端到端链路和 target-change 计划门禁；
 - 固定 C 编译配置、编译器依赖扫描、七类源码闭包与知识库增量重建；
+- 从冻结 argv 导出 Clang AST/CFG/layout/preprocessor、LLVM IR 和 AST-derived CPG；
 - SQLite 保存阶段状态和哈希链事件；
 - SHA256 内容寻址产物库；
 - 阶段依赖、必需输出和角色门禁；
@@ -69,4 +72,4 @@ PYTHONPATH=src python -m driver_port_factory.cli --help
 python -m unittest discover -s tests -v
 ```
 
-详细设计见 [Skill 规范追踪矩阵](docs/SKILL_TRACEABILITY.md)、[架构](docs/ARCHITECTURE.md)、[迁移需求门](docs/INTAKE.md)、[Git acquisition](docs/ACQUISITION.md)、[环境恢复](docs/ENVIRONMENT_RECOVERY.md)、[知识库](docs/KNOWLEDGE_BASE.md)、[目标平台研究](docs/TARGET_PLATFORM_STUDY.md)、[C 源码闭包](docs/SOURCE_CLOSURE.md)、[阶段工作流](docs/WORKFLOW.md)、[实施计划](docs/IMPLEMENTATION_PLAN.md) 和 [Codex 任务契约](docs/CODEX_JOBS.md)。
+详细设计见 [Skill 规范追踪矩阵](docs/SKILL_TRACEABILITY.md)、[架构](docs/ARCHITECTURE.md)、[迁移需求门](docs/INTAKE.md)、[Git acquisition](docs/ACQUISITION.md)、[环境恢复](docs/ENVIRONMENT_RECOVERY.md)、[知识库](docs/KNOWLEDGE_BASE.md)、[目标平台研究](docs/TARGET_PLATFORM_STUDY.md)、[C 源码闭包](docs/SOURCE_CLOSURE.md)、[结构化 C 分析](docs/STRUCTURED_C_ANALYSIS.md)、[阶段工作流](docs/WORKFLOW.md)、[实施计划](docs/IMPLEMENTATION_PLAN.md) 和 [Codex 任务契约](docs/CODEX_JOBS.md)。

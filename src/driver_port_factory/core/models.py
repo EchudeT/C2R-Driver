@@ -3,7 +3,10 @@ from __future__ import annotations
 from dataclasses import asdict, dataclass, field
 from datetime import UTC, datetime
 from enum import StrEnum
+from pathlib import Path
 from typing import Any
+
+from .contracts import ArtifactKey, StageKey
 
 
 def utc_now() -> str:
@@ -50,28 +53,6 @@ class StageStatus(StrEnum):
         return self in {self.PASS, self.NOT_APPLICABLE}
 
 
-class EvidenceStatus(StrEnum):
-    VERIFIED = "VERIFIED"
-    INFERRED = "INFERRED"
-    PLANNED = "PLANNED"
-    NOT_RUN = "NOT_RUN"
-    NOT_APPLICABLE = "NOT_APPLICABLE"
-    BLOCKED = "BLOCKED"
-    FAIL = "FAIL"
-    PASS = "PASS"
-
-
-class EvaluationResult(StrEnum):
-    PASS = "PASS"
-    FAIL = "FAIL"
-    BLOCKED = "BLOCKED"
-    INCONCLUSIVE = "INCONCLUSIVE"
-    NOT_RUN = "NOT_RUN"
-    NOT_APPLICABLE = "NOT_APPLICABLE"
-    HARNESS_INVALID = "HARNESS_INVALID"
-    NON_INDEPENDENT = "NON_INDEPENDENT"
-
-
 class StageOwner(StrEnum):
     STATIC = "static"
     CODEX = "codex"
@@ -79,19 +60,24 @@ class StageOwner(StrEnum):
     INDEPENDENT = "independent"
 
 
-class StageName(StrEnum):
-    PROJECT_INIT = "project_init"
-    SOURCE_CLOSURE = "source_closure"
-    STRUCTURED_C_ANALYSIS = "structured_c_analysis"
+class ArtifactDirection(StrEnum):
+    INPUT = "input"
+    OUTPUT = "output"
 
 
-class IntakeStatus(StrEnum):
-    UNRESOLVED = "UNRESOLVED"
-    ANALYZING = "ANALYZING"
-    NEEDS_USER_CONFIRMATION = "NEEDS_USER_CONFIRMATION"
-    WAITING_FOR_USER = "WAITING_FOR_USER"
-    CONFIRMED = "CONFIRMED"
-    FROZEN = "FROZEN"
+class OutputCardinality(StrEnum):
+    EXACTLY_ONE = "exactly-one"
+    ONE_OR_MORE = "one-or-more"
+
+
+@dataclass(frozen=True, slots=True)
+class ArtifactRequirement:
+    kind: ArtifactKey
+    cardinality: OutputCardinality = OutputCardinality.EXACTLY_ONE
+
+    @property
+    def value(self) -> str:
+        return self.kind.value
 
 
 @dataclass(frozen=True, slots=True)
@@ -122,35 +108,81 @@ class ProjectConfig:
 
 @dataclass(frozen=True, slots=True)
 class StageSpec:
-    name: str
+    name: StageKey
     description: str
     owner: StageOwner
-    dependencies: tuple[str, ...] = ()
-    required_outputs: tuple[str, ...] = ()
+    dependencies: tuple[StageKey, ...] = ()
+    required_outputs: tuple[ArtifactRequirement, ...] = ()
+    auxiliary_outputs: tuple[ArtifactKey, ...] = ()
     allowed_roles: tuple[ActorRole, ...] = ()
     accept_failed_dependencies: bool = False
 
 
 @dataclass(frozen=True, slots=True)
-class ArtifactRef:
+class ArtifactContent:
     digest: str
     kind: str
     size: int
     cas_path: str
-    source: str | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class ArtifactRef:
+    """One stage-owned occurrence of immutable artifact content."""
+
+    content: ArtifactContent
+    source: str
+    ordinal: int | None = None
+
+    @property
+    def digest(self) -> str:
+        return self.content.digest
+
+    @property
+    def kind(self) -> str:
+        return self.content.kind
+
+    @property
+    def size(self) -> int:
+        return self.content.size
+
+    @property
+    def cas_path(self) -> str:
+        return self.content.cas_path
 
     def to_dict(self) -> dict[str, Any]:
-        return asdict(self)
+        return {
+            "digest": self.digest,
+            "kind": self.kind,
+            "size": self.size,
+            "cas_path": self.cas_path,
+            "source": self.source,
+            "ordinal": self.ordinal,
+        }
+
+
+@dataclass(frozen=True, slots=True)
+class FileArtifact:
+    kind: ArtifactKey
+    path: Path
+
+
+@dataclass(frozen=True, slots=True)
+class GeneratedArtifact:
+    kind: ArtifactKey
+    data: bytes
+    source: str
 
 
 @dataclass(frozen=True, slots=True)
 class StageView:
-    name: str
+    name: StageKey
     position: int
     owner: StageOwner
     status: StageStatus
-    dependencies: tuple[str, ...]
-    required_outputs: tuple[str, ...]
+    dependencies: tuple[StageKey, ...]
+    required_outputs: tuple[ArtifactRequirement, ...]
+    auxiliary_outputs: tuple[ArtifactKey, ...]
     description: str
 
 

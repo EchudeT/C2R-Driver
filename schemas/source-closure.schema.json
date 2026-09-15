@@ -16,12 +16,13 @@
     "closure_status": {"const": "CLOSED"},
     "compiler": {
       "type": "object",
-      "required": ["family", "executable", "version", "target_abi", "language_mode"],
+      "required": ["family", "executable", "version", "target_triple", "target_abi", "language_mode"],
       "properties": {
         "family": {"enum": ["gcc-compatible"]},
         "executable": {"type": "string", "minLength": 1},
         "version": {"type": "string", "minLength": 1},
-        "target_abi": {"type": "string", "minLength": 1},
+        "target_triple": {"type": "string", "minLength": 1},
+        "target_abi": {"$ref": "#/$defs/targetAbi"},
         "language_mode": {"type": "string", "minLength": 1}
       }
     },
@@ -76,6 +77,19 @@
     "unresolved_dependencies": {"type": "array", "maxItems": 0}
   },
   "$defs": {
+    "targetAbi": {
+      "type": "object",
+      "required": ["pointer_width_bits", "long_width_bits", "long_long_width_bits", "int_width_bits", "size_t_width_bits", "char_width_bits", "byte_order"],
+      "properties": {
+        "pointer_width_bits": {"type": "integer", "minimum": 1},
+        "long_width_bits": {"type": "integer", "minimum": 1},
+        "long_long_width_bits": {"type": "integer", "minimum": 1},
+        "int_width_bits": {"type": "integer", "minimum": 1},
+        "size_t_width_bits": {"type": "integer", "minimum": 1},
+        "char_width_bits": {"type": "integer", "minimum": 1},
+        "byte_order": {"enum": ["little", "big", "pdp"]}
+      }
+    },
     "coverage": {
       "type": "object",
       "required": ["status", "paths", "rationale"],
