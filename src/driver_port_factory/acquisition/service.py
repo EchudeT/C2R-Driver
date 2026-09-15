@@ -291,20 +291,37 @@ class AcquisitionService:
         envelope: dict[str, Any],
     ) -> list[dict[str, Any]]:
         materials: list[dict[str, Any]] = []
+        lock_root = project.control / "manifests" / "repository-locks"
+        lock_root.mkdir(parents=True, exist_ok=True)
         for record in checkouts:
+            lock = {
+                "role": record.role.value,
+                "platform": record.platform,
+                "source_url": record.source_url,
+                "resolved_commit": record.resolved_commit,
+                "tree_id": record.tree_id,
+            }
+            lock_path = lock_root / f"{record.role.value}.json"
+            lock_path.write_text(canonical_json(lock), encoding="utf-8")
+            actual_lock_sha256 = hashlib.sha256(lock_path.read_bytes()).hexdigest()
+            if actual_lock_sha256 != record.lock_sha256:
+                raise WorkflowError(
+                    f"repository lock serialization changed for {record.role.value}"
+                )
             materials.append(
                 {
                     "id": f"{record.role.value}-repository-lock",
                     "domain": record.role.value,
-                    "path": record.checkout_path,
+                    "path": str(lock_path.relative_to(project.root)),
                     "source_url": record.source_url,
                     "revision": record.resolved_commit,
                     "acquired_at": record.acquired_at,
                     "license": "review-required",
                     "redistribution": "unknown",
                     "sha256": record.lock_sha256,
-                    "original": True,
-                    "notes": f"locked Git tree {record.tree_id}; full tree content is not represented by a mutable directory name",
+                    "original": False,
+                    "index": False,
+                    "notes": f"repository identity for locked Git tree {record.tree_id}",
                 }
             )
         source = AcquisitionService._record(checkouts, RepositoryRole.SOURCE)

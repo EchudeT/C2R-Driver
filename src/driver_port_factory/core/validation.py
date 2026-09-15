@@ -101,13 +101,13 @@ def validate_artifact(kind: str, data: bytes) -> None:
             raise WorkflowError("acquisition_manifest requires three controlled checkouts")
         if not isinstance(value.get("source_identity_verification"), dict):
             raise WorkflowError("acquisition_manifest requires source identity verification")
-    elif kind == "materials_manifest":
+    elif kind in {"materials_manifest", "knowledge_materials_manifest"}:
         try:
             lines = [json.loads(line) for line in data.decode("utf-8").splitlines() if line]
         except (UnicodeDecodeError, json.JSONDecodeError) as error:
-            raise WorkflowError("materials_manifest must be JSON Lines") from error
+            raise WorkflowError(f"{kind} must be JSON Lines") from error
         if not lines or any("sha256" not in line or "revision" not in line for line in lines):
-            raise WorkflowError("materials_manifest entries require sha256 and revision")
+            raise WorkflowError(f"{kind} entries require sha256 and revision")
     elif kind == "source_identity_verification":
         value = _json_object(data, kind)
         if not isinstance(value.get("consistent"), bool):
@@ -150,6 +150,45 @@ def validate_artifact(kind: str, data: bytes) -> None:
             raise WorkflowError(
                 "environment recovery cannot claim migrated-driver runtime readiness"
             )
+    elif kind == "kb_status":
+        value = _json_object(data, kind)
+        if value.get("status") != "READY" or not isinstance(value.get("manifest_fingerprint"), str):
+            raise WorkflowError("kb_status must be READY with a manifest fingerprint")
+    elif kind == "kb_query_contract":
+        value = _json_object(data, kind)
+        commands = value.get("commands")
+        if not isinstance(commands, dict) or set(commands) != {
+            "status",
+            "rebuild",
+            "search",
+            "show",
+        }:
+            raise WorkflowError("kb_query_contract requires all four query commands")
+        if not value.get("template_sha256") or not value.get("manifest_sha256"):
+            raise WorkflowError("kb_query_contract requires template and manifest hashes")
+    elif kind == "generated_kb_skill":
+        try:
+            text = data.decode("utf-8")
+        except UnicodeDecodeError as error:
+            raise WorkflowError("generated_kb_skill must be UTF-8") from error
+        if "{{" in text or "}}" in text:
+            raise WorkflowError("generated_kb_skill contains unresolved placeholders")
+        for operation in ("status", "rebuild", "search", "show"):
+            if operation not in text:
+                raise WorkflowError(
+                    f"generated_kb_skill does not describe the {operation} operation"
+                )
+    elif kind == "kb_readiness_report":
+        value = _json_object(data, kind)
+        if value.get("status") != "PASS" or value.get("failed_probe_ids"):
+            raise WorkflowError("kb_readiness_report must have no failed probes")
+    elif kind == "target_probe_results":
+        value = _json_object(data, kind)
+        probes = value.get("probes")
+        if value.get("status") != "PASS" or not isinstance(probes, list) or not probes:
+            raise WorkflowError("target_probe_results must contain passing probes")
+        if any(probe.get("status") != "PASS" for probe in probes):
+            raise WorkflowError("every target knowledge probe must pass")
     elif kind == "candidate_digest_anchor":
         value = _json_object(data, kind)
         digest = value.get("candidate_sha256")

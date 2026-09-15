@@ -40,6 +40,8 @@ knowledge/manifests/materials.jsonl
 
 Baseline worktrees are detached at frozen commits and treated as immutable controlled inputs. `target-working` is the only acquisition-created branch intended for migration edits. The controller records commit, tree ID, remote URL, clean status and a canonical SHA256 repository lock. The source driver entry receives an independent file SHA256; the recursive behavior closure is added later.
 
+Repository lock material entries point to canonical lock files under `.dpf/manifests/repository-locks/`, not to mutable directory names. These files are integrity-checked but excluded from full-text indexing; task-relevant source, target and QEMU files receive separate per-file manifest records as the evidence closure expands.
+
 No downloaded script or binary is executed during acquisition.
 
 If a ref changes between planning and fetch, or another Git operation fails, the controller preserves partial paths and command logs, emits an `acquisition_failure` artifact and completes the stage as `FAIL`; it never substitutes the newly observed commit for the planned one.

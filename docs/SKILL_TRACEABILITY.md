@@ -15,8 +15,8 @@
 | 最小证据闭包覆盖源码、测试、目标、QEMU、硬件和工具链 | acquisition 扩展闭包 | `materials.jsonl`、coverage inventory、显式 gap | PARTIAL |
 | 环境恢复必须实际达到 `EXPERIMENT_READY` | `environment_recovery` | 主机清单、artifact mode、不可覆盖的真实命令 run | IMPLEMENTED |
 | 不能默认完整源码构建，须比较 runner/SDK/image/injection/CI/full build | environment artifact discovery | 候选路线与选择证据 | IMPLEMENTED |
-| 建立或复用带完整性、search、show、rebuild 的项目知识库 Skill | `knowledge_base` | KB status、query contract、生成 Skill | PLANNED |
-| 目标专项检索失败时直接查源码、补语料、重建并复测 | KB target probes | probe 与 repair ledger | PLANNED |
+| 建立或复用带完整性、search、show、rebuild 的项目知识库 Skill | `knowledge_base` | KB status、query contract、生成 Skill | IMPLEMENTED |
+| 目标专项检索失败时直接查源码、补语料、重建并复测 | KB target probes | probe 与 repair ledger | PARTIAL |
 | 完整 handoff，不能只写“缺少构建信息” | bootstrap handoff | `handoff.json` 全字段验证 | PLANNED |
 
 ## 迁移执行：knowledge-guided-driver-port

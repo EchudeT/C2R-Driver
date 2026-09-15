@@ -103,7 +103,14 @@ def migration_workflow(config: ProjectConfig) -> list[StageSpec]:
             "knowledge_base",
             "Build or validate the evidence knowledge base and query contract.",
             StageOwner.STATIC,
-            ("kb_status", "kb_query_contract"),
+            (
+                "knowledge_materials_manifest",
+                "kb_status",
+                "kb_query_contract",
+                "generated_kb_skill",
+                "kb_readiness_report",
+                "target_probe_results",
+            ),
         ),
         (
             "target_platform_study",

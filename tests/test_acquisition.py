@@ -121,6 +121,14 @@ class AcquisitionTests(unittest.TestCase):
             self.assertEqual(result.status, StageStatus.PASS)
             self.assertTrue(result.source_identity_consistent)
             self.assertTrue((project.root / result.target_worktree / ".git").exists())
+            materials_ref = project.artifact("evidence_acquisition", "materials_manifest")
+            materials = [
+                json.loads(line)
+                for line in project.artifacts.read(materials_ref).decode().splitlines()
+            ]
+            self.assertTrue(
+                all((project.root / material["path"]).is_file() for material in materials)
+            )
             self.assertEqual(
                 project.store.stage("environment_recovery").status,
                 StageStatus.READY,

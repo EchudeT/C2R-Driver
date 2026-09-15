@@ -16,6 +16,7 @@ DPF 允许把 Skill 原文及其 references 直接组合进阶段 Prompt。每�
 - clone 前的请求解析、候选驱动发现、单次确认和迁移范围冻结；
 - source/target/QEMU 的轻量 revision 解析、任务本地 bare fetch 和受控 worktree；
 - 主机/目标/QEMU 路线发现、不可覆盖恢复尝试和真实 `EXPERIMENT_READY` 门禁；
+- provenance-checked 本地知识库、目标专项 probes 和项目 KB Skill 生成；
 - SQLite 保存阶段状态和哈希链事件；
 - SHA256 内容寻址产物库；
 - 阶段依赖、必需输出和角色门禁；
@@ -59,4 +60,4 @@ PYTHONPATH=src python -m driver_port_factory.cli --help
 python -m unittest discover -s tests -v
 ```
 
-详细设计见 [Skill 规范追踪矩阵](docs/SKILL_TRACEABILITY.md)、[架构](docs/ARCHITECTURE.md)、[迁移需求门](docs/INTAKE.md)、[Git acquisition](docs/ACQUISITION.md)、[环境恢复](docs/ENVIRONMENT_RECOVERY.md)、[阶段工作流](docs/WORKFLOW.md)、[实施计划](docs/IMPLEMENTATION_PLAN.md) 和 [Codex 任务契约](docs/CODEX_JOBS.md)。
+详细设计见 [Skill 规范追踪矩阵](docs/SKILL_TRACEABILITY.md)、[架构](docs/ARCHITECTURE.md)、[迁移需求门](docs/INTAKE.md)、[Git acquisition](docs/ACQUISITION.md)、[环境恢复](docs/ENVIRONMENT_RECOVERY.md)、[知识库](docs/KNOWLEDGE_BASE.md)、[阶段工作流](docs/WORKFLOW.md)、[实施计划](docs/IMPLEMENTATION_PLAN.md) 和 [Codex 任务契约](docs/CODEX_JOBS.md)。
