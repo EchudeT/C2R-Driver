@@ -1,0 +1,44 @@
+{
+  "schema_version": 1,
+  "catalog_id": "linux-driver-intake-bootstrap",
+  "catalog_version": 1,
+  "source_platform": "linux",
+  "drivers": [
+    {
+      "candidate_id": "linux-ne2k-pci",
+      "canonical_name": "ne2k-pci",
+      "source_entry_hint": "drivers/net/ethernet/8390/ne2k-pci.c",
+      "device_family": "NE2000-compatible Ethernet",
+      "bus_or_transport": "PCI",
+      "aliases": ["NE2000 PCI", "NE2000-PCI", "PCI NE2000", "ne2k_pci", "NE2000"],
+      "device_scope": ["NE2000-compatible PCI Ethernet adapters"],
+      "candidate_device_ids": [],
+      "qemu_models": ["ne2k_pci"],
+      "evidence_hints": ["Linux Kconfig/module metadata", "QEMU ne2k_pci model"]
+    },
+    {
+      "candidate_id": "linux-ne-isa",
+      "canonical_name": "ne",
+      "source_entry_hint": "drivers/net/ethernet/8390/ne.c",
+      "device_family": "NE2000-compatible Ethernet",
+      "bus_or_transport": "ISA",
+      "aliases": ["ISA NE2000", "NE2000 ISA", "NE2000"],
+      "device_scope": ["NE1000/NE2000-compatible ISA Ethernet adapters"],
+      "candidate_device_ids": [],
+      "qemu_models": ["ne2k_isa"],
+      "evidence_hints": ["Linux Kconfig/module metadata", "QEMU ne2k_isa model"]
+    },
+    {
+      "candidate_id": "linux-pcnet-cs",
+      "canonical_name": "pcnet_cs",
+      "source_entry_hint": "drivers/net/ethernet/8390/pcnet_cs.c",
+      "device_family": "NE2000-compatible Ethernet",
+      "bus_or_transport": "PCMCIA",
+      "aliases": ["PCMCIA NE2000", "NE2000 PCMCIA", "NE2000"],
+      "device_scope": ["NE2000-compatible PCMCIA Ethernet adapters"],
+      "candidate_device_ids": [],
+      "qemu_models": [],
+      "evidence_hints": ["Linux PCMCIA driver metadata"]
+    }
+  ]
+}

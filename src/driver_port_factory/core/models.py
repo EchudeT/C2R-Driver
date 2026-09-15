@@ -28,6 +28,7 @@ class StageStatus(StrEnum):
     PENDING = "PENDING"
     READY = "READY"
     RUNNING = "RUNNING"
+    WAITING_FOR_USER = "WAITING_FOR_USER"
     PASS = "PASS"
     FAIL = "FAIL"
     BLOCKED = "BLOCKED"
@@ -76,6 +77,15 @@ class StageOwner(StrEnum):
     CODEX = "codex"
     HYBRID = "hybrid"
     INDEPENDENT = "independent"
+
+
+class IntakeStatus(StrEnum):
+    UNRESOLVED = "UNRESOLVED"
+    ANALYZING = "ANALYZING"
+    NEEDS_USER_CONFIRMATION = "NEEDS_USER_CONFIRMATION"
+    WAITING_FOR_USER = "WAITING_FOR_USER"
+    CONFIRMED = "CONFIRMED"
+    FROZEN = "FROZEN"
 
 
 @dataclass(frozen=True, slots=True)

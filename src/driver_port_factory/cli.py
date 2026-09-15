@@ -9,6 +9,7 @@ from .codex.gateway import CodexExecGateway, CodexJob, CodexSdkGateway
 from .codex.prompts import SkillPromptComposer
 from .core.models import ActorRole, EvaluationMode, ProjectConfig, StageStatus, WorkflowError
 from .core.project import Project
+from .intake.service import IntakeService
 from .sealing.candidate import CandidateSealer
 
 
@@ -40,9 +41,65 @@ def command_status(arguments: argparse.Namespace) -> None:
     for stage in project.store.stages():
         dependencies = ",".join(stage.dependencies) or "-"
         print(
-            f"{stage.position + 1:02d} {stage.status.value:14} {stage.owner.value:11} "
+            f"{stage.position + 1:02d} {stage.status.value:17} {stage.owner.value:11} "
             f"{stage.name:28} deps={dependencies}"
         )
+
+
+def command_intake_analyze(arguments: argparse.Namespace) -> None:
+    project = _project(arguments.path)
+    result = IntakeService().analyze(
+        project,
+        raw_request=arguments.request,
+        catalog_path=Path(arguments.catalog).resolve() if arguments.catalog else None,
+    )
+    print(
+        json.dumps(
+            {
+                "status": result.status.value,
+                "selected_candidate_id": result.selected_candidate_id,
+                "question": result.question,
+                "candidates": [candidate.to_dict() for candidate in result.candidates],
+            },
+            ensure_ascii=False,
+            indent=2,
+        )
+    )
+
+
+def command_intake_answer(arguments: argparse.Namespace) -> None:
+    project = _project(arguments.path)
+    answer_text = arguments.answer or (
+        f"Selected candidate {arguments.candidate_id}"
+        if arguments.candidate_id
+        else "Confirmed manually supplied driver identity"
+    )
+    result = IntakeService().answer(
+        project,
+        candidate_id=arguments.candidate_id,
+        answer_text=answer_text,
+        canonical_name=arguments.canonical_name,
+        source_path=arguments.source_path,
+        device_family=arguments.device_family,
+        bus=arguments.bus,
+        intended_subset=tuple(arguments.intended_subset or ()),
+        excluded_variants=tuple(arguments.exclude or ()),
+    )
+    print(
+        json.dumps(
+            {
+                "status": result.status.value,
+                "selected_candidate_id": result.selected_candidate_id,
+            },
+            ensure_ascii=False,
+            indent=2,
+        )
+    )
+
+
+def command_intake_show(arguments: argparse.Namespace) -> None:
+    project = _project(arguments.path)
+    print(json.dumps(IntakeService().show(project), ensure_ascii=False, sort_keys=True, indent=2))
 
 
 def command_stage_start(arguments: argparse.Namespace) -> None:
@@ -217,6 +274,28 @@ def parser() -> argparse.ArgumentParser:
     status = commands.add_parser("status", help="show the stage DAG and current status")
     status.add_argument("path")
     status.set_defaults(handler=command_status)
+
+    intake = commands.add_parser("intake", help="analyze and freeze the requested driver scope")
+    intake_commands = intake.add_subparsers(dest="intake_command", required=True)
+    analyze = intake_commands.add_parser("analyze")
+    analyze.add_argument("path")
+    analyze.add_argument("--request", required=True)
+    analyze.add_argument("--catalog", help="optional lightweight driver catalog JSON")
+    analyze.set_defaults(handler=command_intake_analyze)
+    answer = intake_commands.add_parser("answer")
+    answer.add_argument("path")
+    answer.add_argument("--candidate-id")
+    answer.add_argument("--answer")
+    answer.add_argument("--canonical-name")
+    answer.add_argument("--source-path")
+    answer.add_argument("--device-family")
+    answer.add_argument("--bus")
+    answer.add_argument("--intended-subset", action="append")
+    answer.add_argument("--exclude", action="append")
+    answer.set_defaults(handler=command_intake_answer)
+    show = intake_commands.add_parser("show")
+    show.add_argument("path")
+    show.set_defaults(handler=command_intake_show)
 
     stage = commands.add_parser("stage", help="manually drive a stage")
     stage_commands = stage.add_subparsers(dest="stage_command", required=True)

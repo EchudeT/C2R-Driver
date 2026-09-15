@@ -13,6 +13,7 @@ DPF 允许把 Skill 原文及其 references 直接组合进阶段 Prompt。每�
 ## 当前可运行能力
 
 - 按角色与评测模式生成阶段 DAG；
+- clone 前的请求解析、候选驱动发现、单次确认和迁移范围冻结；
 - SQLite 保存阶段状态和哈希链事件；
 - SHA256 内容寻址产物库；
 - 阶段依赖、必需输出和角色门禁；
@@ -31,8 +32,17 @@ python -m driver_port_factory.cli init ./runs/ne2000 \
   --skill-root /path/to/C-kernel-to-Rust/skill
 
 python -m driver_port_factory.cli status ./runs/ne2000
-python -m driver_port_factory.cli prompt render ./runs/ne2000 driver_identity \
-  --objective "确认 NE2000 PCI 驱动的唯一源码和设备范围"
+python -m driver_port_factory.cli intake analyze ./runs/ne2000 \
+  --request "把 Linux 的 NE2000 PCI 驱动迁移到星绽OS"
+python -m driver_port_factory.cli intake show ./runs/ne2000
+```
+
+如果输入只有 `NE2000`，程序会冻结一个包含 PCI、ISA、PCMCIA 候选的合并问题并进入 `WAITING_FOR_USER`。随后执行：
+
+```sh
+python -m driver_port_factory.cli intake answer ./runs/ne2000 \
+  --candidate-id linux-ne2k-pci \
+  --answer "选择 PCI ne2k-pci，排除 ISA 和 PCMCIA"
 ```
 
 在源码仓库中直接运行时：
@@ -42,4 +52,4 @@ PYTHONPATH=src python -m driver_port_factory.cli --help
 python -m unittest discover -s tests -v
 ```
 
-详细设计见 [架构](docs/ARCHITECTURE.md)、[阶段工作流](docs/WORKFLOW.md)、[实施计划](docs/IMPLEMENTATION_PLAN.md) 和 [Codex 任务契约](docs/CODEX_JOBS.md)。
+详细设计见 [架构](docs/ARCHITECTURE.md)、[迁移需求门](docs/INTAKE.md)、[阶段工作流](docs/WORKFLOW.md)、[实施计划](docs/IMPLEMENTATION_PLAN.md) 和 [Codex 任务契约](docs/CODEX_JOBS.md)。

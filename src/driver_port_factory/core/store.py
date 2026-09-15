@@ -252,6 +252,42 @@ class RunStore:
             )
         self.append_event("stage.started", {"stage": name, "actor_role": actor_role.value})
 
+    def wait_for_user(self, name: str, *, question: str) -> None:
+        with self._connect() as connection:
+            row = connection.execute("SELECT status FROM stages WHERE name = ?", (name,)).fetchone()
+            if row is None:
+                raise WorkflowError(f"unknown stage: {name}")
+            if StageStatus(row["status"]) is not StageStatus.RUNNING:
+                raise WorkflowError(f"stage {name} is {row['status']}, not RUNNING")
+            connection.execute(
+                "UPDATE stages SET status = ?, message = ? WHERE name = ?",
+                (StageStatus.WAITING_FOR_USER.value, question, name),
+            )
+        self.append_event("stage.waiting_for_user", {"stage": name, "question": question})
+
+    def resume_after_user(self, name: str, actor_role: ActorRole, *, answer: str) -> None:
+        with self._connect() as connection:
+            row = connection.execute(
+                "SELECT status, allowed_roles FROM stages WHERE name = ?", (name,)
+            ).fetchone()
+            if row is None:
+                raise WorkflowError(f"unknown stage: {name}")
+            if StageStatus(row["status"]) is not StageStatus.WAITING_FOR_USER:
+                raise WorkflowError(
+                    f"stage {name} is {row['status']}, not WAITING_FOR_USER"
+                )
+            allowed = {ActorRole(value) for value in json.loads(row["allowed_roles"])}
+            if actor_role not in allowed or actor_role is not self.config.actor_role:
+                raise WorkflowError(f"role {actor_role.value} may not resume {name}")
+            connection.execute(
+                "UPDATE stages SET status = ?, message = NULL WHERE name = ?",
+                (StageStatus.RUNNING.value, name),
+            )
+        self.append_event(
+            "stage.resumed_after_user",
+            {"stage": name, "actor_role": actor_role.value, "answer": answer},
+        )
+
     def register_artifact(
         self, ref: ArtifactRef, *, stage: str, direction: str = "output"
     ) -> None:

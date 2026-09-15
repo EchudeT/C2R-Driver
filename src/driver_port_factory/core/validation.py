@@ -19,7 +19,51 @@ def _json_object(data: bytes, kind: str) -> dict[str, Any]:
 def validate_artifact(kind: str, data: bytes) -> None:
     """Validate high-value control artifacts before they enter a stage gate."""
 
-    if kind == "identity_record":
+    if kind == "request_record":
+        value = _json_object(data, kind)
+        required = {
+            "source_platform",
+            "target_platform",
+            "user_supplied_driver_name",
+            "raw_request",
+            "intake_status",
+        }
+        missing = sorted(required - value.keys())
+        if missing:
+            raise WorkflowError(f"request_record missing fields: {', '.join(missing)}")
+    elif kind == "driver_candidates":
+        value = _json_object(data, kind)
+        if not isinstance(value.get("candidates"), list):
+            raise WorkflowError("driver_candidates.candidates must be a list")
+        if value.get("metadata_scope") != "LIGHTWEIGHT_ONLY":
+            raise WorkflowError("driver candidate resolution must remain lightweight before clone")
+    elif kind == "scope_confirmation":
+        value = _json_object(data, kind)
+        if value.get("identity_status") != "CONFIRMED":
+            raise WorkflowError("scope_confirmation must have identity_status=CONFIRMED")
+        if not isinstance(value.get("selected_candidate"), dict):
+            raise WorkflowError("scope_confirmation requires a selected_candidate")
+    elif kind == "migration_envelope":
+        value = _json_object(data, kind)
+        required = {
+            "source_platform",
+            "target_platform",
+            "canonical_source_driver_name",
+            "source_driver_entry_or_repository_hint",
+            "device_family",
+            "bus_or_transport",
+            "intended_subset",
+            "excluded_variants",
+            "identity_status",
+        }
+        missing = sorted(required - value.keys())
+        if missing:
+            raise WorkflowError(f"migration_envelope missing fields: {', '.join(missing)}")
+        if value["identity_status"] != "FROZEN":
+            raise WorkflowError("migration_envelope must have identity_status=FROZEN")
+        if not isinstance(value["intended_subset"], list) or not value["intended_subset"]:
+            raise WorkflowError("migration_envelope.intended_subset must be non-empty")
+    elif kind == "identity_record":
         value = _json_object(data, kind)
         required = {"canonical_name", "bus", "device_scope", "source_paths", "confirmed"}
         missing = sorted(required - value.keys())

@@ -37,7 +37,7 @@ class RoleBoundaryTests(unittest.TestCase):
             names = [stage.name for stage in project.store.stages()]
             self.assertEqual(names[1], "blind_binding")
             self.assertEqual(project.store.stage("blind_binding").status.value, "READY")
-            self.assertEqual(project.store.stage("driver_identity").status.value, "PENDING")
+            self.assertEqual(project.store.stage("request_intake").status.value, "PENDING")
 
     def test_posthoc_curator_accepts_digest_before_contract_freeze(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:

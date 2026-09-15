@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://driver-port-factory.local/schemas/request-record.schema.json",
+  "type": "object",
+  "required": [
+    "source_platform",
+    "target_platform",
+    "user_supplied_driver_name",
+    "raw_request",
+    "intake_status"
+  ],
+  "properties": {
+    "source_platform": {"type": "string", "minLength": 1},
+    "target_platform": {"type": "string", "minLength": 1},
+    "user_supplied_driver_name": {"type": "string", "minLength": 1},
+    "raw_request": {"type": "string", "minLength": 1},
+    "intake_status": {"const": "ANALYZING"}
+  },
+  "additionalProperties": true
+}

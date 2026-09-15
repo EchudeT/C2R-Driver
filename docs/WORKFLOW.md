@@ -5,26 +5,29 @@
 | 顺序 | 阶段 | 执行类型 | 必需输出示例 |
 |---|---|---|---|
 | 1 | project_init | 静态 | project manifest |
-| 2 | driver_identity | 混合 | identity record |
-| 3 | revision_selection | 混合 | pinned revisions |
-| 4 | evidence_acquisition | 混合 | acquisition manifest |
-| 5 | environment_recovery | 混合 | artifact mode、experiment route |
-| 6 | knowledge_base | 静态 | KB integrity、query contract |
-| 7 | target_platform_study | Codex+Gate | target profile、API evidence |
-| 8 | source_closure | 混合 | behaviorally required closure |
-| 9 | structured_c_analysis | 静态 | AST/CFG/layout/effect facts |
-| 10 | migration_contracts | 混合 | evidence-backed contracts |
-| 11 | test_adaptation | 混合 | retained/adapted/excluded matrix |
-| 12 | rust_design | Codex+Gate | ownership/concurrency/unsafe design |
-| 13 | rust_implementation | Codex+静态 | source/patch and contract mapping |
-| 14 | target_compliance | 混合 | target rules review |
-| 15 | artifact_preparation | 静态 | runtime artifact + identity proof |
-| 16 | public_qemu_validation | 静态 | public functional/failure runs |
-| 17 | public_repair | 混合 | diagnoses、patches、reruns |
-| 18 | completion_audit | 静态 | final coverage and evidence audit |
-| 19 | candidate_sealing | 静态 | canonical candidate manifest/digest |
+| 2 | request_intake | 静态 | 原始请求与三个必需输入 |
+| 3 | driver_candidate_resolution | 混合 | 轻量元数据候选表 |
+| 4 | scope_confirmation | 混合/用户门 | 唯一候选或一次合并问题 |
+| 5 | migration_envelope_freeze | 静态 | 固定驱动、设备、总线、包含与排除范围 |
+| 6 | revision_selection | 混合 | pinned revisions |
+| 7 | evidence_acquisition | 混合 | acquisition manifest |
+| 8 | environment_recovery | 混合 | artifact mode、experiment route |
+| 9 | knowledge_base | 静态 | KB integrity、query contract |
+| 10 | target_platform_study | Codex+Gate | target profile、API evidence |
+| 11 | source_closure | 混合 | behaviorally required closure |
+| 12 | structured_c_analysis | 静态 | AST/CFG/layout/effect facts |
+| 13 | migration_contracts | 混合 | evidence-backed contracts |
+| 14 | test_adaptation | 混合 | retained/adapted/excluded matrix |
+| 15 | rust_design | Codex+Gate | ownership/concurrency/unsafe design |
+| 16 | rust_implementation | Codex+静态 | source/patch and contract mapping |
+| 17 | target_compliance | 混合 | target rules review |
+| 18 | artifact_preparation | 静态 | runtime artifact + identity proof |
+| 19 | public_qemu_validation | 静态 | public functional/failure runs |
+| 20 | public_repair | 混合 | diagnoses、patches、reruns |
+| 21 | completion_audit | 静态 | final coverage and evidence audit |
+| 22 | candidate_sealing | 静态 | canonical candidate manifest/digest |
 
-`MIGRATION_OPERATOR` 在前瞻盲测中必须先导入 `public_bundle` 和 `curator_commitment`。事后封存模式在第 19 阶段后只导出 opaque digest；迁移域不负责创建私有测试。
+`MIGRATION_OPERATOR` 在前瞻盲测中必须先导入 `public_bundle` 和 `curator_commitment`。事后封存模式在第 22 阶段后只导出 opaque digest；迁移域不负责创建私有测试。`request_intake` 至 `migration_envelope_freeze` 全部通过前，acquisition 不得 clone 内核、镜像或工具链。
 
 ## 策展域
 

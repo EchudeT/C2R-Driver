@@ -44,7 +44,10 @@ def migration_workflow(config: ProjectConfig) -> list[StageSpec]:
         previous = "blind_binding"
 
     rows = [
-        ("driver_identity", "Resolve one concrete driver, device, and bus scope.", StageOwner.HYBRID, ("identity_record",)),
+        ("request_intake", "Persist the original request and required platform/driver fields.", StageOwner.STATIC, ("request_record",)),
+        ("driver_candidate_resolution", "Resolve canonical driver candidates using lightweight metadata only.", StageOwner.HYBRID, ("driver_candidates",)),
+        ("scope_confirmation", "Auto-confirm a unique scope or persist one consolidated user question.", StageOwner.HYBRID, ("scope_confirmation",)),
+        ("migration_envelope_freeze", "Freeze the canonical source entry, device, bus, included subset, and exclusions.", StageOwner.STATIC, ("migration_envelope", "identity_record")),
         ("revision_selection", "Pin source, target, and QEMU revisions.", StageOwner.HYBRID, ("revision_manifest",)),
         ("evidence_acquisition", "Acquire the minimum provenance-tracked evidence closure.", StageOwner.HYBRID, ("acquisition_manifest",)),
         ("environment_recovery", "Establish artifact mode and a concrete executable experiment route.", StageOwner.HYBRID, ("experiment_route",)),

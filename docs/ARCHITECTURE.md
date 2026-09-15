@@ -31,7 +31,7 @@ Workflow Controller ---- SQLite state + hash-chained event ledger
 
 ### 控制面
 
-`WorkflowDefinition` 生成角色专属 DAG，`RunStore` 保存阶段、产物连接和事件。阶段只有在所有依赖为 `PASS` 且当前 actor 拥有该阶段角色时才能开始。Codex 输出不能直接写阶段状态。
+`WorkflowDefinition` 生成角色专属 DAG，`RunStore` 保存阶段、产物连接和事件。阶段只有在所有依赖为 `PASS` 且当前 actor 拥有该阶段角色时才能开始。驱动范围存在歧义时，确认阶段进入可恢复的 `WAITING_FOR_USER`，问题和答案均写入事件链。Codex 输出不能直接写阶段状态。
 
 ### 产物与证据面
 
@@ -66,4 +66,4 @@ Codex Job 指定角色、目标、输入摘要、可写路径、Prompt 来源、
 
 ## 4. 状态语义
 
-阶段执行状态使用 `PENDING/READY/RUNNING/PASS/FAIL/BLOCKED/INCONCLUSIVE/NOT_APPLICABLE`。证据结论另用 `VERIFIED/INFERRED/PLANNED/NOT_RUN/NOT_APPLICABLE/BLOCKED/FAIL/PASS`。`NON_INDEPENDENT` 和 `HARNESS_INVALID` 是评测分类，不能用普通失败覆盖。
+阶段执行状态使用 `PENDING/READY/RUNNING/WAITING_FOR_USER/PASS/FAIL/BLOCKED/INCONCLUSIVE/NOT_APPLICABLE`。证据结论另用 `VERIFIED/INFERRED/PLANNED/NOT_RUN/NOT_APPLICABLE/BLOCKED/FAIL/PASS`。`NON_INDEPENDENT` 和 `HARNESS_INVALID` 是评测分类，不能用普通失败覆盖。

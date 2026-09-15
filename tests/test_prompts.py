@@ -21,7 +21,7 @@ class PromptComposerTests(unittest.TestCase):
             (skill / "references" / "intake.md").write_text(reference_text, encoding="utf-8")
 
             rendered = SkillPromptComposer(root).render(
-                stage="driver_identity",
+                stage="driver_candidate_resolution",
                 actor_role=ActorRole.MIGRATION_OPERATOR,
                 objective="Resolve NE2000 identity",
             )

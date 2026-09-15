@@ -27,7 +27,15 @@ _MIGRATION = "knowledge-guided-driver-port"
 _BLIND = "blind-c2rust-driver-evaluation"
 
 STAGE_DOCUMENTS: dict[str, tuple[str, ...]] = {
-    "driver_identity": (f"{_OPEN}/SKILL.md", f"{_OPEN}/references/intake.md"),
+    "driver_candidate_resolution": (
+        f"{_OPEN}/SKILL.md",
+        f"{_OPEN}/references/intake.md",
+    ),
+    "scope_confirmation": (f"{_OPEN}/SKILL.md", f"{_OPEN}/references/intake.md"),
+    "migration_envelope_freeze": (
+        f"{_OPEN}/SKILL.md",
+        f"{_OPEN}/references/intake.md",
+    ),
     "revision_selection": (f"{_OPEN}/SKILL.md", f"{_OPEN}/references/acquisition.md"),
     "evidence_acquisition": (f"{_OPEN}/SKILL.md", f"{_OPEN}/references/acquisition.md"),
     "environment_recovery": (f"{_OPEN}/SKILL.md", f"{_OPEN}/references/environment-recovery.md"),

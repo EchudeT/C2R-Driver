@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 import tempfile
 import unittest
 from pathlib import Path
@@ -13,6 +12,7 @@ from driver_port_factory.core.models import (
     WorkflowError,
 )
 from driver_port_factory.core.project import Project
+from driver_port_factory.intake.service import IntakeService
 
 
 def config(**overrides) -> ProjectConfig:
@@ -33,31 +33,16 @@ class WorkflowTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temporary:
             project = Project.initialize(Path(temporary) / "run", config())
             self.assertEqual(project.store.stage("project_init").status, StageStatus.PASS)
-            self.assertEqual(project.store.stage("driver_identity").status, StageStatus.READY)
+            self.assertEqual(project.store.stage("request_intake").status, StageStatus.READY)
             self.assertEqual(project.store.stage("revision_selection").status, StageStatus.PENDING)
 
             with self.assertRaises(WorkflowError):
                 project.start("revision_selection")
-
-            project.start("driver_identity")
-            with self.assertRaises(WorkflowError):
-                project.complete("driver_identity", StageStatus.PASS)
-            with self.assertRaises(WorkflowError):
-                project.add_bytes("driver_identity", "identity_record", b"{}")
-
-            identity = {
-                "canonical_name": "ne2k-pci",
-                "bus": "pci",
-                "device_scope": ["NE2000 compatible PCI"],
-                "source_paths": ["drivers/net/ethernet/8390/ne2k-pci.c"],
-                "confirmed": True,
-            }
-            project.add_bytes(
-                "driver_identity",
-                "identity_record",
-                json.dumps(identity).encode(),
+            result = IntakeService().analyze(
+                project,
+                raw_request="Port Linux ne2k-pci to Asterinas",
             )
-            project.complete("driver_identity", StageStatus.PASS)
+            self.assertEqual(result.status.value, "FROZEN")
             self.assertEqual(project.store.stage("revision_selection").status, StageStatus.READY)
             self.assertTrue(project.store.verify_event_chain())
 

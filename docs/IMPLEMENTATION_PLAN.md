@@ -15,6 +15,7 @@
 - SQLite RunStore 与哈希链事件；
 - SHA256 CAS；
 - 角色化 WorkflowDefinition；
+- clone 前请求解析、轻量候选目录、单次确认与范围冻结；
 - 阶段依赖及 required-output Gate；
 - Skill Prompt composer；
 - Codex exec/SDK Gateway；
