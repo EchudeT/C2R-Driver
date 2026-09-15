@@ -1,0 +1,68 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://c2r-driver.local/schemas/target-profile.schema.json",
+  "title": "Structured target-platform profile",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "target_platform",
+    "source_root",
+    "revision",
+    "artifact_mode",
+    "profile_status",
+    "unmodified_target_baseline",
+    "repository_documentation_map",
+    "lifecycle_execution_contexts",
+    "hardware_access_concurrency",
+    "error_recovery_observability",
+    "coding_safety_requirements",
+    "artifact_qemu_path"
+  ],
+  "properties": {
+    "schema_version": {"const": 1},
+    "target_platform": {"type": "string", "minLength": 1},
+    "source_root": {"type": "string", "minLength": 1},
+    "revision": {"type": "string", "minLength": 1},
+    "artifact_mode": {"type": "string", "minLength": 1},
+    "profile_status": {"const": "READY"},
+    "unmodified_target_baseline": {
+      "type": "object",
+      "required": ["revision", "tree_id", "clean", "baseline_status", "baseline_evidence"],
+      "properties": {
+        "revision": {"type": "string"},
+        "tree_id": {"type": "string"},
+        "clean": {"const": true},
+        "baseline_status": {"enum": ["PASS", "NOT_RUN", "BLOCKED"]},
+        "baseline_evidence": {"type": "string", "minLength": 1}
+      }
+    },
+    "repository_documentation_map": {"$ref": "#/$defs/evidencedSection"},
+    "lifecycle_execution_contexts": {"$ref": "#/$defs/evidencedSection"},
+    "hardware_access_concurrency": {"$ref": "#/$defs/evidencedSection"},
+    "error_recovery_observability": {"$ref": "#/$defs/evidencedSection"},
+    "coding_safety_requirements": {"$ref": "#/$defs/evidencedSection"},
+    "artifact_qemu_path": {"$ref": "#/$defs/evidencedSection"}
+  },
+  "$defs": {
+    "evidenceRef": {
+      "type": "object",
+      "required": ["chunk_id"],
+      "properties": {
+        "chunk_id": {"type": "string", "minLength": 1},
+        "record_id": {"type": "string"}
+      }
+    },
+    "evidencedSection": {
+      "type": "object",
+      "required": ["summary", "evidence_refs"],
+      "properties": {
+        "summary": {"type": "string", "minLength": 1},
+        "evidence_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": {"$ref": "#/$defs/evidenceRef"}
+        }
+      }
+    }
+  }
+}

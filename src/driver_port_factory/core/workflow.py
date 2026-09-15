@@ -116,7 +116,14 @@ def migration_workflow(config: ProjectConfig) -> list[StageSpec]:
             "target_platform_study",
             "Build the target profile, API evidence table, and analogous call chain.",
             StageOwner.CODEX,
-            ("target_profile", "target_api_evidence"),
+            (
+                "target_profile",
+                "target_profile_structured",
+                "target_api_evidence",
+                "analogous_driver_trace",
+                "target_change_plan",
+                "target_study_report",
+            ),
         ),
         (
             "source_closure",

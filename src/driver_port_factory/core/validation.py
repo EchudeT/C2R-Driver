@@ -189,6 +189,33 @@ def validate_artifact(kind: str, data: bytes) -> None:
             raise WorkflowError("target_probe_results must contain passing probes")
         if any(probe.get("status") != "PASS" for probe in probes):
             raise WorkflowError("every target knowledge probe must pass")
+    elif kind == "target_profile":
+        try:
+            text = data.decode("utf-8")
+        except UnicodeDecodeError as error:
+            raise WorkflowError("target_profile must be UTF-8 Markdown") from error
+        if "# Target-Platform Profile" not in text or "Profile status: `READY`" not in text:
+            raise WorkflowError("target_profile must be a completed READY profile")
+    elif kind == "target_profile_structured":
+        value = _json_object(data, kind)
+        if value.get("schema_version") != 1 or value.get("profile_status") != "READY":
+            raise WorkflowError("target_profile_structured must be schema_version=1 and READY")
+    elif kind == "target_api_evidence":
+        value = _json_object(data, kind)
+        if value.get("schema_version") != 1 or not value.get("entries"):
+            raise WorkflowError("target_api_evidence requires at least one API entry")
+    elif kind == "analogous_driver_trace":
+        value = _json_object(data, kind)
+        if value.get("schema_version") != 1 or not value.get("steps"):
+            raise WorkflowError("analogous_driver_trace requires ordered trace steps")
+    elif kind == "target_change_plan":
+        value = _json_object(data, kind)
+        if value.get("schema_version") != 1 or not value.get("integration_path"):
+            raise WorkflowError("target_change_plan requires an integration path")
+    elif kind == "target_study_report":
+        value = _json_object(data, kind)
+        if value.get("status") != "PASS" or value.get("errors"):
+            raise WorkflowError("target_study_report must pass without validation errors")
     elif kind == "candidate_digest_anchor":
         value = _json_object(data, kind)
         digest = value.get("candidate_sha256")

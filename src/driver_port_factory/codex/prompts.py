@@ -44,6 +44,7 @@ STAGE_DOCUMENTS: dict[str, tuple[str, ...]] = {
         f"{_MIGRATION}/SKILL.md",
         f"{_MIGRATION}/references/target-platform-study.md",
         f"{_MIGRATION}/references/knowledge-contract.md",
+        f"{_MIGRATION}/assets/target-platform-profile.md",
     ),
     "source_closure": (
         f"{_MIGRATION}/SKILL.md",

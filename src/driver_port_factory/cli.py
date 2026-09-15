@@ -15,6 +15,7 @@ from .intake.service import IntakeService
 from .knowledge.index import KnowledgeIndex
 from .knowledge.service import DOMAINS, KnowledgeService
 from .sealing.candidate import CandidateSealer
+from .target_study.service import TargetStudyService
 
 
 def _project(path: str) -> Project:
@@ -283,6 +284,31 @@ def command_knowledge_show(arguments: argparse.Namespace) -> None:
     print(
         json.dumps(
             KnowledgeIndex(Path(arguments.path)).show(arguments.chunk_id),
+            ensure_ascii=False,
+            sort_keys=True,
+            indent=2,
+        )
+    )
+
+
+def command_target_study_validate(arguments: argparse.Namespace) -> None:
+    project = _project(arguments.path)
+    result = TargetStudyService().validate(
+        project,
+        profile_json=Path(arguments.profile_json),
+        profile_markdown=Path(arguments.profile_markdown),
+        api_table=Path(arguments.api_table),
+        analogous_trace=Path(arguments.analogous_trace),
+        change_plan=Path(arguments.change_plan),
+    )
+    print(
+        json.dumps(
+            {
+                "status": result.status,
+                "stage_status": result.stage_status.value,
+                "report_path": result.report_path,
+                "errors": list(result.errors),
+            },
             ensure_ascii=False,
             sort_keys=True,
             indent=2,
@@ -585,6 +611,19 @@ def parser() -> argparse.ArgumentParser:
     knowledge_show.add_argument("path")
     knowledge_show.add_argument("--chunk-id", required=True)
     knowledge_show.set_defaults(handler=command_knowledge_show)
+
+    target_study = commands.add_parser(
+        "target-study", help="validate the target profile and API evidence gate"
+    )
+    target_study_commands = target_study.add_subparsers(dest="target_study_command", required=True)
+    target_study_validate = target_study_commands.add_parser("validate")
+    target_study_validate.add_argument("path")
+    target_study_validate.add_argument("--profile-json", required=True)
+    target_study_validate.add_argument("--profile-markdown", required=True)
+    target_study_validate.add_argument("--api-table", required=True)
+    target_study_validate.add_argument("--analogous-trace", required=True)
+    target_study_validate.add_argument("--change-plan", required=True)
+    target_study_validate.set_defaults(handler=command_target_study_validate)
 
     stage = commands.add_parser("stage", help="manually drive a stage")
     stage_commands = stage.add_subparsers(dest="stage_command", required=True)
