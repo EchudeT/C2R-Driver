@@ -287,9 +287,11 @@ class TargetStudyService:
         ).hexdigest()[:16]
         report_path = report_root / f"validation-{report_id}.json"
         if report_path.exists():
-            raise WorkflowError(
-                "this target-study submission was already validated; submit a changed artifact"
-            )
+            existing = TargetStudyService._load_json(report_path)
+            stable = {key: value for key, value in report.items() if key != "validated_at"}
+            if {key: value for key, value in existing.items() if key != "validated_at"} == stable:
+                return report_path
+            raise WorkflowError("target-study validation result changed for immutable inputs")
         report_path.write_bytes(TargetStudyService._json_bytes(report))
         return report_path
 

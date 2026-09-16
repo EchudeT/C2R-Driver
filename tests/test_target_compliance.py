@@ -6,9 +6,11 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
+from driver_port_factory.acquisition.repository import load_repository_acquisition
 from driver_port_factory.cli import main
 from driver_port_factory.codex.gateway import CodexResult
 from driver_port_factory.core.models import StageStatus
+from driver_port_factory.environment.contracts import EnvironmentArtifact, EnvironmentStage
 from driver_port_factory.migration.contracts import (
     ComplianceArea,
     MigrationArtifact,
@@ -80,8 +82,39 @@ def compliance_response(project) -> dict:
     }
 
 
+def artifact_plan(project) -> dict:
+    acquisition = load_repository_acquisition(project)
+    mode = project.load_json_artifact(
+        EnvironmentStage.RECOVERY,
+        EnvironmentArtifact.MODE_RECORD,
+    )["artifact_mode"]
+    command = {
+        "argv": ["true"],
+        "environment": {},
+        "timeout_seconds": 10,
+        "accepted_exit_codes": [0],
+    }
+    return {
+        "schema_version": 1,
+        "plan_id": "compliance-plan",
+        "artifact_mode": mode,
+        "cwd": acquisition.target_worktree.path,
+        "build": command,
+        "inspect": command,
+        "base_artifact": "base.img",
+        "final_artifact": "artifacts/final.img",
+        "packaged_test_artifact": "artifacts/public-tests.pkg",
+        "presence_manifest": "artifacts/presence.json",
+        "tool_evidence_paths": ["artifact-builder"],
+    }
+
+
 def run_compliance(project, document: dict) -> int:
-    result = CodexResult("compliance-job", json.dumps(document), "compliance-thread")
+    response = {
+        MigrationArtifact.COMPLIANCE_REPORT.value: document,
+        MigrationArtifact.ARTIFACT_PREPARATION_PLAN.value: artifact_plan(project),
+    }
+    result = CodexResult("compliance-job", json.dumps(response), "compliance-thread")
     with patch("driver_port_factory.codex.cli.CodexExecGateway.run", return_value=result):
         return main(["target-compliance", "run", str(project.root)])
 

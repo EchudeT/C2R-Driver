@@ -9,12 +9,13 @@ from ..codex.cli import run_codex_stage
 from ..codex.contracts import CodexBackend
 from ..composition import open_project
 from ..core.contracts import ArtifactKey, StageKey
+from ..core.models import WorkflowError
 from ..core.project import Project
 from ..environment.contracts import EnvironmentArtifact, EnvironmentStage
 from ..knowledge.contracts import KnowledgeArtifact, KnowledgeStage
 from ..source_analysis.contracts import SourceAnalysisArtifact, SourceAnalysisStage
 from ..target_study.contracts import TargetStudyArtifact, TargetStudyStage
-from .artifact_preparation import ArtifactPreparationService
+from .artifact_preparation import ArtifactPreparationPlan, ArtifactPreparationService
 from .completion_audit import CompletionAuditService
 from .compliance import ComplianceReport, ComplianceService
 from .contract_set import MigrationContractService, MigrationContractSet
@@ -54,6 +55,11 @@ TARGET_COMPLIANCE_OBJECTIVE = (
     "required target rules, APIs, unsafe obligations, and pre-existing target changes. Set "
     "compile and runtime to NOT_RUN. A violation or evidence gap must not claim PASS and must "
     "identify IMPLEMENTATION or KNOWLEDGE repair."
+)
+TARGET_COMPLIANCE_AND_ARTIFACT_OBJECTIVE = (
+    f"{TARGET_COMPLIANCE_OBJECTIVE} Return one JSON object with compliance_report containing that "
+    "deliverable and artifact_preparation_plan containing the executable Phase 8 preparation "
+    "plan derived from the same pinned target evidence."
 )
 PUBLIC_QEMU_OBJECTIVE = (
     "Freeze the public Phase 8 QEMU evidence plan for the current runtime artifact. Return only "
@@ -251,13 +257,28 @@ def command_target_compliance_run(arguments: argparse.Namespace) -> None:
     codex_result, rendered, response_path = run_codex_stage(
         project,
         MigrationStage.TARGET_COMPLIANCE,
-        objective=TARGET_COMPLIANCE_OBJECTIVE,
+        objective=TARGET_COMPLIANCE_AND_ARTIFACT_OBJECTIVE,
         context={"frozen_inputs": inputs},
         backend=arguments.backend,
         codex_bin=arguments.codex_bin,
         model=arguments.model,
     )
-    ComplianceService().finalize(project, ComplianceReport.read(response_path))
+    try:
+        response = json.loads(response_path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError) as error:
+        raise WorkflowError("Codex compliance response is not UTF-8 JSON") from error
+    if not isinstance(response, dict) or set(response) != {
+        MigrationArtifact.COMPLIANCE_REPORT.value,
+        MigrationArtifact.ARTIFACT_PREPARATION_PLAN.value,
+    }:
+        raise WorkflowError("Codex compliance response has the wrong documents")
+    ComplianceService().finalize(
+        project,
+        ComplianceReport.from_dict(response[MigrationArtifact.COMPLIANCE_REPORT.value]),
+        ArtifactPreparationPlan.from_dict(
+            response[MigrationArtifact.ARTIFACT_PREPARATION_PLAN.value]
+        ),
+    )
     print(
         json.dumps(
             {

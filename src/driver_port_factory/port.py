@@ -39,13 +39,13 @@ from .intake.contracts import IntakeArtifact, IntakeStage
 from .intake.service import IntakeService
 from .knowledge.bootstrap import KnowledgeBootstrapper
 from .knowledge.contracts import KnowledgeArtifact, KnowledgeEvidenceStatus, KnowledgeStage
-from .migration.artifact_preparation import ArtifactPreparationService
+from .migration.artifact_preparation import ArtifactPreparationPlan, ArtifactPreparationService
 from .migration.cli import (
     DRIVER_IMPLEMENTATION_OBJECTIVE,
     MIGRATION_CONTRACTS_OBJECTIVE,
     PUBLIC_QEMU_OBJECTIVE,
     PUBLIC_REPAIR_OBJECTIVE,
-    TARGET_COMPLIANCE_OBJECTIVE,
+    TARGET_COMPLIANCE_AND_ARTIFACT_OBJECTIVE,
     TEST_ADAPTATION_OBJECTIVE,
 )
 from .migration.completion_audit import CompletionAuditService
@@ -88,11 +88,6 @@ KNOWLEDGE_OBJECTIVE = (
 TARGET_STUDY_OBJECTIVE = (
     "Complete the target-platform study from pinned originals. Return only one JSON object with "
     "profile_json, profile_markdown, api_table, analogous_trace, and change_plan."
-)
-COMPLIANCE_AND_ARTIFACT_OBJECTIVE = (
-    f"{TARGET_COMPLIANCE_OBJECTIVE} Return one JSON object with compliance_report containing that "
-    "deliverable and artifact_preparation_plan containing the executable Phase 8 preparation "
-    "plan derived from the same pinned target evidence."
 )
 SOURCE_CLOSURE_OBJECTIVE = (
     "Close the behaviorally required source set using the frozen compile commands. Return only "
@@ -370,9 +365,7 @@ class PortRunner:
                     raise
                 thread_id = result.thread_id
                 follow_up = self._codex_correction(error)
-        raise WorkflowError(
-            f"{stage.value} failed after same-session corrections: {last_error}"
-        )
+        raise WorkflowError(f"{stage.value} failed after same-session corrections: {last_error}")
 
     @staticmethod
     def _codex_correction(error: WorkflowError) -> str:
@@ -387,9 +380,19 @@ class PortRunner:
     def _write_response_parts(
         project: Project,
         stage: StageKey,
-        path: Path,
+        job: ArtifactOccurrence,
         names: tuple[str, ...],
     ) -> dict[str, Path]:
+        matches = [
+            ref
+            for ref in project.artifact_refs(stage=stage, direction=ArtifactDirection.OUTPUT)
+            if ref.kind == CodexArtifact.JOB_RESULT.value
+            and ref.digest == job.digest
+            and ref.ordinal == job.ordinal
+        ]
+        if len(matches) != 1:
+            raise WorkflowError("Codex result occurrence was not persisted uniquely")
+        path = project.artifacts.path_for_digest(job.digest)
         try:
             value = json.loads(path.read_text(encoding="utf-8"))
         except (OSError, UnicodeDecodeError, json.JSONDecodeError) as error:
@@ -398,18 +401,28 @@ class PortRunner:
             raise WorkflowError("Codex stage response must be a JSON object")
         if set(value) != set(names):
             raise WorkflowError(f"Codex stage response has the wrong {stage.value} documents")
-        output = project.control / "generated" / stage.value / path.stem
-        output.mkdir(parents=True, exist_ok=False)
+        output = project.control / "generated" / stage.value / Path(matches[0].source).stem
         parts: dict[str, Path] = {}
         for name in names:
             document = value[name]
             suffix = ".md" if isinstance(document, str) else ".json"
             target = output / f"{name}{suffix}"
-            target.write_text(
-                document if isinstance(document, str) else json.dumps(document, indent=2) + "\n",
-                encoding="utf-8",
-            )
+            data = (
+                document if isinstance(document, str) else json.dumps(document, indent=2) + "\n"
+            ).encode("utf-8")
+            if target.exists() and target.read_bytes() != data:
+                raise WorkflowError("materialized Codex response differs from immutable result")
             parts[name] = target
+        output.mkdir(parents=True, exist_ok=True)
+        for name, target in parts.items():
+            if not target.exists():
+                document = value[name]
+                target.write_text(
+                    document
+                    if isinstance(document, str)
+                    else json.dumps(document, indent=2) + "\n",
+                    encoding="utf-8",
+                )
         return parts
 
     def _intake(self, project: Project) -> None:
@@ -526,7 +539,7 @@ class PortRunner:
     def _target_study(self, project: Project) -> None:
         acquisition = load_repository_acquisition(project)
         target = acquisition.checkout(RepositoryRole.TARGET)
-        _, _, response = self._codex(
+        self._codex_gate(
             project,
             TargetStudyStage.STUDY,
             TARGET_STUDY_OBJECTIVE,
@@ -539,11 +552,14 @@ class PortRunner:
                     project, KnowledgeStage.KNOWLEDGE_BASE, KnowledgeArtifact.QUERY_CONTRACT
                 ),
             },
+            self._accept_target_study_result,
         )
+
+    def _accept_target_study_result(self, project: Project, job: ArtifactOccurrence) -> None:
         parts = self._write_response_parts(
             project,
             TargetStudyStage.STUDY,
-            response,
+            job,
             (
                 "profile_json",
                 "profile_markdown",
@@ -552,7 +568,7 @@ class PortRunner:
                 "change_plan",
             ),
         )
-        TargetStudyService().validate(
+        result = TargetStudyService().validate(
             project,
             profile_json=parts["profile_json"],
             profile_markdown=parts["profile_markdown"],
@@ -560,6 +576,8 @@ class PortRunner:
             analogous_trace=parts["analogous_trace"],
             change_plan=parts["change_plan"],
         )
+        if result.errors:
+            raise WorkflowError("target study failed: " + "; ".join(result.errors))
 
     @staticmethod
     def _handoff(project: Project) -> None:
@@ -568,7 +586,7 @@ class PortRunner:
     def _source_closure(self, project: Project) -> None:
         handoff = project.load_json_artifact(MigrationStage.HANDOFF, MigrationArtifact.HANDOFF)
         source = load_repository_acquisition(project).checkout(RepositoryRole.SOURCE)
-        _, _, response = self._codex(
+        self._codex_gate(
             project,
             SourceAnalysisStage.SOURCE_CLOSURE,
             SOURCE_CLOSURE_OBJECTIVE,
@@ -587,8 +605,16 @@ class PortRunner:
                 "known_gaps": handoff["evidence"]["known_gaps"],
                 "knowledge": handoff["knowledge"],
             },
+            self._accept_source_closure_result,
         )
-        SourceClosureService().validate(project, closure_path=response)
+
+    @staticmethod
+    def _accept_source_closure_result(project: Project, job: ArtifactOccurrence) -> None:
+        result = SourceClosureService().validate(
+            project, closure_path=project.artifacts.path_for_digest(job.digest)
+        )
+        if result.errors:
+            raise WorkflowError("source closure failed: " + "; ".join(result.errors))
 
     def _structured_c(self, project: Project) -> None:
         StructuredCAnalysisService().analyze(
@@ -598,116 +624,160 @@ class PortRunner:
         )
 
     def _contracts(self, project: Project) -> None:
-        response = self._migration_codex(
+        self._codex_gate(
             project,
             MigrationStage.CONTRACTS,
             MIGRATION_CONTRACTS_OBJECTIVE,
-            (
-                (MigrationStage.HANDOFF, MigrationArtifact.HANDOFF),
-                (KnowledgeStage.KNOWLEDGE_BASE, KnowledgeArtifact.QUERY_CONTRACT),
-                (TargetStudyStage.STUDY, TargetStudyArtifact.STRUCTURED_PROFILE),
-                (TargetStudyStage.STUDY, TargetStudyArtifact.API_EVIDENCE),
-                (TargetStudyStage.STUDY, TargetStudyArtifact.ANALOGOUS_DRIVER_TRACE),
-                (TargetStudyStage.STUDY, TargetStudyArtifact.CHANGE_PLAN),
-                (SourceAnalysisStage.SOURCE_CLOSURE, SourceAnalysisArtifact.SOURCE_CLOSURE),
-                (SourceAnalysisStage.SOURCE_CLOSURE, SourceAnalysisArtifact.MATERIALS_MANIFEST),
+            self._migration_context(
+                project,
                 (
-                    SourceAnalysisStage.STRUCTURED_C_ANALYSIS,
-                    SourceAnalysisArtifact.STRUCTURED_C_FACTS,
+                    (MigrationStage.HANDOFF, MigrationArtifact.HANDOFF),
+                    (KnowledgeStage.KNOWLEDGE_BASE, KnowledgeArtifact.QUERY_CONTRACT),
+                    (TargetStudyStage.STUDY, TargetStudyArtifact.STRUCTURED_PROFILE),
+                    (TargetStudyStage.STUDY, TargetStudyArtifact.API_EVIDENCE),
+                    (TargetStudyStage.STUDY, TargetStudyArtifact.ANALOGOUS_DRIVER_TRACE),
+                    (TargetStudyStage.STUDY, TargetStudyArtifact.CHANGE_PLAN),
+                    (SourceAnalysisStage.SOURCE_CLOSURE, SourceAnalysisArtifact.SOURCE_CLOSURE),
+                    (SourceAnalysisStage.SOURCE_CLOSURE, SourceAnalysisArtifact.MATERIALS_MANIFEST),
+                    (
+                        SourceAnalysisStage.STRUCTURED_C_ANALYSIS,
+                        SourceAnalysisArtifact.STRUCTURED_C_FACTS,
+                    ),
                 ),
             ),
+            self._accept_contracts_result,
         )
-        MigrationContractService().finalize(project, MigrationContractSet.read(response))
+
+    @staticmethod
+    def _accept_contracts_result(project: Project, job: ArtifactOccurrence) -> None:
+        MigrationContractService().finalize(
+            project,
+            MigrationContractSet.read(project.artifacts.path_for_digest(job.digest)),
+        )
 
     def _test_adaptation(self, project: Project) -> None:
-        response = self._migration_codex(
+        self._codex_gate(
             project,
             MigrationStage.TEST_ADAPTATION,
             TEST_ADAPTATION_OBJECTIVE,
-            (
-                (MigrationStage.HANDOFF, MigrationArtifact.HANDOFF),
-                (MigrationStage.CONTRACTS, MigrationArtifact.CONTRACTS),
-                (KnowledgeStage.KNOWLEDGE_BASE, KnowledgeArtifact.QUERY_CONTRACT),
-                (TargetStudyStage.STUDY, TargetStudyArtifact.STRUCTURED_PROFILE),
-                (TargetStudyStage.STUDY, TargetStudyArtifact.API_EVIDENCE),
-                (SourceAnalysisStage.SOURCE_CLOSURE, SourceAnalysisArtifact.SOURCE_CLOSURE),
-                (SourceAnalysisStage.SOURCE_CLOSURE, SourceAnalysisArtifact.MATERIALS_MANIFEST),
+            self._migration_context(
+                project,
+                (
+                    (MigrationStage.HANDOFF, MigrationArtifact.HANDOFF),
+                    (MigrationStage.CONTRACTS, MigrationArtifact.CONTRACTS),
+                    (KnowledgeStage.KNOWLEDGE_BASE, KnowledgeArtifact.QUERY_CONTRACT),
+                    (TargetStudyStage.STUDY, TargetStudyArtifact.STRUCTURED_PROFILE),
+                    (TargetStudyStage.STUDY, TargetStudyArtifact.API_EVIDENCE),
+                    (SourceAnalysisStage.SOURCE_CLOSURE, SourceAnalysisArtifact.SOURCE_CLOSURE),
+                    (SourceAnalysisStage.SOURCE_CLOSURE, SourceAnalysisArtifact.MATERIALS_MANIFEST),
+                ),
             ),
+            self._accept_test_adaptation_result,
         )
-        TestSelectionService().finalize(project, TestSelectionMatrix.read(response))
+
+    @staticmethod
+    def _accept_test_adaptation_result(project: Project, job: ArtifactOccurrence) -> None:
+        TestSelectionService().finalize(
+            project,
+            TestSelectionMatrix.read(project.artifacts.path_for_digest(job.digest)),
+        )
 
     def _implementation(self, project: Project) -> None:
         facts = project.load_json_artifact(
             SourceAnalysisStage.STRUCTURED_C_ANALYSIS, SourceAnalysisArtifact.STRUCTURED_C_FACTS
         )
-        response = self._migration_codex(
+        self._codex_gate(
             project,
             MigrationStage.DRIVER_IMPLEMENTATION,
             DRIVER_IMPLEMENTATION_OBJECTIVE,
-            (
-                (MigrationStage.HANDOFF, MigrationArtifact.HANDOFF),
-                (MigrationStage.CONTRACTS, MigrationArtifact.CONTRACTS),
-                (MigrationStage.TEST_ADAPTATION, MigrationArtifact.TEST_PORT_MATRIX),
-                (KnowledgeStage.KNOWLEDGE_BASE, KnowledgeArtifact.QUERY_CONTRACT),
-                (KnowledgeStage.KNOWLEDGE_BASE, KnowledgeArtifact.GENERATED_SKILL),
-                (TargetStudyStage.STUDY, TargetStudyArtifact.STRUCTURED_PROFILE),
-                (TargetStudyStage.STUDY, TargetStudyArtifact.API_EVIDENCE),
-                (TargetStudyStage.STUDY, TargetStudyArtifact.ANALOGOUS_DRIVER_TRACE),
-                (TargetStudyStage.STUDY, TargetStudyArtifact.CHANGE_PLAN),
-                (SourceAnalysisStage.SOURCE_CLOSURE, SourceAnalysisArtifact.SOURCE_CLOSURE),
+            self._migration_context(
+                project,
                 (
-                    SourceAnalysisStage.STRUCTURED_C_ANALYSIS,
-                    SourceAnalysisArtifact.STRUCTURED_C_FACTS,
+                    (MigrationStage.HANDOFF, MigrationArtifact.HANDOFF),
+                    (MigrationStage.CONTRACTS, MigrationArtifact.CONTRACTS),
+                    (MigrationStage.TEST_ADAPTATION, MigrationArtifact.TEST_PORT_MATRIX),
+                    (KnowledgeStage.KNOWLEDGE_BASE, KnowledgeArtifact.QUERY_CONTRACT),
+                    (KnowledgeStage.KNOWLEDGE_BASE, KnowledgeArtifact.GENERATED_SKILL),
+                    (TargetStudyStage.STUDY, TargetStudyArtifact.STRUCTURED_PROFILE),
+                    (TargetStudyStage.STUDY, TargetStudyArtifact.API_EVIDENCE),
+                    (TargetStudyStage.STUDY, TargetStudyArtifact.ANALOGOUS_DRIVER_TRACE),
+                    (TargetStudyStage.STUDY, TargetStudyArtifact.CHANGE_PLAN),
+                    (SourceAnalysisStage.SOURCE_CLOSURE, SourceAnalysisArtifact.SOURCE_CLOSURE),
+                    (
+                        SourceAnalysisStage.STRUCTURED_C_ANALYSIS,
+                        SourceAnalysisArtifact.STRUCTURED_C_FACTS,
+                    ),
                 ),
+                extra={
+                    "semantic_indexes": [
+                        {
+                            "unit_id": unit["unit_id"],
+                            "path": str((project.root / unit["semantic_index"]["path"]).resolve()),
+                            "sha256": unit["semantic_index"]["sha256"],
+                        }
+                        for unit in facts["units"]
+                    ]
+                },
             ),
-            extra={
-                "semantic_indexes": [
-                    {
-                        "unit_id": unit["unit_id"],
-                        "path": str((project.root / unit["semantic_index"]["path"]).resolve()),
-                        "sha256": unit["semantic_index"]["sha256"],
-                    }
-                    for unit in facts["units"]
-                ]
-            },
+            self._accept_implementation_result,
         )
-        DriverImplementationService().finalize(project, ImplementationResponse.read(response))
+
+    @staticmethod
+    def _accept_implementation_result(project: Project, job: ArtifactOccurrence) -> None:
+        DriverImplementationService().finalize(
+            project,
+            ImplementationResponse.read(project.artifacts.path_for_digest(job.digest)),
+        )
 
     def _compliance(self, project: Project) -> None:
-        response = self._migration_codex(
+        self._codex_gate(
             project,
             MigrationStage.TARGET_COMPLIANCE,
-            COMPLIANCE_AND_ARTIFACT_OBJECTIVE,
-            (
-                (MigrationStage.HANDOFF, MigrationArtifact.HANDOFF),
-                (MigrationStage.DRIVER_IMPLEMENTATION, MigrationArtifact.IMPLEMENTATION_BUNDLE),
-                (MigrationStage.DRIVER_IMPLEMENTATION, MigrationArtifact.TRANSLATION_COVERAGE),
-                (MigrationStage.DRIVER_IMPLEMENTATION, MigrationArtifact.TARGET_CHANGE_INVENTORY),
-                (KnowledgeStage.KNOWLEDGE_BASE, KnowledgeArtifact.QUERY_CONTRACT),
-                (KnowledgeStage.KNOWLEDGE_BASE, KnowledgeArtifact.GENERATED_SKILL),
-                (TargetStudyStage.STUDY, TargetStudyArtifact.STRUCTURED_PROFILE),
-                (TargetStudyStage.STUDY, TargetStudyArtifact.API_EVIDENCE),
-                (TargetStudyStage.STUDY, TargetStudyArtifact.ANALOGOUS_DRIVER_TRACE),
-                (TargetStudyStage.STUDY, TargetStudyArtifact.CHANGE_PLAN),
-                (SourceAnalysisStage.SOURCE_CLOSURE, SourceAnalysisArtifact.MATERIALS_MANIFEST),
-                (EnvironmentStage.RECOVERY, EnvironmentArtifact.MODE_RECORD),
-                (EnvironmentStage.RECOVERY, EnvironmentArtifact.EXPERIMENT_ROUTE),
+            TARGET_COMPLIANCE_AND_ARTIFACT_OBJECTIVE,
+            self._migration_context(
+                project,
+                (
+                    (MigrationStage.HANDOFF, MigrationArtifact.HANDOFF),
+                    (MigrationStage.DRIVER_IMPLEMENTATION, MigrationArtifact.IMPLEMENTATION_BUNDLE),
+                    (MigrationStage.DRIVER_IMPLEMENTATION, MigrationArtifact.TRANSLATION_COVERAGE),
+                    (
+                        MigrationStage.DRIVER_IMPLEMENTATION,
+                        MigrationArtifact.TARGET_CHANGE_INVENTORY,
+                    ),
+                    (KnowledgeStage.KNOWLEDGE_BASE, KnowledgeArtifact.QUERY_CONTRACT),
+                    (KnowledgeStage.KNOWLEDGE_BASE, KnowledgeArtifact.GENERATED_SKILL),
+                    (TargetStudyStage.STUDY, TargetStudyArtifact.STRUCTURED_PROFILE),
+                    (TargetStudyStage.STUDY, TargetStudyArtifact.API_EVIDENCE),
+                    (TargetStudyStage.STUDY, TargetStudyArtifact.ANALOGOUS_DRIVER_TRACE),
+                    (TargetStudyStage.STUDY, TargetStudyArtifact.CHANGE_PLAN),
+                    (SourceAnalysisStage.SOURCE_CLOSURE, SourceAnalysisArtifact.MATERIALS_MANIFEST),
+                    (EnvironmentStage.RECOVERY, EnvironmentArtifact.MODE_RECORD),
+                    (EnvironmentStage.RECOVERY, EnvironmentArtifact.EXPERIMENT_ROUTE),
+                ),
             ),
+            self._accept_compliance_result,
         )
+
+    def _accept_compliance_result(self, project: Project, job: ArtifactOccurrence) -> None:
         parts = self._write_response_parts(
             project,
             MigrationStage.TARGET_COMPLIANCE,
-            response,
+            job,
             ("compliance_report", "artifact_preparation_plan"),
         )
-        ComplianceService().finalize(project, ComplianceReport.read(parts["compliance_report"]))
+        plan, _ = ArtifactPreparationPlan.read(parts["artifact_preparation_plan"])
+        ComplianceService().finalize(
+            project,
+            ComplianceReport.read(parts["compliance_report"]),
+            plan,
+        )
 
     def _artifact_preparation(self, project: Project) -> None:
-        generated = project.control / "generated" / MigrationStage.TARGET_COMPLIANCE.value
-        plans = tuple(generated.glob("*/artifact_preparation_plan.json"))
-        if len(plans) != 1:
-            raise WorkflowError("target compliance did not produce one artifact preparation plan")
-        ArtifactPreparationService().run(project, plans[0])
+        plan = project.artifact(
+            MigrationStage.TARGET_COMPLIANCE,
+            MigrationArtifact.ARTIFACT_PREPARATION_PLAN,
+        )
+        ArtifactPreparationService().run(project, project.artifacts.path_for_digest(plan.digest))
 
     def _public_qemu(self, project: Project) -> None:
         artifact = project.artifact(
@@ -716,32 +786,37 @@ class PortRunner:
         identity = project.load_json_artifact(
             MigrationStage.ARTIFACT_PREPARATION, MigrationArtifact.ARTIFACT_IDENTITY
         )
-        response = self._migration_codex(
+        response = self._codex(
             project,
             MigrationStage.PUBLIC_QEMU_VALIDATION,
             PUBLIC_QEMU_OBJECTIVE,
-            (
-                (MigrationStage.HANDOFF, MigrationArtifact.HANDOFF),
-                (MigrationStage.CONTRACTS, MigrationArtifact.CONTRACTS),
-                (MigrationStage.TEST_ADAPTATION, MigrationArtifact.TEST_PORT_MATRIX),
-                (MigrationStage.DRIVER_IMPLEMENTATION, MigrationArtifact.IMPLEMENTATION_BUNDLE),
-                (MigrationStage.TARGET_COMPLIANCE, MigrationArtifact.COMPLIANCE_REPORT),
-                (MigrationStage.ARTIFACT_PREPARATION, MigrationArtifact.RUNTIME_ARTIFACT),
-                (MigrationStage.ARTIFACT_PREPARATION, MigrationArtifact.ARTIFACT_IDENTITY),
-                (EnvironmentStage.RECOVERY, EnvironmentArtifact.EXPERIMENT_READY_RUN),
-                (EnvironmentStage.RECOVERY, EnvironmentArtifact.EXPERIMENT_ROUTE),
-                (KnowledgeStage.KNOWLEDGE_BASE, KnowledgeArtifact.QUERY_CONTRACT),
-                (SourceAnalysisStage.SOURCE_CLOSURE, SourceAnalysisArtifact.MATERIALS_MANIFEST),
+            self._migration_context(
+                project,
+                (
+                    (MigrationStage.HANDOFF, MigrationArtifact.HANDOFF),
+                    (MigrationStage.CONTRACTS, MigrationArtifact.CONTRACTS),
+                    (MigrationStage.TEST_ADAPTATION, MigrationArtifact.TEST_PORT_MATRIX),
+                    (MigrationStage.DRIVER_IMPLEMENTATION, MigrationArtifact.IMPLEMENTATION_BUNDLE),
+                    (MigrationStage.TARGET_COMPLIANCE, MigrationArtifact.COMPLIANCE_REPORT),
+                    (MigrationStage.ARTIFACT_PREPARATION, MigrationArtifact.RUNTIME_ARTIFACT),
+                    (MigrationStage.ARTIFACT_PREPARATION, MigrationArtifact.ARTIFACT_IDENTITY),
+                    (EnvironmentStage.RECOVERY, EnvironmentArtifact.EXPERIMENT_READY_RUN),
+                    (EnvironmentStage.RECOVERY, EnvironmentArtifact.EXPERIMENT_ROUTE),
+                    (KnowledgeStage.KNOWLEDGE_BASE, KnowledgeArtifact.QUERY_CONTRACT),
+                    (SourceAnalysisStage.SOURCE_CLOSURE, SourceAnalysisArtifact.MATERIALS_MANIFEST),
+                ),
+                extra={
+                    "runtime_artifact_path": str(
+                        project.artifacts.path_for_digest(artifact.digest)
+                    ),
+                    "runtime_artifact_sha256": artifact.digest,
+                    "implementation_sha256": identity["inputs"][
+                        MigrationArtifact.IMPLEMENTATION_BUNDLE.value
+                    ]["digest"],
+                    "packaged_test_sha256": identity["packaged_test_artifact"]["sha256"],
+                },
             ),
-            extra={
-                "runtime_artifact_path": str(project.artifacts.path_for_digest(artifact.digest)),
-                "runtime_artifact_sha256": artifact.digest,
-                "implementation_sha256": identity["inputs"][
-                    MigrationArtifact.IMPLEMENTATION_BUNDLE.value
-                ]["digest"],
-                "packaged_test_sha256": identity["packaged_test_artifact"]["sha256"],
-            },
-        )
+        )[2]
         result = PublicQemuService().run(project, PublicQemuPlan.read(response))
         if result["status"] == StageStatus.RUNNING.value:
             PublicRepairService().prepare(project)
@@ -788,22 +863,20 @@ class PortRunner:
     def _completion_audit(project: Project) -> None:
         CompletionAuditService().run(project)
 
-    def _migration_codex(
+    def _migration_context(
         self,
         project: Project,
-        stage: StageKey,
-        objective: str,
         inputs: tuple[tuple[StageKey, ArtifactKey], ...],
         *,
         extra: dict[str, object] | None = None,
-    ) -> Path:
+    ) -> dict[str, object]:
         context: dict[str, object] = {
             "frozen_inputs": {
                 kind.value: self._artifact_context(project, owner, kind) for owner, kind in inputs
             }
         }
         context.update(extra or {})
-        return self._codex(project, stage, objective, context)[2]
+        return context
 
 
 def _default_skill_root() -> Path:

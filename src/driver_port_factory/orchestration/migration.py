@@ -336,7 +336,10 @@ def _migration_rows(config: ProjectConfig) -> tuple[StageRow, ...]:
             MigrationStage.TARGET_COMPLIANCE,
             "Review target API, style, safety, lifecycle, and integration rules.",
             StageOwner.HYBRID,
-            (MigrationArtifact.COMPLIANCE_REPORT,),
+            (
+                MigrationArtifact.COMPLIANCE_REPORT,
+                MigrationArtifact.ARTIFACT_PREPARATION_PLAN,
+            ),
             prerequisites=(
                 MigrationStage.HANDOFF,
                 KnowledgeStage.KNOWLEDGE_BASE,

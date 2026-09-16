@@ -15,6 +15,7 @@ from ..knowledge.index import KnowledgeIndex
 from ..source_analysis.contracts import SourceAnalysisArtifact
 from ..target_study.contracts import TargetStudyArtifact
 from ..target_study.evidence import TargetEvidenceVerifier
+from .artifact_preparation import ArtifactPreparationPlan
 from .contracts import (
     ComplianceArea,
     ComplianceRepairTarget,
@@ -158,7 +159,12 @@ class ComplianceReport:
 
 
 class ComplianceService:
-    def finalize(self, project: Project, report: ComplianceReport) -> None:
+    def finalize(
+        self,
+        project: Project,
+        report: ComplianceReport,
+        artifact_plan: ArtifactPreparationPlan,
+    ) -> None:
         if project.stage(MigrationStage.TARGET_COMPLIANCE).status is not StageStatus.RUNNING:
             raise WorkflowError("target_compliance must be RUNNING")
         inputs = {kind.value: self._input(project, kind).to_dict() for kind in COMPLIANCE_INPUTS}
@@ -167,7 +173,26 @@ class ComplianceService:
         ).encode()
         project.finalize_stage(
             MigrationStage.TARGET_COMPLIANCE,
-            (GeneratedArtifact(MigrationArtifact.COMPLIANCE_REPORT, data, "generated:compliance"),),
+            (
+                GeneratedArtifact(
+                    MigrationArtifact.COMPLIANCE_REPORT,
+                    data,
+                    "generated:compliance",
+                ),
+                GeneratedArtifact(
+                    MigrationArtifact.ARTIFACT_PREPARATION_PLAN,
+                    (
+                        json.dumps(
+                            artifact_plan.to_dict(),
+                            ensure_ascii=False,
+                            sort_keys=True,
+                            indent=2,
+                        )
+                        + "\n"
+                    ).encode(),
+                    "generated:target-compliance-artifact-plan",
+                ),
+            ),
         )
 
     @staticmethod

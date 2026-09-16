@@ -112,12 +112,7 @@ class ArtifactPreparationPlan:
     tool_evidence_paths: tuple[str, ...]
 
     @classmethod
-    def read(cls, path: Path) -> tuple[ArtifactPreparationPlan, bytes]:
-        try:
-            data = path.read_bytes()
-            value = json.loads(data)
-        except (OSError, UnicodeDecodeError, json.JSONDecodeError) as error:
-            raise WorkflowError("artifact preparation plan is not UTF-8 JSON") from error
+    def from_dict(cls, value: Any) -> ArtifactPreparationPlan:
         if not isinstance(value, dict) or value.get("schema_version") != 1:
             raise WorkflowError("artifact preparation plan must be a schema_version=1 object")
         try:
@@ -153,7 +148,16 @@ class ArtifactPreparationPlan:
                 or relative.as_posix() != item
             ):
                 raise WorkflowError(f"artifact plan {label} must be a canonical relative path")
-        return plan, data
+        return plan
+
+    @classmethod
+    def read(cls, path: Path) -> tuple[ArtifactPreparationPlan, bytes]:
+        try:
+            data = path.read_bytes()
+            value = json.loads(data)
+        except (OSError, UnicodeDecodeError, json.JSONDecodeError) as error:
+            raise WorkflowError("artifact preparation plan is not UTF-8 JSON") from error
+        return cls.from_dict(value), data
 
     def to_dict(self) -> dict[str, Any]:
         return {
