@@ -29,11 +29,15 @@ VALIDATORS = MappingProxyType[SealingArtifact, ArtifactValidator](
         SealingArtifact.CANDIDATE_TIMESTAMP_RECEIPT: json_object_document,
         SealingArtifact.CANDIDATE_DIGEST_ANCHOR: json_object_document,
         SealingArtifact.CANDIDATE_TRANSFER_RECORD: json_object_document,
+        SealingArtifact.EVALUATOR_RECEIPT: json_object_document,
     }
 )
 
 BUNDLE_VALIDATORS = MappingProxyType[SealingStage, BundleValidator](
-    {SealingStage.CANDIDATE_SEALING: lambda context: _CandidateGate(context).validate()}
+    {
+        SealingStage.CANDIDATE_SEALING: lambda context: _CandidateGate(context).validate(),
+        SealingStage.CANDIDATE_TRANSFER: lambda context: _TransferGate(context).validate(),
+    }
 )
 
 
@@ -195,6 +199,65 @@ class _CandidateGate:
             or hashlib.sha256((root / "candidate.tar").read_bytes()).hexdigest() != digest
         ):
             raise WorkflowError("candidate evaluator transfer is not immutable or digest-bound")
+
+
+class _TransferGate:
+    def __init__(self, context: BundleValidationContext) -> None:
+        self.context = context
+        self.receipt = json_object(
+            context.one_current(SealingArtifact.EVALUATOR_RECEIPT)[1], "evaluator receipt"
+        )
+        self.record = json_object(
+            context.one_current(SealingArtifact.CANDIDATE_TRANSFER_RECORD)[1],
+            "candidate transfer record",
+        )
+
+    def validate(self) -> None:
+        manifest = json_object(
+            self.context.one_dependency(SealingArtifact.CANDIDATE_MANIFEST)[1],
+            "candidate manifest",
+        )
+        seal_event = manifest.get("ledger_event", {})
+        receipt_digest = hashlib.sha256(_json(self.receipt)).hexdigest()
+        bound_fields = (
+            "candidate_sha256",
+            "experiment_id",
+            "task_id",
+            "attempt_id",
+            "receiver_identity",
+            "received_at",
+            "receipt_id",
+            "private_evaluation",
+        )
+        if (
+            self.record.get("candidate_sha256") != manifest.get("candidate_sha256")
+            or any(self.record.get(field) != self.receipt.get(field) for field in bound_fields)
+            or self.record.get("receipt_sha256") != receipt_digest
+            or self.record.get("candidate_seal_event") != seal_event.get("event_hash")
+            or self.receipt.get("signer_identity")
+            == manifest.get("request", {}).get("migrator_identity")
+        ):
+            raise WorkflowError("candidate transfer record is detached from its seal or receipt")
+        connection = sqlite3.connect(self.context.project_root / ".dpf" / "run.sqlite3")
+        connection.row_factory = sqlite3.Row
+        try:
+            event = connection.execute(
+                "SELECT * FROM events WHERE event_hash = ?", (self.record.get("event_hash"),)
+            ).fetchone()
+        finally:
+            connection.close()
+        payload = {
+            key: value
+            for key, value in self.record.items()
+            if key not in {"schema_version", "event_hash", "read_only_location", "signer_identity"}
+        }
+        if (
+            event is None
+            or event["event_type"] != SealingEvent.CANDIDATE_TRANSFERRED.value
+            or event["previous_hash"] != self.record.get("previous_digest")
+            or json.loads(event["payload"]) != payload
+        ):
+            raise WorkflowError("candidate transfer ledger event is absent or detached")
 
 
 def _json(value: object) -> bytes:

@@ -20,7 +20,7 @@ from driver_port_factory.core.models import (
 from driver_port_factory.evaluation.contracts import EvaluationArtifact, EvaluationStage
 from driver_port_factory.migration.contracts import MigrationArtifact, MigrationStage
 from driver_port_factory.sealing.candidate import CandidateSealer, SealRequest
-from driver_port_factory.sealing.contracts import SealingArtifact, SealingStage
+from driver_port_factory.sealing.contracts import SealingArtifact, SealingEvent, SealingStage
 from tests.test_public_qemu import public_plan, public_qemu_project, run_public
 
 
@@ -135,6 +135,45 @@ def run_seal(project, request: Path, receipt: Path, output: Path) -> int:
     )
 
 
+def evaluator_receipt(project, output: Path, attempt_id: str) -> Path:
+    manifest = project.load_json_artifact(
+        SealingStage.CANDIDATE_SEALING, SealingArtifact.CANDIDATE_MANIFEST
+    )
+    path = project.root / f"{attempt_id}-evaluator-receipt.json"
+    path.write_text(
+        json.dumps(
+            {
+                "schema_version": 1,
+                "candidate_sha256": manifest["candidate_sha256"],
+                "experiment_id": "experiment-1",
+                "task_id": "task-1",
+                "attempt_id": attempt_id,
+                "receiver_identity": "fixture-evaluator",
+                "received_at": "2026-09-16T00:01:00Z",
+                "read_only_location": str(output.resolve()),
+                "signer_identity": "fixture-evaluator",
+                "receipt_id": f"evaluator-receipt-{attempt_id}",
+                "proof": "fixture-receipt-proof",
+                "private_evaluation": "NOT_RUN_BY_MIGRATOR",
+            }
+        ),
+        encoding="utf-8",
+    )
+    return path
+
+
+def run_transfer(project, receipt: Path) -> int:
+    return main(
+        [
+            "candidate",
+            "transfer",
+            str(project.root),
+            "--evaluator-receipt",
+            str(receipt),
+        ]
+    )
+
+
 class CandidateSealingTests(unittest.TestCase):
     def test_entities_digest_ledger_receipt_and_read_only_transfer_finalize(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
@@ -177,6 +216,56 @@ class CandidateSealingTests(unittest.TestCase):
             driver.write_text(driver.read_text(encoding="utf-8") + "// changed\n", encoding="utf-8")
             self.assertEqual(run_seal(project, request, receipt, output), 2)
             self.assertEqual((output / "candidate.tar").read_bytes(), original)
+
+    def test_evaluator_receipt_completes_transfer_once(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            project = blind_project(Path(temporary))
+            request, timestamp = seal_inputs(project, "attempt-1")
+            output = project.root / "evaluator-transfer"
+            self.assertEqual(run_seal(project, request, timestamp, output), 0)
+            receipt = evaluator_receipt(project, output, "attempt-1")
+
+            self.assertEqual(run_transfer(project, receipt), 0)
+            self.assertEqual(run_transfer(project, receipt), 0)
+            self.assertEqual(
+                project.stage(SealingStage.CANDIDATE_TRANSFER).status, StageStatus.PASS
+            )
+            events = [
+                item
+                for item in CandidateSealer._ledger(project)
+                if item["event_type"] == SealingEvent.CANDIDATE_TRANSFERRED.value
+            ]
+            self.assertEqual(len(events), 1)
+
+    def test_mismatched_evaluator_receipt_does_not_transfer(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            project = blind_project(Path(temporary))
+            request, timestamp = seal_inputs(project, "attempt-1")
+            output = project.root / "evaluator-transfer"
+            self.assertEqual(run_seal(project, request, timestamp, output), 0)
+            receipt = evaluator_receipt(project, output, "wrong-attempt")
+
+            self.assertEqual(run_transfer(project, receipt), 2)
+            self.assertEqual(
+                project.stage(SealingStage.CANDIDATE_TRANSFER).status, StageStatus.READY
+            )
+
+    def test_changed_exchange_does_not_transfer(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            project = blind_project(Path(temporary))
+            request, timestamp = seal_inputs(project, "attempt-1")
+            output = project.root / "evaluator-transfer"
+            self.assertEqual(run_seal(project, request, timestamp, output), 0)
+            receipt = evaluator_receipt(project, output, "attempt-1")
+            bundle = output / "candidate.tar"
+            bundle.chmod(0o644)
+            bundle.write_bytes(bundle.read_bytes() + b"changed")
+            bundle.chmod(0o444)
+
+            self.assertEqual(run_transfer(project, receipt), 2)
+            self.assertEqual(
+                project.stage(SealingStage.CANDIDATE_TRANSFER).status, StageStatus.READY
+            )
 
 
 def _json(value: object) -> bytes:

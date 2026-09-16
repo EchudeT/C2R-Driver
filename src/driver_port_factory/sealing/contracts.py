@@ -14,10 +14,16 @@ class SealingArtifact(StrEnum):
     CANDIDATE_TIMESTAMP_RECEIPT = "candidate_timestamp_receipt"
     CANDIDATE_DIGEST_ANCHOR = "candidate_digest_anchor"
     CANDIDATE_TRANSFER_RECORD = "candidate_transfer_record"
+    EVALUATOR_RECEIPT = "evaluator_receipt"
 
 
 class SealingEvent(StrEnum):
     CANDIDATE_SEALED = "candidate.sealed"
+    CANDIDATE_TRANSFERRED = "candidate.transferred"
+
+
+class PrivateEvaluationState(StrEnum):
+    NOT_RUN_BY_MIGRATOR = "NOT_RUN_BY_MIGRATOR"
 
 
 class TimestampReceiptKind(StrEnum):

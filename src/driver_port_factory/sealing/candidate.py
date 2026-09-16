@@ -4,6 +4,7 @@ import hashlib
 import io
 import json
 import sqlite3
+import stat
 import subprocess
 import tarfile
 from dataclasses import asdict, dataclass
@@ -34,6 +35,7 @@ from ..migration.contracts import (
 )
 from .contracts import (
     CandidateBundleFormat,
+    PrivateEvaluationState,
     SealingArtifact,
     SealingEvent,
     SealingStage,
@@ -159,6 +161,49 @@ class TimestampReceipt:
 
 
 @dataclass(frozen=True, slots=True)
+class EvaluatorReceipt:
+    candidate_sha256: str
+    experiment_id: str
+    task_id: str
+    attempt_id: str
+    receiver_identity: str
+    received_at: str
+    read_only_location: str
+    signer_identity: str
+    receipt_id: str
+    proof: str
+    private_evaluation: PrivateEvaluationState
+
+    @classmethod
+    def read(cls, path: Path) -> EvaluatorReceipt:
+        value = _read_object(path, "evaluator receipt")
+        try:
+            receipt = cls(
+                str(value["candidate_sha256"]),
+                str(value["experiment_id"]),
+                str(value["task_id"]),
+                str(value["attempt_id"]),
+                str(value["receiver_identity"]),
+                str(value["received_at"]),
+                str(value["read_only_location"]),
+                str(value["signer_identity"]),
+                str(value["receipt_id"]),
+                str(value["proof"]),
+                PrivateEvaluationState(value["private_evaluation"]),
+            )
+        except (KeyError, TypeError, ValueError) as error:
+            raise WorkflowError("evaluator receipt has an invalid typed boundary") from error
+        if not all(asdict(receipt).values()):
+            raise WorkflowError("evaluator receipt is incomplete")
+        return receipt
+
+    def to_dict(self) -> dict[str, str]:
+        value = asdict(self)
+        value["private_evaluation"] = self.private_evaluation.value
+        return value
+
+
+@dataclass(frozen=True, slots=True)
 class CandidateSeal:
     digest: str
     manifest: dict[str, object]
@@ -279,6 +324,77 @@ class CandidateSealer:
             ),
         )
         return CandidateSeal(digest, manifest, bundle_path, transfer_dir)
+
+    def transfer(self, project: Project, *, receipt_path: Path) -> dict[str, Any]:
+        project.ensure_role(ActorRole.MIGRATION_OPERATOR)
+        if project.config.evaluation_mode is not EvaluationMode.PROSPECTIVE_BLIND:
+            raise WorkflowError("candidate transfer requires prospective blind mode")
+        project.verify_integrity()
+        receipt = EvaluatorReceipt.read(_project_file(project, receipt_path))
+        manifest = project.load_json_artifact(
+            SealingStage.CANDIDATE_SEALING, SealingArtifact.CANDIDATE_MANIFEST
+        )
+        sealed_transfer = project.load_json_artifact(
+            SealingStage.CANDIDATE_SEALING, SealingArtifact.CANDIDATE_TRANSFER_RECORD
+        )
+        _bind_evaluator_receipt(receipt, manifest, sealed_transfer)
+        _verify_exchange(project, sealed_transfer)
+
+        stage = project.stage(SealingStage.CANDIDATE_TRANSFER)
+        receipt_data = _json({"schema_version": 1, **receipt.to_dict()})
+        if stage.status is StageStatus.PASS:
+            frozen = project.artifacts.read(
+                project.artifact(SealingStage.CANDIDATE_TRANSFER, SealingArtifact.EVALUATOR_RECEIPT)
+            )
+            if frozen != receipt_data:
+                raise WorkflowError("candidate transfer already has a different receipt")
+            return project.load_json_artifact(
+                SealingStage.CANDIDATE_TRANSFER, SealingArtifact.CANDIDATE_TRANSFER_RECORD
+            )
+        if stage.status is StageStatus.READY:
+            project.start(SealingStage.CANDIDATE_TRANSFER)
+        elif stage.status is not StageStatus.RUNNING:
+            raise WorkflowError(f"candidate_transfer is {stage.status.value}, not READY/RUNNING")
+
+        seal_event = manifest["ledger_event"]
+        previous = self._ledger(project)[-1]["event_hash"]
+        payload = {
+            "candidate_sha256": receipt.candidate_sha256,
+            "experiment_id": receipt.experiment_id,
+            "task_id": receipt.task_id,
+            "attempt_id": receipt.attempt_id,
+            "receiver_identity": receipt.receiver_identity,
+            "received_at": receipt.received_at,
+            "receipt_id": receipt.receipt_id,
+            "receipt_sha256": hashlib.sha256(receipt_data).hexdigest(),
+            "candidate_seal_event": seal_event["event_hash"],
+            "previous_digest": previous,
+            "private_evaluation": receipt.private_evaluation.value,
+        }
+        event_hash = project.record_event(SealingEvent.CANDIDATE_TRANSFERRED, payload)
+        record = {
+            "schema_version": 1,
+            **payload,
+            "event_hash": event_hash,
+            "read_only_location": receipt.read_only_location,
+            "signer_identity": receipt.signer_identity,
+        }
+        project.finalize_stage(
+            SealingStage.CANDIDATE_TRANSFER,
+            (
+                GeneratedArtifact(
+                    SealingArtifact.EVALUATOR_RECEIPT,
+                    receipt_data,
+                    f"external:evaluator-receipt:{receipt.receipt_id}",
+                ),
+                GeneratedArtifact(
+                    SealingArtifact.CANDIDATE_TRANSFER_RECORD,
+                    _json(record),
+                    f"generated:candidate-transfer:{receipt.candidate_sha256}",
+                ),
+            ),
+        )
+        return record
 
     def _prepare(
         self,
@@ -609,6 +725,47 @@ def _project_file(project: Project, path: Path) -> Path:
     if project.root not in resolved.parents or not resolved.is_file():
         raise WorkflowError("candidate seal inputs must be regular project files")
     return resolved
+
+
+def _bind_evaluator_receipt(
+    receipt: EvaluatorReceipt,
+    manifest: dict[str, Any],
+    sealed_transfer: dict[str, Any],
+) -> None:
+    request = manifest.get("request", {})
+    if (
+        receipt.candidate_sha256 != manifest.get("candidate_sha256")
+        or receipt.experiment_id != request.get("experiment_id")
+        or receipt.task_id != request.get("task_id")
+        or receipt.attempt_id != request.get("attempt_id")
+        or Path(receipt.read_only_location).resolve()
+        != Path(str(sealed_transfer.get("destination", ""))).resolve()
+        or receipt.signer_identity == request.get("migrator_identity")
+    ):
+        raise WorkflowError("evaluator receipt does not bind the sealed candidate transfer")
+
+
+def _verify_exchange(project: Project, sealed_transfer: dict[str, Any]) -> None:
+    root = Path(str(sealed_transfer.get("destination", ""))).resolve()
+    artifacts = {
+        "candidate.tar": SealingArtifact.CANDIDATE_BUNDLE,
+        "candidate-manifest.json": SealingArtifact.CANDIDATE_MANIFEST,
+        "candidate-ledger-event.json": SealingArtifact.CANDIDATE_LEDGER_EVENT,
+        "timestamp-receipt.json": SealingArtifact.CANDIDATE_TIMESTAMP_RECEIPT,
+        "transfer-record.json": SealingArtifact.CANDIDATE_TRANSFER_RECORD,
+    }
+    if (
+        not root.is_dir()
+        or stat.S_IMODE(root.stat().st_mode) != 0o555
+        or any(
+            not (path := root / name).is_file()
+            or stat.S_IMODE(path.stat().st_mode) != 0o444
+            or path.read_bytes()
+            != project.artifacts.read(project.artifact(SealingStage.CANDIDATE_SEALING, artifact))
+            for name, artifact in artifacts.items()
+        )
+    ):
+        raise WorkflowError("sealed candidate exchange changed before evaluator receipt")
 
 
 def _read_object(path: Path, label: str) -> dict[str, Any]:

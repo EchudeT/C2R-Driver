@@ -103,7 +103,10 @@ def migration_workflow(config: ProjectConfig) -> tuple[StageSpec, ...]:
                 "Transfer the sealed candidate to the independent evaluator.",
                 StageOwner.STATIC,
                 previous,
-                (SealingArtifact.CANDIDATE_TRANSFER_RECORD,),
+                (
+                    SealingArtifact.EVALUATOR_RECEIPT,
+                    SealingArtifact.CANDIDATE_TRANSFER_RECORD,
+                ),
                 MIGRATION_ROLES,
             )
         )
