@@ -133,9 +133,9 @@ class CodexPolicyTests(unittest.TestCase):
             policy_project = PolicyProject(root, manifest)
             policy = CodexExecutionPolicy()
 
-            writable = policy.grant(policy_project, MigrationStage.RUST_IMPLEMENTATION)
+            writable = policy.grant(policy_project, MigrationStage.DRIVER_IMPLEMENTATION)
             repair = policy.grant(policy_project, MigrationStage.PUBLIC_REPAIR)
-            readonly = policy.grant(policy_project, MigrationStage.RUST_DESIGN)
+            readonly = policy.grant(policy_project, MigrationStage.CONTRACTS)
 
             self.assertEqual(writable.sandbox, CodexSandbox.WORKSPACE_WRITE)
             self.assertEqual(repair, writable)
@@ -206,7 +206,7 @@ class CodexPolicyTests(unittest.TestCase):
                     )
                     with self.assertRaises(WorkflowError):
                         CodexExecutionPolicy().grant(
-                            policy_project, MigrationStage.RUST_IMPLEMENTATION
+                            policy_project, MigrationStage.DRIVER_IMPLEMENTATION
                         )
 
     def test_cli_exposes_no_filesystem_privilege_or_thread_override(self) -> None:
@@ -239,7 +239,7 @@ class CodexPolicyTests(unittest.TestCase):
                 (
                     "migration",
                     project_config(),
-                    MigrationStage.RUST_DESIGN,
+                    MigrationStage.DRIVER_IMPLEMENTATION,
                     b"{}",
                 ),
                 (

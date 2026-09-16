@@ -36,7 +36,7 @@ class CandidateSealer:
         AcquisitionArtifact.REVISION_MANIFEST,
         MigrationArtifact.CONTRACTS,
         MigrationArtifact.TEST_PORT_MATRIX,
-        MigrationArtifact.DRIVER_SOURCE,
+        MigrationArtifact.IMPLEMENTATION_BUNDLE,
         MigrationArtifact.COMPLIANCE_REPORT,
         MigrationArtifact.RUNTIME_ARTIFACT,
         MigrationArtifact.ARTIFACT_IDENTITY,

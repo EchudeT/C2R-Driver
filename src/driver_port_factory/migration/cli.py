@@ -16,6 +16,7 @@ from ..target_study.contracts import TargetStudyArtifact, TargetStudyStage
 from .contract_set import MigrationContractService, MigrationContractSet
 from .contracts import MigrationArtifact, MigrationStage
 from .handoff import MigrationHandoff
+from .implementation import DriverImplementationService, ImplementationResponse
 from .test_matrix import TestSelectionMatrix, TestSelectionService
 
 MIGRATION_CONTRACTS_OBJECTIVE = (
@@ -30,6 +31,13 @@ TEST_ADAPTATION_OBJECTIVE = (
     "disposition, rationale, evidence, contract_ids, original_command, setup, stimulus, oracle, "
     "boundary_cases, negative_paths, cleanup, source_only_assertions_removed, adapter, "
     "limitations, expected_result, execution_status, and public_developer_evidence."
+)
+DRIVER_IMPLEMENTATION_OBJECTIVE = (
+    "Implement Phase 6 in this writable target worktree in one pass. Reconstruct the complete "
+    "Rust driver from the frozen contracts and structured C facts, adapt retained public tests, "
+    "and make only necessity-backed minimal integration changes. Do not build, run QEMU, seal a "
+    "candidate, or access private tests. Return only schema_version=1 JSON with files (path, role, "
+    "sha256), coverage, target_changes, target_symbols, and unsafe_obligations."
 )
 
 
@@ -129,6 +137,64 @@ def command_test_adaptation_run(arguments: argparse.Namespace) -> None:
     )
 
 
+def command_driver_implementation_run(arguments: argparse.Namespace) -> None:
+    project = open_project(Path(arguments.path))
+    facts = project.load_json_artifact(
+        SourceAnalysisStage.STRUCTURED_C_ANALYSIS,
+        SourceAnalysisArtifact.STRUCTURED_C_FACTS,
+    )
+    inputs = {
+        kind.value: _prompt_artifact(project, stage, kind)
+        for stage, kind in (
+            (MigrationStage.HANDOFF, MigrationArtifact.HANDOFF),
+            (MigrationStage.CONTRACTS, MigrationArtifact.CONTRACTS),
+            (MigrationStage.TEST_ADAPTATION, MigrationArtifact.TEST_PORT_MATRIX),
+            (KnowledgeStage.KNOWLEDGE_BASE, KnowledgeArtifact.QUERY_CONTRACT),
+            (KnowledgeStage.KNOWLEDGE_BASE, KnowledgeArtifact.GENERATED_SKILL),
+            (TargetStudyStage.STUDY, TargetStudyArtifact.STRUCTURED_PROFILE),
+            (TargetStudyStage.STUDY, TargetStudyArtifact.API_EVIDENCE),
+            (TargetStudyStage.STUDY, TargetStudyArtifact.ANALOGOUS_DRIVER_TRACE),
+            (TargetStudyStage.STUDY, TargetStudyArtifact.CHANGE_PLAN),
+            (SourceAnalysisStage.SOURCE_CLOSURE, SourceAnalysisArtifact.SOURCE_CLOSURE),
+            (
+                SourceAnalysisStage.STRUCTURED_C_ANALYSIS,
+                SourceAnalysisArtifact.STRUCTURED_C_FACTS,
+            ),
+        )
+    }
+    semantic_indexes = [
+        {
+            "unit_id": unit["unit_id"],
+            "path": str((project.root / unit["semantic_index"]["path"]).resolve()),
+            "sha256": unit["semantic_index"]["sha256"],
+        }
+        for unit in facts["units"]
+    ]
+    codex_result, rendered, response_path = run_codex_stage(
+        project,
+        MigrationStage.DRIVER_IMPLEMENTATION,
+        objective=DRIVER_IMPLEMENTATION_OBJECTIVE,
+        context={"frozen_inputs": inputs, "semantic_indexes": semantic_indexes},
+        backend=arguments.backend,
+        codex_bin=arguments.codex_bin,
+        model=arguments.model,
+    )
+    DriverImplementationService().finalize(project, ImplementationResponse.read(response_path))
+    print(
+        json.dumps(
+            {
+                "job_id": codex_result.job_id,
+                "prompt_sha256": rendered.digest,
+                "response_path": str(response_path),
+                "status": project.stage(MigrationStage.DRIVER_IMPLEMENTATION).status.value,
+            },
+            ensure_ascii=False,
+            sort_keys=True,
+            indent=2,
+        )
+    )
+
+
 def register_commands(commands: CommandRegistry) -> None:
     migration = commands.add_parser("migration", help="run controlled migration transitions")
     subcommands = command_registry(migration, dest="migration_command")
@@ -161,3 +227,16 @@ def register_commands(commands: CommandRegistry) -> None:
     run.add_argument("--codex-bin", default="codex")
     run.add_argument("--model")
     run.set_defaults(handler=command_test_adaptation_run)
+
+    implementation = commands.add_parser(
+        "driver-implementation", help="implement and freeze the Rust driver and public tests"
+    )
+    implementation_commands = command_registry(implementation, dest="driver_implementation_command")
+    run = implementation_commands.add_parser("run")
+    run.add_argument("path")
+    run.add_argument(
+        "--backend", type=CodexBackend, choices=list(CodexBackend), default=CodexBackend.EXEC
+    )
+    run.add_argument("--codex-bin", default="codex")
+    run.add_argument("--model")
+    run.set_defaults(handler=command_driver_implementation_run)

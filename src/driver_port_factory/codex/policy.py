@@ -20,7 +20,9 @@ class CodexExecutionGrant:
 class CodexExecutionPolicy:
     """Resolve the least-privilege filesystem grant owned by a workflow stage."""
 
-    WRITABLE_STAGES = frozenset({MigrationStage.RUST_IMPLEMENTATION, MigrationStage.PUBLIC_REPAIR})
+    WRITABLE_STAGES = frozenset(
+        {MigrationStage.DRIVER_IMPLEMENTATION, MigrationStage.PUBLIC_REPAIR}
+    )
 
     def grant(self, project: Project, stage: StageKey) -> CodexExecutionGrant:
         if stage not in self.WRITABLE_STAGES:

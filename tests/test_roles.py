@@ -204,7 +204,7 @@ class RoleBoundaryTests(unittest.TestCase):
             names = {stage.name for stage in project.stages()}
             self.assertIn(EvaluationStage.ISOLATION_GATE, names)
             self.assertIn(EvaluationStage.FAULT_INJECTION, names)
-            self.assertNotIn(MigrationStage.RUST_IMPLEMENTATION, names)
+            self.assertNotIn(MigrationStage.DRIVER_IMPLEMENTATION, names)
             self.assertNotIn(MigrationStage.PUBLIC_REPAIR, names)
 
     def test_auditor_has_read_only_claim_stages(self) -> None:
@@ -217,7 +217,7 @@ class RoleBoundaryTests(unittest.TestCase):
             self.assertIn(EvaluationStage.INDEPENDENCE_AUDIT, names)
             self.assertIn(EvaluationStage.CLAIM_AUDIT, names)
             self.assertNotIn("blind_evaluation", names)
-            self.assertNotIn(MigrationStage.RUST_IMPLEMENTATION, names)
+            self.assertNotIn(MigrationStage.DRIVER_IMPLEMENTATION, names)
 
 
 if __name__ == "__main__":

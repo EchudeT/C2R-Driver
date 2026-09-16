@@ -305,16 +305,22 @@ def _migration_rows(config: ProjectConfig) -> tuple[StageRow, ...]:
             ),
         ),
         StageRow(
-            MigrationStage.RUST_DESIGN,
-            "Design ownership, concurrency, error, and unsafe boundaries.",
+            MigrationStage.DRIVER_IMPLEMENTATION,
+            "Reconstruct the Rust driver, public tests, coverage, and minimal integration.",
             StageOwner.CODEX,
-            (MigrationArtifact.RUST_DESIGN,),
-        ),
-        StageRow(
-            MigrationStage.RUST_IMPLEMENTATION,
-            "Implement the evidenced contracts incrementally in Rust.",
-            StageOwner.CODEX,
-            (MigrationArtifact.DRIVER_SOURCE,),
+            (
+                MigrationArtifact.IMPLEMENTATION_BUNDLE,
+                MigrationArtifact.TRANSLATION_COVERAGE,
+                MigrationArtifact.TARGET_CHANGE_INVENTORY,
+            ),
+            prerequisites=(
+                MigrationStage.HANDOFF,
+                MigrationStage.CONTRACTS,
+                SourceAnalysisStage.SOURCE_CLOSURE,
+                SourceAnalysisStage.STRUCTURED_C_ANALYSIS,
+                TargetStudyStage.STUDY,
+                KnowledgeStage.KNOWLEDGE_BASE,
+            ),
         ),
         StageRow(
             MigrationStage.TARGET_COMPLIANCE,
