@@ -14,7 +14,7 @@ from ..core.project import Project
 from ..core.validation import BundleValidationContext, json_object
 from ..knowledge.contracts import KnowledgeArtifact
 from ..knowledge.index import file_sha256
-from ..source_analysis.contracts import SourceAnalysisArtifact
+from ..source_analysis.contracts import SourceAnalysisArtifact, SourceAnalysisStage
 from ..target_study.contracts import ApiConfidence, ChangeLevel, TargetStudyArtifact
 from .contracts import (
     ImplementationFileRole,
@@ -104,19 +104,6 @@ class SourceFact:
     node_id: str
     detail: str | None
 
-    @classmethod
-    def from_dict(cls, value: Any) -> SourceFact:
-        item = _object(value, "source fact")
-        try:
-            detail = item.get("detail")
-            if detail is not None and not isinstance(detail, str):
-                raise TypeError
-            return cls(
-                str(item["unit_id"]), SourceFactKind(item["kind"]), str(item["node_id"]), detail
-            )
-        except (KeyError, TypeError, ValueError) as error:
-            raise WorkflowError("source fact has an invalid typed boundary") from error
-
     def key(self) -> tuple[str, SourceFactKind, str, str | None]:
         return self.unit_id, self.kind, self.node_id, self.detail
 
@@ -129,12 +116,46 @@ class SourceFact:
         }
 
 
+def _source_fact_inventory(
+    project_root: Path,
+    facts: dict[str, Any],
+) -> dict[tuple[str, TranslationDomain], tuple[tuple[SourceFact, dict[str, Any]], ...]]:
+    inventory: dict[
+        tuple[str, TranslationDomain], list[tuple[SourceFact, dict[str, Any]]]
+    ] = {}
+    for unit in facts.get("units", []):
+        unit_id = str(unit["unit_id"])
+        path = (project_root / unit["semantic_index"]["path"]).resolve()
+        if file_sha256(path) != unit["semantic_index"]["sha256"]:
+            raise WorkflowError("structured semantic index changed")
+        semantic = json.loads(path.read_text(encoding="utf-8"))
+        nodes = {node["id"]: node for node in semantic["nodes"]}
+        for kind, index_name in INDEX_FACTS.items():
+            records = inventory.setdefault((unit_id, FACT_DOMAINS[kind]), [])
+            for value in semantic["indexes"][index_name]:
+                node_id = str(value["node_id"] if isinstance(value, dict) else value)
+                detail = str(value["kind"]) if kind is SourceFactKind.EFFECT else None
+                node = nodes[node_id]
+                records.append(
+                    (
+                        SourceFact(unit_id, kind, node_id, detail),
+                        {
+                            "unit_id": unit_id,
+                            "node_id": node_id,
+                            "source_path": semantic["source_path"],
+                            "loc": node.get("loc"),
+                            "range": node.get("range"),
+                        },
+                    )
+                )
+    return {key: tuple(records) for key, records in inventory.items() if records}
+
+
 @dataclass(frozen=True, slots=True)
 class CoverageRecord:
     identifier: str
     domain: TranslationDomain
-    source_facts: tuple[SourceFact, ...]
-    source_spans: tuple[dict[str, Any], ...]
+    unit_ids: tuple[str, ...]
     target: dict[str, Any]
     contract_ids: tuple[str, ...]
     test_ids: tuple[str, ...]
@@ -148,14 +169,10 @@ class CoverageRecord:
     def from_dict(cls, value: Any) -> CoverageRecord:
         item = _object(value, "translation coverage")
         try:
-            spans = item["source_spans"]
-            if not isinstance(spans, list) or not all(isinstance(span, dict) for span in spans):
-                raise TypeError
-            return cls(
+            result = cls(
                 str(item["coverage_id"]),
                 TranslationDomain(item["domain"]),
-                tuple(SourceFact.from_dict(fact) for fact in item["source_facts"]),
-                tuple(spans),
+                _strings(item["unit_ids"], "unit_ids"),
                 _object(item["target"], "coverage target"),
                 _strings(item["contract_ids"], "contract_ids"),
                 _strings(item["test_ids"], "test_ids"),
@@ -167,13 +184,19 @@ class CoverageRecord:
             )
         except (KeyError, TypeError, ValueError) as error:
             raise WorkflowError("translation coverage has an invalid typed boundary") from error
+        if (
+            len(result.unit_ids) != len(set(result.unit_ids))
+            or (result.domain is TranslationDomain.TEST_ASSERTION and result.unit_ids)
+            or (result.domain is not TranslationDomain.TEST_ASSERTION and not result.unit_ids)
+        ):
+            raise WorkflowError("translation coverage has an invalid unit/domain scope")
+        return result
 
     def to_dict(self) -> dict[str, Any]:
         return {
             "coverage_id": self.identifier,
             "domain": self.domain.value,
-            "source_facts": [fact.to_dict() for fact in self.source_facts],
-            "source_spans": list(self.source_spans),
+            "unit_ids": list(self.unit_ids),
             "target": self.target,
             "contract_ids": list(self.contract_ids),
             "test_ids": list(self.test_ids),
@@ -254,6 +277,13 @@ class DriverImplementationService:
                 raise WorkflowError(f"implementation file hash differs: {declared.path}")
             files.append(declared.to_dict(content))
         inputs = self._inputs(project)
+        fact_inventory = _source_fact_inventory(
+            project.root,
+            project.load_json_artifact(
+                SourceAnalysisStage.STRUCTURED_C_ANALYSIS,
+                SourceAnalysisArtifact.STRUCTURED_C_FACTS,
+            ),
+        )
         repositories = {
             "baselines": [
                 {
@@ -285,7 +315,10 @@ class DriverImplementationService:
                 {
                     "schema_version": 1,
                     "inputs": inputs,
-                    "coverage": [record.to_dict() for record in response.coverage],
+                    "coverage": [
+                        self._expanded_coverage(record, fact_inventory)
+                        for record in response.coverage
+                    ],
                 },
             ),
             (
@@ -306,6 +339,21 @@ class DriverImplementationService:
                 for kind, value in documents
             ),
         )
+
+    @staticmethod
+    def _expanded_coverage(
+        record: CoverageRecord,
+        inventory: dict[
+            tuple[str, TranslationDomain], tuple[tuple[SourceFact, dict[str, Any]], ...]
+        ],
+    ) -> dict[str, Any]:
+        selected: list[tuple[SourceFact, dict[str, Any]]] = []
+        for unit_id in record.unit_ids:
+            selected.extend(inventory.get((unit_id, record.domain), ()))
+        result = record.to_dict()
+        result["source_facts"] = [fact.to_dict() for fact, _span in selected]
+        result["source_spans"] = [span for _fact, span in selected]
+        return result
 
     @staticmethod
     def _inputs(project: Project) -> dict[str, Any]:
@@ -544,7 +592,16 @@ class DriverImplementationGate:
         contents: dict[str, str],
         obligations: set[str],
     ) -> None:
-        expected, spans = self._source_facts()
+        facts = json_object(
+            self.context.one_dependency(SourceAnalysisArtifact.STRUCTURED_C_FACTS)[1],
+            "structured C facts",
+        )
+        inventory = _source_fact_inventory(self.context.project_root, facts)
+        expected = {
+            fact.key()
+            for records in inventory.values()
+            for fact, _span in records
+        }
         actual = set()
         contract_ids = self._ids(MigrationArtifact.CONTRACTS, "contracts", "id")
         tests = json_object(
@@ -580,14 +637,18 @@ class DriverImplementationGate:
             if not set(record.contract_ids) <= contract_ids:
                 raise WorkflowError("translation coverage references an unknown contract")
             self._target_span(record.target, contents)
-            keys = {fact.key() for fact in record.source_facts}
-            if any(FACT_DOMAINS[fact.kind] is not record.domain for fact in record.source_facts):
-                raise WorkflowError("source fact is assigned to the wrong translation domain")
-            expected_spans = [spans[key] for key in sorted(keys, key=str)]
-            if sorted(
-                record.source_spans, key=lambda item: json.dumps(item, sort_keys=True)
-            ) != sorted(expected_spans, key=lambda item: json.dumps(item, sort_keys=True)):
-                raise WorkflowError("translation coverage source spans differ from semantic facts")
+            selected = [
+                inventory.get((unit_id, record.domain))
+                for unit_id in record.unit_ids
+            ]
+            if any(records is None for records in selected):
+                raise WorkflowError("translation coverage references an unknown unit/domain scope")
+            keys = {
+                fact.key()
+                for records in selected
+                if records is not None
+                for fact, _span in records
+            }
             actual.update(keys)
             covered_tests.update(record.test_ids)
         if actual != expected:
@@ -604,40 +665,6 @@ class DriverImplementationGate:
             raise WorkflowError("adapted public tests have no implementation file")
         if not any(item.role is ImplementationFileRole.DRIVER for item in by_path.values()):
             raise WorkflowError("implementation bundle has no Rust driver file")
-
-    def _source_facts(
-        self,
-    ) -> tuple[
-        set[tuple[str, SourceFactKind, str, str | None]],
-        dict[tuple[str, SourceFactKind, str, str | None], dict[str, Any]],
-    ]:
-        facts = json_object(
-            self.context.one_dependency(SourceAnalysisArtifact.STRUCTURED_C_FACTS)[1],
-            "structured C facts",
-        )
-        expected = set()
-        spans = {}
-        for unit in facts.get("units", []):
-            path = (self.context.project_root / unit["semantic_index"]["path"]).resolve()
-            if file_sha256(path) != unit["semantic_index"]["sha256"]:
-                raise WorkflowError("structured semantic index changed")
-            semantic = json.loads(path.read_text(encoding="utf-8"))
-            nodes = {node["id"]: node for node in semantic["nodes"]}
-            for kind, index_name in INDEX_FACTS.items():
-                for value in semantic["indexes"][index_name]:
-                    node_id = str(value["node_id"] if isinstance(value, dict) else value)
-                    detail = str(value["kind"]) if kind is SourceFactKind.EFFECT else None
-                    key = (str(unit["unit_id"]), kind, node_id, detail)
-                    node = nodes[node_id]
-                    expected.add(key)
-                    spans[key] = {
-                        "unit_id": unit["unit_id"],
-                        "node_id": node_id,
-                        "source_path": semantic["source_path"],
-                        "loc": node.get("loc"),
-                        "range": node.get("range"),
-                    }
-        return expected, spans
 
     def _ids(self, kind: MigrationArtifact, collection: str, field: str) -> set[str]:
         document = json_object(self.context.one_dependency(kind)[1], kind.value)

@@ -82,40 +82,19 @@ def implementation_response(project, files: list[dict], *, modify_target: bool =
         SourceAnalysisStage.STRUCTURED_C_ANALYSIS,
         SourceAnalysisArtifact.STRUCTURED_C_FACTS,
     )
-    grouped: dict[object, list[tuple[dict, dict]]] = defaultdict(list)
+    grouped: dict[object, set[str]] = defaultdict(set)
     for unit in facts["units"]:
         semantic = json.loads(
             (project.root / unit["semantic_index"]["path"]).read_text(encoding="utf-8")
         )
-        nodes = {node["id"]: node for node in semantic["nodes"]}
         for kind, index_name in INDEX_FACTS.items():
-            for value in semantic["indexes"][index_name]:
-                node_id = str(value["node_id"] if isinstance(value, dict) else value)
-                detail = str(value["kind"]) if kind.value == "EFFECT" else None
-                node = nodes[node_id]
-                grouped[FACT_DOMAINS[kind]].append(
-                    (
-                        {
-                            "unit_id": unit["unit_id"],
-                            "kind": kind.value,
-                            "node_id": node_id,
-                            "detail": detail,
-                        },
-                        {
-                            "unit_id": unit["unit_id"],
-                            "node_id": node_id,
-                            "source_path": semantic["source_path"],
-                            "loc": node.get("loc"),
-                            "range": node.get("range"),
-                        },
-                    )
-                )
+            if semantic["indexes"][index_name]:
+                grouped[FACT_DOMAINS[kind]].add(str(unit["unit_id"]))
     coverage = [
         {
             "coverage_id": f"source-{index}",
             "domain": domain.value,
-            "source_facts": [fact for fact, _span in records],
-            "source_spans": [span for _fact, span in records],
+            "unit_ids": sorted(unit_ids),
             "target": {"path": DRIVER_PATH, "line_start": 1, "line_end": 4},
             "contract_ids": ["example-driver-behavior"],
             "test_ids": [],
@@ -125,14 +104,13 @@ def implementation_response(project, files: list[dict], *, modify_target: bool =
             "diagnostics": [],
             "status": "TRANSLATED",
         }
-        for index, (domain, records) in enumerate(grouped.items(), start=1)
+        for index, (domain, unit_ids) in enumerate(grouped.items(), start=1)
     ]
     coverage.append(
         {
             "coverage_id": "public-test-example",
             "domain": "TEST_ASSERTION",
-            "source_facts": [],
-            "source_spans": [],
+            "unit_ids": [],
             "target": {"path": TEST_PATH, "line_start": 1, "line_end": 4},
             "contract_ids": ["example-driver-behavior"],
             "test_ids": ["example-source-test"],
@@ -198,6 +176,13 @@ class DriverImplementationTests(unittest.TestCase):
                 MigrationArtifact.IMPLEMENTATION_BUNDLE,
             )
             self.assertEqual({item["path"] for item in bundle["files"]}, {DRIVER_PATH, TEST_PATH})
+            coverage = project.load_json_artifact(
+                MigrationStage.DRIVER_IMPLEMENTATION,
+                MigrationArtifact.TRANSLATION_COVERAGE,
+            )["coverage"]
+            self.assertTrue(
+                all(item["source_facts"] and item["source_spans"] for item in coverage[:-1])
+            )
 
     def test_missing_source_fact_cannot_finalize(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:

@@ -44,7 +44,10 @@ DRIVER_IMPLEMENTATION_OBJECTIVE = (
     "Rust driver from the frozen contracts and structured C facts, adapt retained public tests, "
     "and make only necessity-backed minimal integration changes. Do not build, run QEMU, seal a "
     "candidate, or access private tests. Return only schema_version=1 JSON with files (path, role, "
-    "sha256), coverage, target_changes, target_symbols, and unsafe_obligations."
+    "sha256), coverage, target_changes, target_symbols, and unsafe_obligations. Each coverage "
+    "record selects its complete structured source scope with domain and unit_ids; do not return "
+    "individual source_facts or source_spans because the controller derives them from the frozen "
+    "semantic indexes. Use an empty unit_ids list only for TEST_ASSERTION coverage."
 )
 TARGET_COMPLIANCE_OBJECTIVE = (
     "Perform the Phase 7 target compliance review once, using the frozen implementation and "
