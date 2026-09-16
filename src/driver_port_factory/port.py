@@ -484,7 +484,7 @@ class PortRunner:
             project, probe_plan_path=project.artifacts.path_for_digest(job.digest)
         )
         if result.readiness is KnowledgeEvidenceStatus.FAIL:
-            raise WorkflowError("knowledge probes failed: " + "; ".join(result.errors))
+            raise CodexOutputError("knowledge probes failed: " + "; ".join(result.errors))
 
     def _target_study(self, project: Project) -> None:
         acquisition = load_repository_acquisition(project)

@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Any
 
 from ..acquisition.facets import GapReason
+from ..codex.contracts import CodexOutputError
 from ..core.models import WorkflowError
 from .contracts import KnowledgeDomain, RequiredProbeTopic
 
@@ -119,17 +120,21 @@ class KnowledgeProbePlan:
     def load(cls, path: Path) -> KnowledgeProbePlan:
         resolved = path.resolve()
         try:
-            value = json.loads(resolved.read_text(encoding="utf-8"))
-        except json.JSONDecodeError as error:
-            raise WorkflowError(f"invalid knowledge probe plan: {resolved}") from error
-        if not isinstance(value, dict) or value.get("schema_version") != 1:
-            raise WorkflowError("knowledge probe plan must be a schema_version=1 object")
-        records = value.get("probes")
-        if not isinstance(records, list) or not records:
-            raise WorkflowError("knowledge probe plan requires a non-empty probes list")
-        probes = tuple(KnowledgeProbe.parse(record) for record in records)
-        cls._validate_unique_ids(probes)
-        cls._validate_required_topics(probes)
+            raw = resolved.read_text(encoding="utf-8")
+        except UnicodeDecodeError as error:
+            raise CodexOutputError("knowledge probe plan must be UTF-8") from error
+        try:
+            value = json.loads(raw)
+            if not isinstance(value, dict) or value.get("schema_version") != 1:
+                raise WorkflowError("knowledge probe plan must be a schema_version=1 object")
+            records = value.get("probes")
+            if not isinstance(records, list) or not records:
+                raise WorkflowError("knowledge probe plan requires a non-empty probes list")
+            probes = tuple(KnowledgeProbe.parse(record) for record in records)
+            cls._validate_unique_ids(probes)
+            cls._validate_required_topics(probes)
+        except (json.JSONDecodeError, WorkflowError) as error:
+            raise CodexOutputError(f"invalid knowledge probe plan: {error}") from error
         return cls(probes)
 
     @staticmethod

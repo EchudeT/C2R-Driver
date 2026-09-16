@@ -5,6 +5,7 @@ import tempfile
 import unittest
 from dataclasses import replace
 from pathlib import Path
+from unittest.mock import patch
 
 from driver_port_factory.acquisition.facets import (
     EvidenceFacet,
@@ -21,6 +22,7 @@ from driver_port_factory.acquisition.repository import (
 from driver_port_factory.acquisition.repository_checkout import CheckoutRecord
 from driver_port_factory.acquisition.repository_role import RepositoryRole
 from driver_port_factory.cli import parser
+from driver_port_factory.codex.contracts import CodexOutputError
 from driver_port_factory.composition import initialize_project
 from driver_port_factory.core.models import (
     ActorRole,
@@ -249,6 +251,16 @@ def probe_plan(root: Path, *, break_topic: str | None = None) -> Path:
 
 
 class KnowledgeBootstrapTests(unittest.TestCase):
+    def test_invalid_probe_plan_is_codex_output_error(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            path = root / "knowledge-probes.json"
+            for document in ("{", '{"schema_version": 1, "probes": []}'):
+                with self.subTest(document=document):
+                    path.write_text(document, encoding="utf-8")
+                    with self.assertRaises(CodexOutputError):
+                        KnowledgeProbePlan.load(path)
+
     def test_original_binding_uses_all_records_in_the_probe_domain(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             project, _ = prepare_project(Path(temporary))
@@ -347,9 +359,10 @@ class KnowledgeBootstrapTests(unittest.TestCase):
     def test_missing_required_probe_keeps_stage_open_for_repair(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             project, _ = prepare_project(Path(temporary))
+            path = probe_plan(project.root, break_topic="interrupts-concurrency")
             result = KnowledgeBootstrapper().bootstrap(
                 project,
-                probe_plan_path=probe_plan(project.root, break_topic="interrupts-concurrency"),
+                probe_plan_path=path,
             )
             self.assertEqual(result.readiness, "FAIL")
             self.assertIn("target-interrupts", result.failed_probe_ids)
@@ -357,6 +370,25 @@ class KnowledgeBootstrapTests(unittest.TestCase):
                 project.stage(KnowledgeStage.KNOWLEDGE_BASE).status,
                 StageStatus.RUNNING,
             )
+            attempts = [
+                ref
+                for ref in project.artifact_refs(stage=KnowledgeStage.KNOWLEDGE_BASE)
+                if ref.kind == "kb_probe_attempt"
+            ]
+            self.assertEqual(len(attempts), 1)
+
+            with (
+                patch.object(KnowledgeIndex, "build", side_effect=AssertionError),
+                patch.object(KnowledgeIndex, "search", side_effect=AssertionError),
+                patch.object(
+                    KnowledgeBootstrapper,
+                    "_repair_target_corpus",
+                    side_effect=AssertionError,
+                ),
+            ):
+                replayed = KnowledgeBootstrapper().bootstrap(project, probe_plan_path=path)
+
+            self.assertEqual(replayed, result)
             attempts = [
                 ref
                 for ref in project.artifact_refs(stage=KnowledgeStage.KNOWLEDGE_BASE)

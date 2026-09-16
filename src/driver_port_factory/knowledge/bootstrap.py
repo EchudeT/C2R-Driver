@@ -52,6 +52,9 @@ class KnowledgeBootstrapResult:
 class KnowledgeBootstrapper:
     def bootstrap(self, project: Project, *, probe_plan_path: Path) -> KnowledgeBootstrapResult:
         ensure_knowledge_stage_running(project)
+        previous = self._previous_probe_failure(project, file_sha256(probe_plan_path.resolve()))
+        if previous is not None:
+            return previous
         plan = KnowledgeProbePlan.load(probe_plan_path)
         try:
             manifest = CorpusManifest.current(project)
@@ -154,6 +157,41 @@ class KnowledgeBootstrapper:
         return KnowledgeBootstrapResult(
             KnowledgeEvidenceStatus.PASS, StageStatus.PASS, str(generated_skill), (), ()
         )
+
+    @classmethod
+    def _previous_probe_failure(
+        cls, project: Project, probe_plan_sha256: str
+    ) -> KnowledgeBootstrapResult | None:
+        attempts = sorted(
+            (
+                ref
+                for ref in project.artifact_refs(stage=KnowledgeStage.KNOWLEDGE_BASE)
+                if ref.kind == KnowledgeArtifact.PROBE_ATTEMPT.value
+            ),
+            key=lambda ref: ref.ordinal if ref.ordinal is not None else -1,
+            reverse=True,
+        )
+        for ref in attempts:
+            attempt = json.loads(project.artifacts.read(ref))
+            if attempt.get("probe_plan_sha256") != probe_plan_sha256:
+                continue
+            failed = tuple(str(item) for item in attempt.get("failed_probe_ids", ()))
+            if failed == (_INFRASTRUCTURE_GATE,):
+                continue
+            failed_set = set(failed)
+            errors = tuple(
+                cls._probe_error(result)
+                for result in attempt.get("probes", ())
+                if result.get("probe_id") in failed_set
+            )
+            return KnowledgeBootstrapResult(
+                KnowledgeEvidenceStatus.FAIL,
+                StageStatus.RUNNING,
+                None,
+                failed,
+                errors,
+            )
+        return None
 
     @staticmethod
     def _probe_error(result: dict[str, object]) -> str:
