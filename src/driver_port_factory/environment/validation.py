@@ -4,8 +4,8 @@ from types import MappingProxyType
 
 from ..core.models import WorkflowError
 from ..core.validation import ArtifactValidator, json_object, require_fields
-from .contracts import EnvironmentArtifact, ExperimentRouteMilestone
-from .models import ExperimentReadiness
+from .contracts import EnvironmentArtifact, ExperimentRouteMilestone, QmpHandshakeStatus
+from .models import ExperimentPlan, ExperimentReadiness
 
 
 def _inventory(data: bytes) -> None:
@@ -24,18 +24,15 @@ def _mode_candidates(data: bytes) -> None:
 
 def _experiment_plan(data: bytes) -> None:
     value = json_object(data, EnvironmentArtifact.EXPERIMENT_PLAN.value)
-    if ExperimentRouteMilestone(value.get("milestone")) is not ExperimentRouteMilestone.READY:
-        raise WorkflowError("environment plan must target EXPERIMENT_READY")
-    if not isinstance(value.get("command"), list) or not value["command"]:
-        raise WorkflowError("environment plan requires a non-empty command")
-    if not isinstance(value.get("expected_markers"), list) or not value["expected_markers"]:
-        raise WorkflowError("environment plan requires expected markers")
+    plan = ExperimentPlan.from_dict(value)
+    if plan.executable_lock is None or plan.frozen_repositories is None:
+        raise WorkflowError("registered experiment plan requires frozen execution evidence")
 
 
 def _recovery_attempt(data: bytes) -> None:
     value = json_object(data, EnvironmentArtifact.RECOVERY_ATTEMPT.value)
-    if not isinstance(value.get("route"), dict) or not isinstance(value.get("run"), dict):
-        raise WorkflowError("environment recovery attempt requires route and run evidence")
+    if not all(isinstance(value.get(field), dict) for field in ("route", "process", "qmp")):
+        raise WorkflowError("environment attempt requires route, process, and QMP evidence")
 
 
 def _ready_run(data: bytes) -> None:
@@ -43,6 +40,8 @@ def _ready_run(data: bytes) -> None:
     value = json_object(data, EnvironmentArtifact.EXPERIMENT_READY_RUN.value)
     if ExperimentReadiness(value.get("readiness")) is not ExperimentReadiness.PASS:
         raise WorkflowError("experiment_ready_run must have readiness=PASS")
+    if value["qmp"].get("handshake_status") != QmpHandshakeStatus.VERIFIED:
+        raise WorkflowError("experiment_ready_run requires a verified QMP handshake")
 
 
 def _mode_record(data: bytes) -> None:

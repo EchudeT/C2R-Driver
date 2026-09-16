@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import json
-import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -37,6 +36,7 @@ from driver_port_factory.knowledge.contracts import KnowledgeDomain, KnowledgeSt
 from driver_port_factory.knowledge.index import KnowledgeIndex
 from driver_port_factory.target_study.contracts import TargetStudyStage
 from tests.acquisition_support import close_evidence, repository, select_revisions
+from tests.test_environment import qemu_fixture, write_plan
 
 PROJECT_KB_TEMPLATE = """---
 name: {{knowledge_skill_name}}
@@ -159,36 +159,10 @@ def prepare_project(root: Path) -> tuple[Project, dict[str, CheckoutRecord]]:
         record.role.value: record for record in load_repository_acquisition(project).checkouts
     }
     EnvironmentInspector().inspect(project)
-    harness = project.root / "qmp-harness.py"
-    harness.write_text("print('QMP_READY')\n", encoding="utf-8")
-    route_plan = project.root / "environment-plan.json"
-    route_plan.write_text(
-        json.dumps(
-            {
-                "schema_version": 1,
-                "route_id": "knowledge-prerequisite-smoke",
-                "milestone": "EXPERIMENT_READY",
-                "purpose": "establish a bounded model-harness route",
-                "artifact_mode": "direct-device-model",
-                "route_kind": "qtest-or-qmp-harness",
-                "device_identity": "example-device",
-                "topology": "example-bus",
-                "command": [sys.executable, str(harness)],
-                "cwd": ".",
-                "environment": {},
-                "timeout_seconds": 2,
-                "expected_markers": ["QMP_READY"],
-                "accepted_exit_codes": [0],
-                "accept_timeout": False,
-                "runner_evidence_paths": [
-                    ".dpf/worktrees/qemu-baseline",
-                    "qmp-harness.py",
-                ],
-                "relevance_evidence": "frozen QEMU source plus local QMP harness",
-                "driver_insertion_or_packaging_path": None,
-            }
-        ),
-        encoding="utf-8",
+    route_plan = write_plan(
+        project.root,
+        "knowledge-prerequisite-smoke",
+        qemu_fixture(project.root),
     )
     ExperimentPlanRegistrar().register(project, route_plan)
     ExperimentExecutor().run(project, "knowledge-prerequisite-smoke")

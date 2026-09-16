@@ -1,8 +1,8 @@
 from __future__ import annotations
 
+import copy
 import json
-import shutil
-import sys
+import stat
 import tempfile
 import unittest
 from pathlib import Path
@@ -27,15 +27,7 @@ from tests.acquisition_support import close_evidence, repository, select_revisio
 
 def acquired_project(root: Path) -> Project:
     source = repository(root, "source", {"drivers/example.c": "/* driver */\n"})
-    target = repository(
-        root,
-        "target",
-        {
-            "Cargo.toml": "[workspace]\n",
-            ".github/workflows/qemu.yml": "name: qemu\n",
-            "tools/run-qemu.sh": "#!/bin/sh\n",
-        },
-    )
+    target = repository(root, "target", {"Cargo.toml": "[workspace]\n"})
     qemu = repository(root, "qemu", {"hw/test/example.c": "/* device model */\n"})
     catalog = root / "catalog.json"
     catalog.write_text(
@@ -71,9 +63,7 @@ def acquired_project(root: Path) -> Project:
         ),
     )
     IntakeService().analyze(
-        project,
-        raw_request="Port the example driver",
-        catalog_paths=(catalog,),
+        project, raw_request="Port the example driver", catalog_paths=(catalog,)
     )
     select_revisions(project, source, target, qemu)
     RepositoryAcquirer().acquire(project)
@@ -81,150 +71,143 @@ def acquired_project(root: Path) -> Project:
     return project
 
 
-def write_plan(
-    root: Path,
-    *,
-    route_id: str,
-    command: list[str],
-    route_kind: str = "qtest-or-qmp-harness",
-    marker: str = "QMP_READY",
-    accepted_exit_codes: list[int] | None = None,
-    accept_timeout: bool = False,
-    runner_evidence_paths: list[str] | None = None,
-) -> Path:
-    plan = {
-        "schema_version": 1,
-        "route_id": route_id,
-        "milestone": "EXPERIMENT_READY",
-        "purpose": "Execute a bounded device-model environment smoke",
-        "artifact_mode": "direct-device-model",
-        "route_kind": route_kind,
-        "device_identity": "example-device",
-        "topology": "example-bus on a machine-none smoke topology",
-        "command": command,
-        "cwd": ".",
-        "environment": {},
-        "timeout_seconds": 1,
-        "expected_markers": [marker],
-        "accepted_exit_codes": accepted_exit_codes or [],
-        "accept_timeout": accept_timeout,
-        "runner_evidence_paths": runner_evidence_paths or [".dpf/worktrees/qemu-baseline"],
-        "relevance_evidence": "frozen QEMU model tree used by the planned model smoke",
-        "driver_insertion_or_packaging_path": None,
-    }
+def qemu_fixture(root: Path, *, qmp: bool = True) -> Path:
+    executable = root / ("qemu-system-qmp-fixture" if qmp else "qemu-system-marker-fixture")
+    behavior = (
+        """
+import json, os, socket, sys
+argument = sys.argv[sys.argv.index('-qmp') + 1]
+path = argument.removeprefix('unix:').split(',server=on', 1)[0]
+server = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+server.bind(path)
+server.listen(1)
+connection, _ = server.accept()
+stream = connection.makefile('rwb', buffering=0)
+stream.write(json.dumps({'QMP': {'version': {'qemu': {'major': 9}}}}).encode() + b'\\r\\n')
+request = json.loads(stream.readline())
+stream.write(json.dumps({'return': {}, 'id': request['id']}).encode() + b'\\r\\n')
+stream.readline()
+connection.close()
+server.close()
+os.unlink(path)
+"""
+        if qmp
+        else "print('QMP_READY')\n"
+    )
+    executable.write_text(
+        "#!/usr/bin/env python3\n"
+        "import sys\n"
+        "if '--version' in sys.argv:\n"
+        "    print('QEMU emulator version 9.0.0')\n"
+        "    raise SystemExit(0)\n" + behavior,
+        encoding="utf-8",
+    )
+    executable.chmod(executable.stat().st_mode | stat.S_IXUSR)
+    return executable
+
+
+def write_plan(root: Path, route_id: str, executable: Path) -> Path:
     path = root / f"{route_id}.json"
-    path.write_text(json.dumps(plan), encoding="utf-8")
+    path.write_text(
+        json.dumps(
+            {
+                "schema_version": 2,
+                "route_id": route_id,
+                "milestone": "EXPERIMENT_READY",
+                "purpose": "execute a bounded QEMU device-model smoke",
+                "artifact_mode": "direct-device-model",
+                "route_kind": "direct-qemu",
+                "device_identity": "example-device",
+                "topology": "example-bus on machine-none",
+                "command": [str(executable), "-machine", "none"],
+                "cwd": ".",
+                "environment": {},
+                "timeout_seconds": 2,
+                "accepted_exit_codes": [0],
+                "runner_evidence_paths": [".dpf/worktrees/qemu-baseline"],
+                "relevance_evidence": "frozen QEMU model source",
+                "driver_insertion_or_packaging_path": None,
+            }
+        ),
+        encoding="utf-8",
+    )
     return path
 
 
 class EnvironmentRecoveryTests(unittest.TestCase):
-    def test_failed_attempt_is_preserved_before_distinct_successful_route(self) -> None:
+    def test_marker_only_attempt_fails_before_real_qmp_attempt_passes(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             project = acquired_project(Path(temporary))
-            inspector = EnvironmentInspector()
-            registrar = ExperimentPlanRegistrar()
-            executor = ExperimentExecutor()
-            discovery = inspector.inspect(project)
-            modes = {
-                candidate["artifact_mode"]
-                for candidate in discovery["artifact_mode_candidates"]["candidates"]
-            }
-            self.assertIn("source-build", modes)
-            self.assertIn("ci-derived-build", modes)
-            self.assertEqual(
-                project.stage(EnvironmentStage.RECOVERY).status,
-                StageStatus.RUNNING,
-            )
-
-            failed_harness = project.root / "failed-qmp-harness.py"
-            failed_harness.write_text("print('different marker')\n", encoding="utf-8")
-            failed_plan = write_plan(
-                project.root,
-                route_id="missing-marker-001",
-                command=[sys.executable, str(failed_harness)],
-                accepted_exit_codes=[0],
-                runner_evidence_paths=[
-                    ".dpf/worktrees/qemu-baseline",
-                    "failed-qmp-harness.py",
-                ],
-            )
-            registrar.register(project, failed_plan)
-            failed = executor.run(project, "missing-marker-001")
+            EnvironmentInspector().inspect(project)
+            marker = qemu_fixture(project.root, qmp=False)
+            ExperimentPlanRegistrar().register(project, write_plan(project.root, "marker", marker))
+            failed = ExperimentExecutor().run(project, "marker")
             self.assertEqual(failed.readiness.value, "FAIL")
             self.assertTrue(Path(failed.attempt_path).is_file())
-            self.assertEqual(
-                project.stage(EnvironmentStage.RECOVERY).status,
-                StageStatus.RUNNING,
-            )
+            self.assertEqual(project.stage(EnvironmentStage.RECOVERY).status, StageStatus.RUNNING)
 
-            passed_harness = project.root / "passing-qmp-harness.py"
-            passed_harness.write_text("print('QMP_READY')\n", encoding="utf-8")
-            passed_plan = write_plan(
-                project.root,
-                route_id="harness-smoke-002",
-                command=[sys.executable, str(passed_harness)],
-                accepted_exit_codes=[0],
-                runner_evidence_paths=[
-                    ".dpf/worktrees/qemu-baseline",
-                    "passing-qmp-harness.py",
-                ],
-            )
-            registrar.register(project, passed_plan)
-            passed = executor.run(project, "harness-smoke-002")
+            qemu = qemu_fixture(project.root)
+            ExperimentPlanRegistrar().register(project, write_plan(project.root, "qmp", qemu))
+            passed = ExperimentExecutor().run(project, "qmp")
             self.assertEqual(passed.readiness.value, "PASS")
             self.assertEqual(project.stage(EnvironmentStage.RECOVERY).status, StageStatus.PASS)
-            route = project.load_json_artifact(
-                EnvironmentStage.RECOVERY, EnvironmentArtifact.EXPERIMENT_ROUTE
-            )
-            self.assertEqual(route["milestone"], "EXPERIMENT_READY")
-            self.assertFalse(route["migrated_driver_runtime_ready"])
-
-    def test_direct_qemu_route_rejects_non_qemu_executable(self) -> None:
-        with tempfile.TemporaryDirectory() as temporary:
-            project = acquired_project(Path(temporary))
-            EnvironmentInspector().inspect(project)
-            plan = write_plan(
-                project.root,
-                route_id="not-qemu",
-                command=[sys.executable, "-c", "print('QMP_READY')"],
-                route_kind="direct-qemu",
-                accepted_exit_codes=[0],
-            )
-            with self.assertRaises(WorkflowError):
-                ExperimentPlanRegistrar().register(project, plan)
-
-    @unittest.skipUnless(shutil.which("qemu-system-riscv64"), "qemu-system-riscv64 is unavailable")
-    def test_real_qemu_qmp_smoke_reaches_experiment_ready(self) -> None:
-        with tempfile.TemporaryDirectory() as temporary:
-            project = acquired_project(Path(temporary))
-            EnvironmentInspector().inspect(project)
-            plan = write_plan(
-                project.root,
-                route_id="real-qemu-qmp-001",
-                command=[
-                    "qemu-system-riscv64",
-                    "-machine",
-                    "none",
-                    "-display",
-                    "none",
-                    "-nodefaults",
-                    "-S",
-                    "-qmp",
-                    "stdio",
-                ],
-                route_kind="direct-qemu",
-                marker='"QMP"',
-                accepted_exit_codes=[0],
-                accept_timeout=True,
-            )
-            ExperimentPlanRegistrar().register(project, plan)
-            result = ExperimentExecutor().run(project, "real-qemu-qmp-001")
-            self.assertEqual(result.readiness.value, "PASS")
             run = project.load_json_artifact(
                 EnvironmentStage.RECOVERY, EnvironmentArtifact.EXPERIMENT_READY_RUN
             )
-            self.assertTrue(run["run"]["launched"])
-            self.assertTrue(run["run"]["timed_out"] or run["run"]["exit_code"] == 0)
+            self.assertEqual(run["qmp"]["handshake_status"], "VERIFIED")
+            self.assertEqual(run["process"]["exit_code"], 0)
+
+    def test_frozen_checkout_drift_is_rejected_before_plan_or_execution(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            project = acquired_project(Path(temporary))
+            EnvironmentInspector().inspect(project)
+            qemu = qemu_fixture(project.root)
+            plan = write_plan(project.root, "dirty-before-plan", qemu)
+            (project.control / "worktrees/source-baseline/untracked").write_text("drift")
+            with self.assertRaisesRegex(WorkflowError, "repository identity drifted"):
+                ExperimentPlanRegistrar().register(project, plan)
+
+        with tempfile.TemporaryDirectory() as temporary:
+            project = acquired_project(Path(temporary))
+            EnvironmentInspector().inspect(project)
+            qemu = qemu_fixture(project.root)
+            ExperimentPlanRegistrar().register(project, write_plan(project.root, "dirty", qemu))
+            (project.control / "worktrees/qemu-baseline/hw/test/example.c").write_text("drift")
+            with self.assertRaisesRegex(WorkflowError, "repository identity drifted"):
+                ExperimentExecutor().run(project, "dirty")
+
+    def test_binary_and_bound_execution_evidence_tampering_are_rejected(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            project = acquired_project(Path(temporary))
+            EnvironmentInspector().inspect(project)
+            qemu = qemu_fixture(project.root)
+            ExperimentPlanRegistrar().register(project, write_plan(project.root, "binary", qemu))
+            qemu.write_text(qemu.read_text() + "\n# tampered\n")
+            with self.assertRaisesRegex(WorkflowError, "executable identity changed"):
+                ExperimentExecutor().run(project, "binary")
+
+        for field, mutate in (
+            ("argv", lambda value: value["process"]["argv"].append("--tampered")),
+            ("process", lambda value: value["process"].update({"pid": 1})),
+            ("socket", lambda value: value["qmp"].update({"socket_path": "/tmp/tampered"})),
+            ("transcript", lambda value: value["qmp"].update({"transcript_sha256": "0" * 64})),
+        ):
+            with self.subTest(field=field), tempfile.TemporaryDirectory() as temporary:
+                project = acquired_project(Path(temporary))
+                EnvironmentInspector().inspect(project)
+                qemu = qemu_fixture(project.root)
+                ExperimentPlanRegistrar().register(project, write_plan(project.root, field, qemu))
+                ExperimentExecutor().run(project, field)
+                plan = ExperimentExecutor._load_plan(project, field)
+                attempt = json.loads(
+                    (project.control / "environment/attempts" / f"{field}.json").read_text()
+                )
+                altered = copy.deepcopy(attempt)
+                mutate(altered)
+                self.assertEqual(
+                    ExperimentExecutor._final_gate(project, plan, altered).value,
+                    "FAIL",
+                )
 
 
 if __name__ == "__main__":

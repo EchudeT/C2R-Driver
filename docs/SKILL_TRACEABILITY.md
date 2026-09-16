@@ -13,7 +13,7 @@
 | source/target/QEMU 使用完整提交而非浮动分支 | `revision_selection`、`acquisition/` | revision manifest、解析命令证据 | PARTIAL |
 | 上游输入只读、target baseline 与 writable worktree 分离 | `repository_acquisition`、`acquisition/` | 三个 baseline lock、独立 target-working、可恢复 partial clone | PARTIAL |
 | 最小证据闭包覆盖源码、测试、目标、QEMU、硬件和工具链 | `evidence_closure`、`acquisition/facets.py` | typed proposal、逐文件 Git blob/external origin、不可变语料 artifact、coverage、gap、retrieval ledger 与 bundle gate | PARTIAL |
-| 环境恢复必须实际达到 `EXPERIMENT_READY` | `environment_recovery` | 主机清单、artifact mode、不可覆盖的真实命令 run | PARTIAL |
+| 环境恢复必须实际达到 `EXPERIMENT_READY` | `environment_recovery` | 三仓复验、冻结 QEMU 身份、真实 QMP greeting/capabilities、不可覆盖 run | IMPLEMENTED |
 | 不能默认完整源码构建，须比较 runner/SDK/image/injection/CI/full build | environment artifact discovery | 候选路线与选择证据 | PARTIAL |
 | 建立或复用带完整性、search、show、rebuild 的项目知识库 Skill | `knowledge_base` | KB status、query contract、生成 Skill | PARTIAL |
 | 目标专项检索失败时直接查源码、补语料、重建并复测 | KB target probes | probe 与 repair ledger | PARTIAL |

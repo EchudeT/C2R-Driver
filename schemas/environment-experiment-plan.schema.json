@@ -17,14 +17,12 @@
     "cwd",
     "environment",
     "timeout_seconds",
-    "expected_markers",
     "accepted_exit_codes",
-    "accept_timeout",
     "runner_evidence_paths",
     "relevance_evidence"
   ],
   "properties": {
-    "schema_version": {"const": 1},
+    "schema_version": {"const": 2},
     "route_id": {"type": "string", "pattern": "^[A-Za-z0-9_-]+$"},
     "milestone": {"const": "EXPERIMENT_READY"},
     "purpose": {"type": "string", "minLength": 1},
@@ -41,15 +39,7 @@
         "source-baseline"
       ]
     },
-    "route_kind": {
-      "enum": [
-        "direct-qemu",
-        "official-target-runner",
-        "containerized-qemu",
-        "qtest-or-qmp-harness",
-        "source-baseline-runner"
-      ]
-    },
+    "route_kind": {"const": "direct-qemu"},
     "device_identity": {"type": "string", "minLength": 1},
     "topology": {"type": "string", "minLength": 1},
     "command": {
@@ -60,13 +50,11 @@
     "cwd": {"type": "string", "minLength": 1},
     "environment": {"type": "object", "additionalProperties": {"type": "string"}},
     "timeout_seconds": {"type": "integer", "minimum": 1, "maximum": 3600},
-    "expected_markers": {
+    "accepted_exit_codes": {
       "type": "array",
       "minItems": 1,
-      "items": {"type": "string", "minLength": 1}
+      "items": {"type": "integer"}
     },
-    "accepted_exit_codes": {"type": "array", "items": {"type": "integer"}},
-    "accept_timeout": {"type": "boolean"},
     "runner_evidence_paths": {
       "type": "array",
       "minItems": 1,

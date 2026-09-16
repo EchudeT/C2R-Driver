@@ -21,3 +21,13 @@ class ExperimentRouteMilestone(StrEnum):
 
 class RouteDiscoveryStatus(StrEnum):
     DISCOVERED_NOT_EXECUTED = "DISCOVERED_NOT_EXECUTED"
+
+
+class QmpDirection(StrEnum):
+    RECEIVED = "received"
+    SENT = "sent"
+
+
+class QmpHandshakeStatus(StrEnum):
+    VERIFIED = "VERIFIED"
+    FAIL = "FAIL"

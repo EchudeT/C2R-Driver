@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from dataclasses import replace
 from pathlib import Path
 
 from ..acquisition.repository import load_repository_acquisition
@@ -9,43 +10,12 @@ from ..core.models import ActorRole, ArtifactDirection, FileArtifact, StageStatu
 from ..core.project import Project
 from .contracts import EnvironmentArtifact, EnvironmentStage
 from .documents import json_bytes, plan_path
-from .evidence import executable_identity, workspace_path
+from .evidence import (
+    freeze_qemu_executable,
+    frozen_repository_snapshot,
+    workspace_path,
+)
 from .models import ExperimentPlan
-from .route_policy import ExperimentRoutePolicy, RouteEvidence
-
-
-class ExperimentPlanValidator:
-    def validate(self, project: Project, plan: ExperimentPlan) -> None:
-        cwd = workspace_path(project, plan.cwd)
-        if not cwd.is_dir():
-            raise WorkflowError(f"experiment cwd does not exist: {cwd}")
-        for relative in plan.runner_evidence_paths:
-            if not workspace_path(project, relative).exists():
-                raise WorkflowError(f"runner evidence does not exist: {relative}")
-        acquisition = load_repository_acquisition(project)
-        evidence_paths = tuple(Path(path).as_posix() for path in plan.runner_evidence_paths)
-        cited_files = tuple(
-            path for path in plan.runner_evidence_paths if workspace_path(project, path).is_file()
-        )
-        executable = executable_identity(plan.command[0], cwd)
-        executable_name = (
-            Path(executable["resolved"]).name
-            if executable["resolved"]
-            else Path(plan.command[0]).name
-        )
-        roots = {role: acquisition.checkout(role).checkout_path for role in RepositoryRole}
-        ExperimentRoutePolicy().validate(
-            plan.route_kind,
-            RouteEvidence(
-                executable_name,
-                evidence_paths,
-                cited_files,
-                roots[RepositoryRole.SOURCE],
-                roots[RepositoryRole.TARGET],
-                acquisition.target_worktree,
-                roots[RepositoryRole.QEMU],
-            ),
-        )
 
 
 class ExperimentPlanRegistrar:
@@ -62,7 +32,29 @@ class ExperimentPlanRegistrar:
         if not isinstance(value, dict):
             raise WorkflowError("experiment plan must be a JSON object")
         plan = ExperimentPlan.from_dict(value)
-        ExperimentPlanValidator().validate(project, plan)
+        repositories = frozen_repository_snapshot(project)
+        cwd = workspace_path(project, plan.cwd)
+        if not cwd.is_dir():
+            raise WorkflowError(f"experiment cwd does not exist: {cwd}")
+        if any(not workspace_path(project, path).exists() for path in plan.runner_evidence_paths):
+            raise WorkflowError("runner evidence path does not exist")
+        acquisition = load_repository_acquisition(project)
+        qemu_root = acquisition.checkout(RepositoryRole.QEMU).checkout_path
+        if not any(
+            path == qemu_root or path.startswith(qemu_root + "/")
+            for path in plan.runner_evidence_paths
+        ):
+            raise WorkflowError("direct-QEMU route must cite the frozen QEMU checkout")
+        if "-qmp" in plan.command or "-monitor" in plan.command:
+            raise WorkflowError("the QMP controller owns monitor transport arguments")
+        executable = freeze_qemu_executable(project, plan.command[0], cwd)
+        if not Path(executable["resolved"]).name.startswith("qemu-system-"):
+            raise WorkflowError("direct-QEMU route must execute a QEMU system binary")
+        plan = replace(
+            plan,
+            executable_lock=executable,
+            frozen_repositories=repositories,
+        )
         controlled = plan_path(project, plan.route_id)
         proposed = json_bytes(plan.to_dict())
         if controlled.exists() and controlled.read_bytes() != proposed:

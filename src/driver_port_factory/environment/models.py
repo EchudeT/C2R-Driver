@@ -22,10 +22,6 @@ class ArtifactMode(StrEnum):
 
 class RouteKind(StrEnum):
     DIRECT_QEMU = "direct-qemu"
-    OFFICIAL_TARGET_RUNNER = "official-target-runner"
-    CONTAINERIZED_QEMU = "containerized-qemu"
-    QTEST_OR_QMP_HARNESS = "qtest-or-qmp-harness"
-    SOURCE_BASELINE_RUNNER = "source-baseline-runner"
 
 
 class ExperimentReadiness(StrEnum):
@@ -52,55 +48,55 @@ class ExperimentPlan:
     cwd: str
     environment: dict[str, str]
     timeout_seconds: int
-    expected_markers: tuple[str, ...]
     accepted_exit_codes: tuple[int, ...]
-    accept_timeout: bool
     runner_evidence_paths: tuple[str, ...]
     relevance_evidence: str
     driver_insertion_or_packaging_path: str | None = None
+    executable_lock: dict[str, Any] | None = None
+    frozen_repositories: dict[str, Any] | None = None
 
     def to_dict(self) -> dict[str, Any]:
         value = asdict(self)
         value["artifact_mode"] = self.artifact_mode.value
         value["route_kind"] = self.route_kind.value
         value["milestone"] = self.milestone.value
+        for field in ("executable_lock", "frozen_repositories"):
+            if value[field] is None:
+                del value[field]
         return value
 
     @classmethod
     def from_dict(cls, value: dict[str, Any]) -> ExperimentPlan:
         cls._validate_envelope(value)
-        command = cls._string_list(value["command"], "command")
-        markers = cls._string_list(value["expected_markers"], "expected_markers")
-        evidence_paths = cls._string_list(value["runner_evidence_paths"], "runner_evidence_paths")
-        exit_codes = cls._exit_codes(value["accepted_exit_codes"])
-        environment = cls._environment(value.get("environment", {}))
-        timeout = cls._timeout(value["timeout_seconds"])
-        milestone = cls._milestone(value["milestone"])
-        accept_timeout = value["accept_timeout"]
-        if not exit_codes and not accept_timeout:
-            raise WorkflowError(
-                "experiment plan must accept at least one exit code or a bounded timeout"
+        lock = value.get("executable_lock")
+        repositories = value.get("frozen_repositories")
+        if any(item is not None and not isinstance(item, dict) for item in (lock, repositories)):
+            raise WorkflowError("experiment frozen evidence must be an object")
+        try:
+            return cls(
+                schema_version=2,
+                route_id=value["route_id"],
+                milestone=ExperimentRouteMilestone(value["milestone"]),
+                purpose=value["purpose"],
+                artifact_mode=ArtifactMode(value["artifact_mode"]),
+                route_kind=RouteKind(value["route_kind"]),
+                device_identity=value["device_identity"],
+                topology=value["topology"],
+                command=tuple(cls._string_list(value["command"], "command")),
+                cwd=value["cwd"],
+                environment=cls._environment(value["environment"]),
+                timeout_seconds=cls._timeout(value["timeout_seconds"]),
+                accepted_exit_codes=tuple(cls._exit_codes(value["accepted_exit_codes"])),
+                runner_evidence_paths=tuple(
+                    cls._string_list(value["runner_evidence_paths"], "runner_evidence_paths")
+                ),
+                relevance_evidence=value["relevance_evidence"],
+                driver_insertion_or_packaging_path=value.get("driver_insertion_or_packaging_path"),
+                executable_lock=dict(lock) if lock is not None else None,
+                frozen_repositories=(dict(repositories) if repositories is not None else None),
             )
-        return cls(
-            schema_version=int(value["schema_version"]),
-            route_id=value["route_id"],
-            milestone=milestone,
-            purpose=value["purpose"],
-            artifact_mode=ArtifactMode(value["artifact_mode"]),
-            route_kind=RouteKind(value["route_kind"]),
-            device_identity=value["device_identity"],
-            topology=value["topology"],
-            command=tuple(command),
-            cwd=value["cwd"],
-            environment=dict(environment),
-            timeout_seconds=timeout,
-            expected_markers=tuple(markers),
-            accepted_exit_codes=tuple(exit_codes),
-            accept_timeout=accept_timeout,
-            runner_evidence_paths=tuple(evidence_paths),
-            relevance_evidence=value["relevance_evidence"],
-            driver_insertion_or_packaging_path=value.get("driver_insertion_or_packaging_path"),
-        )
+        except (TypeError, ValueError) as error:
+            raise WorkflowError("experiment plan has an invalid enum value") from error
 
     @staticmethod
     def _validate_envelope(value: dict[str, Any]) -> None:
@@ -115,19 +111,18 @@ class ExperimentPlan:
             "topology",
             "command",
             "cwd",
+            "environment",
             "timeout_seconds",
-            "expected_markers",
             "accepted_exit_codes",
-            "accept_timeout",
             "runner_evidence_paths",
             "relevance_evidence",
         }
         missing = sorted(required - value.keys())
         if missing:
             raise WorkflowError(f"experiment plan missing fields: {', '.join(missing)}")
-        if value["schema_version"] != 1:
-            raise WorkflowError("experiment plan schema_version must be 1")
-        for field_name in (
+        if value["schema_version"] != 2:
+            raise WorkflowError("experiment plan schema_version must be 2")
+        for name in (
             "route_id",
             "purpose",
             "device_identity",
@@ -135,10 +130,8 @@ class ExperimentPlan:
             "cwd",
             "relevance_evidence",
         ):
-            if not isinstance(value[field_name], str) or not value[field_name].strip():
-                raise WorkflowError(f"experiment plan {field_name} must be non-empty")
-        if not isinstance(value["accept_timeout"], bool):
-            raise WorkflowError("accept_timeout must be boolean")
+            if not isinstance(value[name], str) or not value[name].strip():
+                raise WorkflowError(f"experiment plan {name} must be non-empty")
 
     @staticmethod
     def _string_list(value: Any, field: str) -> list[str]:
@@ -152,8 +145,12 @@ class ExperimentPlan:
 
     @staticmethod
     def _exit_codes(value: Any) -> list[int]:
-        if not isinstance(value, list) or not all(isinstance(item, int) for item in value):
-            raise WorkflowError("accepted_exit_codes must be an integer list")
+        if (
+            not isinstance(value, list)
+            or not value
+            or not all(isinstance(item, int) and not isinstance(item, bool) for item in value)
+        ):
+            raise WorkflowError("accepted_exit_codes must be a non-empty integer list")
         return value
 
     @staticmethod
@@ -162,20 +159,10 @@ class ExperimentPlan:
             isinstance(key, str) and isinstance(item, str) for key, item in value.items()
         ):
             raise WorkflowError("experiment plan environment must map strings to strings")
-        return value
+        return dict(value)
 
     @staticmethod
     def _timeout(value: Any) -> int:
-        if not isinstance(value, int) or value < 1 or value > 3600:
+        if not isinstance(value, int) or isinstance(value, bool) or not 1 <= value <= 3600:
             raise WorkflowError("timeout_seconds must be between 1 and 3600")
         return value
-
-    @staticmethod
-    def _milestone(value: Any) -> ExperimentRouteMilestone:
-        try:
-            milestone = ExperimentRouteMilestone(value)
-        except (TypeError, ValueError) as error:
-            raise WorkflowError("environment recovery plan milestone is invalid") from error
-        if milestone is not ExperimentRouteMilestone.READY:
-            raise WorkflowError("environment recovery plan milestone must be EXPERIMENT_READY")
-        return milestone
