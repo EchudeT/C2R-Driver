@@ -38,6 +38,78 @@ CONTROL_FLOW_KINDS = frozenset(
 )
 
 
+class _ClangSourceLocations:
+    """Replay Clang's ordered file/line elision and index each AST node once."""
+
+    def __init__(self) -> None:
+        self.context: dict[str, Any] = {"file": None, "line": None}
+        self.indexed: dict[int, dict[str, Any]] = {}
+
+    @classmethod
+    def build(cls, root: dict[str, Any]) -> dict[int, dict[str, Any]]:
+        index = cls()
+        index._scan(root)
+        return index.indexed
+
+    def _scan(self, value: Any) -> None:
+        if isinstance(value, list):
+            for item in value:
+                self._scan(item)
+            return
+        if not isinstance(value, dict):
+            return
+        node_location: dict[str, Any] | None = None
+        for field, child in value.items():
+            if field == "loc" and isinstance(child, dict):
+                node_location = self._location(child)
+            elif field == "range" and isinstance(child, dict):
+                node_location = self._merge(node_location, self._range_begin(child))
+            else:
+                self._scan(child)
+        if AstSemanticIndexer._is_node(value) and node_location is not None:
+            self.indexed[id(value)] = node_location
+
+    def _location(self, record: dict[str, Any]) -> dict[str, Any]:
+        direct = {"file": self.context["file"], "line": self.context["line"], "col": None}
+        nested: dict[str, dict[str, Any]] = {}
+        for field, value in record.items():
+            if field in {"file", "line"}:
+                direct[field] = value
+                self.context[field] = value
+            elif field == "col":
+                direct[field] = value
+            elif field in {"spellingLoc", "expansionLoc"} and isinstance(value, dict):
+                nested[field] = self._location(value)
+        return nested.get("spellingLoc") or nested.get("expansionLoc") or direct
+
+    def _range_begin(self, record: dict[str, Any]) -> dict[str, Any] | None:
+        begin: dict[str, Any] | None = None
+        for field, value in record.items():
+            if field in {"begin", "end"} and isinstance(value, dict):
+                resolved = self._location(value)
+                if field == "begin":
+                    begin = resolved
+            else:
+                self._scan(value)
+        return begin
+
+    @staticmethod
+    def _merge(
+        primary: dict[str, Any] | None,
+        fallback: dict[str, Any] | None,
+    ) -> dict[str, Any] | None:
+        if primary is None:
+            return fallback
+        if fallback is None:
+            return primary
+        return {
+            field: primary.get(field)
+            if primary.get(field) is not None
+            else fallback.get(field)
+            for field in ("file", "line", "col")
+        }
+
+
 class AstSemanticIndexer:
     """Build stable AST/CPG indexes and source identities from Clang AST JSON."""
 
@@ -51,6 +123,7 @@ class AstSemanticIndexer:
         self.stable_to_node: dict[str, dict[str, Any]] = {}
         self.record_fields_by_type: dict[str, list[str]] = {}
         self.record_fields_by_declaration: dict[str, list[str]] = {}
+        self.source_locations = _ClangSourceLocations.build(ast_root)
 
     def build(self) -> dict[str, Any]:
         self._collect_declarations(self.root, ())
@@ -361,8 +434,13 @@ class AstSemanticIndexer:
         name = node.get("name")
         location = self._source_location(node)
         labels = [f"{tag} {name}"] if name else []
-        if not name and location.get("line") and location.get("col"):
-            file_name = location.get("file") or str(self.source_path)
+        if (
+            not name
+            and location.get("file")
+            and location.get("line") is not None
+            and location.get("col") is not None
+        ):
+            file_name = location["file"]
             labels.extend(
                 (
                     f"{tag} (unnamed at {file_name}:{location['line']}:{location['col']})",
@@ -380,16 +458,12 @@ class AstSemanticIndexer:
         }
 
     def _source_location(self, node: dict[str, Any]) -> dict[str, Any]:
-        location = node.get("loc") if isinstance(node.get("loc"), dict) else {}
-        spelling = (
-            location.get("spellingLoc") if isinstance(location.get("spellingLoc"), dict) else {}
+        return dict(
+            self.source_locations.get(
+                id(node),
+                {"file": None, "line": None, "col": None},
+            )
         )
-        selected = spelling or location
-        return {
-            "file": selected.get("file", str(self.source_path)),
-            "line": selected.get("line"),
-            "col": selected.get("col"),
-        }
 
     def _referenced_record_declarations(self, node: Any) -> set[str]:
         result: set[str] = set()
