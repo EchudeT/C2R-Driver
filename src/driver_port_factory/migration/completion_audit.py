@@ -134,6 +134,7 @@ class CompletionAuditService:
             "blind_candidate": blind,
             "scope_limits": {
                 "qemu_evidence": "QEMU_MODEL_ONLY",
+                "integration_boundary": (public or {}).get("integration_boundary"),
                 "real_hardware": KnowledgeEvidenceStatus.NOT_RUN.value,
                 "private_evaluation": (
                     PrivateEvaluationState.NOT_RUN_BY_MIGRATOR.value

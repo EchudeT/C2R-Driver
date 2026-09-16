@@ -13,10 +13,13 @@ from driver_port_factory.environment.contracts import EnvironmentArtifact, Envir
 from driver_port_factory.knowledge.contracts import KnowledgeDomain
 from driver_port_factory.knowledge.index import KnowledgeIndex
 from driver_port_factory.migration.contracts import (
+    ContractExecutionStatus,
     EvidenceLadderLevel,
     MigrationArtifact,
+    MigrationBoundary,
     MigrationStage,
 )
+from driver_port_factory.migration.public_qemu import PublicQemuService
 from tests.test_artifact_preparation import artifact_project, write_plan
 
 
@@ -141,7 +144,45 @@ def run_public(project, document: dict) -> int:
         return main(["public-qemu-validation", "run", str(project.root)])
 
 
+def blocked_plan(project) -> dict:
+    plan = public_plan(project)
+    plan["runs"] = plan["runs"][:1]
+    for index, item in enumerate(plan["ladder"]):
+        if index < 3:
+            item["disposition"] = "FROZEN_PREREQUISITE"
+            item["run_ids"] = []
+        else:
+            item["disposition"] = "BLOCKED"
+            item["run_ids"] = ["public-1"] if index < 9 else []
+            item["rationale"] = "The frozen QEMU original cannot run the current driver artifact."
+    return plan
+
+
 class PublicQemuTests(unittest.TestCase):
+    def test_blocked_ladder_freezes_without_executing_or_claiming_driver_pass(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            project = public_qemu_project(Path(temporary))
+            with patch.object(PublicQemuService, "_execute_run") as execute:
+                self.assertEqual(run_public(project, blocked_plan(project)), 0)
+                execute.assert_not_called()
+            report = project.load_json_artifact(
+                MigrationStage.PUBLIC_QEMU_VALIDATION,
+                MigrationArtifact.PUBLIC_QEMU_REPORT,
+            )
+            self.assertEqual(report["status"], "PASS")
+            self.assertEqual(
+                report["execution_status"], ContractExecutionStatus.BLOCKED.value
+            )
+            self.assertEqual(
+                report["integration_boundary"],
+                MigrationBoundary.BLOCKED_FULL_INTEGRATION.value,
+            )
+            run = report["runs"][0]
+            self.assertEqual(run["run_status"], ContractExecutionStatus.NOT_RUN.value)
+            self.assertEqual(run["execution_status"], ContractExecutionStatus.BLOCKED.value)
+            self.assertIsNone(run["qemu"])
+            self.assertIsNone(run["actual"])
+
     def test_artifact_qmp_checker_and_controls_finalize(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             project = public_qemu_project(Path(temporary))

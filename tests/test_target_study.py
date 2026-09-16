@@ -149,6 +149,35 @@ PROFILE_HEADINGS_TO_STRUCTURED = (
 
 
 class TargetStudyTests(unittest.TestCase):
+    def test_ready_rejects_unfinished_investigation_and_incomplete_driver_trace(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            project, checkouts = prepare_project(Path(temporary))
+            KnowledgeBootstrapper().bootstrap(project, probe_plan_path=probe_plan(project.root))
+            paths, _chunks = target_study_inputs(project.root, project, checkouts)
+            changes = json.loads(paths["change_plan"].read_text(encoding="utf-8"))
+            changes["investigations"] = [
+                {
+                    "investigation_id": "target-path",
+                    "question": "Which target path operates the migrated device?",
+                    "planned_action": "Trace the pinned target implementation.",
+                    "status": "PLANNED",
+                }
+            ]
+            write_json(paths["change_plan"], changes)
+            service = TargetStudyService()
+
+            unfinished = service.validate(project, **paths)
+            self.assertIn("target platform study is not READY", unfinished.errors[0])
+
+            changes["investigations"][0]["status"] = "PASS"
+            write_json(paths["change_plan"], changes)
+            trace = json.loads(paths["analogous_trace"].read_text(encoding="utf-8"))
+            trace["steps"][1]["status"] = "NOT_APPLICABLE"
+            write_json(paths["analogous_trace"], trace)
+
+            incomplete = service.validate(project, **paths)
+            self.assertIn("target platform study is not READY", incomplete.errors[0])
+
     def test_non_target_evidence_is_rejected_then_corrected_submission_passes(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             project, checkouts = prepare_project(Path(temporary))

@@ -56,7 +56,8 @@ class TargetChangePlanValidator:
         owned_paths = changes["driver_owned_paths"]
         if not isinstance(owned_paths, list) or not owned_paths:
             raise WorkflowError("target change plan requires driver-owned paths")
-        resolution_ids = self._investigation_ids(changes["investigations"])
+        investigations = self._investigations(changes["investigations"])
+        resolution_ids = set(investigations)
         proposed = changes["proposed_preexisting_changes"]
         if not isinstance(proposed, list):
             raise WorkflowError("proposed_preexisting_changes must be a list")
@@ -70,13 +71,14 @@ class TargetChangePlanValidator:
             "required_change_level": required_level.value,
             "proposed_change_count": len(proposed),
             "resolution_ids": sorted(resolution_ids),
+            "investigations": investigations,
         }
 
     @staticmethod
-    def _investigation_ids(value: Any) -> set[str]:
+    def _investigations(value: Any) -> dict[str, InvestigationStatus]:
         if not isinstance(value, list):
             raise WorkflowError("target change investigations must be a list")
-        identifiers = set()
+        investigations = {}
         for investigation in value:
             investigation = require_fields(
                 investigation,
@@ -84,11 +86,11 @@ class TargetChangePlanValidator:
                 "target investigation",
             )
             try:
-                InvestigationStatus(investigation["status"])
+                status = InvestigationStatus(investigation["status"])
             except (TypeError, ValueError) as error:
                 raise WorkflowError("target investigation has an invalid status") from error
-            identifiers.add(str(investigation["investigation_id"]))
-        return identifiers
+            investigations[str(investigation["investigation_id"])] = status
+        return investigations
 
     def _validate_change(self, value: Any) -> str:
         change = require_fields(value, self.CHANGE_FIELDS, "pre-existing target change")

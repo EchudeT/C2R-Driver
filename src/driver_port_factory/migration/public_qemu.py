@@ -37,6 +37,7 @@ from .contracts import (
     EvidenceLadderLevel,
     LadderDisposition,
     MigrationArtifact,
+    MigrationBoundary,
     MigrationStage,
     PublicRunAttribution,
     TestDisposition,
@@ -264,8 +265,30 @@ class PublicQemuService:
         plan_digest = hashlib.sha256(self._json(plan.to_dict())).hexdigest()
         attempt_dir = project.control / "public-qemu" / plan_digest[:20]
         attempt_dir.mkdir(parents=True, exist_ok=False)
-        results = self.execute_runs(project, plan.runs, attempt_dir)
+        execute_ids = {
+            run_id
+            for item in plan.ladder
+            if item.disposition is LadderDisposition.EXECUTE
+            for run_id in item.run_ids
+        }
+        executed = self.execute_runs(
+            project,
+            tuple(run for run in plan.runs if run.run_id in execute_ids),
+            attempt_dir,
+        )
+        by_id = {result["run_id"]: result for result in executed}
+        for run in plan.runs:
+            if run.run_id not in by_id:
+                by_id[run.run_id] = self._blocked_run(run, plan.ladder)
+        results = [by_id[run.run_id] for run in plan.runs]
         ladder = self._ladder_results(plan, results)
+        failed = any(
+            result["execution_status"] == ContractExecutionStatus.FAIL.value
+            for result in executed
+        )
+        blocked = any(
+            item.disposition is LadderDisposition.BLOCKED for item in plan.ladder
+        )
         report = {
             "schema_version": 1,
             "inputs": inputs,
@@ -274,12 +297,15 @@ class PublicQemuService:
             "artifact_identity": artifact,
             "runs": results,
             "ladder": ladder,
-            "status": StageStatus.PASS.value
-            if all(
-                result["execution_status"] == ContractExecutionStatus.PASS.value
-                for result in results
-            )
-            else StageStatus.FAIL.value,
+            "status": StageStatus.FAIL.value if failed else StageStatus.PASS.value,
+            "execution_status": ContractExecutionStatus.FAIL.value
+            if failed
+            else ContractExecutionStatus.BLOCKED.value
+            if blocked
+            else ContractExecutionStatus.PASS.value,
+            "integration_boundary": MigrationBoundary.BLOCKED_FULL_INTEGRATION.value
+            if blocked
+            else None,
             "recorded_at": utc_now(),
         }
         attempt_path = attempt_dir / "attempt.json"
@@ -303,6 +329,32 @@ class PublicQemuService:
         )
         return {"status": StageStatus.PASS.value, "attempt": str(attempt_path)}
 
+    @staticmethod
+    def _blocked_run(
+        run: PublicRun, ladder: tuple[LadderPlan, ...]
+    ) -> dict[str, Any]:
+        blockers = [
+            item.to_dict()
+            for item in ladder
+            if item.disposition is LadderDisposition.BLOCKED and run.run_id in item.run_ids
+        ]
+        return {
+            "run_id": run.run_id,
+            "contract_ids": list(run.contract_ids),
+            "test_ids": list(run.test_ids),
+            "qemu": None,
+            "stimulus": None,
+            "checker": None,
+            "expected": run.oracle.to_dict(),
+            "actual": None,
+            "controls_valid": None,
+            "blockers": blockers,
+            "evidence_status": ContractEvidenceStatus.UNKNOWN.value,
+            "execution_status": ContractExecutionStatus.BLOCKED.value,
+            "run_status": ContractExecutionStatus.NOT_RUN.value,
+            "attribution": PublicRunAttribution.INCONCLUSIVE.value,
+        }
+
     def execute_runs(
         self, project: Project, runs: tuple[PublicRun, ...], attempt_dir: Path
     ) -> list[dict[str, Any]]:
@@ -321,13 +373,16 @@ class PublicQemuService:
         if [item.level for item in plan.ladder] != list(EvidenceLadderLevel):
             raise WorkflowError("public QEMU plan must freeze the ordered evidence ladder")
         known = set(run_ids)
-        for item in plan.ladder:
-            if not item.rationale.strip() or not item.qemu_evidence:
-                raise WorkflowError("public QEMU ladder rationale/evidence is incomplete")
-            if item.disposition is LadderDisposition.EXECUTE and not item.run_ids:
-                raise WorkflowError("executed evidence-ladder level has no run")
-            if item.disposition is LadderDisposition.BLOCKED or not set(item.run_ids) <= known:
-                raise WorkflowError("blocked or unknown public QEMU ladder work cannot execute")
+        bindings = self._ladder_bindings(plan, known)
+        if any(
+            not dispositions
+            or (
+                LadderDisposition.EXECUTE not in dispositions
+                and dispositions != {LadderDisposition.BLOCKED}
+            )
+            for dispositions in bindings.values()
+        ):
+            raise WorkflowError("public QEMU run is neither executable nor blocked")
         regression = next(
             item for item in plan.ladder if item.level is EvidenceLadderLevel.REGRESSION
         )
@@ -359,6 +414,27 @@ class PublicQemuService:
         } != tests:
             raise WorkflowError("public QEMU plan does not cover every applicable contract/test")
         self._verify_qemu_evidence(project, plan, inputs)
+
+    @staticmethod
+    def _ladder_bindings(
+        plan: PublicQemuPlan, known: set[str]
+    ) -> dict[str, set[LadderDisposition]]:
+        bindings: dict[str, set[LadderDisposition]] = {run_id: set() for run_id in known}
+        for item in plan.ladder:
+            if not item.rationale.strip() or not item.qemu_evidence:
+                raise WorkflowError("public QEMU ladder rationale/evidence is incomplete")
+            if item.disposition is LadderDisposition.EXECUTE and not item.run_ids:
+                raise WorkflowError("executed evidence-ladder level has no run")
+            if not set(item.run_ids) <= known:
+                raise WorkflowError("public QEMU ladder references an unknown run")
+            if item.disposition in {
+                LadderDisposition.FROZEN_PREREQUISITE,
+                LadderDisposition.NOT_APPLICABLE,
+            } and item.run_ids:
+                raise WorkflowError("non-executable public QEMU prerequisite references a run")
+            for run_id in item.run_ids:
+                bindings[run_id].add(item.disposition)
+        return bindings
 
     def _execute_run(self, project: Project, run: PublicRun, run_dir: Path) -> dict[str, Any]:
         run_dir.mkdir(parents=True, exist_ok=False)
@@ -554,7 +630,7 @@ class PublicQemuService:
         by_id = {result["run_id"]: result for result in results}
         values = []
         for item in plan.ladder:
-            passed = item.disposition is not LadderDisposition.EXECUTE or all(
+            passed = all(
                 by_id[run_id]["execution_status"] == ContractExecutionStatus.PASS.value
                 for run_id in item.run_ids
             )
@@ -562,10 +638,12 @@ class PublicQemuService:
                 {
                     **item.to_dict(),
                     "evidence_status": ContractEvidenceStatus.VERIFIED.value
-                    if passed
+                    if item.disposition is not LadderDisposition.EXECUTE or passed
                     else ContractEvidenceStatus.UNKNOWN.value,
                     "execution_status": ContractExecutionStatus.NOT_APPLICABLE.value
                     if item.disposition is LadderDisposition.NOT_APPLICABLE
+                    else ContractExecutionStatus.BLOCKED.value
+                    if item.disposition is LadderDisposition.BLOCKED
                     else ContractExecutionStatus.PASS.value
                     if passed
                     else ContractExecutionStatus.FAIL.value,
@@ -694,39 +772,61 @@ def validate_public_qemu_bundle(context: BundleValidationContext) -> None:
     runs = report.get("runs", [])
     plan = PublicQemuPlan.from_dict(report.get("plan"))
     planned_runs = {run.run_id: run for run in plan.runs}
+    blocked = any(item.disposition is LadderDisposition.BLOCKED for item in plan.ladder)
     if (
         report.get("inputs") != expected_inputs
         or report.get("artifact_identity") != _final_artifact_binding(context)
         or report.get("attempt_sha256") != attempt_ref.digest
         or attempt.get("status") != StageStatus.PASS.value
         or report.get("status") != StageStatus.PASS.value
+        or report.get("execution_status")
+        != (
+            ContractExecutionStatus.BLOCKED.value
+            if blocked
+            else ContractExecutionStatus.PASS.value
+        )
+        or report.get("integration_boundary")
+        != (MigrationBoundary.BLOCKED_FULL_INTEGRATION.value if blocked else None)
+        or {run.get("run_id") for run in runs} != set(planned_runs)
         or {item for run in runs for item in run.get("contract_ids", [])} != expected_contracts
         or {item for run in runs for item in run.get("test_ids", [])} != expected_tests
-        or any(
+        or report.get("ladder") != PublicQemuService._ladder_results(plan, runs)
+    ):
+        raise WorkflowError("public QEMU evidence ladder is incomplete or unqualified")
+    for run in runs:
+        planned = planned_runs[run["run_id"]]
+        if run.get("execution_status") == ContractExecutionStatus.BLOCKED.value:
+            blockers = [
+                item.to_dict()
+                for item in plan.ladder
+                if item.disposition is LadderDisposition.BLOCKED
+                and run["run_id"] in item.run_ids
+            ]
+            if (
+                not blockers
+                or run.get("run_status") != ContractExecutionStatus.NOT_RUN.value
+                or run.get("evidence_status") != ContractEvidenceStatus.UNKNOWN.value
+                or run.get("attribution") != PublicRunAttribution.INCONCLUSIVE.value
+                or run.get("expected") != planned.oracle.to_dict()
+                or run.get("blockers") != blockers
+                or any(
+                    run.get(field) is not None
+                    for field in ("qemu", "stimulus", "checker", "actual", "controls_valid")
+                )
+            ):
+                raise WorkflowError("blocked public QEMU run claims unexecuted evidence")
+            continue
+        if (
             run.get("execution_status") != ContractExecutionStatus.PASS.value
             or run.get("evidence_status") != ContractEvidenceStatus.VERIFIED.value
             or run.get("attribution") != PublicRunAttribution.TARGET_DRIVER_ON_QEMU.value
             or run.get("qemu", {}).get("qmp_handshake") != QmpHandshakeStatus.VERIFIED.value
             or run.get("controls_valid") is not True
             or run.get("actual") is None
-            or run.get("run_id") not in planned_runs
-            or run.get("expected") != planned_runs[run["run_id"]].oracle.to_dict()
-            or not PublicQemuService._oracle_pass(planned_runs[run["run_id"]], run.get("actual"))
-            for run in runs
-        )
-        or [item.get("level") for item in report.get("ladder", [])]
-        != [level.value for level in EvidenceLadderLevel]
-        or any(
-            item.get("execution_status")
-            not in {
-                ContractExecutionStatus.PASS.value,
-                ContractExecutionStatus.NOT_APPLICABLE.value,
-            }
-            for item in report.get("ladder", [])
-        )
-    ):
-        raise WorkflowError("public QEMU evidence ladder is incomplete or unqualified")
-    for run in runs:
+            or run.get("expected") != planned.oracle.to_dict()
+            or not PublicQemuService._oracle_pass(planned, run.get("actual"))
+        ):
+            raise WorkflowError("public QEMU run is incomplete or unqualified")
         for section, names in (
             (run["qemu"], ("stdout", "stderr", "qmp")),
             (run["stimulus"], ("stdout", "stderr")),

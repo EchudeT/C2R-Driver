@@ -167,6 +167,10 @@ class LadderDisposition(StrEnum):
     BLOCKED = "BLOCKED"
 
 
+class MigrationBoundary(StrEnum):
+    BLOCKED_FULL_INTEGRATION = "BLOCKED_FULL_INTEGRATION"
+
+
 class PublicRunAttribution(StrEnum):
     TARGET_DRIVER_ON_QEMU = "TARGET_DRIVER_ON_QEMU"
     PUBLIC_HARNESS = "PUBLIC_HARNESS"

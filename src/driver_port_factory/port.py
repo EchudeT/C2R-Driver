@@ -786,7 +786,7 @@ class PortRunner:
         identity = project.load_json_artifact(
             MigrationStage.ARTIFACT_PREPARATION, MigrationArtifact.ARTIFACT_IDENTITY
         )
-        response = self._codex(
+        self._codex_gate(
             project,
             MigrationStage.PUBLIC_QEMU_VALIDATION,
             PUBLIC_QEMU_OBJECTIVE,
@@ -816,10 +816,17 @@ class PortRunner:
                     "packaged_test_sha256": identity["packaged_test_artifact"]["sha256"],
                 },
             ),
-        )[2]
-        result = PublicQemuService().run(project, PublicQemuPlan.read(response))
-        if result["status"] == StageStatus.RUNNING.value:
+            self._accept_public_qemu_result,
+        )
+        if project.stage(MigrationStage.PUBLIC_QEMU_VALIDATION).status is StageStatus.RUNNING:
             PublicRepairService().prepare(project)
+
+    @staticmethod
+    def _accept_public_qemu_result(project: Project, job: ArtifactOccurrence) -> None:
+        PublicQemuService().run(
+            project,
+            PublicQemuPlan.read(project.artifacts.path_for_digest(job.digest)),
+        )
 
     def _public_repair(self, project: Project) -> None:
         service = PublicRepairService()

@@ -13,25 +13,26 @@ from ..knowledge.index import KnowledgeIndex, file_sha256
 from .change_plan import TargetChangePlanValidator
 from .contracts import (
     ApiConfidence,
+    InvestigationStatus,
     TargetProfileStatus,
     TargetStudyArtifact,
     TargetStudyOutcome,
     TargetStudyStage,
+    TraceStage,
     TraceStatus,
 )
 from .evidence import TargetEvidenceVerifier, require_fields
 from .profile import PROFILE_HEADINGS, TargetProfileValidator
 
-TRACE_STEPS = (
-    "selection-configuration",
-    "registration-match",
-    "resource-acquisition",
-    "device-initialization",
-    "request-submission-completion",
-    "interrupt-deferred-processing",
-    "error-propagation-recovery",
-    "stop-detach-cleanup",
-    "artifact-inclusion-qemu-launch",
+TRACE_STEPS = tuple(TraceStage)
+REQUIRED_TARGET_DRIVER_TRACE_STEPS = frozenset(
+    {
+        TraceStage.REGISTRATION_MATCH,
+        TraceStage.RESOURCE_ACQUISITION,
+        TraceStage.DEVICE_INITIALIZATION,
+        TraceStage.REQUEST_SUBMISSION_COMPLETION,
+        TraceStage.INTERRUPT_DEFERRED_PROCESSING,
+    }
 )
 
 
@@ -90,6 +91,7 @@ class TargetStudyService:
                 evidence, api, set(details["changes"]["resolution_ids"])
             )
             details["analogous_trace"] = self._validate_trace(evidence, trace)
+            self._ready_gate(details["changes"], details["analogous_trace"])
             self._validate_profile_markdown(paths["profile_markdown"], profile)
         except (WorkflowError, OSError, UnicodeDecodeError) as error:
             errors.append(str(error))
@@ -225,7 +227,10 @@ class TargetStudyService:
         steps = trace["steps"]
         if not isinstance(steps, list):
             raise WorkflowError("analogous trace steps must be a list")
-        observed = tuple(str(step.get("stage")) for step in steps)
+        try:
+            observed = tuple(TraceStage(step.get("stage")) for step in steps)
+        except (TypeError, ValueError) as error:
+            raise WorkflowError("analogous trace contains an invalid stage") from error
         if observed != TRACE_STEPS:
             raise WorkflowError(
                 "analogous trace must contain the complete ordered registration-to-QEMU path"
@@ -240,6 +245,7 @@ class TargetStudyService:
         evidence: TargetEvidenceVerifier, step: dict[str, Any]
     ) -> dict[str, Any]:
         try:
+            stage = TraceStage(step.get("stage"))
             status = TraceStatus(step.get("status"))
         except (TypeError, ValueError) as error:
             raise WorkflowError(
@@ -251,10 +257,29 @@ class TargetStudyService:
         if not isinstance(references, list) or not references:
             raise WorkflowError(f"analogous trace step {step['stage']} needs target evidence")
         return {
-            "stage": step["stage"],
+            "stage": stage,
             "status": status,
             "evidence": [evidence.verify(reference) for reference in references],
         }
+
+    @staticmethod
+    def _ready_gate(changes: dict[str, Any], trace: dict[str, Any]) -> None:
+        unfinished = [
+            identifier
+            for identifier, status in changes["investigations"].items()
+            if status is not InvestigationStatus.PASS
+        ]
+        incomplete_path = [
+            step["stage"].value
+            for step in trace["steps"]
+            if step["stage"] in REQUIRED_TARGET_DRIVER_TRACE_STEPS
+            and step["status"] is not TraceStatus.VERIFIED
+        ]
+        if unfinished or incomplete_path:
+            raise WorkflowError(
+                "target platform study is not READY: unresolved investigations or incomplete "
+                "target driver trace"
+            )
 
     @staticmethod
     def _validate_profile_markdown(path: Path, profile: dict[str, Any]) -> None:

@@ -41,6 +41,18 @@ class TraceStatus(StrEnum):
     NOT_APPLICABLE = "NOT_APPLICABLE"
 
 
+class TraceStage(StrEnum):
+    SELECTION_CONFIGURATION = "selection-configuration"
+    REGISTRATION_MATCH = "registration-match"
+    RESOURCE_ACQUISITION = "resource-acquisition"
+    DEVICE_INITIALIZATION = "device-initialization"
+    REQUEST_SUBMISSION_COMPLETION = "request-submission-completion"
+    INTERRUPT_DEFERRED_PROCESSING = "interrupt-deferred-processing"
+    ERROR_PROPAGATION_RECOVERY = "error-propagation-recovery"
+    STOP_DETACH_CLEANUP = "stop-detach-cleanup"
+    ARTIFACT_INCLUSION_QEMU_LAUNCH = "artifact-inclusion-qemu-launch"
+
+
 class ChangeLevel(StrEnum):
     DRIVER_OWNED = "driver-owned"
     INTEGRATION_WIRING = "integration-wiring"
