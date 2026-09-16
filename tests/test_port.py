@@ -107,11 +107,10 @@ class PortRunnerTests(unittest.TestCase):
             parts["api_table"].write_text("[]", encoding="utf-8")
             runner = PortRunner(options(root))
 
-            with (
-                patch.object(runner, "_write_response_parts", return_value=parts),
-                self.assertRaisesRegex(CodexOutputError, "JSON must be an object"),
-            ):
-                runner._accept_target_study_result(project, object())
+            with patch.object(runner, "_write_response_parts", return_value=parts):
+                for _ in range(2):
+                    with self.assertRaisesRegex(CodexOutputError, "JSON must be an object"):
+                        runner._accept_target_study_result(project, object())
 
     def test_fresh_port_workspace_is_its_own_git_root(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:

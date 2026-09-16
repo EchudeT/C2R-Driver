@@ -76,15 +76,17 @@ class TargetStudyService:
         details: dict[str, Any] = {}
         knowledge = KnowledgeIndex.for_project(project)
         evidence = TargetEvidenceVerifier(knowledge)
-        details["knowledge_status"] = knowledge.status()
-        details["acquisition_verification"] = AcquisitionVerifier().verify(project)
-        if not details["acquisition_verification"]["valid"]:
+        knowledge_status = knowledge.status()
+        acquisition_verification = AcquisitionVerifier().verify(project)
+        if not acquisition_verification["valid"]:
             raise WorkflowError("one or more frozen baselines failed verification")
         try:
             profile = self._load_json(paths["profile_json"])
             api = self._load_json(paths["api_table"])
             trace = self._load_json(paths["analogous_trace"])
             changes = self._load_json(paths["change_plan"])
+            details["knowledge_status"] = knowledge_status
+            details["acquisition_verification"] = acquisition_verification
             details["profile"] = TargetProfileValidator(project, evidence).validate(profile)
             details["changes"] = TargetChangePlanValidator(evidence).validate(changes)
             details["api_table"] = self._validate_api_table(
