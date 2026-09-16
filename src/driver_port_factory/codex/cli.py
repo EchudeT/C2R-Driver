@@ -93,7 +93,6 @@ def run_codex_stage(
     )
     codex_dir = project.control / "codex"
     codex_dir.mkdir(parents=True, exist_ok=True)
-    output_path = codex_dir / f"{stage_key.value}-{rendered.digest[:12]}.result"
     grant = CodexExecutionPolicy().grant(project, stage_key)
     job = CodexJob(
         stage=stage_key,
@@ -105,6 +104,7 @@ def run_codex_stage(
         output_schema=(rendered.output_schema.path if rendered.output_schema else None),
         model=model,
     )
+    output_path = codex_dir / f"{stage_key.value}-{job.job_id}.result"
     gateway = CodexExecGateway(codex_bin) if backend is CodexBackend.EXEC else CodexSdkGateway()
     result = gateway.run(job)
     output_path.write_text(result.final_response, encoding="utf-8")
