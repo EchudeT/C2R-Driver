@@ -24,8 +24,7 @@
     "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
     "relative_path": {
       "type": "string",
-      "minLength": 1,
-      "pattern": "^(?!/)(?!\\.$)(?!.*(?:^|/)\\.\\.(?:/|$)).+"
+      "minLength": 1
     },
     "http_url": {"type": "string", "pattern": "^https?://[^/\\s]+(?:/[^\\s]*)?$"},
     "lane": {
