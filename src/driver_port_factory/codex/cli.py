@@ -67,6 +67,8 @@ def run_codex_stage(
     codex_bin: str,
     model: str | None,
     prompt_pack_path: str | None = None,
+    thread_id: str | None = None,
+    follow_up: str | None = None,
 ) -> tuple[CodexResult, RenderedPrompt, Path]:
     stage = project.stage(stage_key)
     if stage.owner is StageOwner.STATIC:
@@ -82,12 +84,13 @@ def run_codex_stage(
         context,
         prompt_pack_path,
     )
+    prompt = follow_up or rendered.text
     project.record_artifact(
         stage_key,
         GeneratedArtifact(
             CodexArtifact.PROMPT,
-            rendered.text.encode("utf-8"),
-            f"generated:prompt:{rendered.digest}",
+            prompt.encode("utf-8"),
+            f"generated:prompt:{rendered.digest}" if follow_up is None else "generated:follow-up",
         ),
         direction=ArtifactDirection.INPUT,
     )
@@ -98,11 +101,12 @@ def run_codex_stage(
         stage=stage_key,
         actor_role=project.config.actor_role,
         objective=objective,
-        prompt=rendered.text,
+        prompt=prompt,
         execution_root=grant.execution_root,
         sandbox=grant.sandbox,
         output_schema=(rendered.output_schema.path if rendered.output_schema else None),
         model=model,
+        thread_id=thread_id,
     )
     output_path = codex_dir / f"{stage_key.value}-{job.job_id}.result"
     gateway = CodexExecGateway(codex_bin) if backend is CodexBackend.EXEC else CodexSdkGateway()

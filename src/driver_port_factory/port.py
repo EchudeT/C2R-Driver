@@ -96,6 +96,7 @@ SOURCE_CLOSURE_OBJECTIVE = (
     "Close the behaviorally required source set using the frozen compile commands. Return only "
     "one source-closure JSON object for the controller to verify."
 )
+REVISION_CORRECTION_ATTEMPTS = 3
 
 
 @dataclass(frozen=True, slots=True)
@@ -252,7 +253,16 @@ class PortRunner:
         waiting = [stage for stage in unfinished if stage.status is StageStatus.WAITING_FOR_USER]
         return min(actionable or waiting or unfinished, key=lambda stage: stage.position)
 
-    def _codex(self, project: Project, stage: StageKey, objective: str, context: dict[str, object]):
+    def _codex(
+        self,
+        project: Project,
+        stage: StageKey,
+        objective: str,
+        context: dict[str, object],
+        *,
+        thread_id: str | None = None,
+        follow_up: str | None = None,
+    ):
         return run_codex_stage(
             project,
             stage,
@@ -261,6 +271,8 @@ class PortRunner:
             backend=self.options.backend,
             codex_bin=self.options.codex_bin,
             model=self.options.model,
+            thread_id=thread_id,
+            follow_up=follow_up,
         )
 
     @staticmethod
@@ -334,17 +346,36 @@ class PortRunner:
             IntakeStage.ENVELOPE_FREEZE,
             IntakeArtifact.MIGRATION_ENVELOPE,
         )
-        _, _, response = self._codex(
-            project,
-            AcquisitionStage.REVISION_SELECTION,
-            REVISION_OBJECTIVE,
-            {"migration_envelope": envelope},
-        )
-        job = self._job_occurrence(project, AcquisitionStage.REVISION_SELECTION, response)
-        proposal = RevisionProposalImporter().import_job_result(
-            project, job_digest=job.digest, job_ordinal=job.ordinal
-        )
-        RevisionSelector().select(project, proposal=proposal)
+        thread_id = None
+        follow_up = None
+        for _ in range(REVISION_CORRECTION_ATTEMPTS):
+            result, _, response = self._codex(
+                project,
+                AcquisitionStage.REVISION_SELECTION,
+                REVISION_OBJECTIVE,
+                {"migration_envelope": envelope},
+                thread_id=thread_id,
+                follow_up=follow_up,
+            )
+            try:
+                job = self._job_occurrence(
+                    project, AcquisitionStage.REVISION_SELECTION, response
+                )
+                proposal = RevisionProposalImporter().import_job_result(
+                    project, job_digest=job.digest, job_ordinal=job.ordinal
+                )
+                RevisionSelector().select(project, proposal=proposal)
+                return
+            except WorkflowError as error:
+                if not result.thread_id:
+                    raise
+                thread_id = result.thread_id
+                follow_up = (
+                    "The controller rejected the previous proposal: "
+                    f"{error}. Correct that failure, re-check every retrieved excerpt, and return "
+                    "only a complete replacement proposal matching the same output schema."
+                )
+        raise WorkflowError("revision selection failed after same-session corrections")
 
     @staticmethod
     def _repositories(project: Project) -> None:

@@ -164,7 +164,7 @@ class CodexPolicyTests(unittest.TestCase):
                     self.assertEqual(grant.sandbox, CodexSandbox.READ_ONLY)
                     self.assertEqual(grant.execution_root, root)
 
-    def test_exec_gateway_always_starts_an_ephemeral_job(self) -> None:
+    def test_exec_gateway_starts_a_persistent_job(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary).resolve()
             job = CodexJob(
@@ -186,9 +186,34 @@ class CodexPolicyTests(unittest.TestCase):
             ) as run:
                 result = CodexExecGateway("codex").run(job)
             command = run.call_args.args[0]
-            self.assertIn("--ephemeral", command)
+            self.assertNotIn("--ephemeral", command)
             self.assertNotIn("resume", command)
             self.assertEqual(result.thread_id, "fresh-thread")
+
+    def test_exec_gateway_resumes_an_existing_thread(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            job = CodexJob(
+                stage=EvaluationStage.ISOLATION_GATE,
+                actor_role=ActorRole.EVALUATOR,
+                objective="correct result",
+                prompt="controller feedback",
+                execution_root=Path(temporary),
+                sandbox=CodexSandbox.READ_ONLY,
+                thread_id="existing-thread",
+            )
+            output = (
+                '{"type":"item.completed","item":'
+                '{"type":"agent_message","text":"ok"}}'
+            )
+            with patch(
+                "driver_port_factory.codex.gateway.subprocess.run",
+                return_value=CompletedProcess([], 0, stdout=output, stderr=""),
+            ) as run:
+                CodexExecGateway("codex").run(job)
+            command = run.call_args.args[0]
+            self.assertEqual(command[:4], ["codex", "exec", "resume", "--json"])
+            self.assertIn("existing-thread", command)
+            self.assertNotIn("--sandbox", command)
 
     def test_workspace_write_rejects_control_and_every_frozen_checkout_overlap(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:

@@ -22,6 +22,7 @@ class CodexJob:
     sandbox: CodexSandbox
     output_schema: Path | None = None
     model: str | None = None
+    thread_id: str | None = None
     job_id: str = field(default_factory=lambda: str(uuid.uuid4()))
 
 
@@ -43,18 +44,22 @@ class CodexExecGateway:
         execution_root = job.execution_root.resolve()
         if not execution_root.is_dir():
             raise WorkflowError(f"Codex execution root does not exist: {execution_root}")
-        command = [
-            self.codex_bin,
-            "exec",
-            "--json",
-            "--ephemeral",
-            "--sandbox",
-            job.sandbox.value,
-        ]
+        if job.thread_id:
+            command = [self.codex_bin, "exec", "resume", "--json"]
+        else:
+            command = [
+                self.codex_bin,
+                "exec",
+                "--json",
+                "--sandbox",
+                job.sandbox.value,
+            ]
         if job.model:
             command.extend(["--model", job.model])
         if job.output_schema:
             command.extend(["--output-schema", str(job.output_schema.resolve())])
+        if job.thread_id:
+            command.append(job.thread_id)
         command.append(job.prompt)
         completed = subprocess.run(
             command,
@@ -80,7 +85,7 @@ class CodexExecGateway:
                 if event.get("type") == CodexExecEventType.THREAD_STARTED.value
             ),
             None,
-        )
+        ) or job.thread_id
         final_response = next(
             (
                 event["item"].get("text", "")
