@@ -1,0 +1,221 @@
+from __future__ import annotations
+
+import json
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Any
+
+import ijson
+
+from ..core.models import WorkflowError
+from ..knowledge.index import file_sha256
+from .ast_index import _ClangSourceLocations, _ResolvedLocations
+from .semantic_model import ClangNodeKind
+
+
+@dataclass(frozen=True, slots=True)
+class ClosureFile:
+    relative_path: str
+    path: Path
+    sha256: str
+
+
+class ClosureFileSet:
+    """Resolve Clang locations only to files frozen by the source-closure manifest."""
+
+    def __init__(self, source_root: Path, files: tuple[ClosureFile, ...]) -> None:
+        self.source_root = source_root.resolve()
+        self.files = files
+        self.by_path = {file.path: file for file in files}
+        self.location_cache: dict[Path, ClosureFile | None] = {}
+
+    @classmethod
+    def from_manifest(cls, manifest: dict[str, Any]) -> ClosureFileSet:
+        source_root = Path(str(manifest.get("source_root", ""))).resolve()
+        records: dict[str, str] = {}
+        units = manifest.get("translation_units")
+        if not isinstance(units, list):
+            raise WorkflowError("compile manifest has no translation units")
+        for unit in units:
+            if not isinstance(unit, dict):
+                raise WorkflowError("compile manifest contains an invalid translation unit")
+            cls._add_record(records, unit.get("source_path"), unit.get("sha256"))
+            dependencies = unit.get("dependencies")
+            if not isinstance(dependencies, list):
+                raise WorkflowError("compile manifest contains invalid source dependencies")
+            for dependency in dependencies:
+                if not isinstance(dependency, dict):
+                    raise WorkflowError("compile manifest contains an invalid source dependency")
+                cls._add_record(records, dependency.get("path"), dependency.get("sha256"))
+        files = []
+        for relative_path, expected_digest in sorted(records.items()):
+            path = (source_root / relative_path).resolve()
+            if path != source_root and source_root not in path.parents:
+                raise WorkflowError("source-closure path escapes the frozen source root")
+            if not path.is_file() or file_sha256(path) != expected_digest:
+                raise WorkflowError(f"source-closure file identity changed: {relative_path}")
+            files.append(ClosureFile(relative_path, path, expected_digest))
+        if not files:
+            raise WorkflowError("source closure contains no analyzable C files")
+        return cls(source_root, tuple(files))
+
+    @staticmethod
+    def _add_record(records: dict[str, str], path: Any, digest: Any) -> None:
+        if not isinstance(path, str) or not path or not isinstance(digest, str):
+            raise WorkflowError("source-closure file record is incomplete")
+        existing = records.setdefault(path, digest)
+        if existing != digest:
+            raise WorkflowError(f"source-closure file has conflicting identities: {path}")
+
+    def resolve_location(self, value: Any, compile_directory: Path) -> ClosureFile | None:
+        if not isinstance(value, str) or not value or value.startswith("<"):
+            return None
+        location = Path(value)
+        path = (location if location.is_absolute() else compile_directory / location).resolve()
+        direct = self.by_path.get(path)
+        if direct is not None:
+            return direct
+        if path in self.location_cache:
+            return self.location_cache[path]
+        match = self._verified_alias(path)
+        self.location_cache[path] = match
+        return match
+
+    def _verified_alias(self, path: Path) -> ClosureFile | None:
+        if not path.is_file():
+            return None
+        path_parts = path.parts
+        candidates = [
+            file
+            for file in self.files
+            if len(path_parts) >= len(Path(file.relative_path).parts)
+            and path_parts[-len(Path(file.relative_path).parts) :]
+            == Path(file.relative_path).parts
+        ]
+        if not candidates:
+            return None
+        digest = file_sha256(path)
+        matches = [file for file in candidates if file.sha256 == digest]
+        if len(matches) > 1:
+            raise WorkflowError(f"Clang source location maps to multiple closure files: {path}")
+        return matches[0] if matches else None
+
+    def records(self) -> list[dict[str, str]]:
+        return [
+            {"path": file.relative_path, "sha256": file.sha256}
+            for file in self.files
+        ]
+
+
+class ClosureAstProjector:
+    """Stream a Clang AST and retain only top-level subtrees owned by source closure."""
+
+    def __init__(self, closure: ClosureFileSet) -> None:
+        self.closure = closure
+
+    def project(
+        self,
+        capture_path: Path,
+        output_path: Path,
+        *,
+        compile_directory: Path,
+        capture_sha256: str,
+        capture_size: int,
+    ) -> dict[str, Any]:
+        with capture_path.open("rb") as stream:
+            root_kind = next(ijson.items(stream, "kind"), None)
+        if root_kind != ClangNodeKind.TRANSLATION_UNIT_DECL:
+            raise WorkflowError("Clang AST root is not TranslationUnitDecl")
+
+        tracker = _ClangSourceLocations()
+        selected: list[dict[str, Any]] = []
+        observed_count = 0
+        with capture_path.open("rb") as stream:
+            for node in ijson.items(stream, "inner.item"):
+                observed_count += 1
+                if not isinstance(node, dict):
+                    raise WorkflowError("Clang AST contains a non-object top-level node")
+                locations = tracker.scan(node)
+                if not self._owned(locations, compile_directory):
+                    continue
+                self._annotate(node, locations)
+                selected.append(node)
+        if not selected:
+            raise WorkflowError("typed AST contains no source-closure-owned declarations")
+
+        projection = {
+            "kind": ClangNodeKind.TRANSLATION_UNIT_DECL,
+            "inner": selected,
+            "dpfClosure": {
+                "schema_version": 1,
+                "files": self.closure.records(),
+                "capture_sha256": capture_sha256,
+                "capture_size": capture_size,
+                "observed_top_level_nodes": observed_count,
+                "selected_top_level_nodes": len(selected),
+            },
+        }
+        output_path.write_text(
+            json.dumps(projection, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+            + "\n",
+            encoding="utf-8",
+        )
+        return projection
+
+    def validate(
+        self,
+        projection: dict[str, Any],
+        *,
+        compile_directory: Path,
+        capture_sha256: Any,
+        capture_size: Any,
+    ) -> None:
+        metadata = projection.get("dpfClosure")
+        nodes = projection.get("inner")
+        if (
+            projection.get("kind") != ClangNodeKind.TRANSLATION_UNIT_DECL
+            or not isinstance(metadata, dict)
+            or not isinstance(nodes, list)
+            or metadata.get("schema_version") != 1
+            or metadata.get("files") != self.closure.records()
+            or metadata.get("capture_sha256") != capture_sha256
+            or metadata.get("capture_size") != capture_size
+            or metadata.get("selected_top_level_nodes") != len(nodes)
+            or not isinstance(metadata.get("observed_top_level_nodes"), int)
+            or metadata["observed_top_level_nodes"] < len(nodes)
+        ):
+            raise WorkflowError("typed AST closure projection provenance is invalid")
+        if any(
+            not isinstance(node, dict)
+            or not self._owned(_ClangSourceLocations.build(node), compile_directory)
+            for node in nodes
+        ):
+            raise WorkflowError("typed AST projection contains a non-closure declaration")
+
+    def _owned(
+        self,
+        locations: dict[int, _ResolvedLocations],
+        compile_directory: Path,
+    ) -> bool:
+        return any(
+            self.closure.resolve_location(candidate.get("file"), compile_directory) is not None
+            for resolved in locations.values()
+            for candidate in resolved.candidates()
+        )
+
+    @staticmethod
+    def _annotate(
+        value: Any,
+        locations: dict[int, _ResolvedLocations],
+    ) -> None:
+        if isinstance(value, list):
+            for item in value:
+                ClosureAstProjector._annotate(item, locations)
+            return
+        if not isinstance(value, dict):
+            return
+        location = locations.get(id(value))
+        if location is not None:
+            value["_dpfSource"] = location.to_record()
+        for child in tuple(value.values()):
+            ClosureAstProjector._annotate(child, locations)

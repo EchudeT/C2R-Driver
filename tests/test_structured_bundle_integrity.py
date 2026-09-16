@@ -191,7 +191,7 @@ class StructuredBundleIntegrityTests(unittest.TestCase):
 
         self.assert_rejected(mutate)
 
-    def test_synchronized_raw_command_and_stream_forgery_fails_command_replay(self) -> None:
+    def test_command_capture_cannot_diverge_from_frozen_raw_provenance(self) -> None:
         facts = self.fixture.document(SourceAnalysisArtifact.STRUCTURED_C_FACTS)
         unit = facts["units"][0]
         raw_record = unit["raw_facts"]["preprocessed_source"]
@@ -233,7 +233,7 @@ class StructuredBundleIntegrityTests(unittest.TestCase):
                 SourceAnalysisArtifact.STRUCTURED_C_FACTS,
                 facts,
             )
-            with self.assertRaisesRegex(WorkflowError, "replayed stdout differs"):
+            with self.assertRaisesRegex(WorkflowError, "command record differs"):
                 validate_structured_bundle(self.fixture.context(current))
         finally:
             stdout_path.write_bytes(original_stdout)

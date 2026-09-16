@@ -10,7 +10,7 @@ readme = "README.md"
 requires-python = ">=3.11"
 license = { text = "Proprietary" }
 authors = [{ name = "C2R Driver Project" }]
-dependencies = []
+dependencies = ["ijson>=3.3,<4"]
 
 [project.optional-dependencies]
 codex = ["openai-codex"]

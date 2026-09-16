@@ -126,7 +126,9 @@ required-output cardinality、foreign key、CAS canonical path/size/digest，以
 `structured_c_analysis` 的 repeatable raw fact、semantic index 与 command record 使用
 `ONE_OR_MORE`；facts 和 report 使用 `EXACTLY_ONE`。bundle validator 会重新绑定真实 compile
 manifest/database、Git checkout、analyzer 二进制、translation unit、原始 bytes、命令 stream 与
-AST 重建语义，并要求所有 repeatable 产物恰好被一个 unit 引用，拒绝遗漏、重复、交换和游离产物。
+closure-owned AST 重建语义，并要求所有 repeatable 产物恰好被一个 unit 引用，拒绝遗漏、重复、
+交换和游离产物。完整 Clang capture 流式落盘并按 hash/size 绑定，不在 CAS 或 bundle validation 中
+再次整体物化。
 
 ## 6. JSON、CLI、SQLite 与 CAS 边界
 

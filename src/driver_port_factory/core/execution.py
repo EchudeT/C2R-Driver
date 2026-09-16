@@ -56,35 +56,30 @@ class CommandRunner:
         launched = False
         launch_error = None
         monotonic_start = time.monotonic()
+        stdout_path = run_dir / "stdout.bin"
+        stderr_path = run_dir / "stderr.bin"
         try:
             launched = True
-            completed = subprocess.run(
-                list(argv),
-                cwd=cwd.resolve(),
-                env={**os.environ, **dict(environment or {})},
-                capture_output=True,
-                check=False,
-                timeout=timeout_seconds,
-            )
-            stdout = completed.stdout
-            stderr = completed.stderr
+            with stdout_path.open("wb") as stdout, stderr_path.open("wb") as stderr:
+                completed = subprocess.run(
+                    list(argv),
+                    cwd=cwd.resolve(),
+                    env={**os.environ, **dict(environment or {})},
+                    stdout=stdout,
+                    stderr=stderr,
+                    check=False,
+                    timeout=timeout_seconds,
+                )
             exit_code = completed.returncode
-        except subprocess.TimeoutExpired as error:
+        except subprocess.TimeoutExpired:
             timed_out = True
-            stdout = error.stdout or b""
-            stderr = error.stderr or b""
             exit_code = 124
         except OSError as error:
             launched = False
             launch_error = f"{type(error).__name__}: {error}"
-            stdout = b""
-            stderr = (launch_error + "\n").encode("utf-8", errors="replace")
+            stderr_path.write_text(launch_error + "\n", encoding="utf-8", errors="replace")
             exit_code = 127
         duration_milliseconds = round((time.monotonic() - monotonic_start) * 1000)
-        stdout_path = run_dir / "stdout.bin"
-        stderr_path = run_dir / "stderr.bin"
-        stdout_path.write_bytes(stdout)
-        stderr_path.write_bytes(stderr)
         result = CommandResult(
             argv=tuple(argv),
             cwd=str(cwd.resolve()),
@@ -95,8 +90,8 @@ class CommandRunner:
             launch_error=launch_error,
             timed_out=timed_out,
             duration_milliseconds=duration_milliseconds,
-            stdout_sha256=hashlib.sha256(stdout).hexdigest(),
-            stderr_sha256=hashlib.sha256(stderr).hexdigest(),
+            stdout_sha256=self._file_sha256(stdout_path),
+            stderr_sha256=self._file_sha256(stderr_path),
             stdout_path=str(stdout_path),
             stderr_path=str(stderr_path),
         )
@@ -105,3 +100,11 @@ class CommandRunner:
             encoding="utf-8",
         )
         return result
+
+    @staticmethod
+    def _file_sha256(path: Path) -> str:
+        digest = hashlib.sha256()
+        with path.open("rb") as stream:
+            for chunk in iter(lambda: stream.read(1024 * 1024), b""):
+                digest.update(chunk)
+        return digest.hexdigest()

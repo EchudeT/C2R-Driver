@@ -38,6 +38,7 @@ def validate_semantic_index(value: dict[str, Any]) -> None:
     node_ids = _node_ids(nodes)
     relation_edges = _relation_edges(relations, node_ids)
     calls, dispatches = _calls(indexes, node_ids)
+    _validate_external_targets(indexes, relation_edges, node_ids)
     _validate_counts(value.get("counts"), nodes, relations, indexes, dispatches)
     _validate_indirect_calls(calls, dispatches, relation_edges)
     _validate_bindings(indexes, relation_edges)
@@ -85,6 +86,26 @@ def _calls(
     return calls, dispatches
 
 
+def _validate_external_targets(
+    indexes: dict[str, Any],
+    relations: set[tuple[RelationKind, str, str]],
+    node_ids: set[str],
+) -> None:
+    records = indexes.get("external_declarations")
+    if not isinstance(records, list) or not all(isinstance(item, dict) for item in records):
+        raise WorkflowError("structured semantic external declarations are invalid")
+    external_ids = [record.get("id") for record in records]
+    if (
+        any(not isinstance(identifier, str) for identifier in external_ids)
+        or len(external_ids) != len(set(external_ids))
+        or any(not identifier.startswith("external-decl:") for identifier in external_ids)
+    ):
+        raise WorkflowError("structured semantic external declaration identities are invalid")
+    unresolved_targets = {target for _, _, target in relations if target not in node_ids}
+    if unresolved_targets != set(external_ids):
+        raise WorkflowError("structured semantic relation targets lack external declarations")
+
+
 def _validate_counts(
     counts: Any,
     nodes: list[dict[str, Any]],
@@ -100,6 +121,7 @@ def _validate_counts(
         "calls",
         "control_flow",
         "effects",
+        "external_declarations",
     )
     if not isinstance(counts, dict) or any(
         not isinstance(indexes.get(name), list) for name in list_indexes
@@ -121,6 +143,7 @@ def _validate_counts(
         "control_flow": len(indexes["control_flow"]),
         "effects": len(indexes["effects"]),
         "source_spans": sum("loc" in node or "range" in node for node in nodes),
+        "external_declarations": len(indexes["external_declarations"]),
     }
     if counts != expected:
         raise WorkflowError("structured semantic counts do not match graph indexes")

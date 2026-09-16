@@ -77,6 +77,25 @@ class _ResolvedLocations:
             records.append({"kind": kind, **location})
         return records
 
+    def to_record(self) -> dict[str, dict[str, Any]]:
+        return {
+            kind.value: location
+            for kind, location in (
+                (_LocationKind.DIRECT, self.direct),
+                (_LocationKind.SPELLING, self.spelling),
+                (_LocationKind.EXPANSION, self.expansion),
+            )
+            if location is not None
+        }
+
+    @classmethod
+    def from_record(cls, value: dict[str, Any]) -> _ResolvedLocations:
+        return cls(
+            direct=value.get(_LocationKind.DIRECT),
+            spelling=value.get(_LocationKind.SPELLING),
+            expansion=value.get(_LocationKind.EXPANSION),
+        )
+
 
 class _ClangSourceLocations:
     """Replay Clang's ordered file/line elision and index each AST node once."""
@@ -91,6 +110,11 @@ class _ClangSourceLocations:
         index._scan(root)
         return index.indexed
 
+    def scan(self, root: dict[str, Any]) -> dict[int, _ResolvedLocations]:
+        self.indexed = {}
+        self._scan(root)
+        return self.indexed
+
     def _scan(self, value: Any) -> None:
         if isinstance(value, list):
             for item in value:
@@ -98,15 +122,20 @@ class _ClangSourceLocations:
             return
         if not isinstance(value, dict):
             return
-        node_locations: _ResolvedLocations | None = None
+        explicit = value.get("_dpfSource")
+        node_locations = (
+            _ResolvedLocations.from_record(explicit) if isinstance(explicit, dict) else None
+        )
         for field, child in value.items():
             if field == "loc" and isinstance(child, dict):
-                node_locations = self._location(child)
+                resolved = self._location(child)
+                if node_locations is None:
+                    node_locations = resolved
             elif field == "range" and isinstance(child, dict):
                 range_begin = self._range_begin(child)
                 if node_locations is None:
                     node_locations = range_begin
-            else:
+            elif field != "_dpfSource":
                 self._scan(child)
         if AstSemanticIndexer._is_node(value) and node_locations is not None:
             self.indexed[id(value)] = node_locations
@@ -155,6 +184,7 @@ class AstSemanticIndexer:
         self.stable_to_node: dict[str, dict[str, Any]] = {}
         self.record_fields_by_type: dict[str, list[str]] = {}
         self.record_fields_by_declaration: dict[str, list[str]] = {}
+        self.external_declarations: dict[str, dict[str, Any]] = {}
         self.source_locations = _ClangSourceLocations.build(ast_root)
 
     def build(self) -> dict[str, Any]:
@@ -246,6 +276,9 @@ class AstSemanticIndexer:
                 "control_flow": control_flow,
                 "effects": effects,
                 "function_pointer_bindings": pointers.binding_records(),
+                "external_declarations": [
+                    self.external_declarations[key] for key in sorted(self.external_declarations)
+                ],
             },
             "counts": self._counts(
                 nodes,
@@ -258,6 +291,7 @@ class AstSemanticIndexer:
                 control_flow,
                 effects,
                 source_span_count,
+                len(self.external_declarations),
             ),
             "effect_classification": (
                 "Structural candidates only; hardware meaning requires evidence-backed contract "
@@ -406,6 +440,7 @@ class AstSemanticIndexer:
         control_flow: list[str],
         effects: list[dict[str, str]],
         source_spans: int,
+        external_declarations: int,
     ) -> dict[str, int]:
         return {
             "nodes": len(nodes),
@@ -426,6 +461,7 @@ class AstSemanticIndexer:
             "control_flow": len(control_flow),
             "effects": len(effects),
             "source_spans": source_spans,
+            "external_declarations": external_declarations,
         }
 
     def _node_record(self, node_id: str, node: dict[str, Any]) -> dict[str, Any]:
@@ -533,7 +569,9 @@ class AstSemanticIndexer:
         material = json.dumps(
             fields, ensure_ascii=False, sort_keys=True, separators=(",", ":")
         ).encode()
-        return "external-decl:" + hashlib.sha256(material).hexdigest()[:20]
+        target = "external-decl:" + hashlib.sha256(material).hexdigest()[:20]
+        self.external_declarations.setdefault(target, {"id": target, **fields})
+        return target
 
     @classmethod
     def _direct_callee(cls, call: dict[str, Any]) -> dict[str, Any] | None:

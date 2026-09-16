@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import json
 import re
+from collections.abc import Iterable
+from io import StringIO
 from pathlib import Path
 from typing import Any
 
@@ -30,21 +32,34 @@ class RawFactParser:
         semantic_index: dict[str, Any],
         target_triple: str,
     ) -> tuple[FactAvailability, dict[str, Any]]:
+        if fact_kind is RawFactKind.TYPED_AST:
+            return self._typed_ast_summary(semantic_index)
         try:
-            text = output.decode("utf-8")
+            lines = StringIO(output.decode("utf-8"))
         except UnicodeDecodeError as error:
             raise WorkflowError(f"{fact_kind.value} output is not UTF-8") from error
-        lines = text.splitlines()
-        counts = semantic_index["counts"]
-        identities = semantic_index["indexes"]["definition_identities"]
+        return self._summarize_lines(fact_kind, lines, semantic_index, target_triple)
 
+    def summarize_path(
+        self,
+        fact_kind: RawFactKind,
+        path: Path,
+        semantic_index: dict[str, Any],
+        target_triple: str,
+    ) -> tuple[FactAvailability, dict[str, Any]]:
         if fact_kind is RawFactKind.TYPED_AST:
-            if counts["nodes"] < 1 or counts["source_spans"] < 1:
-                raise WorkflowError("typed AST lacks nodes or source spans")
-            return FactAvailability.STRUCTURED, {
-                "node_count": counts["nodes"],
-                "source_span_count": counts["source_spans"],
-            }
+            return self._typed_ast_summary(semantic_index)
+        with path.open("r", encoding="utf-8") as lines:
+            return self._summarize_lines(fact_kind, lines, semantic_index, target_triple)
+
+    def _summarize_lines(
+        self,
+        fact_kind: RawFactKind,
+        lines: Iterable[str],
+        semantic_index: dict[str, Any],
+        target_triple: str,
+    ) -> tuple[FactAvailability, dict[str, Any]]:
+        identities = semantic_index["indexes"]["definition_identities"]
         if fact_kind is RawFactKind.PREPROCESSED_SOURCE:
             return self._preprocessor_summary(lines)
         if fact_kind is RawFactKind.RECORD_LAYOUT:
@@ -81,12 +96,26 @@ class RawFactParser:
         raise WorkflowError(f"unsupported raw fact kind: {fact_kind.value}")
 
     @staticmethod
+    def _typed_ast_summary(
+        semantic_index: dict[str, Any],
+    ) -> tuple[FactAvailability, dict[str, Any]]:
+        counts = semantic_index["counts"]
+        if counts["nodes"] < 1 or counts["source_spans"] < 1:
+            raise WorkflowError("typed AST lacks nodes or source spans")
+        return FactAvailability.STRUCTURED, {
+            "node_count": counts["nodes"],
+            "source_span_count": counts["source_spans"],
+        }
+
+    @staticmethod
     def _preprocessor_summary(
-        lines: list[str],
+        lines: Iterable[str],
     ) -> tuple[FactAvailability, dict[str, Any]]:
         line_directives = 0
         define_directives = 0
+        line_count = 0
         for line in lines:
+            line_count += 1
             stripped = line.lstrip()
             fields = stripped.split(maxsplit=2)
             if len(fields) >= 2 and fields[0] == "#" and fields[1].isdigit():
@@ -96,25 +125,25 @@ class RawFactParser:
         if line_directives == 0:
             raise WorkflowError("preprocessor output has no source line directives")
         return FactAvailability.RAW_VALIDATED, {
-            "line_count": len(lines),
+            "line_count": line_count,
             "line_directive_count": line_directives,
             "define_directive_count": define_directives,
         }
 
     @staticmethod
     def _llvm_summary(
-        lines: list[str], target_triple: str
+        lines: Iterable[str], target_triple: str
     ) -> tuple[FactAvailability, dict[str, Any]]:
-        data_layouts = [
-            line.strip().partition("=")[2].strip().strip('"')
-            for line in lines
-            if line.strip().startswith("target datalayout =")
-        ]
-        triples = [
-            line.strip().partition("=")[2].strip().strip('"')
-            for line in lines
-            if line.strip().startswith("target triple =")
-        ]
+        data_layouts: list[str] = []
+        triples: list[str] = []
+        function_definition_count = 0
+        for line in lines:
+            stripped = line.strip()
+            if stripped.startswith("target datalayout ="):
+                data_layouts.append(stripped.partition("=")[2].strip().strip('"'))
+            if stripped.startswith("target triple ="):
+                triples.append(stripped.partition("=")[2].strip().strip('"'))
+            function_definition_count += line.lstrip().startswith("define ")
         if len(data_layouts) != 1 or len(triples) != 1:
             raise WorkflowError("LLVM IR lacks one target data layout and target triple")
         if triples[0] != target_triple:
@@ -124,10 +153,10 @@ class RawFactParser:
         return FactAvailability.RAW_VALIDATED, {
             "target_triple": triples[0],
             "target_data_layout": data_layouts[0],
-            "function_definition_count": sum(line.lstrip().startswith("define ") for line in lines),
+            "function_definition_count": function_definition_count,
         }
 
-    def _parse_cfg(self, lines: list[str]) -> list[dict[str, Any]]:
+    def _parse_cfg(self, lines: Iterable[str]) -> list[dict[str, Any]]:
         functions: list[dict[str, Any]] = []
         current_function: dict[str, Any] | None = None
         current_block: dict[str, Any] | None = None
@@ -165,7 +194,7 @@ class RawFactParser:
                 previous_nonempty = stripped
         return functions
 
-    def _parse_record_layout(self, lines: list[str]) -> list[dict[str, Any]]:
+    def _parse_record_layout(self, lines: Iterable[str]) -> list[dict[str, Any]]:
         delimiter = "*** Dumping AST Record Layout"
         records: list[dict[str, Any]] = []
         section: list[str] = []
@@ -250,10 +279,13 @@ class RawFactParser:
         if len(identities_by_name) != len(identities):
             raise WorkflowError("AST contains duplicate C function definition names")
         mapped: set[str] = set()
+        retained: list[dict[str, Any]] = []
         for function in functions:
             candidates = cls._declarator_candidates(
                 function["signature"], frozenset(identities_by_name)
             )
+            if not candidates:
+                continue
             if len(candidates) != 1:
                 raise WorkflowError(
                     "CFG signature does not identify exactly one AST definition: "
@@ -266,12 +298,14 @@ class RawFactParser:
                 )
             function["ast_node_id"] = identity["node_id"]
             mapped.add(identity["node_id"])
+            retained.append(function)
         expected = {identity["node_id"] for identity in identities}
         if mapped != expected:
             missing = sorted(expected - mapped)
             raise WorkflowError(
                 "CFG does not cover every AST function definition: " + ", ".join(missing)
             )
+        functions[:] = retained
 
     @staticmethod
     def _declarator_candidates(signature: str, known_names: frozenset[str]) -> set[str]:
@@ -344,6 +378,7 @@ class RawFactParser:
                     f"record layout {candidates[0]['record']} maps to multiple AST definitions"
                 )
             candidates[0]["ast_node_id"] = identity["node_id"]
+        records[:] = [record for record in records if record["ast_node_id"] is not None]
 
     @classmethod
     def _record_structure_matches(

@@ -11,6 +11,7 @@ from ..core.models import WorkflowError
 from ..core.project import Project
 from ..knowledge.index import file_sha256
 from .ast_index import AstSemanticIndexer
+from .ast_projection import ClosureFileSet
 from .clang_backend import ClangAnalysisBackend
 from .contracts import SourceAnalysisArtifact
 from .fact_parsers import RawFactParser
@@ -39,6 +40,7 @@ class TranslationUnitExtractor:
         target_triple: str,
         target_abi: dict[str, object],
         command_adapter: type,
+        closure_files: ClosureFileSet,
     ) -> None:
         self.project = project
         self.attempt_dir = attempt_dir
@@ -48,6 +50,7 @@ class TranslationUnitExtractor:
         self.target_triple = target_triple
         self.target_abi = target_abi
         self.command_adapter = command_adapter
+        self.closure_files = closure_files
 
     def extract(self, unit: Any) -> UnitResult:
         unit_id, source_path, compile_directory, arguments = self._validate_unit(unit)
@@ -62,14 +65,15 @@ class TranslationUnitExtractor:
             arguments=arguments,
             target_triple=self.target_triple,
             expected_abi=self.target_abi,
+            closure_files=self.closure_files,
         )
         semantic_index = AstSemanticIndexer(unit_id, source_path, extraction.typed_ast).build()
         parser = RawFactParser()
         for fact_kind, record in extraction.raw_records.items():
             fact_path = self.project.root / record["path"]
-            availability, summary = parser.summarize(
+            availability, summary = parser.summarize_path(
                 fact_kind,
-                fact_path.read_bytes(),
+                fact_path,
                 semantic_index,
                 extraction.target_triple,
             )

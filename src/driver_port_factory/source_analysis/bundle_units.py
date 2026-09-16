@@ -8,9 +8,10 @@ from ..core.models import WorkflowError
 from ..core.validation import json_object, json_value
 from ..knowledge.index import file_sha256
 from .ast_index import AstSemanticIndexer
+from .ast_projection import ClosureAstProjector, ClosureFileSet
 from .bundle_artifacts import ArtifactPayload, StructuredArtifactInventory, require_within
 from .bundle_commands import CommandEvidenceValidator
-from .clang_backend import CLANG_EXTRACTIONS
+from .clang_backend import CLANG_EXTRACTIONS, RawFactFormat
 from .contracts import SourceAnalysisArtifact
 from .fact_model import RawFactKind
 from .fact_parsers import RawFactParser
@@ -35,6 +36,7 @@ class TranslationUnitBundleValidator:
         if set(fact_units) != set(manifest_units):
             raise WorkflowError("structured facts do not cover every frozen translation unit")
         aggregate: Counter[str] = Counter()
+        closure_files = ClosureFileSet.from_manifest(compile_manifest)
         for unit_id, fact_unit in fact_units.items():
             aggregate.update(
                 self._validate_unit(
@@ -44,6 +46,7 @@ class TranslationUnitBundleValidator:
                     facts,
                     compile_manifest,
                     source_root,
+                    closure_files,
                 )
             )
         return aggregate
@@ -56,6 +59,7 @@ class TranslationUnitBundleValidator:
         facts: dict[str, Any],
         compile_manifest: dict[str, Any],
         source_root: Path,
+        closure_files: ClosureFileSet,
     ) -> dict[str, int]:
         source_relative = manifest_unit.get("source_path")
         if fact_unit.get("source_path") != source_relative:
@@ -72,7 +76,15 @@ class TranslationUnitBundleValidator:
             )
             for kind in RawFactKind
         }
-        rebuilt_semantic = self._validate_semantic(fact_unit, unit_id, source_path, raw_payloads)
+        rebuilt_semantic = self._validate_semantic(
+            fact_unit,
+            unit_id,
+            source_path,
+            Path(str(manifest_unit.get("compile_directory", ""))).resolve(),
+            closure_files,
+            raw_records,
+            raw_payloads,
+        )
         self._validate_raw_summaries(
             raw_records,
             raw_payloads,
@@ -93,8 +105,7 @@ class TranslationUnitBundleValidator:
             source_root,
             manifest_unit,
             facts["analyzer"],
-            raw_payloads,
-            rebuilt_semantic,
+            raw_records,
         )
         return rebuilt_semantic["counts"]
 
@@ -103,9 +114,19 @@ class TranslationUnitBundleValidator:
         fact_unit: dict[str, Any],
         unit_id: str,
         source_path: Path,
+        compile_directory: Path,
+        closure_files: ClosureFileSet,
+        raw_records: dict[str, Any],
         raw_payloads: dict[RawFactKind, ArtifactPayload],
     ) -> dict[str, Any]:
         typed_ast = json_object(raw_payloads[RawFactKind.TYPED_AST].data, "typed AST")
+        typed_record = raw_records[RawFactKind.TYPED_AST.value]
+        ClosureAstProjector(closure_files).validate(
+            typed_ast,
+            compile_directory=compile_directory,
+            capture_sha256=typed_record.get("capture_sha256"),
+            capture_size=typed_record.get("capture_size"),
+        )
         rebuilt = AstSemanticIndexer(unit_id, source_path, typed_ast).build()
         semantic_payload = self.inventory.linked(
             SourceAnalysisArtifact.STRUCTURED_C_SEMANTIC_INDEX,
@@ -133,7 +154,12 @@ class TranslationUnitBundleValidator:
         for kind, payload in raw_payloads.items():
             record = raw_records[kind.value]
             specification = specifications[kind]
-            if record.get("format") != specification.format:
+            expected_format = (
+                RawFactFormat.CLANG_AST_CLOSURE_JSON
+                if kind is RawFactKind.TYPED_AST
+                else specification.format
+            )
+            if record.get("format") != expected_format:
                 raise WorkflowError(f"raw fact format differs for {unit_id}:{kind.value}")
             availability, summary = parser.summarize(
                 kind,

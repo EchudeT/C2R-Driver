@@ -201,13 +201,12 @@ class StructuredCAnalysisTests(unittest.TestCase):
         )
 
         identity = semantic["indexes"]["definition_identities"]["records"][0]
-        self.assertIsNone(summary["records"][0]["ast_node_id"])
-        self.assertEqual(summary["records"][1]["ast_node_id"], identity["node_id"])
+        self.assertEqual(summary["records"][0]["ast_node_id"], identity["node_id"])
         self.assertEqual(
-            [field["depth"] for field in summary["records"][1]["fields"]],
+            [field["depth"] for field in summary["records"][0]["fields"]],
             [1, 2, 1],
         )
-        self.assertEqual(summary["record_fact_count"], 2)
+        self.assertEqual(summary["record_fact_count"], 1)
 
     def test_record_layout_keeps_facts_with_different_field_offsets(self) -> None:
         label = "struct example"

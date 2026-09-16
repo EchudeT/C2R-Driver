@@ -64,7 +64,10 @@ def _semantic_counts(unit: dict[str, object], analyzer: dict[str, object]) -> di
 
 def _validate_raw_records(raw_facts: dict[str, object]) -> None:
     for raw_fact in raw_facts.values():
-        if not isinstance(raw_fact, dict) or len(str(raw_fact.get("sha256", ""))) != 64:
+        if not isinstance(raw_fact, dict) or any(
+            len(str(raw_fact.get(field, ""))) != 64
+            for field in ("sha256", "capture_sha256")
+        ):
             raise WorkflowError("structured C raw fact lacks an output hash")
         if not isinstance(raw_fact.get("summary"), dict):
             raise WorkflowError("structured C raw fact lacks a parsed summary")

@@ -37,7 +37,7 @@ def _command_records(data: bytes) -> None:
         "unit_id",
         "source_path",
         "fact_kind",
-        "raw_format",
+        "capture_format",
         "output_stream",
         "output_sha256",
         "output_size",

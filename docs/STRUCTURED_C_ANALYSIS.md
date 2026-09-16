@@ -15,9 +15,11 @@ dpf structured-c analyze ./run --analyzer clang
 - 带 debug metadata 和 target data layout 的 LLVM IR；
 - Clang Static Analyzer CFG dump。
 
-typed AST 会转换为稳定 ID 的 CPG；CFG 会解析为 function/block/predecessor/successor 拓扑；record
-layout 会解析为 record 大小、对齐和字段/位字段偏移。预处理输出与 LLVM IR 保留为带摘要和哈希的
-`RAW_VALIDATED` 原始证据，不会冒充已经重建完毕的 CPG 事实。
+Clang 原始输出直接流式落盘并保留摘要、大小和命令 provenance。typed AST 随后按 compile manifest
+冻结的 translation unit、included source 和 private header 路径做流式投影；传递引入的平台 header
+只作为 external typed declaration，不进入迁移覆盖率。投影 AST 会转换为稳定 ID 的 CPG；CFG 会解析为
+function/block/predecessor/successor 拓扑；record layout 会解析为 record 大小、对齐和字段/位字段偏移。
+预处理输出与 LLVM IR 保留为带摘要和哈希的 `RAW_VALIDATED` 证据，不会冒充已经重建完毕的 CPG 事实。
 
 控制器记录 analyzer 二进制、版本与 SHA256，以及每条命令、退出码、stdout/stderr 摘要和原始输出。
 冻结的 GCC-compatible 编译命令可由独立 Clang analyzer 消费；compiler 与 analyzer 身份分别保存并
@@ -37,11 +39,15 @@ IRQ、锁、资源所有权或错误恢复，必须在下一阶段结合硬件�
 - compile manifest 与 canonical compilation database 的摘要、source revision/tree/clean identity；
 - 实际 analyzer executable SHA、target triple、ABI 和完整 argv/cwd；
 - compile manifest 与 facts 的 translation unit 一一覆盖，unit ID/source path 不重复；
-- 每类 raw fact 的路径、摘要、大小、format、availability、summary 与实际 bytes；
-- stdout/stderr 捕获文件与 raw fact bytes 完全相等；
-- 从真实 typed AST 重新生成 semantic index，逐字段匹配提交结果；
+- 每类 closure fact 的路径、摘要、大小、format、availability、summary 与实际 bytes；
+- stdout/stderr 捕获文件、完整原始输出摘要与 closure 投影 provenance；
+- 从 closure-owned typed AST 投影重新生成 semantic index，逐字段匹配提交结果；
 - unit/top-level semantic counts、report unit count/input/attempt path；
 - 所有 repeatable raw/semantic/command 产物恰好被引用，不允许遗漏、跨 unit 交换或额外游离产物。
+
+门禁不会重新执行五条冻结命令，也不会把完整 AST 再读入内存或复制进 CAS；它只重新核对 analyzer、
+argv、capture hash/size、closure 投影和语义索引。这样事实范围与 source closure 一致，内存峰值不随
+无关平台 header 的 AST 总量线性增长。
 
 任一必需工具命令失败或存在 `INDIRECT_UNRESOLVED` 调用时，阶段保持 `RUNNING`，报告指向不可覆盖的
 attempt 目录，便于补全 translation unit/编译配置或增强 points-to 分析后重试。只有 AST、CPG、CFG、

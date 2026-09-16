@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import shutil
 from dataclasses import asdict, dataclass
 from enum import StrEnum
@@ -11,6 +12,7 @@ from typing import Any
 from ..core.execution import CommandResult, CommandRunner
 from ..core.models import WorkflowError
 from ..knowledge.index import file_sha256
+from .ast_projection import ClosureAstProjector, ClosureFileSet
 from .compiler import AbiCompatibility, GccCompatibleCommand
 from .fact_model import RawFactKind
 
@@ -21,6 +23,7 @@ class AnalyzerFamily(StrEnum):
 
 class RawFactFormat(StrEnum):
     CLANG_AST_JSON = "clang-ast-json"
+    CLANG_AST_CLOSURE_JSON = "clang-ast-closure-json"
     PREPROCESSED_C = "c-preprocessed-text-with-defines"
     CLANG_RECORD_LAYOUT = "clang-record-layout-dump"
     LLVM_IR_DEBUG = "llvm-ir-with-debug-metadata"
@@ -166,6 +169,7 @@ class ClangAnalysisBackend:
         arguments: list[str],
         target_triple: str,
         expected_abi: dict[str, object],
+        closure_files: ClosureFileSet,
     ) -> UnitExtraction:
         observed_target = GccCompatibleCommand.effective_target_triple(
             arguments,
@@ -204,37 +208,54 @@ class ClangAnalysisBackend:
             result = runner.run(
                 [*base_arguments, *spec.arguments], cwd=compile_directory, timeout_seconds=120
             )
-            output = self._select_output(result, spec.stream)
+            self._require_success(spec, result)
+            raw_path = raw_dir / spec.filename
+            capture_path, capture_sha256, capture_size = self._capture(
+                result,
+                spec.stream,
+                raw_path if spec.stream is OutputStream.COMBINED else None,
+            )
             command_records.append(
                 {
                     "schema_version": 1,
                     "unit_id": unit_id,
                     "source_path": str(source_path.resolve()),
                     "fact_kind": spec.kind,
-                    "raw_format": spec.format,
+                    "capture_format": spec.format,
                     "output_stream": spec.stream,
-                    "output_sha256": hashlib.sha256(output).hexdigest(),
-                    "output_size": len(output),
+                    "output_sha256": capture_sha256,
+                    "output_size": capture_size,
                     "analyzer_sha256": self.identity.sha256,
                     "target_triple": observed_target,
                     **asdict(result),
                 }
             )
             commands_path.write_bytes(self._json_bytes(command_records))
-            self._require_success(spec, result)
-            if spec.require_output and not output:
+            if spec.require_output and capture_size == 0:
                 raise WorkflowError(f"{spec.kind.value} extraction was empty")
-            raw_path = raw_dir / spec.filename
-            raw_path.write_bytes(output)
+            if spec.kind is RawFactKind.TYPED_AST:
+                typed_ast = ClosureAstProjector(closure_files).project(
+                    capture_path,
+                    raw_path,
+                    compile_directory=compile_directory,
+                    capture_sha256=capture_sha256,
+                    capture_size=capture_size,
+                )
+                raw_format = RawFactFormat.CLANG_AST_CLOSURE_JSON
+            else:
+                if capture_path != raw_path:
+                    self._link_or_copy(capture_path, raw_path)
+                raw_format = spec.format
             raw_paths.append(raw_path)
             raw_records[spec.kind] = {
-                "format": spec.format,
+                "format": raw_format,
                 "path": str(raw_path.relative_to(project_root)),
                 "sha256": file_sha256(raw_path),
-                "size": len(output),
+                "size": raw_path.stat().st_size,
+                "capture_path": str(capture_path.relative_to(project_root)),
+                "capture_sha256": capture_sha256,
+                "capture_size": capture_size,
             }
-            if spec.kind is RawFactKind.TYPED_AST:
-                typed_ast = self._json_object(output)
 
         if typed_ast is None:
             raise WorkflowError("typed AST was not captured")
@@ -257,25 +278,36 @@ class ClangAnalysisBackend:
             + (diagnostic.strip()[:2000] or f"exit {result.exit_code}")
         )
 
-    @staticmethod
-    def _select_output(result: CommandResult, stream: OutputStream) -> bytes:
-        stdout = Path(result.stdout_path).read_bytes()
-        stderr = Path(result.stderr_path).read_bytes()
+    def _capture(
+        self,
+        result: CommandResult,
+        stream: OutputStream,
+        combined_path: Path | None,
+    ) -> tuple[Path, str, int]:
+        stdout = Path(result.stdout_path)
         if stream is OutputStream.STDOUT:
-            return stdout
-        if stream is OutputStream.COMBINED:
-            return stdout + (b"\n" if stdout and stderr else b"") + stderr
-        raise WorkflowError(f"unsupported command output stream: {stream.value}")
+            return stdout, result.stdout_sha256, stdout.stat().st_size
+        if stream is not OutputStream.COMBINED or combined_path is None:
+            raise WorkflowError(f"unsupported command output stream: {stream.value}")
+        stderr = Path(result.stderr_path)
+        with combined_path.open("wb") as output:
+            self._copy(stdout, output)
+            if stdout.stat().st_size and stderr.stat().st_size:
+                output.write(b"\n")
+            self._copy(stderr, output)
+        return combined_path, file_sha256(combined_path), combined_path.stat().st_size
 
     @staticmethod
-    def _json_object(data: bytes) -> dict[str, Any]:
+    def _copy(source: Path, output: Any) -> None:
+        with source.open("rb") as stream:
+            shutil.copyfileobj(stream, output, length=1024 * 1024)
+
+    @staticmethod
+    def _link_or_copy(source: Path, destination: Path) -> None:
         try:
-            value = json.loads(data)
-        except (UnicodeDecodeError, json.JSONDecodeError) as error:
-            raise WorkflowError("typed AST is not UTF-8 JSON") from error
-        if not isinstance(value, dict):
-            raise WorkflowError("typed AST is not a JSON object")
-        return value
+            os.link(source, destination)
+        except OSError:
+            shutil.copyfile(source, destination)
 
     @staticmethod
     def _json_bytes(value: list[dict[str, Any]]) -> bytes:

@@ -9,6 +9,7 @@ from typing import Any
 
 from ..core.models import WorkflowError
 from ..core.project import Project
+from .ast_projection import ClosureFileSet
 from .clang_backend import AnalyzerFamily, ClangAnalysisBackend
 from .compiler import CompilerFamily, compiler_adapter
 from .contracts import SourceAnalysisArtifact
@@ -67,6 +68,7 @@ class StructuredBundleExtractor:
             target_triple=target_triple,
             target_abi=target_abi,
             command_adapter=command_adapter,
+            closure_files=ClosureFileSet.from_manifest(compile_manifest),
         )
         unit_results = [unit_extractor.extract(unit) for unit in units]
         self._validate_fact_coverage(unit_results)
