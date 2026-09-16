@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections import Counter
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
@@ -15,7 +16,16 @@ from .clang_backend import CLANG_EXTRACTIONS, RawFactFormat
 from .contracts import SourceAnalysisArtifact
 from .fact_model import RawFactKind
 from .fact_parsers import RawFactParser
+from .function_pointers import ClosureFunctionPointerResolver
 from .semantic_validation import validate_semantic_index
+
+
+@dataclass(frozen=True, slots=True)
+class _RebuiltUnit:
+    source_path: Path
+    raw_records: dict[str, Any]
+    raw_payloads: dict[RawFactKind, ArtifactPayload]
+    semantic: dict[str, Any]
 
 
 class TranslationUnitBundleValidator:
@@ -37,6 +47,20 @@ class TranslationUnitBundleValidator:
             raise WorkflowError("structured facts do not cover every frozen translation unit")
         aggregate: Counter[str] = Counter()
         closure_files = ClosureFileSet.from_manifest(compile_manifest)
+        rebuilt = {
+            unit_id: self._rebuild_unit(
+                unit_id,
+                fact_unit,
+                manifest_units[unit_id],
+                facts,
+                source_root,
+                closure_files,
+            )
+            for unit_id, fact_unit in fact_units.items()
+        }
+        ClosureFunctionPointerResolver.resolve(
+            [rebuilt[unit_id].semantic for unit_id in fact_units]
+        )
         for unit_id, fact_unit in fact_units.items():
             aggregate.update(
                 self._validate_unit(
@@ -44,23 +68,21 @@ class TranslationUnitBundleValidator:
                     fact_unit,
                     manifest_units[unit_id],
                     facts,
-                    compile_manifest,
                     source_root,
-                    closure_files,
+                    rebuilt[unit_id],
                 )
             )
         return aggregate
 
-    def _validate_unit(
+    def _rebuild_unit(
         self,
         unit_id: str,
         fact_unit: dict[str, Any],
         manifest_unit: dict[str, Any],
         facts: dict[str, Any],
-        compile_manifest: dict[str, Any],
         source_root: Path,
         closure_files: ClosureFileSet,
-    ) -> dict[str, int]:
+    ) -> _RebuiltUnit:
         source_relative = manifest_unit.get("source_path")
         if fact_unit.get("source_path") != source_relative:
             raise WorkflowError(f"structured source path differs for unit {unit_id}")
@@ -76,19 +98,39 @@ class TranslationUnitBundleValidator:
             )
             for kind in RawFactKind
         }
-        rebuilt_semantic = self._validate_semantic(
+        typed_ast = json_object(raw_payloads[RawFactKind.TYPED_AST].data, "typed AST")
+        typed_record = raw_records[RawFactKind.TYPED_AST.value]
+        ClosureAstProjector(closure_files).validate(
+            typed_ast,
+            compile_directory=Path(str(manifest_unit.get("compile_directory", ""))).resolve(),
+            capture_sha256=typed_record.get("capture_sha256"),
+            capture_size=typed_record.get("capture_size"),
+        )
+        return _RebuiltUnit(
+            source_path,
+            raw_records,
+            raw_payloads,
+            AstSemanticIndexer(unit_id, source_path, typed_ast).build(),
+        )
+
+    def _validate_unit(
+        self,
+        unit_id: str,
+        fact_unit: dict[str, Any],
+        manifest_unit: dict[str, Any],
+        facts: dict[str, Any],
+        source_root: Path,
+        rebuilt: _RebuiltUnit,
+    ) -> dict[str, int]:
+        self._validate_semantic(
             fact_unit,
             unit_id,
-            source_path,
-            Path(str(manifest_unit.get("compile_directory", ""))).resolve(),
-            closure_files,
-            raw_records,
-            raw_payloads,
+            rebuilt.semantic,
         )
         self._validate_raw_summaries(
-            raw_records,
-            raw_payloads,
-            rebuilt_semantic,
+            rebuilt.raw_records,
+            rebuilt.raw_payloads,
+            rebuilt.semantic,
             str(fact_unit["analyzer_target_triple"]),
             unit_id,
         )
@@ -101,33 +143,20 @@ class TranslationUnitBundleValidator:
         self.commands.validate(
             commands,
             unit_id,
-            source_path,
+            rebuilt.source_path,
             source_root,
             manifest_unit,
             facts["analyzer"],
-            raw_records,
+            rebuilt.raw_records,
         )
-        return rebuilt_semantic["counts"]
+        return rebuilt.semantic["counts"]
 
     def _validate_semantic(
         self,
         fact_unit: dict[str, Any],
         unit_id: str,
-        source_path: Path,
-        compile_directory: Path,
-        closure_files: ClosureFileSet,
-        raw_records: dict[str, Any],
-        raw_payloads: dict[RawFactKind, ArtifactPayload],
-    ) -> dict[str, Any]:
-        typed_ast = json_object(raw_payloads[RawFactKind.TYPED_AST].data, "typed AST")
-        typed_record = raw_records[RawFactKind.TYPED_AST.value]
-        ClosureAstProjector(closure_files).validate(
-            typed_ast,
-            compile_directory=compile_directory,
-            capture_sha256=typed_record.get("capture_sha256"),
-            capture_size=typed_record.get("capture_size"),
-        )
-        rebuilt = AstSemanticIndexer(unit_id, source_path, typed_ast).build()
+        rebuilt: dict[str, Any],
+    ) -> None:
         semantic_payload = self.inventory.linked(
             SourceAnalysisArtifact.STRUCTURED_C_SEMANTIC_INDEX,
             fact_unit.get("semantic_index"),
@@ -139,7 +168,6 @@ class TranslationUnitBundleValidator:
             raise WorkflowError(f"semantic index does not match the typed AST for unit {unit_id}")
         if fact_unit.get("semantic_counts") != semantic.get("counts"):
             raise WorkflowError(f"semantic counts differ for unit {unit_id}")
-        return rebuilt
 
     @staticmethod
     def _validate_raw_summaries(

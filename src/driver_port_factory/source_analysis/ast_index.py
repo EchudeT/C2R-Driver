@@ -184,11 +184,15 @@ class AstSemanticIndexer:
         self.stable_to_node: dict[str, dict[str, Any]] = {}
         self.record_fields_by_type: dict[str, list[str]] = {}
         self.record_fields_by_declaration: dict[str, list[str]] = {}
+        self.closure_field_by_declaration: dict[str, str] = {}
+        self.closure_field_declarations: list[dict[str, Any]] = []
+        self.function_definition_by_clang_id: dict[str, str] = {}
         self.external_declarations: dict[str, dict[str, Any]] = {}
         self.source_locations = _ClangSourceLocations.build(ast_root)
 
     def build(self) -> dict[str, Any]:
         self._collect_declarations(self.root, ())
+        self._link_function_redeclarations()
         self._collect_record_types(self.root, ())
         pointers = FunctionPointerAnalysis(
             unit_id=self.unit_id,
@@ -196,6 +200,7 @@ class AstSemanticIndexer:
             clang_to_stable=self.clang_to_stable,
             stable_to_node=self.stable_to_node,
             record_fields_by_type=self.record_fields_by_type,
+            closure_field_by_declaration=self.closure_field_by_declaration,
             declaration_target=self._declaration_target,
         ).build()
 
@@ -285,6 +290,10 @@ class AstSemanticIndexer:
                 "control_flow": control_flow,
                 "effects": effects,
                 "function_pointer_bindings": pointers.binding_records(),
+                "closure_field_declarations": self.closure_field_declarations,
+                "closure_field_assignments": pointers.closure_assignment_records(),
+                "closure_function_pointer_bindings": [],
+                "closure_targets": [],
                 "external_declarations": external_declarations,
             },
             "counts": self._counts(
@@ -316,15 +325,36 @@ class AstSemanticIndexer:
         for child_index, child in enumerate(node.get("inner", [])):
             self._collect_declarations(child, (*path, child_index))
 
+    def _link_function_redeclarations(self) -> None:
+        for stable_id, node in self.stable_to_node.items():
+            if (
+                node.get("kind") != ClangNodeKind.FUNCTION_DECL
+                or not self._has_child(node, ClangNodeKind.COMPOUND_STMT)
+            ):
+                continue
+            clang_id = node.get("id")
+            while isinstance(clang_id, str) and clang_id:
+                existing = self.function_definition_by_clang_id.setdefault(clang_id, stable_id)
+                if existing != stable_id:
+                    raise WorkflowError("function redeclaration chain has multiple definitions")
+                declaration_id = self.clang_to_stable.get(clang_id)
+                declaration = self.stable_to_node.get(declaration_id) if declaration_id else None
+                clang_id = declaration.get("previousDecl") if declaration else None
+
     def _collect_record_types(self, node: Any, path: tuple[int, ...]) -> None:
         if not self._is_node(node):
             return
         if node["kind"] in {ClangNodeKind.RECORD_DECL, ClangNodeKind.CXX_RECORD_DECL}:
-            fields = [
-                self._stable_id((*path, index))
-                for index, child in enumerate(node.get("inner", []))
-                if self._is_node(child) and child["kind"] == ClangNodeKind.FIELD_DECL
-            ]
+            fields = []
+            for index, child in enumerate(node.get("inner", [])):
+                if not self._is_node(child) or child["kind"] != ClangNodeKind.FIELD_DECL:
+                    continue
+                declaration_id = self._stable_id((*path, index))
+                fields.append(declaration_id)
+                identity = self._closure_field_identity(declaration_id, node, child)
+                if identity is not None:
+                    self.closure_field_by_declaration[declaration_id] = identity["holder_id"]
+                    self.closure_field_declarations.append(identity)
             name = node.get("name")
             if name:
                 self.record_fields_by_type[f"{node.get('tagUsed', 'struct')} {name}"] = fields
@@ -502,6 +532,54 @@ class AstSemanticIndexer:
             "mangled_name": node.get("mangledName"),
             "type": node.get("type", {}).get("qualType"),
             "source_location": self._source_location(node),
+            "closure_source": self._closure_sources(node),
+        }
+
+    def _closure_field_identity(
+        self,
+        node_id: str,
+        record: dict[str, Any],
+        field: dict[str, Any],
+    ) -> dict[str, Any] | None:
+        if not FunctionPointerAnalysis.is_function_pointer_type(field.get("type")):
+            return None
+        source = self._declaration_source(field)
+        if source is None:
+            return None
+        material = {
+            "source": source,
+            "record_tag": record.get("tagUsed"),
+            "record_name": record.get("name"),
+            "field_name": field.get("name"),
+            "field_type": field.get("type"),
+        }
+        encoded = json.dumps(
+            material, ensure_ascii=False, sort_keys=True, separators=(",", ":")
+        ).encode()
+        return {
+            "holder_id": "closure-field:" + hashlib.sha256(encoded).hexdigest()[:20],
+            "node_id": node_id,
+            "identity": material,
+        }
+
+    def _declaration_source(self, node: dict[str, Any]) -> dict[str, Any] | None:
+        priorities = {
+            _LocationKind.SPELLING: 0,
+            _LocationKind.DIRECT: 1,
+            _LocationKind.EXPANSION: 2,
+        }
+        sources = sorted(
+            self._closure_sources(node),
+            key=lambda source: priorities.get(source.get("kind"), 3),
+        )
+        if not sources:
+            return None
+        selected = sources[0]
+        return {
+            "path": selected.get("path", selected.get("file")),
+            "sha256": selected.get("sha256"),
+            "line": selected.get("line"),
+            "col": selected.get("col"),
         }
 
     def _record_identity(self, node_id: str, node: dict[str, Any]) -> dict[str, Any]:
@@ -549,6 +627,15 @@ class AstSemanticIndexer:
         locations = self.source_locations.get(id(node))
         return locations.candidates() if locations else []
 
+    def _closure_sources(self, node: dict[str, Any]) -> list[dict[str, Any]]:
+        sources = node.get("_dpfClosureSource")
+        if isinstance(sources, list) and all(isinstance(item, dict) for item in sources):
+            return sources
+        if isinstance(self.root.get("dpfClosure"), dict):
+            return []
+        location = self._source_location(node)
+        return [location] if location.get("file") is not None else []
+
     def _referenced_record_declarations(self, node: Any) -> set[str]:
         result: set[str] = set()
         if not isinstance(node, dict):
@@ -570,6 +657,8 @@ class AstSemanticIndexer:
 
     def _declaration_target(self, referenced: dict[str, Any]) -> str:
         clang_id = str(referenced.get("id", ""))
+        if clang_id in self.function_definition_by_clang_id:
+            return self.function_definition_by_clang_id[clang_id]
         if clang_id in self.clang_to_stable:
             return self.clang_to_stable[clang_id]
         fields = {key: value for key, value in referenced.items() if key != "id"}

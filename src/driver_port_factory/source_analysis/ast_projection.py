@@ -138,7 +138,7 @@ class ClosureAstProjector:
                 locations = tracker.scan(node)
                 if not self._owned(locations, compile_directory):
                     continue
-                self._annotate(node, locations)
+                self._annotate(node, locations, compile_directory)
                 selected.append(node)
         if not selected:
             raise WorkflowError("typed AST contains no source-closure-owned declarations")
@@ -203,19 +203,51 @@ class ClosureAstProjector:
             for candidate in resolved.candidates()
         )
 
-    @staticmethod
     def _annotate(
+        self,
         value: Any,
         locations: dict[int, _ResolvedLocations],
+        compile_directory: Path,
     ) -> None:
         if isinstance(value, list):
             for item in value:
-                ClosureAstProjector._annotate(item, locations)
+                self._annotate(item, locations, compile_directory)
             return
         if not isinstance(value, dict):
             return
+        children = tuple(value.values())
         location = locations.get(id(value))
         if location is not None:
             value["_dpfSource"] = location.to_record()
-        for child in tuple(value.values()):
-            ClosureAstProjector._annotate(child, locations)
+            owned_sources = {
+                (
+                    candidate["kind"],
+                    owner.relative_path,
+                    owner.sha256,
+                    candidate.get("line"),
+                    candidate.get("col"),
+                )
+                for candidate in location.candidates()
+                if (owner := self.closure.resolve_location(
+                    candidate.get("file"), compile_directory
+                ))
+                is not None
+            }
+            if owned_sources:
+                value["_dpfClosureSource"] = [
+                    {
+                        "kind": kind,
+                        "path": path,
+                        "sha256": digest,
+                        "line": line,
+                        "col": col,
+                    }
+                    for kind, path, digest, line, col in sorted(
+                        owned_sources,
+                        key=lambda item: tuple(
+                            "" if part is None else str(part) for part in item
+                        ),
+                    )
+                ]
+        for child in children:
+            self._annotate(child, locations, compile_directory)

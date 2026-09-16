@@ -18,6 +18,7 @@ class CallDispatch(StrEnum):
 class CallResolutionBasis(StrEnum):
     CALLEE_EXPRESSION = "CALLEE_EXPRESSION"
     DECLARATION_POINTS_TO = "DECLARATION_POINTS_TO"
+    CLOSURE_POINTS_TO = "CLOSURE_POINTS_TO"
 
 
 class PointerTargetStatus(StrEnum):

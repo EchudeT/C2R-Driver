@@ -1,12 +1,16 @@
 from __future__ import annotations
 
+import json
+from collections import defaultdict
 from collections.abc import Callable, Iterable, Iterator
 from dataclasses import dataclass
 from typing import Any
 
+from ..core.models import WorkflowError
 from .semantic_model import (
     ASSIGNMENT_OPERATORS,
     INCREMENT_DECREMENT_OPERATORS,
+    CallDispatch,
     CallResolutionBasis,
     ClangNodeKind,
     ClangStorageClass,
@@ -37,6 +41,7 @@ class FunctionPointerAnalysis:
         clang_to_stable: dict[str, str],
         stable_to_node: dict[str, dict[str, Any]],
         record_fields_by_type: dict[str, list[str]],
+        closure_field_by_declaration: dict[str, str],
         declaration_target: Callable[[dict[str, Any]], str],
     ) -> None:
         self.unit_id = unit_id
@@ -44,14 +49,17 @@ class FunctionPointerAnalysis:
         self.clang_to_stable = clang_to_stable
         self.stable_to_node = stable_to_node
         self.record_fields_by_type = record_fields_by_type
+        self.closure_field_by_declaration = closure_field_by_declaration
         self.declaration_target = declaration_target
         self.targets: dict[PointerBindingKey, set[str]] = {}
         self.status: dict[PointerBindingKey, PointerTargetStatus] = {}
         self.declarations: dict[PointerBindingKey, dict[str, Any]] = {}
+        self.closure_assignments: list[dict[str, Any]] = []
 
     def build(self) -> FunctionPointerAnalysis:
         self._collect_declarations(self.root, (), None)
         self._collect_initial_bindings(self.root, (), None)
+        self._collect_closure_assignments(self.root, ())
         self._invalidate_mutable_or_escaped_bindings()
         return self
 
@@ -87,6 +95,12 @@ class FunctionPointerAnalysis:
                 }
             )
         return records
+
+    def closure_assignment_records(self) -> list[dict[str, Any]]:
+        return sorted(
+            self.closure_assignments,
+            key=lambda record: (record["holder_id"], record["assignment_node_id"]),
+        )
 
     def exact_relations(self) -> Iterator[dict[str, str]]:
         for key, target_ids in self._ordered_bindings():
@@ -127,14 +141,21 @@ class FunctionPointerAnalysis:
             targets, complete = self._expression_targets_from_children(node)
             if self._is_function_pointer_declaration(object_id) and targets and complete:
                 self._set_exact((None, object_id), targets)
-            for child in node.get("inner", []):
-                self._bind_record_initializer(child, object_id, node, parent_kind)
+            for child_index, child in enumerate(node.get("inner", [])):
+                self._bind_record_initializer(
+                    child,
+                    (*path, child_index),
+                    object_id,
+                    node,
+                    parent_kind,
+                )
         for child_index, child in enumerate(node.get("inner", [])):
             self._collect_initial_bindings(child, (*path, child_index), node["kind"])
 
     def _bind_record_initializer(
         self,
         initializer: Any,
+        path: tuple[int, ...],
         object_id: str,
         declaration: dict[str, Any],
         parent_kind: str | None,
@@ -156,6 +177,14 @@ class FunctionPointerAnalysis:
             )
         for field_id, child in zip(fields, children, strict=False):
             targets, complete = self._expression_targets(child)
+            closure_holder = self.closure_field_by_declaration.get(field_id)
+            if closure_holder is not None:
+                self._record_closure_assignment(
+                    closure_holder,
+                    self._stable_id(path),
+                    targets,
+                    complete,
+                )
             if targets and complete and self._immutable_record_object(declaration, parent_kind):
                 key = (object_id, field_id)
                 self.declarations[key] = {
@@ -163,8 +192,55 @@ class FunctionPointerAnalysis:
                     "is_global": parent_kind == ClangNodeKind.TRANSLATION_UNIT_DECL,
                 }
                 self._set_exact(key, targets)
-        for child in children:
-            self._bind_record_initializer(child, object_id, declaration, parent_kind)
+        for child_index, child in enumerate(children):
+            self._bind_record_initializer(
+                child,
+                (*path, child_index),
+                object_id,
+                declaration,
+                parent_kind,
+            )
+
+    def _collect_closure_assignments(self, node: Any, path: tuple[int, ...]) -> None:
+        if not self._is_node(node):
+            return
+        children = [child for child in node.get("inner", []) if self._is_node(child)]
+        if node["kind"] == ClangNodeKind.BINARY_OPERATOR and children:
+            holder = self._closure_member_holder(children[0])
+            if holder is not None:
+                targets, complete = (
+                    self._expression_targets(children[1])
+                    if node.get("opcode") == COperator.ASSIGN and len(children) == 2
+                    else (set(), False)
+                )
+                self._record_closure_assignment(
+                    holder,
+                    self._stable_id(path),
+                    targets,
+                    complete,
+                )
+        for child_index, child in enumerate(node.get("inner", [])):
+            self._collect_closure_assignments(child, (*path, child_index))
+
+    def _record_closure_assignment(
+        self,
+        holder_id: str,
+        assignment_node_id: str,
+        targets: set[str],
+        complete: bool,
+    ) -> None:
+        self.closure_assignments.append(
+            {
+                "holder_id": holder_id,
+                "assignment_node_id": assignment_node_id,
+                "status": (
+                    PointerTargetStatus.EXACT
+                    if complete and bool(targets)
+                    else PointerTargetStatus.UNKNOWN
+                ),
+                "candidate_target_ids": sorted(targets) if complete else [],
+            }
+        )
 
     def _invalidate_mutable_or_escaped_bindings(self) -> None:
         for _, node in self._walk(self.root):
@@ -202,14 +278,18 @@ class FunctionPointerAnalysis:
         if not self._is_node(value):
             return
         if value["kind"] == ClangNodeKind.MEMBER_EXPR:
-            if value.get("isArrow"):
+            closure_holder = self._closure_member_holder(value)
+            if closure_holder is None:
                 return
             member_id = value.get("referencedMemberDecl")
             member_target = self.clang_to_stable.get(str(member_id)) if member_id else None
             children = value.get("inner", [])
             object_id = self._direct_object(children[0]) if children else None
-            if member_target and object_id:
-                holders.add((object_id, member_target))
+            local_holder = (object_id, member_target) if member_target and object_id else None
+            if local_holder and self.status.get(local_holder) is PointerTargetStatus.EXACT:
+                holders.add(local_holder)
+            else:
+                holders.add((None, closure_holder))
             return
         referenced = value.get("referencedDecl")
         if isinstance(referenced, dict) and referenced.get("id"):
@@ -218,6 +298,13 @@ class FunctionPointerAnalysis:
                 holders.add((None, declaration_id))
         for child in value.get("inner", []):
             self._collect_pointer_holders(child, holders)
+
+    def _closure_member_holder(self, value: Any) -> str | None:
+        if not self._is_node(value) or value["kind"] != ClangNodeKind.MEMBER_EXPR:
+            return None
+        member_id = value.get("referencedMemberDecl")
+        declaration_id = self.clang_to_stable.get(str(member_id)) if member_id else None
+        return self.closure_field_by_declaration.get(declaration_id) if declaration_id else None
 
     def _direct_object(self, value: Any) -> str | None:
         if not self._is_node(value):
@@ -239,7 +326,7 @@ class FunctionPointerAnalysis:
         pointer_children = [
             child
             for child in node.get("inner", [])
-            if self._is_node(child) and self._is_function_pointer_type(child.get("type"))
+            if self._is_node(child) and self.is_function_pointer_type(child.get("type"))
         ]
         if len(pointer_children) != 1:
             return set(), False
@@ -300,11 +387,11 @@ class FunctionPointerAnalysis:
             declaration
             and declaration.get("kind")
             in {ClangNodeKind.VAR_DECL, ClangNodeKind.PARM_VAR_DECL, ClangNodeKind.FIELD_DECL}
-            and self._is_function_pointer_type(declaration.get("type"))
+            and self.is_function_pointer_type(declaration.get("type"))
         )
 
     @classmethod
-    def _is_function_pointer_type(cls, type_record: Any) -> bool:
+    def is_function_pointer_type(cls, type_record: Any) -> bool:
         return any("(*" in name and ")(" in name for name in cls._type_names(type_record))
 
     @staticmethod
@@ -361,3 +448,173 @@ class FunctionPointerAnalysis:
     @staticmethod
     def _is_node(value: Any) -> bool:
         return isinstance(value, dict) and isinstance(value.get("kind"), str)
+
+
+class ClosureFunctionPointerResolver:
+    """Resolve field-based indirect calls once across all frozen translation units."""
+
+    @classmethod
+    def resolve(cls, semantic_indexes: list[dict[str, Any]]) -> None:
+        definitions = cls._definitions(semantic_indexes)
+        bindings = cls._bindings(semantic_indexes, definitions)
+        blockers: list[str] = []
+        for semantic in semantic_indexes:
+            cls._resolve_unit(semantic, bindings, definitions, blockers)
+        if blockers:
+            raise WorkflowError(
+                "structured call targets remain unresolved across source closure: "
+                + ", ".join(blockers)
+            )
+
+    @staticmethod
+    def _definitions(semantic_indexes: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
+        definitions: dict[str, dict[str, Any]] = {}
+        for semantic in semantic_indexes:
+            unit_id = semantic["unit_id"]
+            for identity in semantic["indexes"]["definition_identities"]["functions"]:
+                target_id = identity["node_id"]
+                record = {"id": target_id, "unit_id": unit_id, **identity}
+                if target_id in definitions and definitions[target_id] != record:
+                    raise WorkflowError(f"conflicting closure function identity: {target_id}")
+                definitions[target_id] = record
+        return definitions
+
+    @classmethod
+    def _bindings(
+        cls,
+        semantic_indexes: list[dict[str, Any]],
+        definitions: dict[str, dict[str, Any]],
+    ) -> dict[str, dict[str, Any]]:
+        declarations: dict[str, list[dict[str, Any]]] = defaultdict(list)
+        assignments: dict[str, list[dict[str, Any]]] = defaultdict(list)
+        for semantic in semantic_indexes:
+            indexes = semantic["indexes"]
+            for declaration in indexes["closure_field_declarations"]:
+                declarations[declaration["holder_id"]].append(declaration)
+            for assignment in indexes["closure_field_assignments"]:
+                assignments[assignment["holder_id"]].append(assignment)
+
+        holders_by_declaration: dict[str, set[str]] = defaultdict(set)
+        for holder_id, occurrences in declarations.items():
+            for occurrence in occurrences:
+                identity = dict(occurrence["identity"])
+                identity.pop("field_type", None)
+                holders_by_declaration[cls._canonical(identity)].add(holder_id)
+        conflicted = {
+            holder_id
+            for holder_ids in holders_by_declaration.values()
+            if len(holder_ids) > 1
+            for holder_id in holder_ids
+        }
+
+        result: dict[str, dict[str, Any]] = {}
+        for holder_id, occurrences in declarations.items():
+            writes = assignments.get(holder_id, [])
+            identities = {
+                cls._canonical(declaration["identity"]) for declaration in occurrences
+            }
+            targets = {
+                target
+                for write in writes
+                for target in write["candidate_target_ids"]
+            }
+            complete = (
+                holder_id not in conflicted
+                and bool(writes)
+                and len(identities) == 1
+                and all(write["status"] == PointerTargetStatus.EXACT for write in writes)
+                and targets <= definitions.keys()
+            )
+            result[holder_id] = {
+                "holder_id": holder_id,
+                "status": PointerTargetStatus.EXACT if complete else PointerTargetStatus.UNKNOWN,
+                "candidate_target_ids": sorted(targets) if complete else [],
+                "assignment_node_ids": sorted(
+                    write["assignment_node_id"] for write in writes
+                ),
+            }
+        return result
+
+    @classmethod
+    def _resolve_unit(
+        cls,
+        semantic: dict[str, Any],
+        bindings: dict[str, dict[str, Any]],
+        definitions: dict[str, dict[str, Any]],
+        blockers: list[str],
+    ) -> None:
+        indexes = semantic["indexes"]
+        relevant_bindings: dict[str, dict[str, Any]] = {}
+        target_ids: set[str] = set()
+        for call in indexes["calls"]:
+            if call["dispatch"] is not CallDispatch.INDIRECT_UNRESOLVED:
+                continue
+            call_bindings = [
+                bindings[holder["holder_id"]]
+                for holder in call["callee_holders"]
+                if holder["holder_id"] in bindings
+            ]
+            if len(call_bindings) != len(call["callee_holders"]) or any(
+                binding["status"] is not PointerTargetStatus.EXACT
+                for binding in call_bindings
+            ):
+                blockers.append(call["node_id"])
+                continue
+            candidates = {
+                target
+                for binding in call_bindings
+                for target in binding["candidate_target_ids"]
+            }
+            if not candidates:
+                blockers.append(call["node_id"])
+                continue
+            call["dispatch"] = CallDispatch.INDIRECT_RESOLVED
+            call["candidate_target_ids"] = sorted(candidates)
+            call["target_set_complete"] = True
+            call["resolution_bases"] = [
+                *call["resolution_bases"],
+                CallResolutionBasis.CLOSURE_POINTS_TO,
+            ]
+            for holder in call["callee_holders"]:
+                binding = bindings.get(holder["holder_id"])
+                if binding is not None:
+                    holder["status"] = binding["status"]
+                    relevant_bindings[holder["holder_id"]] = binding
+            target_ids.update(candidates)
+            semantic["relations"].extend(
+                {
+                    "kind": RelationKind.INDIRECT_CALL_TARGET,
+                    "source": call["node_id"],
+                    "target": target,
+                }
+                for target in sorted(candidates)
+            )
+
+        node_ids = {node["id"] for node in semantic["nodes"]}
+        indexes["closure_function_pointer_bindings"] = [
+            relevant_bindings[key] for key in sorted(relevant_bindings)
+        ]
+        indexes["closure_targets"] = [
+            definitions[target]
+            for target in sorted(target_ids - node_ids)
+        ]
+        cls._update_counts(semantic)
+
+    @staticmethod
+    def _update_counts(semantic: dict[str, Any]) -> None:
+        calls = semantic["indexes"]["calls"]
+        semantic["counts"].update(
+            {
+                "relations": len(semantic["relations"]),
+                "resolved_indirect_calls": sum(
+                    call["dispatch"] is CallDispatch.INDIRECT_RESOLVED for call in calls
+                ),
+                "unresolved_indirect_calls": sum(
+                    call["dispatch"] is CallDispatch.INDIRECT_UNRESOLVED for call in calls
+                ),
+            }
+        )
+
+    @staticmethod
+    def _canonical(value: dict[str, Any]) -> str:
+        return json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",", ":"))

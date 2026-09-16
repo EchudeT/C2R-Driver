@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import hashlib
-import json
 import re
 from dataclasses import dataclass
 from pathlib import Path
@@ -13,14 +12,13 @@ from ..knowledge.index import file_sha256
 from .ast_index import AstSemanticIndexer
 from .ast_projection import ClosureFileSet
 from .clang_backend import ClangAnalysisBackend
-from .contracts import SourceAnalysisArtifact
 from .fact_parsers import RawFactParser
-from .semantic_model import CallDispatch
 
 
 @dataclass(frozen=True, slots=True)
 class UnitResult:
     fact: dict[str, Any]
+    semantic_index: dict[str, Any]
     raw_paths: tuple[Path, ...]
     semantic_path: Path
     commands_path: Path
@@ -79,22 +77,7 @@ class TranslationUnitExtractor:
             )
             record["availability"] = availability
             record["summary"] = summary
-        unresolved_calls = [
-            call["node_id"]
-            for call in semantic_index["indexes"]["calls"]
-            if call["dispatch"] is CallDispatch.INDIRECT_UNRESOLVED
-        ]
-        if unresolved_calls:
-            raise WorkflowError(
-                f"structured call targets remain unresolved for {unit_id}: "
-                + ", ".join(unresolved_calls)
-            )
         semantic_path = unit_dir / "semantic-index.json"
-        semantic_path.write_bytes(self._json_bytes(semantic_index))
-        self.project.validators.validate(
-            SourceAnalysisArtifact.STRUCTURED_C_SEMANTIC_INDEX,
-            semantic_path.read_bytes(),
-        )
         return UnitResult(
             fact={
                 "unit_id": unit_id,
@@ -103,7 +86,6 @@ class TranslationUnitExtractor:
                 "raw_facts": extraction.raw_records,
                 "semantic_index": {
                     "path": str(semantic_path.relative_to(self.project.root)),
-                    "sha256": file_sha256(semantic_path),
                 },
                 "command_records": {
                     "path": str(extraction.command_records_path.relative_to(self.project.root)),
@@ -113,6 +95,7 @@ class TranslationUnitExtractor:
                 "analyzer_target_triple": extraction.target_triple,
                 "verified_target_abi": extraction.target_abi,
             },
+            semantic_index=semantic_index,
             raw_paths=extraction.raw_paths,
             semantic_path=semantic_path,
             commands_path=extraction.command_records_path,
@@ -163,7 +146,3 @@ class TranslationUnitExtractor:
     def _safe_name(value: str) -> str:
         safe = re.sub(r"[^A-Za-z0-9._-]", "-", value).strip("-")[:80] or "unit"
         return safe + "-" + hashlib.sha256(value.encode()).hexdigest()[:8]
-
-    @staticmethod
-    def _json_bytes(value: dict[str, Any]) -> bytes:
-        return (json.dumps(value, ensure_ascii=False, sort_keys=True, indent=2) + "\n").encode()

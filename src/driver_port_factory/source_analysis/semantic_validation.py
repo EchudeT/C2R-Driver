@@ -92,9 +92,16 @@ def _validate_external_targets(
     node_ids: set[str],
 ) -> None:
     records = indexes.get("external_declarations")
-    if not isinstance(records, list) or not all(isinstance(item, dict) for item in records):
+    closure_targets = indexes.get("closure_targets")
+    if (
+        not isinstance(records, list)
+        or not all(isinstance(item, dict) for item in records)
+        or not isinstance(closure_targets, list)
+        or not all(isinstance(item, dict) for item in closure_targets)
+    ):
         raise WorkflowError("structured semantic external declarations are invalid")
     external_ids = [record.get("id") for record in records]
+    closure_ids = [record.get("id") for record in closure_targets]
     if (
         any(not isinstance(identifier, str) for identifier in external_ids)
         or len(external_ids) != len(set(external_ids))
@@ -102,7 +109,11 @@ def _validate_external_targets(
     ):
         raise WorkflowError("structured semantic external declaration identities are invalid")
     unresolved_targets = {target for _, _, target in relations if target not in node_ids}
-    if unresolved_targets != set(external_ids):
+    if (
+        any(not isinstance(identifier, str) for identifier in closure_ids)
+        or len(closure_ids) != len(set(closure_ids))
+        or unresolved_targets != set(external_ids) | set(closure_ids)
+    ):
         raise WorkflowError("structured semantic relation targets lack external declarations")
 
 

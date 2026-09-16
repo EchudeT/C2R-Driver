@@ -9,6 +9,7 @@ from typing import Any
 
 from ..core.models import WorkflowError
 from ..core.project import Project
+from ..knowledge.index import file_sha256
 from .ast_projection import ClosureFileSet
 from .clang_backend import AnalyzerFamily, ClangAnalysisBackend
 from .compiler import CompilerFamily, compiler_adapter
@@ -19,6 +20,7 @@ from .fact_model import (
     SemanticFactDomain,
     StructuredAnalysisStatus,
 )
+from .function_pointers import ClosureFunctionPointerResolver
 from .unit_extraction import TranslationUnitExtractor, UnitResult
 
 
@@ -71,6 +73,7 @@ class StructuredBundleExtractor:
             closure_files=ClosureFileSet.from_manifest(compile_manifest),
         )
         unit_results = [unit_extractor.extract(unit) for unit in units]
+        self._finalize_semantics(project, unit_results)
         self._validate_fact_coverage(unit_results)
         analyzer_targets = {result.fact["analyzer_target_triple"] for result in unit_results}
         if len(analyzer_targets) != 1:
@@ -97,6 +100,29 @@ class StructuredBundleExtractor:
             unit_results,
         )
         return facts, self._artifact_paths(unit_results)
+
+    @staticmethod
+    def _finalize_semantics(project: Project, unit_results: list[UnitResult]) -> None:
+        ClosureFunctionPointerResolver.resolve(
+            [result.semantic_index for result in unit_results]
+        )
+        for result in unit_results:
+            data = (
+                json.dumps(
+                    result.semantic_index,
+                    ensure_ascii=False,
+                    sort_keys=True,
+                    indent=2,
+                )
+                + "\n"
+            ).encode()
+            project.validators.validate(
+                SourceAnalysisArtifact.STRUCTURED_C_SEMANTIC_INDEX,
+                data,
+            )
+            result.semantic_path.write_bytes(data)
+            result.fact["semantic_index"]["sha256"] = file_sha256(result.semantic_path)
+            result.fact["semantic_counts"] = result.semantic_index["counts"]
 
     @staticmethod
     def _command_adapter(compiler_record: dict[str, Any]) -> type:

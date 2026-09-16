@@ -30,6 +30,11 @@ code-property graph，并索引 function、global、call、control-flow、struct
 span。函数指针候选来自 Clang 的 `FunctionToPointerDecay`、结构体/联合体注册表初始化和赋值关系；该过程
 只遍历工具结构，不搜索 C 源码文本，也不依据函数名猜测行为。
 
+函数指针字段以 closure 文件摘要、声明位置、record tag/name、field 和 typed type 构造跨 translation
+unit 身份。全部 unit 提取完成后，控制器合并结构化 initializer/assignment 写入，把 call holder 绑定到
+真实 `FunctionDecl` 定义及其 unit/source identity；未知 RHS、冲突身份、非精确写入或没有赋值的 holder
+继续保持 `INDIRECT_UNRESOLVED`，不会按字段名猜测目标。
+
 assignment、call、atomic、volatile typed expression 等只标为结构候选；它们是否属于 MMIO/PIO/DMA、
 IRQ、锁、资源所有权或错误恢复，必须在下一阶段结合硬件、source、target 和 QEMU 原文建立合同。
 不允许把名称相似或正则命中提升为语义事实。
