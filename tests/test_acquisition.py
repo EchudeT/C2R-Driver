@@ -6,7 +6,8 @@ import tempfile
 import unittest
 from dataclasses import replace
 from pathlib import Path
-from unittest.mock import patch
+from types import SimpleNamespace
+from unittest.mock import Mock, patch
 
 from driver_port_factory.acquisition.baseline import BaselineRepositoryAcquirer
 from driver_port_factory.acquisition.closure import EvidenceClosureFinalizer
@@ -35,7 +36,6 @@ from driver_port_factory.acquisition.repository import (
 )
 from driver_port_factory.acquisition.repository_manifest import RepositoryAcquisition
 from driver_port_factory.acquisition.repository_role import RepositoryRole
-from driver_port_factory.acquisition.repository_spec import RepositorySpec
 from driver_port_factory.acquisition.repository_validation import validate_repository_bundle
 from driver_port_factory.acquisition.retrieval import (
     EvidenceRetriever,
@@ -67,6 +67,7 @@ from driver_port_factory.core.models import (
 )
 from driver_port_factory.core.validation import BundleValidationContext
 from driver_port_factory.environment.contracts import EnvironmentStage
+from driver_port_factory.intake.contracts import IntakeStage
 from driver_port_factory.intake.service import IntakeService
 from tests.acquisition_support import (
     close_evidence,
@@ -586,17 +587,6 @@ class AcquisitionTests(unittest.TestCase):
 
     def test_revision_citation_excerpt_must_exist_in_retrieved_content(self) -> None:
         with compatibility_evidence_server(b"actual compatibility statement\n") as source_url:
-            repositories = tuple(
-                RepositorySpec(
-                    role,
-                    role.value,
-                    f"https://example.invalid/{role.value}.git",
-                    "v1.0.0",
-                    str(index) * 40,
-                    "fixture",
-                )
-                for index, role in enumerate(RepositoryRole, 1)
-            )
             citation = CompatibilityCitation(
                 source_url,
                 "fixture compatibility",
@@ -605,8 +595,58 @@ class AcquisitionTests(unittest.TestCase):
                 tuple(ProposedRevisionBinding(role, "v1.0.0") for role in RepositoryRole),
                 4096,
             )
-            with self.assertRaisesRegex(WorkflowError, "excerpt is absent"):
-                RevisionEvidenceRetriever().retrieve((citation,), repositories)
+            with self.assertRaisesRegex(
+                WorkflowError,
+                rf"citation 1 \({source_url}\) excerpt is absent",
+            ):
+                RevisionEvidenceRetriever().retrieve((citation,))
+
+    def test_revision_evidence_preflight_precedes_remote_resolution(self) -> None:
+        project = Mock()
+        project.stage.side_effect = lambda stage: SimpleNamespace(
+            status=(
+                StageStatus.PASS
+                if stage is IntakeStage.ENVELOPE_FREEZE
+                else StageStatus.RUNNING
+            )
+        )
+        project.artifact.return_value = SimpleNamespace(digest="1" * 64)
+        project.config = SimpleNamespace(
+            source_platform="example-source",
+            target_platform="example-target",
+        )
+        repositories = tuple(
+            SimpleNamespace(role=role, platform=platform)
+            for role, platform in (
+                (RepositoryRole.SOURCE, "example-source"),
+                (RepositoryRole.TARGET, "example-target"),
+                (RepositoryRole.QEMU, "qemu"),
+            )
+        )
+        envelope = SimpleNamespace(
+            proposal=SimpleNamespace(
+                migration_envelope_sha256="1" * 64,
+                repositories=repositories,
+                compatibility_evidence=(),
+            )
+        )
+        with (
+            patch(
+                "driver_port_factory.acquisition.revision_selection.load_revision_proposal",
+                return_value=envelope,
+            ),
+            patch.object(
+                RevisionEvidenceRetriever,
+                "retrieve",
+                side_effect=WorkflowError("evidence preflight failed"),
+            ),
+            patch(
+                "driver_port_factory.acquisition.revision_selection.RevisionResolver"
+            ) as resolver,
+            self.assertRaisesRegex(WorkflowError, "evidence preflight failed"),
+        ):
+            RevisionSelector().select(project, proposal=ArtifactOccurrence("0" * 64, 0))
+        resolver.assert_not_called()
 
     def test_derived_material_requires_an_original_parent_and_matching_path(self) -> None:
         cases = (

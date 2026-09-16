@@ -36,6 +36,8 @@ class RevisionSelector:
         if envelope.proposal.migration_envelope_sha256 != envelope_ref.digest:
             raise WorkflowError("revision proposal migration envelope drifted before selection")
         self._validate_platforms(project, envelope.proposal.repositories)
+        evidence_retriever = RevisionEvidenceRetriever()
+        citations = evidence_retriever.retrieve(envelope.proposal.compatibility_evidence)
         resolver = RevisionResolver(project.root, project.control)
         repositories = tuple(
             resolver.resolve(
@@ -47,10 +49,7 @@ class RevisionSelector:
             )
             for candidate in envelope.proposal.repositories
         )
-        retrieved_evidence = RevisionEvidenceRetriever().retrieve(
-            envelope.proposal.compatibility_evidence,
-            repositories,
-        )
+        retrieved_evidence = evidence_retriever.bind(citations, repositories)
         plan = RepositoryPlan(
             1,
             repositories,

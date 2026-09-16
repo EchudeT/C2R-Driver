@@ -7,7 +7,6 @@ import urllib.request
 from dataclasses import dataclass
 
 from ..core.models import WorkflowError, utc_now
-from .repository_role import RepositoryRole
 from .repository_spec import RepositorySpec
 from .revision_compatibility import (
     CitationVerificationStatus,
@@ -28,20 +27,29 @@ class RetrievedCompatibilityEvidence:
     data: bytes
 
 
+@dataclass(frozen=True, slots=True)
+class RetrievedCitation:
+    citation: CompatibilityCitation
+    resolved_url: str
+    data: bytes
+    retrieved_at: str
+
+
 class RevisionEvidenceRetriever:
     def retrieve(
         self,
         citations: tuple[CompatibilityCitation, ...],
-        repositories: tuple[RepositorySpec, ...],
-    ) -> tuple[RetrievedCompatibilityEvidence, ...]:
-        resolved = {repository.role: repository for repository in repositories}
-        return tuple(self._retrieve(citation, resolved) for citation in citations)
+    ) -> tuple[RetrievedCitation, ...]:
+        return tuple(
+            self._retrieve(citation, position)
+            for position, citation in enumerate(citations, start=1)
+        )
 
     @staticmethod
     def _retrieve(
         citation: CompatibilityCitation,
-        repositories: dict[RepositoryRole, RepositorySpec],
-    ) -> RetrievedCompatibilityEvidence:
+        position: int,
+    ) -> RetrievedCitation:
         request = urllib.request.Request(
             citation.source_url,
             headers={"User-Agent": "Driver-Port-Factory/0.1"},
@@ -76,28 +84,40 @@ class RevisionEvidenceRetriever:
         excerpt = citation.excerpt.encode("utf-8")
         if excerpt not in data:
             raise WorkflowError(
-                "compatibility evidence citation excerpt is absent from retrieved content"
+                f"compatibility evidence citation {position} ({citation.source_url}) "
+                "excerpt is absent from retrieved content"
             )
-        digest = hashlib.sha256(data).hexdigest()
-        bindings = tuple(
-            ResolvedRevisionBinding(
-                binding.role,
-                binding.requested_ref,
-                repositories[binding.role].resolved_commit,
+        return RetrievedCitation(citation, resolved_url, data, utc_now())
+
+    @staticmethod
+    def bind(
+        citations: tuple[RetrievedCitation, ...],
+        repositories: tuple[RepositorySpec, ...],
+    ) -> tuple[RetrievedCompatibilityEvidence, ...]:
+        resolved = {repository.role: repository for repository in repositories}
+        return tuple(
+            RetrievedCompatibilityEvidence(
+                CompatibilityEvidence(
+                    item.citation.source_url,
+                    item.resolved_url,
+                    item.citation.claim,
+                    item.citation.excerpt,
+                    item.citation.claim_kind,
+                    tuple(
+                        ResolvedRevisionBinding(
+                            binding.role,
+                            binding.requested_ref,
+                            resolved[binding.role].resolved_commit,
+                        )
+                        for binding in item.citation.bindings
+                    ),
+                    CitationVerificationStatus.VERIFIED,
+                    CompatibilityAssessmentStatus.INFERRED,
+                    hashlib.sha256(item.data).hexdigest(),
+                    len(item.data),
+                    item.retrieved_at,
+                ),
+                item.data,
             )
-            for binding in citation.bindings
+            for item in citations
         )
-        record = CompatibilityEvidence(
-            citation.source_url,
-            resolved_url,
-            citation.claim,
-            citation.excerpt,
-            citation.claim_kind,
-            bindings,
-            CitationVerificationStatus.VERIFIED,
-            CompatibilityAssessmentStatus.INFERRED,
-            digest,
-            len(data),
-            utc_now(),
-        )
-        return RetrievedCompatibilityEvidence(record, data)

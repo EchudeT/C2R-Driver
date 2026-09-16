@@ -46,7 +46,11 @@
       "properties": {
         "source_url": {"type": "string", "pattern": "^https?://"},
         "claim": {"type": "string", "minLength": 1},
-        "excerpt": {"type": "string", "minLength": 1},
+        "excerpt": {
+          "type": "string",
+          "minLength": 1,
+          "description": "An exact byte-for-byte contiguous substring of the retrieved response. For JSON or XML, use a minimal value token that does not depend on indentation or separator whitespace."
+        },
         "claim_kind": {
           "type": "string",
           "enum": ["maintenance", "cross-repository-compatibility"]
