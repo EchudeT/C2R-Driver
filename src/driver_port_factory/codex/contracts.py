@@ -21,6 +21,7 @@ class CodexSandbox(StrEnum):
 class CodexExecEventType(StrEnum):
     THREAD_STARTED = "thread.started"
     ITEM_COMPLETED = "item.completed"
+    ERROR = "error"
 
 
 class CodexExecItemType(StrEnum):

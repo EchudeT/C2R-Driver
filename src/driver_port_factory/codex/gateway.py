@@ -75,8 +75,17 @@ class CodexExecGateway:
             except json.JSONDecodeError:
                 events.append({"type": "unparsed.stdout", "text": line})
         if completed.returncode != 0:
+            event_error = next(
+                (
+                    event.get("message")
+                    for event in reversed(events)
+                    if event.get("type") == CodexExecEventType.ERROR.value
+                ),
+                None,
+            )
+            detail = event_error or completed.stderr.strip() or completed.stdout.strip()
             raise WorkflowError(
-                f"codex exec failed with exit {completed.returncode}: {completed.stderr.strip()}"
+                f"codex exec failed with exit {completed.returncode}: {detail}"
             )
         thread_id = next(
             (
