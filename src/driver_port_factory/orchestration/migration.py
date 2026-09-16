@@ -73,7 +73,13 @@ def migration_workflow(config: ProjectConfig) -> tuple[StageSpec, ...]:
             "Seal an immutable candidate manifest and digest.",
             StageOwner.STATIC,
             MigrationStage.PUBLIC_REPAIR,
-            (SealingArtifact.CANDIDATE_MANIFEST,),
+            (
+                SealingArtifact.CANDIDATE_MANIFEST,
+                SealingArtifact.CANDIDATE_BUNDLE,
+                SealingArtifact.CANDIDATE_LEDGER_EVENT,
+                SealingArtifact.CANDIDATE_TIMESTAMP_RECEIPT,
+                SealingArtifact.CANDIDATE_TRANSFER_RECORD,
+            ),
             MIGRATION_ROLES,
         )
     )

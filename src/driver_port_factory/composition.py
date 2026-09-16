@@ -29,6 +29,7 @@ from .migration.validation import VALIDATORS as MIGRATION_VALIDATORS
 from .orchestration.blind import auditor_workflow, curator_workflow, evaluator_workflow
 from .orchestration.migration import migration_workflow
 from .sealing.contracts import SealingStage
+from .sealing.validation import BUNDLE_VALIDATORS as SEALING_BUNDLE_VALIDATORS
 from .sealing.validation import VALIDATORS as SEALING_VALIDATORS
 from .source_analysis.analysis_validation import (
     BUNDLE_VALIDATORS as SOURCE_BUNDLE_VALIDATORS,
@@ -58,7 +59,12 @@ ARTIFACT_VALIDATORS = ValidationRegistry.compose(
         EVALUATION_VALIDATORS,
         CODEX_VALIDATORS,
     ),
-    (ACQUISITION_BUNDLE_VALIDATORS, MIGRATION_BUNDLE_VALIDATORS, SOURCE_BUNDLE_VALIDATORS),
+    (
+        ACQUISITION_BUNDLE_VALIDATORS,
+        MIGRATION_BUNDLE_VALIDATORS,
+        SEALING_BUNDLE_VALIDATORS,
+        SOURCE_BUNDLE_VALIDATORS,
+    ),
 )
 
 WORKFLOW_STAGE_CATALOG = StageCatalog.compose(
