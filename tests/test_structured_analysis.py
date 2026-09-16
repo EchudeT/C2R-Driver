@@ -32,10 +32,7 @@ class StructuredCAnalysisTests(unittest.TestCase):
             "id": "anonymous-record",
             "kind": "RecordDecl",
             "tagUsed": "struct",
-            "loc": {
-                "spellingLoc": {"offset": 4605, "col": 11},
-                "expansionLoc": {"file": str(source), "line": 20, "col": 3},
-            },
+            "loc": {"offset": 4605, "col": 11},
             "inner": [
                 {
                     "id": "field",
@@ -69,6 +66,7 @@ class StructuredCAnalysisTests(unittest.TestCase):
             identity["source_location"],
             {"file": header, "line": 199, "col": 11},
         )
+        self.assertEqual(identity["source_location_candidates"][0]["kind"], "direct")
         self.assertIn(
             f"struct (unnamed at {header}:199:11)",
             identity["layout_labels"],
@@ -76,6 +74,67 @@ class StructuredCAnalysisTests(unittest.TestCase):
         layout = (
             "*** Dumping AST Record Layout\n"
             f" 0 | struct (unnamed at {header}:199:11)\n"
+            " 0 |   int value\n"
+            "   | [sizeof=4, align=4]\n"
+        ).encode()
+        _, summary = RawFactParser().summarize(
+            RawFactKind.RECORD_LAYOUT,
+            layout,
+            semantic,
+            "fixture-target",
+        )
+        self.assertEqual(summary["records"][0]["ast_node_id"], identity["node_id"])
+
+    def test_macro_generated_record_layout_can_use_expansion_location(self) -> None:
+        spelling_file = "/sdk/include/macro-definition.h"
+        expansion_file = "/sdk/include/macro-use.h"
+        record = {
+            "id": "macro-record",
+            "kind": "RecordDecl",
+            "tagUsed": "struct",
+            "loc": {
+                "spellingLoc": {
+                    "offset": 100,
+                    "file": spelling_file,
+                    "line": 40,
+                    "col": 9,
+                },
+                "expansionLoc": {
+                    "offset": 200,
+                    "file": expansion_file,
+                    "line": 70,
+                    "col": 1,
+                },
+            },
+            "inner": [
+                {
+                    "id": "field",
+                    "kind": "FieldDecl",
+                    "name": "value",
+                    "type": {"qualType": "int"},
+                }
+            ],
+        }
+        ast = {
+            "id": "translation-unit",
+            "kind": "TranslationUnitDecl",
+            "inner": [record],
+        }
+
+        semantic = AstSemanticIndexer("macro-location", Path("driver.c"), ast).build()
+
+        identity = semantic["indexes"]["definition_identities"]["records"][0]
+        self.assertEqual(
+            identity["source_location"],
+            {"file": spelling_file, "line": 40, "col": 9},
+        )
+        self.assertEqual(
+            [candidate["kind"] for candidate in identity["source_location_candidates"]],
+            ["spelling", "expansion"],
+        )
+        layout = (
+            "*** Dumping AST Record Layout\n"
+            f" 0 | struct (unnamed at {expansion_file}:70:1)\n"
             " 0 |   int value\n"
             "   | [sizeof=4, align=4]\n"
         ).encode()

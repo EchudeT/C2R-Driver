@@ -321,15 +321,18 @@ class RawFactParser:
         if layout_label in identity["layout_labels"]:
             return True
         layout_location = self._ANONYMOUS_LOCATION.search(layout_label)
-        source_location = identity["source_location"]
-        source_file = source_location.get("file")
         return bool(
             identity["name"] is None
             and layout_location
-            and source_file
-            and self._same_source_file(layout_location.group("file"), source_file)
-            and source_location.get("line") == int(layout_location.group("line"))
-            and source_location.get("col") == int(layout_location.group("col"))
+            and any(
+                source_location.get("file")
+                and self._same_source_file(
+                    layout_location.group("file"), source_location["file"]
+                )
+                and source_location.get("line") == int(layout_location.group("line"))
+                and source_location.get("col") == int(layout_location.group("col"))
+                for source_location in identity["source_location_candidates"]
+            )
             and layout_label.startswith(identity["tag"] + " ")
         )
 

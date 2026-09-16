@@ -3,6 +3,8 @@ from __future__ import annotations
 import hashlib
 import json
 from collections.abc import Iterator
+from dataclasses import dataclass
+from enum import StrEnum
 from pathlib import Path
 from typing import Any
 
@@ -38,15 +40,53 @@ CONTROL_FLOW_KINDS = frozenset(
 )
 
 
+class _LocationKind(StrEnum):
+    DIRECT = "direct"
+    SPELLING = "spelling"
+    EXPANSION = "expansion"
+
+
+@dataclass(frozen=True, slots=True)
+class _ResolvedLocations:
+    direct: dict[str, Any] | None = None
+    spelling: dict[str, Any] | None = None
+    expansion: dict[str, Any] | None = None
+
+    @property
+    def primary(self) -> dict[str, Any]:
+        return self.spelling or self.expansion or self.direct or {
+            "file": None,
+            "line": None,
+            "col": None,
+        }
+
+    def candidates(self) -> list[dict[str, Any]]:
+        records: list[dict[str, Any]] = []
+        seen: set[tuple[Any, Any, Any]] = set()
+        for kind, location in (
+            (_LocationKind.DIRECT, self.direct),
+            (_LocationKind.SPELLING, self.spelling),
+            (_LocationKind.EXPANSION, self.expansion),
+        ):
+            if location is None:
+                continue
+            identity = (location.get("file"), location.get("line"), location.get("col"))
+            if identity in seen:
+                continue
+            seen.add(identity)
+            records.append({"kind": kind, **location})
+        return records
+
+
 class _ClangSourceLocations:
     """Replay Clang's ordered file/line elision and index each AST node once."""
 
     def __init__(self) -> None:
         self.context: dict[str, Any] = {"file": None, "line": None}
-        self.indexed: dict[int, dict[str, Any]] = {}
+        self.indexed: dict[int, _ResolvedLocations] = {}
 
     @classmethod
-    def build(cls, root: dict[str, Any]) -> dict[int, dict[str, Any]]:
+    def build(cls, root: dict[str, Any]) -> dict[int, _ResolvedLocations]:
         index = cls()
         index._scan(root)
         return index.indexed
@@ -58,32 +98,40 @@ class _ClangSourceLocations:
             return
         if not isinstance(value, dict):
             return
-        node_location: dict[str, Any] | None = None
+        node_locations: _ResolvedLocations | None = None
         for field, child in value.items():
             if field == "loc" and isinstance(child, dict):
-                node_location = self._location(child)
+                node_locations = self._location(child)
             elif field == "range" and isinstance(child, dict):
-                node_location = self._merge(node_location, self._range_begin(child))
+                range_begin = self._range_begin(child)
+                if node_locations is None:
+                    node_locations = range_begin
             else:
                 self._scan(child)
-        if AstSemanticIndexer._is_node(value) and node_location is not None:
-            self.indexed[id(value)] = node_location
+        if AstSemanticIndexer._is_node(value) and node_locations is not None:
+            self.indexed[id(value)] = node_locations
 
-    def _location(self, record: dict[str, Any]) -> dict[str, Any]:
+    def _location(self, record: dict[str, Any]) -> _ResolvedLocations:
         direct = {"file": self.context["file"], "line": self.context["line"], "col": None}
-        nested: dict[str, dict[str, Any]] = {}
+        has_direct = False
+        spelling: dict[str, Any] | None = None
+        expansion: dict[str, Any] | None = None
         for field, value in record.items():
+            if field in {"offset", "file", "line", "col", "tokLen"}:
+                has_direct = True
             if field in {"file", "line"}:
                 direct[field] = value
                 self.context[field] = value
             elif field == "col":
                 direct[field] = value
-            elif field in {"spellingLoc", "expansionLoc"} and isinstance(value, dict):
-                nested[field] = self._location(value)
-        return nested.get("spellingLoc") or nested.get("expansionLoc") or direct
+            elif field == "spellingLoc" and isinstance(value, dict):
+                spelling = self._location(value).primary
+            elif field == "expansionLoc" and isinstance(value, dict):
+                expansion = self._location(value).primary
+        return _ResolvedLocations(direct if has_direct else None, spelling, expansion)
 
-    def _range_begin(self, record: dict[str, Any]) -> dict[str, Any] | None:
-        begin: dict[str, Any] | None = None
+    def _range_begin(self, record: dict[str, Any]) -> _ResolvedLocations | None:
+        begin: _ResolvedLocations | None = None
         for field, value in record.items():
             if field in {"begin", "end"} and isinstance(value, dict):
                 resolved = self._location(value)
@@ -92,22 +140,6 @@ class _ClangSourceLocations:
             else:
                 self._scan(value)
         return begin
-
-    @staticmethod
-    def _merge(
-        primary: dict[str, Any] | None,
-        fallback: dict[str, Any] | None,
-    ) -> dict[str, Any] | None:
-        if primary is None:
-            return fallback
-        if fallback is None:
-            return primary
-        return {
-            field: primary.get(field)
-            if primary.get(field) is not None
-            else fallback.get(field)
-            for field in ("file", "line", "col")
-        }
 
 
 class AstSemanticIndexer:
@@ -434,19 +466,19 @@ class AstSemanticIndexer:
         name = node.get("name")
         location = self._source_location(node)
         labels = [f"{tag} {name}"] if name else []
-        if (
-            not name
-            and location.get("file")
-            and location.get("line") is not None
-            and location.get("col") is not None
-        ):
-            file_name = location["file"]
-            labels.extend(
-                (
-                    f"{tag} (unnamed at {file_name}:{location['line']}:{location['col']})",
-                    f"{tag} (anonymous at {file_name}:{location['line']}:{location['col']})",
-                )
-            )
+        candidates = self._source_location_candidates(node)
+        if not name:
+            for candidate in candidates:
+                if all(candidate.get(field) is not None for field in ("file", "line", "col")):
+                    file_name = candidate["file"]
+                    position = f"{file_name}:{candidate['line']}:{candidate['col']}"
+                    labels.extend(
+                        (
+                            f"{tag} (unnamed at {position})",
+                            f"{tag} (anonymous at {position})",
+                        )
+                    )
+        labels = list(dict.fromkeys(labels))
         if not labels:
             raise WorkflowError(f"record definition has no correlatable identity: {node_id}")
         return {
@@ -455,15 +487,16 @@ class AstSemanticIndexer:
             "name": name,
             "layout_labels": labels,
             "source_location": location,
+            "source_location_candidates": candidates,
         }
 
     def _source_location(self, node: dict[str, Any]) -> dict[str, Any]:
-        return dict(
-            self.source_locations.get(
-                id(node),
-                {"file": None, "line": None, "col": None},
-            )
-        )
+        locations = self.source_locations.get(id(node))
+        return dict(locations.primary) if locations else {"file": None, "line": None, "col": None}
+
+    def _source_location_candidates(self, node: dict[str, Any]) -> list[dict[str, Any]]:
+        locations = self.source_locations.get(id(node))
+        return locations.candidates() if locations else []
 
     def _referenced_record_declarations(self, node: Any) -> set[str]:
         result: set[str] = set()
