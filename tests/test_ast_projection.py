@@ -15,6 +15,54 @@ from driver_port_factory.source_analysis.ast_projection import (
 
 
 class ClosureAstProjectionTests(unittest.TestCase):
+    def test_descendant_macro_location_does_not_own_external_declaration(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            source = root / "driver.c"
+            source.write_text("int probe(void);\n", encoding="utf-8")
+            source_digest = hashlib.sha256(source.read_bytes()).hexdigest()
+            external = {
+                "id": "external",
+                "kind": "FunctionDecl",
+                "name": "framework_inline",
+                "loc": {"file": "/sdk/framework.h", "line": 1, "col": 1},
+                "inner": [
+                    {
+                        "id": "attribute",
+                        "kind": "NoInstrumentFunctionAttr",
+                        "loc": {
+                            "spellingLoc": {
+                                "file": str(source),
+                                "line": 1,
+                                "col": 1,
+                            }
+                        },
+                    }
+                ],
+            }
+            owned = {
+                "id": "probe",
+                "kind": "FunctionDecl",
+                "name": "probe",
+                "loc": {"file": str(source), "line": 1, "col": 1},
+            }
+            capture = root / "ast.json"
+            capture.write_text(
+                json.dumps({"kind": "TranslationUnitDecl", "inner": [external, owned]}),
+                encoding="utf-8",
+            )
+            projection = ClosureAstProjector(
+                ClosureFileSet(root, (ClosureFile("driver.c", source, source_digest),))
+            ).project(
+                capture,
+                root / "closure-ast.json",
+                compile_directory=root,
+                capture_sha256=hashlib.sha256(capture.read_bytes()).hexdigest(),
+                capture_size=capture.stat().st_size,
+            )
+
+            self.assertEqual([node["name"] for node in projection["inner"]], ["probe"])
+
     def test_excludes_unrelated_headers_and_keeps_external_references(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)

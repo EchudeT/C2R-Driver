@@ -136,7 +136,7 @@ class ClosureAstProjector:
                 if not isinstance(node, dict):
                     raise WorkflowError("Clang AST contains a non-object top-level node")
                 locations = tracker.scan(node)
-                if not self._owned(locations, compile_directory):
+                if not self._owned(node, locations, compile_directory):
                     continue
                 self._annotate(node, locations, compile_directory)
                 selected.append(node)
@@ -187,19 +187,26 @@ class ClosureAstProjector:
             raise WorkflowError("typed AST closure projection provenance is invalid")
         if any(
             not isinstance(node, dict)
-            or not self._owned(_ClangSourceLocations.build(node), compile_directory)
+            or not self._owned(
+                node,
+                _ClangSourceLocations.build(node),
+                compile_directory,
+            )
             for node in nodes
         ):
             raise WorkflowError("typed AST projection contains a non-closure declaration")
 
     def _owned(
         self,
+        declaration: dict[str, Any],
         locations: dict[int, _ResolvedLocations],
         compile_directory: Path,
     ) -> bool:
+        resolved = locations.get(id(declaration))
+        if resolved is None:
+            return False
         return any(
             self.closure.resolve_location(candidate.get("file"), compile_directory) is not None
-            for resolved in locations.values()
             for candidate in resolved.candidates()
         )
 
