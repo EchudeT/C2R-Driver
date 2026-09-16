@@ -18,7 +18,7 @@ from ..core.models import (
 )
 from ..core.project import Project
 from .contracts import CodexArtifact, CodexBackend
-from .gateway import CodexExecGateway, CodexJob, CodexSdkGateway
+from .gateway import CodexExecGateway, CodexJob, CodexResult, CodexSdkGateway
 from .policy import CodexExecutionPolicy
 from .prompts import RenderedPrompt, SkillPromptComposer
 
@@ -27,21 +27,11 @@ def _render_prompt(
     project: Project,
     stage: StageKey,
     objective: str,
-    context_path: str | None,
+    context: dict[str, object] | None,
     prompt_pack_path: str | None,
 ) -> RenderedPrompt:
     if not project.config.skill_root:
         raise WorkflowError("project has no skill_root; initialize it with --skill-root")
-    context = None
-    if context_path:
-        controlled_context = CodexExecutionPolicy.controlled_input(
-            project,
-            context_path,
-            "Prompt context",
-        )
-        context = json.loads(controlled_context.read_text(encoding="utf-8"))
-        if not isinstance(context, dict):
-            raise WorkflowError("Prompt context must be a JSON object")
     configured_pack = prompt_pack_path or project.config.prompt_pack
     composer = SkillPromptComposer(
         Path(project.config.skill_root),
@@ -57,6 +47,91 @@ def _render_prompt(
     )
 
 
+def _load_context(project: Project, path: str | None) -> dict[str, object] | None:
+    if not path:
+        return None
+    controlled = CodexExecutionPolicy.controlled_input(project, path, "Prompt context")
+    context = json.loads(controlled.read_text(encoding="utf-8"))
+    if not isinstance(context, dict):
+        raise WorkflowError("Prompt context must be a JSON object")
+    return context
+
+
+def run_codex_stage(
+    project: Project,
+    stage_key: StageKey,
+    *,
+    objective: str,
+    context: dict[str, object] | None,
+    backend: CodexBackend,
+    codex_bin: str,
+    model: str | None,
+    prompt_pack_path: str | None = None,
+) -> tuple[CodexResult, RenderedPrompt, Path]:
+    stage = project.stage(stage_key)
+    if stage.owner is StageOwner.STATIC:
+        raise WorkflowError(f"stage {stage_key.value} is statically owned and cannot run Codex")
+    if stage.status is StageStatus.READY:
+        project.start(stage_key)
+    elif stage.status is not StageStatus.RUNNING:
+        raise WorkflowError(f"Codex stage must be READY or RUNNING, got {stage.status.value}")
+    rendered = _render_prompt(
+        project,
+        stage_key,
+        objective,
+        context,
+        prompt_pack_path,
+    )
+    project.record_artifact(
+        stage_key,
+        GeneratedArtifact(
+            CodexArtifact.PROMPT,
+            rendered.text.encode("utf-8"),
+            f"generated:prompt:{rendered.digest}",
+        ),
+        direction=ArtifactDirection.INPUT,
+    )
+    codex_dir = project.control / "codex"
+    codex_dir.mkdir(parents=True, exist_ok=True)
+    output_path = codex_dir / f"{stage_key.value}-{rendered.digest[:12]}.result"
+    grant = CodexExecutionPolicy().grant(project, stage_key)
+    job = CodexJob(
+        stage=stage_key,
+        actor_role=project.config.actor_role,
+        objective=objective,
+        prompt=rendered.text,
+        execution_root=grant.execution_root,
+        sandbox=grant.sandbox,
+        output_schema=(rendered.output_schema.path if rendered.output_schema else None),
+        model=model,
+    )
+    gateway = CodexExecGateway(codex_bin) if backend is CodexBackend.EXEC else CodexSdkGateway()
+    result = gateway.run(job)
+    output_path.write_text(result.final_response, encoding="utf-8")
+    if rendered.output_schema:
+        try:
+            json.loads(result.final_response)
+        except json.JSONDecodeError as error:
+            raise WorkflowError(
+                "Codex output is not valid JSON despite an output schema"
+            ) from error
+    project.record_artifact(
+        stage_key,
+        FileArtifact(CodexArtifact.JOB_RESULT, output_path),
+    )
+    if result.events:
+        event_data = "\n".join(json.dumps(event, sort_keys=True) for event in result.events) + "\n"
+        project.record_artifact(
+            stage_key,
+            GeneratedArtifact(
+                CodexArtifact.EVENT_LOG,
+                event_data.encode("utf-8"),
+                f"generated:codex-job:{result.job_id}",
+            ),
+        )
+    return result, rendered, output_path
+
+
 def command_prompt_render(arguments: argparse.Namespace) -> None:
     project = open_project(Path(arguments.path))
     stage_key = project.workflow.parse_stage(arguments.stage)
@@ -69,7 +144,7 @@ def command_prompt_render(arguments: argparse.Namespace) -> None:
         project,
         stage_key,
         arguments.objective,
-        arguments.context,
+        _load_context(project, arguments.context),
         arguments.prompt_pack,
     )
     project.record_artifact(
@@ -93,71 +168,16 @@ def command_prompt_render(arguments: argparse.Namespace) -> None:
 def command_codex_run(arguments: argparse.Namespace) -> None:
     project = open_project(Path(arguments.path))
     stage_key = project.workflow.parse_stage(arguments.stage)
-    stage = project.stage(stage_key)
-    if stage.owner is StageOwner.STATIC:
-        raise WorkflowError(f"stage {stage_key.value} is statically owned and cannot run Codex")
-    if stage.status is StageStatus.READY:
-        project.start(stage_key)
-    elif stage.status is not StageStatus.RUNNING:
-        raise WorkflowError(f"Codex stage must be READY or RUNNING, got {stage.status.value}")
-    rendered = _render_prompt(
+    result, rendered, output_path = run_codex_stage(
         project,
         stage_key,
-        arguments.objective,
-        arguments.context,
-        arguments.prompt_pack,
-    )
-    project.record_artifact(
-        stage_key,
-        GeneratedArtifact(
-            CodexArtifact.PROMPT,
-            rendered.text.encode("utf-8"),
-            f"generated:prompt:{rendered.digest}",
-        ),
-        direction=ArtifactDirection.INPUT,
-    )
-    codex_dir = project.control / "codex"
-    codex_dir.mkdir(parents=True, exist_ok=True)
-    output_path = codex_dir / f"{stage_key.value}-{rendered.digest[:12]}.result"
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-    grant = CodexExecutionPolicy().grant(project, stage_key)
-    job = CodexJob(
-        stage=stage_key,
-        actor_role=project.config.actor_role,
         objective=arguments.objective,
-        prompt=rendered.text,
-        execution_root=grant.execution_root,
-        sandbox=grant.sandbox,
-        output_schema=(rendered.output_schema.path if rendered.output_schema else None),
+        context=_load_context(project, arguments.context),
+        backend=arguments.backend,
+        codex_bin=arguments.codex_bin,
         model=arguments.model,
+        prompt_pack_path=arguments.prompt_pack,
     )
-    if arguments.backend is CodexBackend.EXEC:
-        gateway = CodexExecGateway(arguments.codex_bin)
-    else:
-        gateway = CodexSdkGateway()
-    result = gateway.run(job)
-    output_path.write_text(result.final_response, encoding="utf-8")
-    if rendered.output_schema:
-        try:
-            json.loads(output_path.read_text(encoding="utf-8"))
-        except json.JSONDecodeError as error:
-            raise WorkflowError(
-                "Codex output is not valid JSON despite an output schema"
-            ) from error
-    project.record_artifact(
-        stage_key,
-        FileArtifact(CodexArtifact.JOB_RESULT, output_path),
-    )
-    if result.events:
-        event_data = "\n".join(json.dumps(event, sort_keys=True) for event in result.events) + "\n"
-        project.record_artifact(
-            stage_key,
-            GeneratedArtifact(
-                CodexArtifact.EVENT_LOG,
-                event_data.encode("utf-8"),
-                f"generated:codex-job:{result.job_id}",
-            ),
-        )
     print(
         json.dumps(
             {

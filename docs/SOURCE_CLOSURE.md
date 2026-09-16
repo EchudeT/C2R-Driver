@@ -4,10 +4,12 @@
 `translation.md` 的 Required source facts。Codex 可分析候选闭包，但只有静态验证器可令阶段通过。
 
 ```sh
-dpf source-closure validate ./run --closure ./run/source-closure.json
+dpf source-closure run ./run
 ```
 
-输入契约见 `schemas/source-closure.schema.json`。它必须固定 source revision、编译器族/文件/版本、
+该命令从 migration handoff 读取冻结源码、初始路径、测试与知识库上下文，调用 Codex 生成闭包描述，
+再由静态 gate 核验并冻结；不再接受绕过工作流的手工 `validate` 路径。输入契约见
+`schemas/source-closure.schema.json`。它必须固定 source revision、编译器族/文件/版本、
 ABI、语言模式、显式 defines、include paths、配置/生成头、条件分支、每个 translation unit 的
 完整 argv、文件摘要和依赖，并逐项处理 shared core、header、宏/配置、callback/function pointer、
 registration table、source test 与 framework contract 七类闭包。
