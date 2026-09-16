@@ -21,6 +21,7 @@ def command_bootstrap(arguments: argparse.Namespace) -> None:
                 "stage_status": result.stage_status.value,
                 "generated_skill_path": result.generated_skill_path,
                 "failed_probe_ids": list(result.failed_probe_ids),
+                "errors": list(result.errors),
             },
             ensure_ascii=False,
             sort_keys=True,

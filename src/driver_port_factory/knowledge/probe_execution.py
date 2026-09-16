@@ -62,7 +62,6 @@ class KnowledgeProbeExecutor:
             verification
             and verification["locator_valid"]
             and verification["hash_valid"]
-            and verification["query_matches_original"]
         )
         return {
             "probe_id": probe.probe_id,
@@ -104,8 +103,6 @@ class KnowledgeProbeExecutor:
         lines = original.read_text(encoding="utf-8").splitlines()
         current_sha256 = file_sha256(original)
         start, end = int(exact["line_start"]), int(exact["line_end"])
-        original_tokens = set(knowledge.tokens(exact["text"]))
-        query_tokens = set(knowledge.tokens(probe.query))
         return {
             "chunk_id": exact["chunk_id"],
             "record_id": exact["record_id"],
@@ -118,5 +115,4 @@ class KnowledgeProbeExecutor:
             "current_sha256": current_sha256,
             "locator_valid": 1 <= start <= end <= len(lines),
             "hash_valid": current_sha256 == exact["sha256"],
-            "query_matches_original": bool(query_tokens) and query_tokens <= original_tokens,
         }

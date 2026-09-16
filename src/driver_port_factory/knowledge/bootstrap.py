@@ -43,6 +43,7 @@ class KnowledgeBootstrapResult:
     stage_status: StageStatus
     generated_skill_path: str | None
     failed_probe_ids: tuple[str, ...]
+    errors: tuple[str, ...]
 
 
 class KnowledgeBootstrapper:
@@ -73,12 +74,14 @@ class KnowledgeBootstrapper:
             knowledge.build()
             status = knowledge.status()
             probe_results = [executor.run(knowledge, probe, gaps) for probe in probes]
-        failed = tuple(
-            str(result["probe_id"])
+        failed_results = tuple(
+            result
             for result in probe_results
             if result["required"]
             and KnowledgeEvidenceStatus(result["status"]) is not KnowledgeEvidenceStatus.PASS
         )
+        failed = tuple(str(result["probe_id"]) for result in failed_results)
+        errors = tuple(self._probe_error(result) for result in failed_results)
         attempt = self._attempt(probe_plan_path, status, probe_results, failed)
         if failed:
             project.record_artifact(
@@ -90,7 +93,7 @@ class KnowledgeBootstrapper:
                 ),
             )
             return KnowledgeBootstrapResult(
-                KnowledgeEvidenceStatus.FAIL, StageStatus.RUNNING, None, failed
+                KnowledgeEvidenceStatus.FAIL, StageStatus.RUNNING, None, failed, errors
             )
 
         generated_skill, contract = ProjectKnowledgeSkillGenerator().generate(
@@ -133,8 +136,24 @@ class KnowledgeBootstrapper:
             ),
         )
         return KnowledgeBootstrapResult(
-            KnowledgeEvidenceStatus.PASS, StageStatus.PASS, str(generated_skill), ()
+            KnowledgeEvidenceStatus.PASS, StageStatus.PASS, str(generated_skill), (), ()
         )
+
+    @staticmethod
+    def _probe_error(result: dict[str, object]) -> str:
+        probe_id = str(result["probe_id"])
+        if not result["verification"]:
+            return f"{probe_id}: search returned no candidate in the expected controlled original"
+        verification = result["verification"]
+        if not isinstance(verification, dict):
+            return f"{probe_id}: search candidate could not be verified against its original"
+        failures = []
+        if not verification.get("locator_valid"):
+            failures.append("original locator is invalid")
+        if not verification.get("hash_valid"):
+            failures.append("original hash does not match the controlled record")
+        detail = ", ".join(failures) or "search candidate could not be verified"
+        return f"{probe_id}: {detail}"
 
     @staticmethod
     def _bind_originals(

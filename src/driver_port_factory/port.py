@@ -38,7 +38,7 @@ from .environment.planning import ExperimentPlanRegistrar
 from .intake.contracts import IntakeArtifact, IntakeStage
 from .intake.service import IntakeService
 from .knowledge.bootstrap import KnowledgeBootstrapper
-from .knowledge.contracts import KnowledgeArtifact, KnowledgeStage
+from .knowledge.contracts import KnowledgeArtifact, KnowledgeEvidenceStatus, KnowledgeStage
 from .migration.artifact_preparation import ArtifactPreparationService
 from .migration.cli import (
     DRIVER_IMPLEMENTATION_OBJECTIVE,
@@ -501,7 +501,7 @@ class PortRunner:
             raise WorkflowError(result.message)
 
     def _knowledge(self, project: Project) -> None:
-        _, _, response = self._codex(
+        self._codex_gate(
             project,
             KnowledgeStage.KNOWLEDGE_BASE,
             KNOWLEDGE_OBJECTIVE,
@@ -512,8 +512,16 @@ class PortRunner:
                     AcquisitionArtifact.EVIDENCE_GAP_REGISTER,
                 )
             },
+            self._accept_knowledge_result,
         )
-        KnowledgeBootstrapper().bootstrap(project, probe_plan_path=response)
+
+    @staticmethod
+    def _accept_knowledge_result(project: Project, job: ArtifactOccurrence) -> None:
+        result = KnowledgeBootstrapper().bootstrap(
+            project, probe_plan_path=project.artifacts.path_for_digest(job.digest)
+        )
+        if result.readiness is KnowledgeEvidenceStatus.FAIL:
+            raise WorkflowError("knowledge probes failed: " + "; ".join(result.errors))
 
     def _target_study(self, project: Project) -> None:
         acquisition = load_repository_acquisition(project)
