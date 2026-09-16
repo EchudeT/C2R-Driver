@@ -18,7 +18,7 @@ from .acquisition.revision_proposal import RevisionProposalImporter
 from .acquisition.revision_selection import RevisionSelector
 from .cli_support import CommandRegistry, command_registry
 from .codex.cli import run_codex_stage
-from .codex.contracts import CodexArtifact, CodexBackend
+from .codex.contracts import CodexArtifact, CodexBackend, CodexExecEventType
 from .composition import initialize_project, open_project
 from .core.contracts import ArtifactKey, StageKey
 from .core.models import (
@@ -302,6 +302,35 @@ class PortRunner:
         return ArtifactOccurrence(matches[0].digest, matches[0].ordinal)
 
     @staticmethod
+    def _latest_job_occurrence(project: Project, stage: StageKey) -> ArtifactOccurrence | None:
+        matches = [
+            ref
+            for ref in project.artifact_refs(stage=stage, direction=ArtifactDirection.OUTPUT)
+            if ref.kind == CodexArtifact.JOB_RESULT.value and ref.ordinal is not None
+        ]
+        if not matches:
+            return None
+        latest = max(matches, key=lambda ref: ref.ordinal)
+        return ArtifactOccurrence(latest.digest, latest.ordinal)
+
+    @staticmethod
+    def _latest_thread_id(project: Project, stage: StageKey) -> str | None:
+        logs = [
+            ref
+            for ref in project.artifact_refs(stage=stage, direction=ArtifactDirection.OUTPUT)
+            if ref.kind == CodexArtifact.EVENT_LOG.value and ref.ordinal is not None
+        ]
+        if not logs:
+            return None
+        latest = max(logs, key=lambda ref: ref.ordinal)
+        for line in project.artifacts.read(latest).decode("utf-8").splitlines():
+            event = json.loads(line)
+            if event.get("type") == CodexExecEventType.THREAD_STARTED.value:
+                thread_id = event.get("thread_id")
+                return thread_id if isinstance(thread_id, str) else None
+        return None
+
+    @staticmethod
     def _write_response_parts(
         project: Project,
         stage: StageKey,
@@ -348,6 +377,18 @@ class PortRunner:
         )
         thread_id = None
         follow_up = None
+        last_error: WorkflowError | None = None
+        pending = self._latest_job_occurrence(project, AcquisitionStage.REVISION_SELECTION)
+        if pending is not None:
+            try:
+                self._accept_revision_result(project, pending)
+                return
+            except WorkflowError as error:
+                last_error = error
+                thread_id = self._latest_thread_id(
+                    project, AcquisitionStage.REVISION_SELECTION
+                )
+                follow_up = self._revision_correction(error)
         for _ in range(REVISION_CORRECTION_ATTEMPTS):
             result, _, response = self._codex(
                 project,
@@ -361,21 +402,33 @@ class PortRunner:
                 job = self._job_occurrence(
                     project, AcquisitionStage.REVISION_SELECTION, response
                 )
-                proposal = RevisionProposalImporter().import_job_result(
-                    project, job_digest=job.digest, job_ordinal=job.ordinal
-                )
-                RevisionSelector().select(project, proposal=proposal)
+                self._accept_revision_result(project, job)
                 return
             except WorkflowError as error:
+                last_error = error
                 if not result.thread_id:
                     raise
                 thread_id = result.thread_id
-                follow_up = (
-                    "The controller rejected the previous proposal: "
-                    f"{error}. Correct that failure, re-check every retrieved excerpt, and return "
-                    "only a complete replacement proposal matching the same output schema."
-                )
-        raise WorkflowError("revision selection failed after same-session corrections")
+                follow_up = self._revision_correction(error)
+        raise WorkflowError(
+            f"revision selection failed after same-session corrections: {last_error}"
+        )
+
+    @staticmethod
+    def _accept_revision_result(project: Project, job: ArtifactOccurrence) -> None:
+        proposal = RevisionProposalImporter().import_job_result(
+            project, job_digest=job.digest, job_ordinal=job.ordinal
+        )
+        RevisionSelector().select(project, proposal=proposal)
+
+    @staticmethod
+    def _revision_correction(error: WorkflowError) -> str:
+        return (
+            "The controller rejected the previous proposal: "
+            f"{error}. Preserve all proposal requirements and previously accepted evidence, "
+            "correct the failure, re-check every retrieved excerpt, and return only a complete "
+            "replacement proposal matching the same output schema."
+        )
 
     @staticmethod
     def _repositories(project: Project) -> None:
