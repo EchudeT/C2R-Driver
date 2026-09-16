@@ -65,6 +65,8 @@ from .target_study.service import TargetStudyService
 
 REVISION_OBJECTIVE = (
     "Select exact maintained source, target, and QEMU revisions for the frozen driver scope. "
+    "Every evidence excerpt must be one byte-for-byte contiguous substring of the retrieved "
+    "source; never join fragments or use ellipses. "
     "Return only the revision-selection proposal required by the output schema."
 )
 EVIDENCE_OBJECTIVE = (
