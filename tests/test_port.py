@@ -10,6 +10,7 @@ from unittest.mock import patch
 from driver_port_factory.cli import parser
 from driver_port_factory.codex.contracts import CodexBackend
 from driver_port_factory.core.models import StageStatus
+from driver_port_factory.knowledge.contracts import KnowledgeDependencyClosureError, KnowledgeStage
 from driver_port_factory.port import PortOptions, PortRunner
 from driver_port_factory.source_analysis.clang_backend import AnalyzerFamily
 
@@ -50,6 +51,29 @@ def options(root: Path) -> PortOptions:
 
 
 class PortRunnerTests(unittest.TestCase):
+    def test_dependency_closure_failure_is_not_sent_back_to_codex(self) -> None:
+        runner = PortRunner(options(Path("/unused")))
+        result = SimpleNamespace(thread_id="knowledge-thread")
+
+        def reject(_project, _job) -> None:
+            raise KnowledgeDependencyClosureError("deterministic Cargo failure")
+
+        with (
+            patch.object(runner, "_latest_job_occurrence", return_value=None),
+            patch.object(runner, "_codex", return_value=(result, None, Path("response"))) as codex,
+            patch.object(runner, "_job_occurrence", return_value=object()),
+            self.assertRaisesRegex(KnowledgeDependencyClosureError, "deterministic Cargo failure"),
+        ):
+            runner._codex_gate(
+                object(),
+                KnowledgeStage.KNOWLEDGE_BASE,
+                "editable objective",
+                {},
+                reject,
+            )
+
+        self.assertEqual(codex.call_count, 1)
+
     def test_fresh_port_workspace_is_its_own_git_root(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             workspace = Path(temporary) / "fresh-port"

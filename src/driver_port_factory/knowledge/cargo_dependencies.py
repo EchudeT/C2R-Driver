@@ -193,25 +193,7 @@ class CargoDependencyClosure:
         archive_path = Path(result.stdout_path)
         if result.exit_code != 0:
             raise WorkflowError(_command_error(result, "frozen target export"))
-        try:
-            with tarfile.open(archive_path, mode="r:") as archive:
-                for member in archive.getmembers():
-                    relative = PurePosixPath(member.name)
-                    if relative.is_absolute() or ".." in relative.parts:
-                        raise WorkflowError("frozen target archive contains an unsafe path")
-                    output = destination.joinpath(*relative.parts)
-                    if member.isdir():
-                        output.mkdir(parents=True, exist_ok=True)
-                    elif member.isfile():
-                        source = archive.extractfile(member)
-                        if source is None:
-                            raise WorkflowError("frozen target archive contains an unreadable file")
-                        output.parent.mkdir(parents=True, exist_ok=True)
-                        output.write_bytes(source.read())
-                    else:
-                        raise WorkflowError("frozen target archive contains a non-file entry")
-        except tarfile.TarError as error:
-            raise WorkflowError("frozen target archive is invalid") from error
+        _extract_target_archive(archive_path, destination)
 
     @staticmethod
     def _run(
@@ -319,6 +301,48 @@ class CargoDependencyClosure:
                 )
             )
         return tuple(records)
+
+
+def _extract_target_archive(archive_path: Path, destination: Path) -> None:
+    root = destination.resolve()
+    try:
+        with tarfile.open(archive_path, mode="r:") as archive:
+            for member in archive.getmembers():
+                relative = PurePosixPath(member.name)
+                if relative.is_absolute() or ".." in relative.parts:
+                    raise WorkflowError("frozen target archive contains an unsafe path")
+                output = destination.joinpath(*relative.parts)
+                parent = output.parent.resolve()
+                if parent != root and root not in parent.parents:
+                    raise WorkflowError("frozen target archive path escapes through a symlink")
+                if member.isdir():
+                    output.mkdir(parents=True, exist_ok=True)
+                elif member.isfile():
+                    source = archive.extractfile(member)
+                    if source is None:
+                        raise WorkflowError("frozen target archive contains an unreadable file")
+                    output.parent.mkdir(parents=True, exist_ok=True)
+                    output.write_bytes(source.read())
+                elif member.issym():
+                    _extract_symlink(root, output, member.linkname)
+                else:
+                    raise WorkflowError("frozen target archive contains a dangerous entry")
+    except (OSError, tarfile.TarError) as error:
+        raise WorkflowError(f"frozen target archive export failed: {error}") from error
+
+
+def _extract_symlink(root: Path, output: Path, linkname: str) -> None:
+    target = PurePosixPath(linkname)
+    if not linkname or target.is_absolute():
+        raise WorkflowError("frozen target archive symlink is unsafe")
+    try:
+        resolved = output.parent.joinpath(*target.parts).resolve()
+    except RuntimeError as error:
+        raise WorkflowError("frozen target archive symlink cannot be resolved safely") from error
+    if resolved != root and root not in resolved.parents:
+        raise WorkflowError("frozen target archive symlink escapes its export root")
+    output.parent.mkdir(parents=True, exist_ok=True)
+    output.symlink_to(linkname)
 
 
 def _text(value: dict[str, object], field: str) -> str:

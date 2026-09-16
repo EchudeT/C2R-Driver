@@ -1,5 +1,11 @@
 from enum import StrEnum
 
+from ..core.models import WorkflowError
+
+
+class KnowledgeDependencyClosureError(WorkflowError):
+    """The frozen target dependency closure failed independently of a Codex proposal."""
+
 
 class KnowledgeStage(StrEnum):
     KNOWLEDGE_BASE = "knowledge_base"

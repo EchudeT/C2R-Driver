@@ -21,6 +21,7 @@ from ..core.project import Project
 from .cargo_dependencies import CargoDependencyClosure
 from .contracts import (
     KnowledgeArtifact,
+    KnowledgeDependencyClosureError,
     KnowledgeDomain,
     KnowledgeEvidenceStatus,
     KnowledgeStage,
@@ -56,7 +57,7 @@ class KnowledgeBootstrapper:
         manifest = CorpusManifest.current(project)
         try:
             manifest = CargoDependencyClosure().extend(project, manifest)
-        except WorkflowError as error:
+        except (OSError, WorkflowError) as error:
             attempt = self._dependency_failure_attempt(probe_plan_path, str(error))
             project.record_artifact(
                 KnowledgeStage.KNOWLEDGE_BASE,
@@ -66,13 +67,7 @@ class KnowledgeBootstrapper:
                     f"generated:knowledge:probe-attempt:{attempt['probe_plan_sha256']}",
                 ),
             )
-            return KnowledgeBootstrapResult(
-                KnowledgeEvidenceStatus.FAIL,
-                StageStatus.RUNNING,
-                None,
-                (_CARGO_DEPENDENCY_GATE,),
-                (str(error),),
-            )
+            raise KnowledgeDependencyClosureError(str(error)) from error
         knowledge = KnowledgeIndex(project.root, manifest)
         probes = self._bind_originals(knowledge.manifest, plan)
         knowledge.build()

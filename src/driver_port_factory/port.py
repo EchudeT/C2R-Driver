@@ -38,7 +38,12 @@ from .environment.planning import ExperimentPlanRegistrar
 from .intake.contracts import IntakeArtifact, IntakeStage
 from .intake.service import IntakeService
 from .knowledge.bootstrap import KnowledgeBootstrapper
-from .knowledge.contracts import KnowledgeArtifact, KnowledgeEvidenceStatus, KnowledgeStage
+from .knowledge.contracts import (
+    KnowledgeArtifact,
+    KnowledgeDependencyClosureError,
+    KnowledgeEvidenceStatus,
+    KnowledgeStage,
+)
 from .migration.artifact_preparation import ArtifactPreparationPlan, ArtifactPreparationService
 from .migration.cli import (
     DRIVER_IMPLEMENTATION_OBJECTIVE,
@@ -343,6 +348,8 @@ class PortRunner:
             try:
                 accept(project, pending)
                 return
+            except KnowledgeDependencyClosureError:
+                raise
             except WorkflowError as error:
                 last_error = error
                 thread_id = self._latest_thread_id(project, stage)
@@ -359,6 +366,8 @@ class PortRunner:
             try:
                 accept(project, self._job_occurrence(project, stage, response))
                 return
+            except KnowledgeDependencyClosureError:
+                raise
             except WorkflowError as error:
                 last_error = error
                 if not result.thread_id:

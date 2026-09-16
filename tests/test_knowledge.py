@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+import io
 import json
 import os
+import tarfile
 import tempfile
 import textwrap
 import unittest
@@ -40,7 +42,13 @@ from driver_port_factory.environment.inventory import EnvironmentInspector
 from driver_port_factory.environment.planning import ExperimentPlanRegistrar
 from driver_port_factory.intake.service import IntakeService
 from driver_port_factory.knowledge.bootstrap import KnowledgeBootstrapper
-from driver_port_factory.knowledge.contracts import KnowledgeDomain, KnowledgeStage
+from driver_port_factory.knowledge.cargo_dependencies import _extract_target_archive
+from driver_port_factory.knowledge.contracts import (
+    KnowledgeArtifact,
+    KnowledgeDependencyClosureError,
+    KnowledgeDomain,
+    KnowledgeStage,
+)
 from driver_port_factory.knowledge.corpus import CorpusManifest
 from driver_port_factory.knowledge.index import KnowledgeIndex
 from driver_port_factory.knowledge.probes import KnowledgeProbePlan
@@ -319,6 +327,39 @@ def probe_plan(root: Path, *, break_topic: str | None = None) -> Path:
 
 
 class KnowledgeBootstrapTests(unittest.TestCase):
+    def test_target_archive_preserves_safe_symlink_and_rejects_escape(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            archive_path = root / "target.tar"
+            content = b"controlled target source\n"
+            with tarfile.open(archive_path, mode="w") as archive:
+                source = tarfile.TarInfo("sources/review/SKILL.md")
+                source.size = len(content)
+                archive.addfile(source, io.BytesIO(content))
+                link = tarfile.TarInfo(".aliases/skills/review")
+                link.type = tarfile.SYMTYPE
+                link.linkname = "../../sources/review"
+                archive.addfile(link)
+            export = root / "safe-export"
+            export.mkdir()
+
+            _extract_target_archive(archive_path, export)
+
+            exported_link = export / ".aliases/skills/review"
+            self.assertTrue(exported_link.is_symlink())
+            self.assertEqual(os.readlink(exported_link), "../../sources/review")
+            self.assertEqual((exported_link / "SKILL.md").read_bytes(), content)
+
+            with tarfile.open(archive_path, mode="w") as archive:
+                link = tarfile.TarInfo("links/review")
+                link.type = tarfile.SYMTYPE
+                link.linkname = "../../outside"
+                archive.addfile(link)
+            unsafe_export = root / "unsafe-export"
+            unsafe_export.mkdir()
+            with self.assertRaisesRegex(WorkflowError, "escapes its export root"):
+                _extract_target_archive(archive_path, unsafe_export)
+
     def test_cargo_registry_closure_is_controlled_and_searchable(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
@@ -377,19 +418,26 @@ class KnowledgeBootstrapTests(unittest.TestCase):
                 target_manifest='[package]\nname = "target-kernel"\nversion = "0.1.0"\n',
             )
             cargo_bin = fake_cargo(root, fail_metadata=True)
-            with patch.dict(os.environ, {"PATH": f"{cargo_bin}:{os.environ['PATH']}"}):
-                result = KnowledgeBootstrapper().bootstrap(
+            with (
+                patch.dict(os.environ, {"PATH": f"{cargo_bin}:{os.environ['PATH']}"}),
+                self.assertRaises(KnowledgeDependencyClosureError) as failure,
+            ):
+                KnowledgeBootstrapper().bootstrap(
                     project,
                     probe_plan_path=probe_plan(project.root),
                 )
 
-            self.assertEqual(result.readiness, "FAIL")
-            self.assertEqual(result.failed_probe_ids, ("target-cargo-dependency-resolution",))
-            self.assertIn("fixture metadata failure", result.errors[0])
+            self.assertIn("fixture metadata failure", str(failure.exception))
             self.assertEqual(
                 project.stage(KnowledgeStage.KNOWLEDGE_BASE).status,
                 StageStatus.RUNNING,
             )
+            attempts = [
+                ref
+                for ref in project.artifact_refs(stage=KnowledgeStage.KNOWLEDGE_BASE)
+                if ref.kind == KnowledgeArtifact.PROBE_ATTEMPT.value
+            ]
+            self.assertEqual(len(attempts), 1)
             self.assertFalse((project.root / "knowledge" / "indexes").exists())
 
     def test_original_binding_uses_all_records_in_the_probe_domain(self) -> None:
