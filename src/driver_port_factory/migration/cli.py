@@ -13,6 +13,7 @@ from ..core.project import Project
 from ..knowledge.contracts import KnowledgeArtifact, KnowledgeStage
 from ..source_analysis.contracts import SourceAnalysisArtifact, SourceAnalysisStage
 from ..target_study.contracts import TargetStudyArtifact, TargetStudyStage
+from .compliance import ComplianceReport, ComplianceService
 from .contract_set import MigrationContractService, MigrationContractSet
 from .contracts import MigrationArtifact, MigrationStage
 from .handoff import MigrationHandoff
@@ -38,6 +39,16 @@ DRIVER_IMPLEMENTATION_OBJECTIVE = (
     "and make only necessity-backed minimal integration changes. Do not build, run QEMU, seal a "
     "candidate, or access private tests. Return only schema_version=1 JSON with files (path, role, "
     "sha256), coverage, target_changes, target_symbols, and unsafe_obligations."
+)
+TARGET_COMPLIANCE_OBJECTIVE = (
+    "Perform the Phase 7 target compliance review once, using the frozen implementation and "
+    "pinned target originals. Do not edit files, compile, run QEMU, or seal a candidate. Return "
+    "only schema_version=1 JSON with status, areas, apis, target_changes, and execution. Every "
+    "review has status, repair_target, summary, implementation_paths, target_evidence, "
+    "unsafe_obligation_ids, and details; cite target-original chunk_id and record_id. Cover all "
+    "required target rules, APIs, unsafe obligations, and pre-existing target changes. Set "
+    "compile and runtime to NOT_RUN. A violation or evidence gap must not claim PASS and must "
+    "identify IMPLEMENTATION or KNOWLEDGE repair."
 )
 
 
@@ -195,6 +206,49 @@ def command_driver_implementation_run(arguments: argparse.Namespace) -> None:
     )
 
 
+def command_target_compliance_run(arguments: argparse.Namespace) -> None:
+    project = open_project(Path(arguments.path))
+    inputs = {
+        kind.value: _prompt_artifact(project, stage, kind)
+        for stage, kind in (
+            (MigrationStage.HANDOFF, MigrationArtifact.HANDOFF),
+            (MigrationStage.DRIVER_IMPLEMENTATION, MigrationArtifact.IMPLEMENTATION_BUNDLE),
+            (MigrationStage.DRIVER_IMPLEMENTATION, MigrationArtifact.TRANSLATION_COVERAGE),
+            (MigrationStage.DRIVER_IMPLEMENTATION, MigrationArtifact.TARGET_CHANGE_INVENTORY),
+            (KnowledgeStage.KNOWLEDGE_BASE, KnowledgeArtifact.QUERY_CONTRACT),
+            (KnowledgeStage.KNOWLEDGE_BASE, KnowledgeArtifact.GENERATED_SKILL),
+            (TargetStudyStage.STUDY, TargetStudyArtifact.STRUCTURED_PROFILE),
+            (TargetStudyStage.STUDY, TargetStudyArtifact.API_EVIDENCE),
+            (TargetStudyStage.STUDY, TargetStudyArtifact.ANALOGOUS_DRIVER_TRACE),
+            (TargetStudyStage.STUDY, TargetStudyArtifact.CHANGE_PLAN),
+            (SourceAnalysisStage.SOURCE_CLOSURE, SourceAnalysisArtifact.MATERIALS_MANIFEST),
+        )
+    }
+    codex_result, rendered, response_path = run_codex_stage(
+        project,
+        MigrationStage.TARGET_COMPLIANCE,
+        objective=TARGET_COMPLIANCE_OBJECTIVE,
+        context={"frozen_inputs": inputs},
+        backend=arguments.backend,
+        codex_bin=arguments.codex_bin,
+        model=arguments.model,
+    )
+    ComplianceService().finalize(project, ComplianceReport.read(response_path))
+    print(
+        json.dumps(
+            {
+                "job_id": codex_result.job_id,
+                "prompt_sha256": rendered.digest,
+                "response_path": str(response_path),
+                "status": project.stage(MigrationStage.TARGET_COMPLIANCE).status.value,
+            },
+            ensure_ascii=False,
+            sort_keys=True,
+            indent=2,
+        )
+    )
+
+
 def register_commands(commands: CommandRegistry) -> None:
     migration = commands.add_parser("migration", help="run controlled migration transitions")
     subcommands = command_registry(migration, dest="migration_command")
@@ -240,3 +294,16 @@ def register_commands(commands: CommandRegistry) -> None:
     run.add_argument("--codex-bin", default="codex")
     run.add_argument("--model")
     run.set_defaults(handler=command_driver_implementation_run)
+
+    compliance = commands.add_parser(
+        "target-compliance", help="review and freeze target-platform compliance"
+    )
+    compliance_commands = command_registry(compliance, dest="target_compliance_command")
+    run = compliance_commands.add_parser("run")
+    run.add_argument("path")
+    run.add_argument(
+        "--backend", type=CodexBackend, choices=list(CodexBackend), default=CodexBackend.EXEC
+    )
+    run.add_argument("--codex-bin", default="codex")
+    run.add_argument("--model")
+    run.set_defaults(handler=command_target_compliance_run)

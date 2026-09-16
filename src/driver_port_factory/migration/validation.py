@@ -6,6 +6,7 @@ from ..core.validation import (
     json_object_document,
     nonempty,
 )
+from .compliance import validate_compliance_bundle
 from .contract_set import validate_contract_bundle
 from .contracts import MigrationArtifact, MigrationStage
 from .handoff import validate_handoff_bundle
@@ -35,5 +36,6 @@ BUNDLE_VALIDATORS = MappingProxyType[MigrationStage, BundleValidator](
         MigrationStage.CONTRACTS: validate_contract_bundle,
         MigrationStage.TEST_ADAPTATION: validate_test_matrix_bundle,
         MigrationStage.DRIVER_IMPLEMENTATION: validate_implementation_bundle,
+        MigrationStage.TARGET_COMPLIANCE: validate_compliance_bundle,
     }
 )
