@@ -13,6 +13,7 @@ from .environment.cli import register_commands as register_environment_commands
 from .intake.cli import register_commands as register_intake_commands
 from .knowledge.cli import register_commands as register_knowledge_commands
 from .migration.cli import register_commands as register_migration_commands
+from .port import register_commands as register_port_commands
 from .sealing.cli import register_commands as register_sealing_commands
 from .source_analysis.cli import register_commands as register_source_analysis_commands
 from .target_study.cli import register_commands as register_target_study_commands
@@ -22,6 +23,7 @@ def parser() -> argparse.ArgumentParser:
     root = argparse.ArgumentParser(prog="dpf", description="Driver Port Factory")
     commands = command_registry(root, dest="command")
     register_control_commands(commands)
+    register_port_commands(commands)
     register_intake_commands(commands)
     register_acquisition_commands(commands)
     register_environment_commands(commands)
