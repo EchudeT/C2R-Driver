@@ -475,7 +475,7 @@ class PortRunner:
     def _environment(self, project: Project) -> None:
         if project.stage(EnvironmentStage.RECOVERY).status is StageStatus.READY:
             EnvironmentInspector().inspect(project)
-        _, _, response = self._codex(
+        self._codex_gate(
             project,
             EnvironmentStage.RECOVERY,
             ENVIRONMENT_OBJECTIVE,
@@ -488,7 +488,12 @@ class PortRunner:
                 )
                 for kind in (EnvironmentArtifact.INVENTORY, EnvironmentArtifact.MODE_CANDIDATES)
             },
+            self._accept_environment_result,
         )
+
+    @staticmethod
+    def _accept_environment_result(project: Project, job: ArtifactOccurrence) -> None:
+        response = project.artifacts.path_for_digest(job.digest)
         plan = ExperimentPlanRegistrar().register(project, response)
         ExperimentExecutor().run(project, plan.route_id)
 
