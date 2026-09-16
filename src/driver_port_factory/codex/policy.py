@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 
+from ..acquisition.contracts import AcquisitionStage
 from ..acquisition.repository import load_repository_acquisition
 from ..core.contracts import StageKey
 from ..core.models import WorkflowError
@@ -20,11 +21,16 @@ class CodexExecutionGrant:
 class CodexExecutionPolicy:
     """Resolve the least-privilege filesystem grant owned by a workflow stage."""
 
+    NETWORK_STAGES = frozenset(
+        {AcquisitionStage.REVISION_SELECTION, AcquisitionStage.EVIDENCE_CLOSURE}
+    )
     WRITABLE_STAGES = frozenset(
         {MigrationStage.DRIVER_IMPLEMENTATION, MigrationStage.PUBLIC_REPAIR}
     )
 
     def grant(self, project: Project, stage: StageKey) -> CodexExecutionGrant:
+        if stage in self.NETWORK_STAGES:
+            return CodexExecutionGrant(project.root, CodexSandbox.UNRESTRICTED)
         if stage not in self.WRITABLE_STAGES:
             return CodexExecutionGrant(project.root, CodexSandbox.READ_ONLY)
         acquisition = load_repository_acquisition(project)

@@ -8,6 +8,7 @@ from subprocess import CompletedProcess
 from typing import Any
 from unittest.mock import patch
 
+from driver_port_factory.acquisition.contracts import AcquisitionStage
 from driver_port_factory.cli import parser
 from driver_port_factory.codex.contracts import CodexArtifact, CodexSandbox
 from driver_port_factory.codex.gateway import CodexExecGateway, CodexJob
@@ -136,12 +137,15 @@ class CodexPolicyTests(unittest.TestCase):
             writable = policy.grant(policy_project, MigrationStage.DRIVER_IMPLEMENTATION)
             repair = policy.grant(policy_project, MigrationStage.PUBLIC_REPAIR)
             readonly = policy.grant(policy_project, MigrationStage.CONTRACTS)
+            networked = policy.grant(policy_project, AcquisitionStage.REVISION_SELECTION)
 
             self.assertEqual(writable.sandbox, CodexSandbox.WORKSPACE_WRITE)
             self.assertEqual(repair, writable)
             self.assertEqual(writable.execution_root, root / "work/target-working")
             self.assertEqual(readonly.sandbox, CodexSandbox.READ_ONLY)
             self.assertEqual(readonly.execution_root, root)
+            self.assertEqual(networked.sandbox, CodexSandbox.UNRESTRICTED)
+            self.assertEqual(networked.execution_root, root)
             self.assertNotEqual(writable.execution_root, root)
             self.assertNotIn(root / ".dpf", writable.execution_root.parents)
 

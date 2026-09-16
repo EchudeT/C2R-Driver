@@ -15,6 +15,7 @@ class CodexBackend(StrEnum):
 class CodexSandbox(StrEnum):
     READ_ONLY = "read-only"
     WORKSPACE_WRITE = "workspace-write"
+    UNRESTRICTED = "danger-full-access"
 
 
 class CodexExecEventType(StrEnum):
