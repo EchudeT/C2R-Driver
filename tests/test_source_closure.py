@@ -164,7 +164,7 @@ class SourceClosureTests(unittest.TestCase):
                 StageStatus.RUNNING,
             )
 
-    def test_corpus_revision_must_bind_the_acquisition_parent_manifest(self) -> None:
+    def test_corpus_revision_must_bind_the_knowledge_parent_manifest(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             project, checkouts = ready_project(Path(temporary))
             submission = write_json(
@@ -182,7 +182,7 @@ class SourceClosureTests(unittest.TestCase):
 
             with (
                 patch.object(SourceCorpusRevision, "to_dict", new=wrong_parent),
-                self.assertRaisesRegex(WorkflowError, "acquisition manifest"),
+                self.assertRaisesRegex(WorkflowError, "knowledge manifest"),
             ):
                 SourceClosureService().validate(project, closure_path=submission)
             self.assertEqual(

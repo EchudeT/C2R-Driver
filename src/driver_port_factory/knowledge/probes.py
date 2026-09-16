@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from ..acquisition.facets import GapReason
 from ..core.models import WorkflowError
 from .contracts import KnowledgeDomain, RequiredProbeTopic
 
@@ -19,6 +20,9 @@ class KnowledgeProbe:
     expected_record_ids: tuple[str, ...]
     path_prefix: str | None
     limit: int
+    target_original: str | None
+    target_gap: GapReason | None
+    inspected_paths: tuple[str, ...]
 
     @classmethod
     def parse(cls, value: Any) -> KnowledgeProbe:
@@ -50,6 +54,7 @@ class KnowledgeProbe:
         limit = value.get("limit", 10)
         if not isinstance(limit, int) or not 1 <= limit <= 100:
             raise WorkflowError("knowledge probe limit must be between 1 and 100")
+        original, gap, inspected = cls._parse_target(value, domain)
         return cls(
             probe_id,
             topic,
@@ -59,7 +64,36 @@ class KnowledgeProbe:
             tuple(expected_ids),
             path_prefix,
             limit,
+            original,
+            gap,
+            inspected,
         )
+
+    @staticmethod
+    def _parse_target(
+        value: dict[str, Any], domain: KnowledgeDomain
+    ) -> tuple[str | None, GapReason | None, tuple[str, ...]]:
+        original = value.get("target_original")
+        raw_gap = value.get("target_gap")
+        inspected = value.get("inspected_paths", [])
+        if original is not None and (not isinstance(original, str) or not original):
+            raise WorkflowError("target_original must be a target-repository path")
+        try:
+            gap = GapReason(raw_gap) if raw_gap is not None else None
+        except (TypeError, ValueError) as error:
+            raise WorkflowError("target_gap has an invalid typed reason") from error
+        if not isinstance(inspected, list) or not all(
+            isinstance(path, str) and path for path in inspected
+        ):
+            raise WorkflowError("inspected_paths must be a non-empty string list")
+        if domain is KnowledgeDomain.TARGET and value["required"]:
+            if (original is None) == (gap is None):
+                raise WorkflowError(
+                    "each required target probe needs exactly one original or typed gap"
+                )
+            if gap is not None and not inspected:
+                raise WorkflowError("a target gap requires directly inspected target paths")
+        return original, gap, tuple(inspected)
 
     @staticmethod
     def _nonempty(value: Any, field: str) -> str:

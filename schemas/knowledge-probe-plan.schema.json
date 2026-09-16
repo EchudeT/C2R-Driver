@@ -27,6 +27,20 @@
           "expected_record_ids": {
             "type": "array",
             "items": {"type": "string", "minLength": 1}
+          },
+          "target_original": {"type": "string", "minLength": 1},
+          "target_gap": {
+            "enum": [
+              "NOT_FOUND",
+              "ACCESS_RESTRICTED",
+              "LICENSE_UNCERTAIN",
+              "CONFLICTING_SOURCES",
+              "UNAVAILABLE_PUBLIC_EVIDENCE"
+            ]
+          },
+          "inspected_paths": {
+            "type": "array",
+            "items": {"type": "string", "minLength": 1}
           }
         }
       }

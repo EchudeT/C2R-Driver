@@ -26,7 +26,7 @@ class ProjectKnowledgeSkillGenerator:
         checkouts = self._checkouts(project)
         target = self._checkout(checkouts, RepositoryRole.TARGET)
         skill_name = self._skill_name(project)
-        replacements = self._replacements(project, checkouts, target, skill_name, manifest)
+        replacements = self._replacements(project, checkouts, target, skill_name, status, manifest)
         rendered = template_path.read_text(encoding="utf-8")
         for key, value in replacements.items():
             rendered = rendered.replace("{{" + key + "}}", value)
@@ -91,6 +91,7 @@ class ProjectKnowledgeSkillGenerator:
         checkouts: tuple[CheckoutRecord, ...],
         target: CheckoutRecord,
         skill_name: str,
+        status: dict[str, Any],
         manifest: CorpusManifest,
     ) -> dict[str, str]:
         command_prefix = f"{shlex.quote(sys.executable)} -m driver_port_factory.cli knowledge"
@@ -114,7 +115,7 @@ class ProjectKnowledgeSkillGenerator:
                 "open the controlled original PDF at the page mapped by the indexed derivative"
             ),
             "target_source_root": str(project.root / target.checkout_path),
-            "manifest_path": manifest.source,
+            "manifest_path": str(project.root / str(status["manifest_path"])),
         }
 
     @staticmethod

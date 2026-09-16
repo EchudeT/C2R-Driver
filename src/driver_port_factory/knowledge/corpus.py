@@ -9,6 +9,7 @@ from ..core.ledger import canonical_json
 from ..core.models import StageStatus, WorkflowError
 from ..core.project import Project
 from ..source_analysis.contracts import SourceAnalysisArtifact, SourceAnalysisStage
+from .contracts import KnowledgeArtifact, KnowledgeStage
 
 
 @dataclass(frozen=True, slots=True)
@@ -30,6 +31,18 @@ class CorpusManifest:
         ):
             stage = SourceAnalysisStage.SOURCE_CLOSURE
             artifact = SourceAnalysisArtifact.MATERIALS_MANIFEST
+        elif project.stage(KnowledgeStage.KNOWLEDGE_BASE).status is StageStatus.PASS:
+            status = project.load_json_artifact(
+                KnowledgeStage.KNOWLEDGE_BASE, KnowledgeArtifact.STATUS
+            )
+            path = (project.root / str(status["manifest_path"])).resolve()
+            if project.root not in path.parents or not path.is_file():
+                raise WorkflowError("knowledge corpus manifest is unavailable")
+            data = path.read_bytes()
+            digest = hashlib.sha256(data).hexdigest()
+            if digest != status["manifest_sha256"]:
+                raise WorkflowError("knowledge corpus manifest differs from readiness status")
+            return cls(parse_materials(data), data, digest, str(path))
         ref = project.artifact(stage, artifact)
         data = project.artifacts.read(ref)
         return cls(parse_materials(data), data, ref.digest, f"cas:sha256:{ref.digest}")

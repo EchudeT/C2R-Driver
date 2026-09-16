@@ -13,6 +13,7 @@ from ..acquisition.repository_manifest import RepositoryAcquisition
 from ..acquisition.repository_role import RepositoryRole
 from ..core.models import WorkflowError
 from ..core.validation import BundleValidationContext, json_object
+from ..knowledge.contracts import KnowledgeArtifact
 from ..knowledge.corpus import CorpusManifest
 from ..knowledge.index import KnowledgeIndex
 from .contracts import SourceAnalysisArtifact
@@ -25,13 +26,21 @@ SOURCE_CLOSURE_FACET = EvidenceFacet(
 
 
 def validate_source_closure_bundle(context: BundleValidationContext) -> None:
-    parent_ref, parent_data = context.one_dependency(AcquisitionArtifact.MATERIALS_MANIFEST)
+    _, knowledge_status_data = context.one_dependency(KnowledgeArtifact.STATUS)
     _, repository_data = context.one_dependency(AcquisitionArtifact.REPOSITORY_MANIFEST)
     successor_ref, successor_data = context.one_current(SourceAnalysisArtifact.MATERIALS_MANIFEST)
     _, revision_data = context.one_current(SourceAnalysisArtifact.KNOWLEDGE_REVISION)
     _, closure_data = context.one_current(SourceAnalysisArtifact.SOURCE_CLOSURE)
     _, compile_data = context.one_current(SourceAnalysisArtifact.COMPILE_MANIFEST)
 
+    knowledge_status = json_object(knowledge_status_data, KnowledgeArtifact.STATUS.value)
+    parent_path = workspace_file(
+        context.project_root,
+        knowledge_status.get("manifest_path"),
+        "knowledge corpus manifest",
+    )
+    parent_data = parent_path.read_bytes()
+    parent_digest = hashlib.sha256(parent_data).hexdigest()
     parent = parse_materials(parent_data)
     successor = parse_materials(successor_data)
     revision = SourceCorpusRevision.from_dict(
@@ -41,8 +50,11 @@ def validate_source_closure_bundle(context: BundleValidationContext) -> None:
     closure = json_object(closure_data, SourceAnalysisArtifact.SOURCE_CLOSURE.value)
     compile_manifest = json_object(compile_data, SourceAnalysisArtifact.COMPILE_MANIFEST.value)
 
-    if revision.parent_manifest_sha256 != parent_ref.digest:
-        raise WorkflowError("source corpus revision does not bind its acquisition manifest")
+    if (
+        revision.parent_manifest_sha256 != parent_digest
+        or knowledge_status.get("manifest_sha256") != parent_digest
+    ):
+        raise WorkflowError("source corpus revision does not bind its knowledge manifest")
     if revision.manifest_sha256 != successor_ref.digest:
         raise WorkflowError("source corpus revision does not bind its successor manifest")
     if successor[: len(parent)] != parent:

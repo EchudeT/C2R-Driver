@@ -18,6 +18,7 @@ from .contracts import KnowledgeDomain, KnowledgeIndexStatus
 from .corpus import CorpusManifest
 
 INDEX_ROOT = Path("knowledge/indexes")
+MANIFEST_ROOT = Path("knowledge/manifests")
 CHUNKS_FILENAME = "chunks.jsonl"
 STATE_FILENAME = "state.json"
 TOKEN_RE = re.compile(r"[A-Za-z_][A-Za-z0-9_:.+-]*|[0-9]+|[\u3400-\u9fff]")
@@ -167,6 +168,11 @@ class KnowledgeIndex:
         if line_count < 1 or overlap < 0 or overlap >= line_count:
             raise WorkflowError("invalid knowledge chunk line_count/overlap")
         records = self.verified_records()
+        manifest_path = self.workspace / MANIFEST_ROOT / f"{self.manifest.digest}.jsonl"
+        manifest_path.parent.mkdir(parents=True, exist_ok=True)
+        if manifest_path.exists() and manifest_path.read_bytes() != self.manifest.data:
+            raise WorkflowError("knowledge manifest path contains different bytes")
+        manifest_path.write_bytes(self.manifest.data)
         chunks: list[dict[str, Any]] = []
         for record in sorted(records, key=lambda item: str(item["id"])):
             if self._is_text(record):
@@ -182,6 +188,7 @@ class KnowledgeIndex:
             "status": KnowledgeIndexStatus.READY.value,
             "manifest_fingerprint": self._manifest_fingerprint(records),
             "manifest_sha256": self.manifest.digest,
+            "manifest_path": str(manifest_path.relative_to(self.workspace)),
             "index_path": str(self.index_directory.relative_to(self.workspace)),
             "record_count": len(records),
             "indexed_record_count": sum(1 for record in records if self._is_text(record)),
@@ -235,6 +242,9 @@ class KnowledgeIndex:
             raise WorkflowError("knowledge index is stale: manifest fingerprint changed")
         if state.get("manifest_sha256") != self.manifest.digest:
             raise WorkflowError("knowledge index is stale: corpus artifact changed")
+        manifest_path = self.controlled_path(str(state.get("manifest_path", "")))
+        if not manifest_path.is_file() or file_sha256(manifest_path) != self.manifest.digest:
+            raise WorkflowError("knowledge corpus manifest is missing or stale")
         if state.get("index_path") != str(self.index_directory.relative_to(self.workspace)):
             raise WorkflowError("knowledge index state has a mismatched content-addressed path")
         if state.get("chunks_sha256") != file_sha256(chunks_path):
@@ -292,7 +302,7 @@ class KnowledgeIndex:
         ]
 
     @staticmethod
-    def _tokens(text: str) -> list[str]:
+    def tokens(text: str) -> list[str]:
         return [token.lower() for token in TOKEN_RE.findall(text)]
 
     def search(
@@ -306,7 +316,7 @@ class KnowledgeIndex:
     ) -> dict[str, Any]:
         if limit < 1:
             raise WorkflowError("knowledge search limit must be positive")
-        query_tokens = self._tokens(query)
+        query_tokens = self.tokens(query)
         if not query_tokens:
             raise WorkflowError("knowledge query has no searchable tokens")
         wanted = Counter(query_tokens)
@@ -320,7 +330,7 @@ class KnowledgeIndex:
             if path_prefix and not str(chunk["path"]).startswith(path_prefix):
                 continue
             text = chunk["text"].casefold()
-            counts = Counter(self._tokens(text))
+            counts = Counter(self.tokens(text))
             overlap = sum(min(counts[token], count) for token, count in wanted.items())
             if overlap == 0 and phrase not in text:
                 continue

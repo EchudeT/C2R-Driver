@@ -200,7 +200,7 @@ def _migration_rows() -> tuple[StageRow, ...]:
         StageRow(
             KnowledgeStage.KNOWLEDGE_BASE,
             "Build or validate the evidence knowledge base and query contract.",
-            StageOwner.STATIC,
+            StageOwner.HYBRID,
             (
                 KnowledgeArtifact.STATUS,
                 KnowledgeArtifact.QUERY_CONTRACT,
@@ -240,6 +240,7 @@ def _migration_rows() -> tuple[StageRow, ...]:
             prerequisites=(
                 AcquisitionStage.EVIDENCE_CLOSURE,
                 AcquisitionStage.REPOSITORY_ACQUISITION,
+                KnowledgeStage.KNOWLEDGE_BASE,
             ),
         ),
         StageRow(

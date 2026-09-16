@@ -1,10 +1,21 @@
 from __future__ import annotations
 
 import json
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 
 from ..acquisition.contracts import AcquisitionArtifact, AcquisitionStage
+from ..acquisition.facets import (
+    EvidenceFacet,
+    EvidenceLane,
+    MaterialRedistribution,
+    TargetFacet,
+)
+from ..acquisition.git_material_retrieval import GitMaterialRetriever
+from ..acquisition.locators import GitBlobLocator, MaterialPolicy
+from ..acquisition.repository import load_repository_acquisition
+from ..acquisition.repository_role import RepositoryRole
+from ..acquisition.retrieval import material_identifier
 from ..core.models import FileArtifact, GeneratedArtifact, StageStatus, utc_now
 from ..core.project import Project
 from .contracts import (
@@ -13,10 +24,11 @@ from .contracts import (
     KnowledgeEvidenceStatus,
     KnowledgeStage,
 )
+from .corpus import CorpusManifest
 from .index import KnowledgeIndex, file_sha256
 from .lifecycle import ensure_knowledge_stage_running
 from .probe_execution import KnowledgeProbeExecutor
-from .probes import KnowledgeProbePlan
+from .probes import KnowledgeProbe, KnowledgeProbePlan
 from .skill_generation import ProjectKnowledgeSkillGenerator
 
 
@@ -38,6 +50,7 @@ class KnowledgeBootstrapper:
         ensure_knowledge_stage_running(project)
         knowledge = KnowledgeIndex.for_project(project)
         plan = KnowledgeProbePlan.load(probe_plan_path)
+        probes = self._bind_originals(knowledge.manifest, plan)
         knowledge.build()
         status = knowledge.status()
         executor = KnowledgeProbeExecutor()
@@ -46,7 +59,20 @@ class KnowledgeBootstrapper:
             AcquisitionArtifact.EVIDENCE_GAP_REGISTER,
         )
         gaps = tuple(gap_register["gaps"])
-        probe_results = [executor.run(knowledge, probe, gaps) for probe in plan.probes]
+        probe_results = [executor.run(knowledge, probe, gaps) for probe in probes]
+        repair = tuple(
+            probe
+            for probe, result in zip(probes, probe_results, strict=True)
+            if result["status"] == KnowledgeEvidenceStatus.FAIL
+            and probe.target_original is not None
+            and not probe.expected_record_ids
+        )
+        if repair:
+            knowledge = self._repair_target_corpus(project, knowledge, repair)
+            probes = self._bind_originals(knowledge.manifest, plan)
+            knowledge.build()
+            status = knowledge.status()
+            probe_results = [executor.run(knowledge, probe, gaps) for probe in probes]
         failed = tuple(
             str(result["probe_id"])
             for result in probe_results
@@ -109,6 +135,52 @@ class KnowledgeBootstrapper:
         return KnowledgeBootstrapResult(
             KnowledgeEvidenceStatus.PASS, StageStatus.PASS, str(generated_skill), ()
         )
+
+    @staticmethod
+    def _bind_originals(
+        manifest: CorpusManifest, plan: KnowledgeProbePlan
+    ) -> tuple[KnowledgeProbe, ...]:
+        target_records = {
+            record.origin.path: record.identifier
+            for record in manifest.records
+            if getattr(record.origin, "repository", None) is RepositoryRole.TARGET
+        }
+        return tuple(
+            replace(probe, expected_record_ids=(target_records[probe.target_original],))
+            if probe.target_original is not None and probe.target_original in target_records
+            else probe
+            for probe in plan.probes
+        )
+
+    @staticmethod
+    def _repair_target_corpus(
+        project: Project, knowledge: KnowledgeIndex, probes: tuple[KnowledgeProbe, ...]
+    ) -> KnowledgeIndex:
+        acquisition = load_repository_acquisition(project)
+        target = acquisition.checkout(RepositoryRole.TARGET)
+        retriever = GitMaterialRetriever(project.root, acquisition)
+        additions = []
+        added_paths: set[str] = set()
+        for probe in probes:
+            topic = probe.required_topic
+            if topic is None or probe.target_original is None:
+                continue
+            if probe.target_original in added_paths:
+                continue
+            added_paths.add(probe.target_original)
+            facet = EvidenceFacet(EvidenceLane.TARGET, TargetFacet.API_DEFINITIONS_AND_CALLS)
+            locator = GitBlobLocator(
+                RepositoryRole.TARGET,
+                probe.target_original,
+                MaterialPolicy("review-required", MaterialRedistribution.UNKNOWN, True),
+            )
+            record = retriever.retrieve(facet, locator, material_identifier(facet, locator)).record
+            additions.append(replace(record, acquired_at=target.acquired_at))
+        corpus = CorpusManifest.candidate(
+            (*knowledge.manifest.records, *additions),
+            parent_digest=knowledge.manifest.digest,
+        )
+        return KnowledgeIndex(project.root, corpus)
 
     @staticmethod
     def _attempt(

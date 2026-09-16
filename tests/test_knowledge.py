@@ -76,7 +76,8 @@ def prepare_project(root: Path) -> tuple[Project, dict[str, CheckoutRecord]]:
         root,
         "target",
         {
-            "docs/driver-contract.md": (
+            "docs/driver-contract.md": "generic driver overview\n",
+            "src/driver-api.rs": (
                 "registration lifecycle probe start stop cleanup\n"
                 "resources MMIO PIO DMA buffers\n"
                 "interrupts deferred work locks callback context allocation\n"
@@ -226,17 +227,18 @@ def probe_plan(root: Path, *, break_topic: str | None = None) -> Path:
     )
     probes = []
     for probe_id, topic, domain, query, _expected in rows:
-        probes.append(
-            {
-                "probe_id": probe_id,
-                "topic": topic,
-                "domain": domain,
-                "query": "missing impossible terms" if topic == break_topic else query,
-                "required": True,
-                "expected_record_ids": [],
-                "limit": 10,
-            }
-        )
+        probe = {
+            "probe_id": probe_id,
+            "topic": topic,
+            "domain": domain,
+            "query": "missing impossible terms" if topic == break_topic else query,
+            "required": True,
+            "expected_record_ids": [],
+            "limit": 10,
+        }
+        if domain == "target":
+            probe["target_original"] = "src/driver-api.rs"
+        probes.append(probe)
     path = root / "knowledge-probes.json"
     path.write_text(json.dumps({"schema_version": 1, "probes": probes}), encoding="utf-8")
     return path
