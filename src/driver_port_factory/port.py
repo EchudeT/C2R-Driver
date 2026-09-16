@@ -73,6 +73,7 @@ REVISION_OBJECTIVE = (
 )
 EVIDENCE_OBJECTIVE = (
     "Propose the minimum complete evidence closure for the frozen driver and repositories. "
+    "Include every one of the 25 required evidence facets exactly once. "
     "Return only the evidence-closure proposal required by the output schema."
 )
 ENVIRONMENT_OBJECTIVE = (
