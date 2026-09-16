@@ -533,25 +533,33 @@ class PortRunner:
         MigrationHandoff().create(project)
 
     def _source_closure(self, project: Project) -> None:
-        handoff = project.load_json_artifact(MigrationStage.HANDOFF, MigrationArtifact.HANDOFF)
-        source = load_repository_acquisition(project).checkout(RepositoryRole.SOURCE)
         self._codex_gate(
             project,
             SourceAnalysisStage.SOURCE_CLOSURE,
             {
-                "migration_handoff": self._artifact_context(
-                    project, MigrationStage.HANDOFF, MigrationArtifact.HANDOFF
+                "migration_envelope": self._artifact_context(
+                    project, IntakeStage.ENVELOPE_FREEZE, IntakeArtifact.MIGRATION_ENVELOPE
                 ),
-                "driver_identity": handoff["identity"],
-                "source_repository": {
-                    "root": str((project.root / source.checkout_path).resolve()),
-                    "revision": source.resolved_commit,
-                    "read_only": True,
-                },
-                "source_paths": handoff["evidence"]["source_paths"],
-                "source_test_paths": handoff["evidence"]["source_test_paths"],
-                "known_gaps": handoff["evidence"]["known_gaps"],
-                "knowledge": handoff["knowledge"],
+                "repository_manifest": self._artifact_context(
+                    project,
+                    AcquisitionStage.REPOSITORY_ACQUISITION,
+                    AcquisitionArtifact.REPOSITORY_MANIFEST,
+                ),
+                "materials_manifest": self._artifact_context(
+                    project,
+                    AcquisitionStage.EVIDENCE_CLOSURE,
+                    AcquisitionArtifact.MATERIALS_MANIFEST,
+                ),
+                "evidence_gap_register": self._artifact_context(
+                    project,
+                    AcquisitionStage.EVIDENCE_CLOSURE,
+                    AcquisitionArtifact.EVIDENCE_GAP_REGISTER,
+                ),
+                "knowledge_query_contract": self._artifact_context(
+                    project,
+                    KnowledgeStage.KNOWLEDGE_BASE,
+                    KnowledgeArtifact.QUERY_CONTRACT,
+                ),
             },
             self._accept_source_closure_result,
         )

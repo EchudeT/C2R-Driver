@@ -5,10 +5,13 @@ import unittest
 from pathlib import Path
 
 from driver_port_factory.core.models import StageStatus, WorkflowError
+from driver_port_factory.environment.contracts import EnvironmentArtifact
 from driver_port_factory.knowledge.bootstrap import KnowledgeBootstrapper
+from driver_port_factory.knowledge.contracts import KnowledgeArtifact
 from driver_port_factory.migration.contracts import HandoffMode, MigrationArtifact, MigrationStage
 from driver_port_factory.migration.handoff import MigrationHandoff
 from driver_port_factory.source_analysis.contracts import SourceAnalysisStage
+from driver_port_factory.target_study.contracts import TargetStudyArtifact
 from driver_port_factory.target_study.service import TargetStudyService
 from tests.test_knowledge import prepare_project, probe_plan
 from tests.test_target_study import target_study_inputs
@@ -28,12 +31,19 @@ class MigrationHandoffTests(unittest.TestCase):
             project, _ = handoff_ready_project(Path(temporary))
             record = MigrationHandoff().create(project)
 
+            self.assertEqual(record["schema_version"], 2)
             self.assertEqual(record["evaluation"], {"mode": HandoffMode.DEVELOPER.value})
-            self.assertEqual(
-                record["environment"]["experiment_ready_evidence"]["milestone"], "EXPERIMENT_READY"
+            artifacts = {item["kind"]: item for item in record["upstream_artifacts"]}
+            for kind in (
+                EnvironmentArtifact.EXPERIMENT_ROUTE,
+                KnowledgeArtifact.QUERY_CONTRACT,
+                TargetStudyArtifact.CHANGE_PLAN,
+            ):
+                self.assertTrue(Path(artifacts[kind.value]["path"]).is_file())
+            self.assertFalse(
+                {"repositories", "evidence", "environment", "knowledge", "target_study"}
+                & record.keys()
             )
-            self.assertEqual(record["knowledge"]["status_result"]["status"], "READY")
-            self.assertTrue(record["target_study"]["artifacts"])
             self.assertEqual(project.stage(MigrationStage.HANDOFF).status, StageStatus.PASS)
             self.assertEqual(
                 project.stage(SourceAnalysisStage.SOURCE_CLOSURE).status, StageStatus.READY
