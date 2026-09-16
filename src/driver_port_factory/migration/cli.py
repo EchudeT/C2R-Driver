@@ -15,6 +15,7 @@ from ..knowledge.contracts import KnowledgeArtifact, KnowledgeStage
 from ..source_analysis.contracts import SourceAnalysisArtifact, SourceAnalysisStage
 from ..target_study.contracts import TargetStudyArtifact, TargetStudyStage
 from .artifact_preparation import ArtifactPreparationService
+from .completion_audit import CompletionAuditService
 from .compliance import ComplianceReport, ComplianceService
 from .contract_set import MigrationContractService, MigrationContractSet
 from .contracts import MigrationArtifact, MigrationStage
@@ -371,7 +372,12 @@ def command_public_repair_run(arguments: argparse.Namespace) -> None:
     print(json.dumps(result, ensure_ascii=False, sort_keys=True, indent=2))
 
 
-def register_commands(commands: CommandRegistry) -> None:
+def command_completion_audit_run(arguments: argparse.Namespace) -> None:
+    audit = CompletionAuditService().run(open_project(Path(arguments.path)))
+    print(json.dumps(audit["summary"], ensure_ascii=False, sort_keys=True, indent=2))
+
+
+def register_commands(commands: CommandRegistry) -> None:  # noqa: PLR0915
     migration = commands.add_parser("migration", help="run controlled migration transitions")
     subcommands = command_registry(migration, dest="migration_command")
     handoff = subcommands.add_parser("handoff")
@@ -464,3 +470,11 @@ def register_commands(commands: CommandRegistry) -> None:
     run.add_argument("--codex-bin", default="codex")
     run.add_argument("--model")
     run.set_defaults(handler=command_public_repair_run)
+
+    audit = commands.add_parser(
+        "completion-audit", help="freeze the final evidence and lineage audit"
+    )
+    audit_commands = command_registry(audit, dest="completion_audit_command")
+    run = audit_commands.add_parser("run")
+    run.add_argument("path")
+    run.set_defaults(handler=command_completion_audit_run)

@@ -7,6 +7,7 @@ from ..core.validation import (
     nonempty,
 )
 from .artifact_preparation import validate_artifact_bundle
+from .completion_audit import validate_completion_audit_bundle
 from .compliance import validate_compliance_bundle
 from .contract_set import validate_contract_bundle
 from .contracts import MigrationArtifact, MigrationStage
@@ -47,5 +48,6 @@ BUNDLE_VALIDATORS = MappingProxyType[MigrationStage, BundleValidator](
         MigrationStage.ARTIFACT_PREPARATION: validate_artifact_bundle,
         MigrationStage.PUBLIC_QEMU_VALIDATION: validate_public_qemu_bundle,
         MigrationStage.PUBLIC_REPAIR: validate_public_repair_bundle,
+        MigrationStage.COMPLETION_AUDIT: validate_completion_audit_bundle,
     }
 )
