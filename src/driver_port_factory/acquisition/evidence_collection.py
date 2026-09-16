@@ -1,12 +1,10 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from pathlib import Path
 
 from ..core.models import WorkflowError, utc_now
 from .accounting import CoverageEntry, EvidenceGap, RetrievalAttempt, reason_for_attempts
 from .facets import (
-    SOURCE_DEPENDENCY_CLOSURE,
     SOURCE_DRIVER_ENTRY,
     EvidenceFacet,
     FacetDisposition,
@@ -18,10 +16,6 @@ from .proposal import EvidenceDiscoveryProposal, FacetProposal
 from .repository_role import RepositoryRole
 from .retrieval import EvidenceRetriever, material_identifier
 from .retrieval_result import RetrievalFailure
-from .source_dependencies import (
-    InitialDependencyInventory,
-    build_initial_dependency_inventory,
-)
 
 
 @dataclass(frozen=True, slots=True)
@@ -36,7 +30,6 @@ class CollectedEvidence:
     coverage: tuple[CoverageEntry, ...]
     gaps: tuple[EvidenceGap, ...]
     attempts: tuple[RetrievalAttempt, ...]
-    source_dependencies: InitialDependencyInventory
 
 
 class EvidenceCollector:
@@ -44,7 +37,6 @@ class EvidenceCollector:
 
     def collect(
         self,
-        root: Path,
         proposal: EvidenceDiscoveryProposal,
         retriever: EvidenceRetriever,
         *,
@@ -54,40 +46,19 @@ class EvidenceCollector:
         coverage: list[CoverageEntry] = []
         gaps: list[EvidenceGap] = []
         attempts: list[RetrievalAttempt] = []
-        dependency: tuple[FacetProposal, FacetRetrieval] | None = None
         for item in proposal.facets:
             retrieval = self._retrieve_facet(retriever, item.facet, item.locators)
             attempts.extend(retrieval.attempts)
             materials.extend(retrieval.materials)
-            if item.facet == SOURCE_DEPENDENCY_CLOSURE:
-                dependency = (item, retrieval)
-                continue
             entry, facet_gaps = self._account_facet(item, retrieval)
             coverage.append(entry)
             gaps.extend(facet_gaps)
-        source_entry = self._source_entry(materials, expected_source_entry)
-        if dependency is None:
-            raise WorkflowError("evidence proposal omitted the initial source dependency facet")
-        dependency_proposal, dependency_retrieval = dependency
-        inventory = build_initial_dependency_inventory(
-            root,
-            source_entry,
-            dependency_retrieval.materials,
-            dependency_retrieval.attempts,
-        )
-        entry, dependency_gaps = self._account_dependencies(
-            dependency_proposal,
-            inventory,
-            dependency_retrieval.attempts,
-        )
-        coverage.append(entry)
-        gaps.extend(dependency_gaps)
+        self._source_entry(materials, expected_source_entry)
         return CollectedEvidence(
             tuple(materials),
             tuple(sorted(coverage, key=lambda item: item.facet.sort_key)),
             tuple(sorted(gaps, key=lambda item: item.identifier)),
             tuple(attempts),
-            inventory,
         )
 
     @staticmethod
@@ -168,62 +139,6 @@ class EvidenceCollector:
             tuple(attempt.identifier for attempt in retrieval.attempts),
         )
         return CoverageEntry.gap(proposal.facet, (gap_id,)), (gap,)
-
-    @staticmethod
-    def _account_dependencies(
-        proposal: FacetProposal,
-        inventory: InitialDependencyInventory,
-        attempts: tuple[RetrievalAttempt, ...],
-    ) -> tuple[CoverageEntry, tuple[EvidenceGap, ...]]:
-        controlled_ids = tuple(
-            requirement.material_id
-            for requirement in inventory.requirements
-            if requirement.material_id is not None
-        )
-        missing = tuple(
-            requirement
-            for requirement in inventory.requirements
-            if requirement.disposition is FacetDisposition.EXPLICIT_GAP
-        )
-        if not missing:
-            if proposal.disposition is not FacetDisposition.CONTROLLED:
-                raise WorkflowError(
-                    "initial quoted-include inventory is complete but was proposed as a gap"
-                )
-            return CoverageEntry.controlled(proposal.facet, controlled_ids), ()
-        if proposal.disposition is not FacetDisposition.EXPLICIT_GAP or proposal.gap is None:
-            raise WorkflowError(
-                "missing initial quoted includes require typed dependency gap accounting"
-            )
-        attempts_by_id = {attempt.identifier: attempt for attempt in attempts}
-        missing_attempts = tuple(
-            attempts_by_id[requirement.retrieval_attempt_id] for requirement in missing
-        )
-        derived_reason = reason_for_attempts(missing_attempts)
-        if proposal.gap.reason is not derived_reason:
-            raise WorkflowError(
-                f"declared dependency gap reason {proposal.gap.reason.value} does not match "
-                f"retrieval outcome {derived_reason.value}"
-            )
-        gaps = tuple(
-            EvidenceGap(
-                requirement.gap_id or "",
-                proposal.facet,
-                reason_for_attempts((attempts_by_id[requirement.retrieval_attempt_id],)),
-                proposal.gap.impact,
-                proposal.gap.repair_trigger,
-                (requirement.retrieval_attempt_id,),
-            )
-            for requirement in missing
-        )
-        return (
-            CoverageEntry.gap(
-                proposal.facet,
-                tuple(gap.identifier for gap in gaps),
-                controlled_ids,
-            ),
-            gaps,
-        )
 
     @staticmethod
     def _source_entry(

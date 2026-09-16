@@ -4,7 +4,7 @@ import json
 from collections import Counter
 from dataclasses import dataclass
 
-from ..codex.contracts import CodexArtifact
+from ..codex.contracts import CodexArtifact, CodexOutputError
 from ..core.models import (
     GeneratedArtifact,
     StageStatus,
@@ -13,14 +13,14 @@ from ..core.models import (
 from ..core.project import Project
 from ..intake.contracts import IntakeArtifact, IntakeStage
 from .contracts import AcquisitionArtifact, AcquisitionStage
-from .facet_policy import empty_locator_inventory_allowed, validate_locator_authority
+from .facet_policy import validate_locator_authority
 from .facets import (
     SOURCE_DRIVER_ENTRY,
     EvidenceFacet,
+    EvidenceLane,
     FacetDisposition,
     GapReason,
     parse_facet,
-    required_facets,
 )
 from .job import (
     ArtifactOccurrence,
@@ -99,7 +99,7 @@ class FacetProposal:
         raw_locators = candidate["locators"]
         if not isinstance(raw_locators, list):
             raise WorkflowError("evidence facet locators must be a list")
-        if not raw_locators and not empty_locator_inventory_allowed(facet):
+        if not raw_locators:
             raise WorkflowError("evidence facet proposal requires retrieval locators")
         locators = tuple(parse_locator(locator) for locator in raw_locators)
         for locator in locators:
@@ -161,16 +161,18 @@ class EvidenceDiscoveryProposal:
         facets = tuple(FacetProposal.from_dict(item) for item in raw_facets)
         counts = Counter(item.facet for item in facets)
         duplicates = sorted(facet.sort_key for facet, count in counts.items() if count != 1)
-        expected = set(required_facets())
-        actual = set(counts)
-        missing = sorted(facet.sort_key for facet in expected - actual)
-        unexpected = sorted(facet.sort_key for facet in actual - expected)
-        if duplicates or missing or unexpected:
+        missing_lanes = sorted(
+            set(EvidenceLane) - {item.facet.lane for item in facets},
+            key=lambda lane: lane.value,
+        )
+        if duplicates or missing_lanes:
             raise WorkflowError(
-                "evidence proposal must contain every required facet exactly once: "
-                f"duplicates={duplicates}, missing={missing}, unexpected={unexpected}"
+                "evidence proposal must cover all six evidence domains without duplicate facets: "
+                f"duplicates={duplicates}, missing_lanes={[lane.value for lane in missing_lanes]}"
             )
-        source = next(item for item in facets if item.facet == SOURCE_DRIVER_ENTRY)
+        source = next((item for item in facets if item.facet == SOURCE_DRIVER_ENTRY), None)
+        if source is None:
+            raise WorkflowError("evidence proposal requires the frozen source driver entry")
         if source.disposition is not FacetDisposition.CONTROLLED:
             raise WorkflowError("source driver entry cannot be an explicit evidence gap")
         return cls(
@@ -233,8 +235,8 @@ class EvidenceProposalImporter:
         )
         try:
             proposal = EvidenceDiscoveryProposal.from_dict(json.loads(project.artifacts.read(job)))
-        except (UnicodeDecodeError, json.JSONDecodeError) as error:
-            raise WorkflowError("Codex evidence proposal is not UTF-8 JSON") from error
+        except (UnicodeDecodeError, json.JSONDecodeError, WorkflowError) as error:
+            raise CodexOutputError(f"invalid Codex evidence proposal: {error}") from error
         envelope_ref = project.artifact(
             IntakeStage.ENVELOPE_FREEZE, IntakeArtifact.MIGRATION_ENVELOPE
         )
@@ -243,9 +245,9 @@ class EvidenceProposalImporter:
             AcquisitionArtifact.REPOSITORY_MANIFEST,
         )
         if proposal.migration_envelope_sha256 != envelope_ref.digest:
-            raise WorkflowError("evidence proposal migration envelope digest is stale")
+            raise CodexOutputError("evidence proposal migration envelope digest is stale")
         if proposal.repository_manifest_sha256 != repository_ref.digest:
-            raise WorkflowError("evidence proposal repository manifest digest is stale")
+            raise CodexOutputError("evidence proposal repository manifest digest is stale")
         binding = JobResultBinding(job.digest, ordinal(job.ordinal), job.source)
         imported = project.record_artifact(
             AcquisitionStage.EVIDENCE_CLOSURE,

@@ -7,7 +7,6 @@ from ..core.models import WorkflowError
 from .accounting import CoverageEntry, EvidenceGap, RetrievalAttempt
 from .material import MaterialRecord, parse_materials
 from .parsing import exact_object, schema_version
-from .source_dependencies import InitialDependencyInventory
 
 if TYPE_CHECKING:
     from .closure import EvidenceClosurePlan
@@ -16,30 +15,25 @@ if TYPE_CHECKING:
 @dataclass(frozen=True, slots=True)
 class EvidenceCoverageInventory:
     facets: tuple[CoverageEntry, ...]
-    source_dependencies: InitialDependencyInventory
     schema_version = 1
 
     @classmethod
     def from_dict(cls, value: object) -> EvidenceCoverageInventory:
         candidate = exact_object(
             value,
-            required={"schema_version", "facets", "source_dependencies"},
+            required={"schema_version", "facets"},
             label="evidence coverage inventory",
         )
         schema_version(candidate, "evidence coverage inventory")
         raw_facets = candidate["facets"]
         if not isinstance(raw_facets, list):
             raise WorkflowError("evidence coverage inventory facets must be a list")
-        return cls(
-            tuple(CoverageEntry.from_dict(item) for item in raw_facets),
-            InitialDependencyInventory.from_dict(candidate["source_dependencies"]),
-        )
+        return cls(tuple(CoverageEntry.from_dict(item) for item in raw_facets))
 
     def to_dict(self) -> dict[str, object]:
         return {
             "schema_version": self.schema_version,
             "facets": [item.to_dict() for item in self.facets],
-            "source_dependencies": self.source_dependencies.to_dict(),
         }
 
 

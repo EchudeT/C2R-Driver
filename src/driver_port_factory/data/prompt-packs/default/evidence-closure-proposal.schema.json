@@ -10,8 +10,7 @@
     "repository_manifest_sha256": {"$ref": "#/$defs/sha256"},
     "facets": {
       "type": "array",
-      "minItems": 25,
-      "maxItems": 25,
+      "minItems": 6,
       "items": {
         "anyOf": [
           {"$ref": "#/$defs/controlled_facet"},
@@ -35,7 +34,6 @@
       "type": "string",
       "enum": [
         "driver_entry",
-        "dependency_closure",
         "framework_contracts",
         "build_configuration",
         "extension_points",
@@ -59,6 +57,12 @@
         "toolchain_documentation",
         "packaging_and_release_documentation",
         "runtime_documentation"
+      ]
+    },
+    "facet": {
+      "anyOf": [
+        {"$ref": "#/$defs/controlled_facet"},
+        {"$ref": "#/$defs/gap_facet"}
       ]
     },
     "controlled_facet": {
@@ -97,6 +101,15 @@
           {"$ref": "#/$defs/external_url_derived"}
         ]
       }
+    },
+    "locator": {
+      "anyOf": [
+        {"$ref": "#/$defs/git_blob_original"},
+        {"$ref": "#/$defs/git_blob_derived"},
+        {"$ref": "#/$defs/external_reference"},
+        {"$ref": "#/$defs/external_url_original"},
+        {"$ref": "#/$defs/external_url_derived"}
+      ]
     },
     "git_blob_original": {
       "type": "object",

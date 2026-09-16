@@ -15,7 +15,6 @@ from driver_port_factory.acquisition.commands import RepositoryCommandKind
 from driver_port_factory.acquisition.contracts import AcquisitionArtifact, AcquisitionStage
 from driver_port_factory.acquisition.evidence_validation import validate_evidence_closure_bundle
 from driver_port_factory.acquisition.facets import (
-    SOURCE_DEPENDENCY_CLOSURE,
     SOURCE_DRIVER_ENTRY,
     EvidenceFacet,
     EvidenceLane,
@@ -219,10 +218,17 @@ def set_external_proposal(
     disposition: FacetDisposition = FacetDisposition.CONTROLLED,
 ) -> None:
     item = next(
-        item
-        for item in proposal["facets"]
-        if (item["lane"], item["facet"]) == (facet.lane.value, facet.name.value)
+        (
+            item
+            for item in proposal["facets"]
+            if (item["lane"], item["facet"]) == (facet.lane.value, facet.name.value)
+        ),
+        None,
     )
+    if item is None:
+        template = next(item for item in proposal["facets"] if item["lane"] == facet.lane.value)
+        item = {**template, "facet": facet.name.value}
+        proposal["facets"].append(item)
     item["disposition"] = disposition.value
     item["locators"] = [
         {
@@ -247,144 +253,7 @@ def set_external_proposal(
         }
 
 
-def set_dependency_proposal(
-    proposal: dict[str, object],
-    *,
-    paths: tuple[str, ...],
-    disposition: FacetDisposition,
-) -> None:
-    dependency = next(
-        item
-        for item in proposal["facets"]
-        if (item["lane"], item["facet"])
-        == (
-            SOURCE_DEPENDENCY_CLOSURE.lane.value,
-            SOURCE_DEPENDENCY_CLOSURE.name.value,
-        )
-    )
-    dependency["disposition"] = disposition.value
-    dependency["locators"] = [
-        {
-            "kind": LocatorKind.GIT_BLOB.value,
-            "repository": RepositoryRole.SOURCE.value,
-            "path": path,
-            "license": "review-required",
-            "redistribution": MaterialRedistribution.UNKNOWN.value,
-            "original": True,
-        }
-        for path in paths
-    ]
-    if disposition is FacetDisposition.EXPLICIT_GAP:
-        dependency["gap"] = {
-            "reason": GapReason.NOT_FOUND.value,
-            "impact": "missing quoted include blocks its dependent source contract",
-            "repair_trigger": "acquire the missing frozen source blob",
-        }
-
-
 class AcquisitionTests(unittest.TestCase):
-    def test_zero_dependency_inventory_binds_entry_and_scanner(self) -> None:
-        with tempfile.TemporaryDirectory() as temporary:
-            project, _, _, _ = ready_project(Path(temporary))
-            RepositoryAcquirer().acquire(project)
-            close_evidence(project)
-            coverage = project.load_json_artifact(
-                AcquisitionStage.EVIDENCE_CLOSURE,
-                AcquisitionArtifact.EVIDENCE_COVERAGE_INVENTORY,
-            )
-            inventory = coverage["source_dependencies"]
-            self.assertEqual(inventory["requirements"], [])
-            self.assertEqual(inventory["scanner"]["version"], "quoted-include-v1")
-            self.assertEqual(inventory["scanner"]["include_form"], "quoted-only")
-            source = next(
-                json.loads(line)
-                for line in project.artifacts.read(
-                    project.artifact(
-                        AcquisitionStage.EVIDENCE_CLOSURE,
-                        AcquisitionArtifact.MATERIALS_MANIFEST,
-                    )
-                ).splitlines()
-                if json.loads(line)["facet"] == SourceFacet.DRIVER_ENTRY.value
-            )
-            self.assertEqual(inventory["entry_blob"], source["origin"]["blob"])
-            self.assertEqual(inventory["entry_sha256"], source["sha256"])
-
-    def test_recursive_quoted_dependencies_close_per_repository_path(self) -> None:
-        with tempfile.TemporaryDirectory() as temporary:
-            project, _, _, _ = ready_project(
-                Path(temporary),
-                source_overrides={
-                    "drivers/example.c": '#include "needed.h"\n',
-                    "drivers/needed.h": '#include "nested.h"\n',
-                    "drivers/nested.h": "#define NESTED 1\n",
-                },
-            )
-            RepositoryAcquirer().acquire(project)
-            proposal = evidence_proposal(project)
-            set_dependency_proposal(
-                proposal,
-                paths=("drivers/needed.h", "drivers/nested.h"),
-                disposition=FacetDisposition.CONTROLLED,
-            )
-            imported = import_evidence_proposal(project, proposal)
-            EvidenceClosureFinalizer().finalize(project, proposal=imported.occurrence)
-            inventory = project.load_json_artifact(
-                AcquisitionStage.EVIDENCE_CLOSURE,
-                AcquisitionArtifact.EVIDENCE_COVERAGE_INVENTORY,
-            )["source_dependencies"]
-            self.assertEqual(
-                [item["repository_path"] for item in inventory["requirements"]],
-                ["drivers/needed.h", "drivers/nested.h"],
-            )
-            self.assertTrue(
-                all(
-                    item["disposition"] == FacetDisposition.CONTROLLED.value
-                    for item in inventory["requirements"]
-                )
-            )
-
-    def test_omitted_quoted_dependency_is_rejected(self) -> None:
-        with tempfile.TemporaryDirectory() as temporary:
-            project, _, _, _ = ready_project(
-                Path(temporary),
-                source_overrides={
-                    "drivers/example.c": '#include "needed.h"\n',
-                    "drivers/needed.h": "#define NEEDED 1\n",
-                },
-            )
-            RepositoryAcquirer().acquire(project)
-            imported = import_evidence_proposal(project, evidence_proposal(project))
-            with self.assertRaisesRegex(WorkflowError, "absent from the acquisition plan"):
-                EvidenceClosureFinalizer().finalize(project, proposal=imported.occurrence)
-
-    def test_mixed_dependency_inventory_binds_each_controlled_or_gap_path(self) -> None:
-        with tempfile.TemporaryDirectory() as temporary:
-            project, _, _, _ = ready_project(
-                Path(temporary),
-                source_overrides={
-                    "drivers/example.c": '#include "present.h"\n#include "missing.h"\n',
-                    "drivers/present.h": "#define PRESENT 1\n",
-                },
-            )
-            RepositoryAcquirer().acquire(project)
-            proposal = evidence_proposal(project)
-            set_dependency_proposal(
-                proposal,
-                paths=("drivers/present.h", "drivers/missing.h"),
-                disposition=FacetDisposition.EXPLICIT_GAP,
-            )
-            imported = import_evidence_proposal(project, proposal)
-            EvidenceClosureFinalizer().finalize(project, proposal=imported.occurrence)
-            inventory = project.load_json_artifact(
-                AcquisitionStage.EVIDENCE_CLOSURE,
-                AcquisitionArtifact.EVIDENCE_COVERAGE_INVENTORY,
-            )["source_dependencies"]
-            by_path = {item["repository_path"]: item for item in inventory["requirements"]}
-            self.assertIsNotNone(by_path["drivers/present.h"]["material_id"])
-            self.assertIsNone(by_path["drivers/present.h"]["gap_id"])
-            self.assertIsNone(by_path["drivers/missing.h"]["material_id"])
-            self.assertIsNotNone(by_path["drivers/missing.h"]["gap_id"])
-
     def test_remote_full_commit_requires_active_origin_membership_proof(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
@@ -658,7 +527,10 @@ class AcquisitionTests(unittest.TestCase):
                 project, _, _, _ = ready_project(Path(temporary))
                 RepositoryAcquirer().acquire(project)
                 facet = EvidenceFacet(EvidenceLane.SOURCE, SourceFacet.FRAMEWORK_CONTRACTS)
-                proposal = evidence_proposal(project)
+                proposal = evidence_proposal(
+                    project,
+                    {facet: (RepositoryRole.SOURCE, "docs/original.txt")},
+                )
                 item = next(
                     item
                     for item in proposal["facets"]
@@ -666,7 +538,7 @@ class AcquisitionTests(unittest.TestCase):
                 )
                 item["disposition"] = FacetDisposition.CONTROLLED.value
                 item["locators"] = locator_factory(project, facet)
-                item.pop("gap")
+                item.pop("gap", None)
                 imported = import_evidence_proposal(project, proposal)
                 expected = (
                     "controlled original"
@@ -698,7 +570,7 @@ class AcquisitionTests(unittest.TestCase):
                 AcquisitionStage.EVIDENCE_CLOSURE,
                 AcquisitionArtifact.EVIDENCE_COVERAGE_INVENTORY,
             )
-            self.assertEqual(len(coverage["facets"]), 25)
+            self.assertEqual(len(coverage["facets"]), 6)
             source = next(
                 item
                 for item in coverage["facets"]
@@ -798,7 +670,7 @@ class AcquisitionTests(unittest.TestCase):
                 ),
             )
             assert ref.ordinal is not None
-            with self.assertRaisesRegex(WorkflowError, "every required facet"):
+            with self.assertRaisesRegex(WorkflowError, "all six evidence domains"):
                 EvidenceProposalImporter().import_job_result(
                     project, job_digest=ref.digest, job_ordinal=ref.ordinal
                 )
@@ -917,53 +789,6 @@ class AcquisitionTests(unittest.TestCase):
                     proposal=imported.occurrence,
                 )
             self.assertFalse((project.root / ".dpf" / "evidence").exists())
-
-    def test_failed_closure_leaves_no_second_cas_or_controlled_manifest(self) -> None:
-        content = b"independently published hardware manual\n"
-        with (
-            compatibility_evidence_server(content) as primary_url,
-            compatibility_evidence_server(content) as corroboration_server_url,
-            tempfile.TemporaryDirectory() as temporary,
-        ):
-            corroboration_url = corroboration_server_url.replace("127.0.0.1", "localhost")
-            project, _, _, _ = ready_project(
-                Path(temporary),
-                source_overrides={
-                    "drivers/example.c": '#include "needed.h"\n',
-                    "drivers/needed.h": "#define NEEDED 1\n",
-                },
-            )
-            RepositoryAcquirer().acquire(project)
-            facet = EvidenceFacet(EvidenceLane.HARDWARE, HardwareFacet.DEVICE_MANUAL)
-            proposal = evidence_proposal(project)
-            set_external_proposal(
-                proposal,
-                facet=facet,
-                source_url=primary_url,
-                content=content,
-                authority={
-                    "kind": "corroborated",
-                    "sources": [
-                        {
-                            "source_url": corroboration_url,
-                            "expected_sha256": hashlib.sha256(content).hexdigest(),
-                            "max_bytes": 4096,
-                        }
-                    ],
-                },
-            )
-            imported = import_evidence_proposal(project, proposal)
-            with self.assertRaisesRegex(WorkflowError, "absent from the acquisition plan"):
-                EvidenceClosureFinalizer().finalize(project, proposal=imported.occurrence)
-            self.assertFalse((project.root / ".dpf" / "evidence").exists())
-            refs = project.artifact_refs(stage=AcquisitionStage.EVIDENCE_CLOSURE)
-            self.assertEqual(
-                sum(ref.kind == AcquisitionArtifact.EVIDENCE_HTTP_CONTENT.value for ref in refs),
-                2,
-            )
-            self.assertFalse(
-                any(ref.kind == AcquisitionArtifact.MATERIALS_MANIFEST.value for ref in refs)
-            )
 
     def test_partial_corroboration_records_attempt_content_without_material_claim(self) -> None:
         content = b"hardware note requiring corroboration\n"

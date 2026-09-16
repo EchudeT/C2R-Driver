@@ -1,5 +1,11 @@
 from enum import StrEnum
 
+from ..core.models import WorkflowError
+
+
+class CodexOutputError(WorkflowError):
+    """A model response failed its deterministic output/proposal gate."""
+
 
 class CodexArtifact(StrEnum):
     PROMPT = "codex_prompt"

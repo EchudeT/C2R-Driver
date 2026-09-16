@@ -18,7 +18,7 @@ from .acquisition.revision_proposal import RevisionProposalImporter
 from .acquisition.revision_selection import RevisionSelector
 from .cli_support import CommandRegistry, command_registry
 from .codex.cli import run_codex_stage
-from .codex.contracts import CodexArtifact, CodexBackend, CodexExecEventType
+from .codex.contracts import CodexArtifact, CodexBackend, CodexExecEventType, CodexOutputError
 from .composition import initialize_project, open_project
 from .core.contracts import ArtifactKey, StageKey
 from .core.models import (
@@ -41,7 +41,6 @@ from .knowledge.bootstrap import KnowledgeBootstrapper
 from .knowledge.contracts import (
     KnowledgeArtifact,
     KnowledgeEvidenceStatus,
-    KnowledgeInfrastructureError,
     KnowledgeStage,
 )
 from .migration.artifact_preparation import ArtifactPreparationPlan, ArtifactPreparationService
@@ -78,9 +77,8 @@ REVISION_OBJECTIVE = (
     "Return only the revision-selection proposal required by the output schema."
 )
 EVIDENCE_OBJECTIVE = (
-    "Propose the minimum complete evidence closure for the frozen driver and repositories. "
-    "Include every one of the 25 required evidence facets exactly once. "
-    "Return only the evidence-closure proposal required by the output schema."
+    "Propose the minimum evidence closure covering the source, target, QEMU, hardware, test, "
+    "and tooling domains. Return only the evidence-closure proposal required by the output schema."
 )
 ENVIRONMENT_OBJECTIVE = (
     "Select one concrete, least-cost QEMU/QMP experiment route from the frozen repositories and "
@@ -348,12 +346,10 @@ class PortRunner:
             try:
                 accept(project, pending)
                 return
-            except KnowledgeInfrastructureError:
-                raise
-            except WorkflowError as error:
+            except CodexOutputError as error:
                 last_error = error
                 thread_id = self._latest_thread_id(project, stage)
-                follow_up = self._codex_correction(error)
+                follow_up = str(error)
         for _ in range(CODEX_GATE_CORRECTION_ATTEMPTS):
             result, _, response = self._codex(
                 project,
@@ -366,24 +362,13 @@ class PortRunner:
             try:
                 accept(project, self._job_occurrence(project, stage, response))
                 return
-            except KnowledgeInfrastructureError:
-                raise
-            except WorkflowError as error:
+            except CodexOutputError as error:
                 last_error = error
                 if not result.thread_id:
                     raise
                 thread_id = result.thread_id
-                follow_up = self._codex_correction(error)
+                follow_up = str(error)
         raise WorkflowError(f"{stage.value} failed after same-session corrections: {last_error}")
-
-    @staticmethod
-    def _codex_correction(error: WorkflowError) -> str:
-        return (
-            "The controller rejected the previous proposal: "
-            f"{error}. Preserve all proposal requirements and previously accepted evidence, "
-            "correct the failure, re-check every cited or located input, and return only a "
-            "complete replacement matching the same output schema."
-        )
 
     @staticmethod
     def _write_response_parts(
@@ -405,11 +390,11 @@ class PortRunner:
         try:
             value = json.loads(path.read_text(encoding="utf-8"))
         except (OSError, UnicodeDecodeError, json.JSONDecodeError) as error:
-            raise WorkflowError("Codex stage response must be UTF-8 JSON") from error
+            raise CodexOutputError("Codex stage response must be UTF-8 JSON") from error
         if not isinstance(value, dict):
-            raise WorkflowError("Codex stage response must be a JSON object")
+            raise CodexOutputError("Codex stage response must be a JSON object")
         if set(value) != set(names):
-            raise WorkflowError(f"Codex stage response has the wrong {stage.value} documents")
+            raise CodexOutputError(f"Codex stage response has the wrong {stage.value} documents")
         output = project.control / "generated" / stage.value / Path(matches[0].source).stem
         parts: dict[str, Path] = {}
         for name in names:
@@ -420,7 +405,7 @@ class PortRunner:
                 document if isinstance(document, str) else json.dumps(document, indent=2) + "\n"
             ).encode("utf-8")
             if target.exists() and target.read_bytes() != data:
-                raise WorkflowError("materialized Codex response differs from immutable result")
+                raise CodexOutputError("materialized Codex response differs from immutable result")
             parts[name] = target
         output.mkdir(parents=True, exist_ok=True)
         for name, target in parts.items():

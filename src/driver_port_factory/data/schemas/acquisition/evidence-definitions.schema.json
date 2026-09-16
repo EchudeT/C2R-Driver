@@ -148,55 +148,6 @@
         "observed_at": {"$ref": "#/$defs/nonempty"}
       }
     },
-    "dependency_inventory": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["schema_version", "scope", "entry_material_id", "entry_commit", "entry_blob", "entry_sha256", "scanner", "requirements"],
-      "properties": {
-        "schema_version": {"const": 1},
-        "scope": {"const": "initial-acquisition-quoted-includes"},
-        "entry_material_id": {"$ref": "#/$defs/nonempty"},
-        "entry_commit": {"$ref": "#/$defs/object_id"},
-        "entry_blob": {"$ref": "#/$defs/object_id"},
-        "entry_sha256": {"$ref": "#/$defs/sha256"},
-        "scanner": {"$ref": "#/$defs/dependency_scanner"},
-        "requirements": {"type": "array", "items": {"$ref": "#/$defs/dependency_requirement"}}
-      }
-    },
-    "dependency_scanner": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["version", "include_form", "resolution_rule"],
-      "properties": {
-        "version": {"const": "quoted-include-v1"},
-        "include_form": {"const": "quoted-only"},
-        "resolution_rule": {"const": "including-directory"}
-      }
-    },
-    "dependency_requirement": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["id", "repository_path", "sites", "disposition", "retrieval_attempt_id", "material_id", "gap_id"],
-      "properties": {
-        "id": {"$ref": "#/$defs/nonempty"},
-        "repository_path": {"$ref": "#/$defs/nonempty"},
-        "sites": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/include_site"}},
-        "disposition": {"enum": ["CONTROLLED", "EXPLICIT_GAP"]},
-        "retrieval_attempt_id": {"$ref": "#/$defs/nonempty"},
-        "material_id": {"type": ["string", "null"]},
-        "gap_id": {"type": ["string", "null"]}
-      }
-    },
-    "include_site": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["including_path", "line", "spelling"],
-      "properties": {
-        "including_path": {"$ref": "#/$defs/nonempty"},
-        "line": {"type": "integer", "minimum": 1},
-        "spelling": {"$ref": "#/$defs/nonempty"}
-      }
-    },
     "plan": {
       "type": "object",
       "additionalProperties": false,
@@ -210,8 +161,7 @@
         "job_result": {"$ref": "#/$defs/job_result"},
         "facets": {
           "type": "array",
-          "minItems": 25,
-          "maxItems": 25,
+          "minItems": 6,
           "items": {"$ref": "urn:dpf:acquisition:evidence-discovery-proposal#/$defs/facet"}
         }
       }
@@ -231,11 +181,10 @@
     "coverage": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["schema_version", "facets", "source_dependencies"],
+      "required": ["schema_version", "facets"],
       "properties": {
         "schema_version": {"const": 1},
-        "facets": {"type": "array", "minItems": 25, "maxItems": 25, "items": {"$ref": "#/$defs/coverage_entry"}},
-        "source_dependencies": {"$ref": "#/$defs/dependency_inventory"}
+        "facets": {"type": "array", "minItems": 6, "items": {"$ref": "#/$defs/coverage_entry"}}
       }
     },
     "gap_register": {

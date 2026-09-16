@@ -128,7 +128,6 @@ class EvidenceClosureFinalizer:
             IntakeArtifact.MIGRATION_ENVELOPE,
         )
         collected = EvidenceCollector().collect(
-            project.root,
             proposed,
             retriever,
             expected_source_entry=envelope_document["source_driver_entry_or_repository_hint"],
@@ -141,10 +140,7 @@ class EvidenceClosureFinalizer:
             envelope.job_result,
             proposed,
         )
-        coverage_inventory = EvidenceCoverageInventory(
-            collected.coverage,
-            collected.source_dependencies,
-        )
+        coverage_inventory = EvidenceCoverageInventory(collected.coverage)
         gap_register = EvidenceGapRegister(collected.gaps)
         retrieval_ledger = EvidenceRetrievalLedger(collected.attempts)
         materials_manifest = EvidenceMaterialsManifest(collected.materials)

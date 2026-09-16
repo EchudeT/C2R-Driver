@@ -39,6 +39,7 @@ class PromptPack:
     template_path: Path
     template_digest: str
     template: str
+    correction_template: str
     stages: dict[str, PromptStage]
 
 
@@ -133,10 +134,17 @@ def load_prompt_pack(path: Path | None, stage_catalog: StageCatalog) -> PromptPa
     if not isinstance(name, str) or not name.strip():
         raise WorkflowError("prompt pack name must be a non-empty string")
     template_path, template_raw = _pack_file(root, manifest.get("template"), "template")
+    _, correction_raw = _pack_file(root, manifest.get("correction_template"), "correction template")
     try:
         template = template_raw.decode("utf-8")
     except UnicodeDecodeError as error:
         raise WorkflowError(f"prompt pack template is not UTF-8: {template_path}") from error
+    try:
+        correction_template = correction_raw.decode("utf-8")
+    except UnicodeDecodeError as error:
+        raise WorkflowError("prompt pack correction template is not UTF-8") from error
+    if "{{error}}" not in correction_template:
+        raise WorkflowError("prompt pack correction template is missing {{error}}")
     required_markers = {"{{job_json}}", "{{skill_documents}}"}
     missing_markers = sorted(marker for marker in required_markers if marker not in template)
     if missing_markers:
@@ -151,6 +159,7 @@ def load_prompt_pack(path: Path | None, stage_catalog: StageCatalog) -> PromptPa
         template_path=template_path,
         template_digest=hashlib.sha256(template_raw).hexdigest(),
         template=template,
+        correction_template=correction_template,
         stages=stages,
     )
 
@@ -255,3 +264,6 @@ class SkillPromptComposer:
             prompt_template_digest=self.prompt_pack.template_digest,
             output_schema=stage_specification.output_schema,
         )
+
+    def render_correction(self, error: str) -> str:
+        return self.prompt_pack.correction_template.replace("{{error}}", error)

@@ -1,18 +1,14 @@
 from __future__ import annotations
 
-from typing import cast
+from dataclasses import dataclass
 
 from ..core.models import WorkflowError
 from .authority import AuthorityBasis, RepositoryEndorsementAuthority
 from .facets import (
     EvidenceFacet,
     EvidenceLane,
-    HardwareFacet,
-    QemuFacet,
     SourceFacet,
-    TargetFacet,
     TestFacet,
-    ToolingFacet,
 )
 from .locators import (
     EvidenceLocator,
@@ -20,25 +16,40 @@ from .locators import (
     ExternalUrlLocator,
     GitBlobLocator,
 )
-from .policies import hardware, qemu, source, target, test, tooling
-from .policies.contracts import FacetOriginPolicy
 from .repository_role import RepositoryRole
 
 
+@dataclass(frozen=True, slots=True)
+class FacetOriginPolicy:
+    git_roles: frozenset[RepositoryRole]
+    endorsement_roles: frozenset[RepositoryRole]
+    corroborated_external: bool
+
+
 def policy_for(facet: EvidenceFacet) -> FacetOriginPolicy:
+    source = frozenset({RepositoryRole.SOURCE})
+    target = frozenset({RepositoryRole.TARGET})
+    qemu = frozenset({RepositoryRole.QEMU})
     match facet.lane:
         case EvidenceLane.SOURCE:
-            return source.policy_for(cast(SourceFacet, facet.name))
+            endorsements = frozenset() if facet.name is SourceFacet.DRIVER_ENTRY else source
+            return FacetOriginPolicy(source, endorsements, False)
         case EvidenceLane.TARGET:
-            return target.policy_for(cast(TargetFacet, facet.name))
+            return FacetOriginPolicy(target, target, False)
         case EvidenceLane.QEMU:
-            return qemu.policy_for(cast(QemuFacet, facet.name))
+            return FacetOriginPolicy(qemu, qemu, False)
         case EvidenceLane.HARDWARE:
-            return hardware.policy_for(cast(HardwareFacet, facet.name))
+            return FacetOriginPolicy(frozenset(), frozenset(), True)
         case EvidenceLane.TEST:
-            return test.policy_for(cast(TestFacet, facet.name))
+            roles = (
+                source
+                if facet.name is TestFacet.SOURCE_TESTS
+                else frozenset({RepositoryRole.SOURCE, RepositoryRole.TARGET})
+            )
+            return FacetOriginPolicy(roles, roles, True)
         case EvidenceLane.TOOLING:
-            return tooling.policy_for(cast(ToolingFacet, facet.name))
+            roles = frozenset(RepositoryRole)
+            return FacetOriginPolicy(roles, roles, True)
     raise AssertionError(f"unmapped evidence lane: {facet.lane.value}")
 
 
@@ -65,10 +76,6 @@ def external_authority_is_allowed(facet: EvidenceFacet, authority: AuthorityBasi
     if isinstance(authority, RepositoryEndorsementAuthority):
         return authority.repository in policy.endorsement_roles
     return policy.corroborated_external
-
-
-def empty_locator_inventory_allowed(facet: EvidenceFacet) -> bool:
-    return policy_for(facet).empty_inventory_allowed
 
 
 def _validate_external(

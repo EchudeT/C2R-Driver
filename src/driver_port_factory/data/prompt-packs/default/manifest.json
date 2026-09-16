@@ -2,6 +2,7 @@
   "schema_version": 1,
   "name": "default-skill-workflow",
   "template": "job.md",
+  "correction_template": "correction.md",
   "stages": {
     "driver_candidate_resolution": {"documents": ["open-kernel-driver-port/SKILL.md", "open-kernel-driver-port/references/intake.md"]},
     "scope_confirmation": {"documents": ["open-kernel-driver-port/SKILL.md", "open-kernel-driver-port/references/intake.md"]},

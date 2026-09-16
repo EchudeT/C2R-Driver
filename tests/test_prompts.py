@@ -22,12 +22,14 @@ from driver_port_factory.intake.contracts import IntakeStage
 def write_prompt_pack(root: Path, *, wrapper: str, stages: dict[str, list[str]]) -> Path:
     root.mkdir(parents=True, exist_ok=True)
     (root / "job.md").write_text(wrapper, encoding="utf-8")
+    (root / "correction.md").write_text("Rejected: {{error}}\n", encoding="utf-8")
     (root / "manifest.json").write_text(
         json.dumps(
             {
                 "schema_version": 1,
                 "name": "test-pack",
                 "template": "job.md",
+                "correction_template": "correction.md",
                 "stages": {stage: {"documents": documents} for stage, documents in stages.items()},
             }
         ),
@@ -125,12 +127,14 @@ class SkillPromptTests(unittest.TestCase):
                 "{{job_json}}\n{{skill_documents}}\n",
                 encoding="utf-8",
             )
+            (root / "correction.md").write_text("Rejected: {{error}}\n", encoding="utf-8")
             (root / "manifest.json").write_text(
                 json.dumps(
                     {
                         "schema_version": 1,
                         "name": "legacy-pack",
                         "template": "job.md",
+                        "correction_template": "correction.md",
                         "stages": {"driver_candidate_resolution": ["SKILL.md"]},
                     }
                 ),

@@ -12,15 +12,18 @@ from pathlib import Path
 from driver_port_factory.acquisition.closure import EvidenceClosureFinalizer
 from driver_port_factory.acquisition.contracts import AcquisitionArtifact, AcquisitionStage
 from driver_port_factory.acquisition.facets import (
-    SOURCE_DEPENDENCY_CLOSURE,
     SOURCE_DRIVER_ENTRY,
     EvidenceFacet,
     EvidenceLane,
     FacetDisposition,
     GapReason,
+    HardwareFacet,
     LocatorKind,
     MaterialRedistribution,
-    required_facets,
+    QemuFacet,
+    TargetFacet,
+    TestFacet,
+    ToolingFacet,
 )
 from driver_port_factory.acquisition.proposal import EvidenceProposalImporter, ProposalImport
 from driver_port_factory.acquisition.repository_role import RepositoryRole
@@ -190,7 +193,19 @@ def evidence_proposal(
         ),
         **controlled,
     }
-    facets = [_facet_proposal(facet, bindings.get(facet)) for facet in required_facets()]
+    minimum = {
+        SOURCE_DRIVER_ENTRY,
+        EvidenceFacet(EvidenceLane.TARGET, TargetFacet.DRIVER_FRAMEWORK),
+        EvidenceFacet(EvidenceLane.QEMU, QemuFacet.DEVICE_MODEL),
+        EvidenceFacet(EvidenceLane.HARDWARE, HardwareFacet.DEVICE_MANUAL),
+        EvidenceFacet(EvidenceLane.TEST, TestFacet.SOURCE_TESTS),
+        EvidenceFacet(EvidenceLane.TOOLING, ToolingFacet.TOOLCHAIN_DOCUMENTATION),
+        *controlled,
+    }
+    facets = [
+        _facet_proposal(facet, bindings.get(facet))
+        for facet in sorted(minimum, key=lambda item: item.sort_key)
+    ]
     return {
         "schema_version": 1,
         "migration_envelope_sha256": project.artifact(
@@ -242,13 +257,6 @@ def _facet_proposal(
                     **policy,
                 }
             ],
-        }
-    if facet == SOURCE_DEPENDENCY_CLOSURE:
-        return {
-            **facet.to_dict(),
-            "disposition": FacetDisposition.CONTROLLED.value,
-            "rationale": "fixture source entry has no quoted dependencies",
-            "locators": [],
         }
     role = {
         EvidenceLane.TARGET: RepositoryRole.TARGET,

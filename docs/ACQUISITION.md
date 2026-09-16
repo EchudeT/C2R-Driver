@@ -51,7 +51,8 @@ satisfy an evidence facet.
 
 The `evidence_closure` Codex job runs read-only and returns only candidate locators and rationale.
 The prompt pack binds `evidence-closure-proposal.schema.json` to this stage automatically. The
-response must enumerate all source, target, QEMU, hardware, test, and tooling facets exactly once.
+response must cover the source, target, QEMU, hardware, test, and tooling domains. It may use only
+the concrete facets needed by the frozen migration scope; duplicate facets are rejected.
 
 The controller imports a selected `codex_job_result` by exact digest and occurrence ordinal:
 
@@ -81,7 +82,7 @@ Indexes and gap descriptions are not material evidence.
 
 ## Facet accounting
 
-Every mandatory facet has exactly one final disposition:
+Every proposed facet has exactly one final disposition, and all six domains must be covered:
 
 - `CONTROLLED`: references one or more validated material IDs;
 - `EXPLICIT_GAP`: references one gap with a typed reason, non-empty impact, repair trigger, and
@@ -90,7 +91,7 @@ Every mandatory facet has exactly one final disposition:
 The source driver entry may never be a gap. A proposed gap that resolves to content is rejected so
 the proposal must be corrected instead of discarding evidence. The bundle gate rejects duplicate
 or missing facets, orphan material/gaps, dangling references, successful attempts cited by a gap,
-path escape, dirty or drifted repositories, file/hash/size/blob mismatch, repository locks used as
+or missing domains, path escape, dirty or drifted repositories, file/hash/size/blob mismatch, repository locks used as
 content, invalid media, HTML error responses, duplicate IDs, and incomplete derived provenance.
 
 The successful stage atomically registers exactly these required artifacts with `PASS`:

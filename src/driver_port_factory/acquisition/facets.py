@@ -140,16 +140,4 @@ def parse_facet(lane_value: object, facet_value: object) -> EvidenceFacet:
     return EvidenceFacet(lane, facet)
 
 
-def required_facets() -> tuple[EvidenceFacet, ...]:
-    return tuple(
-        EvidenceFacet(lane, facet)
-        for lane, facet_type in _FACET_TYPES.items()
-        for facet in facet_type
-    )
-
-
 SOURCE_DRIVER_ENTRY = EvidenceFacet(EvidenceLane.SOURCE, SourceFacet.DRIVER_ENTRY)
-SOURCE_DEPENDENCY_CLOSURE = EvidenceFacet(
-    EvidenceLane.SOURCE,
-    SourceFacet.DEPENDENCY_CLOSURE,
-)

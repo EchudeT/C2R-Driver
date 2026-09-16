@@ -3,7 +3,6 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from ..core.models import WorkflowError
-from .facet_policy import empty_locator_inventory_allowed
 from .facets import (
     EvidenceFacet,
     FacetDisposition,
@@ -144,7 +143,7 @@ class CoverageEntry:
 
     @classmethod
     def controlled(cls, facet: EvidenceFacet, material_ids: tuple[str, ...]) -> CoverageEntry:
-        if not material_ids and not empty_locator_inventory_allowed(facet):
+        if not material_ids:
             raise WorkflowError("controlled facet requires material")
         return cls(facet, FacetDisposition.CONTROLLED, material_ids, ())
 
@@ -177,7 +176,7 @@ class CoverageEntry:
         materials = _identifiers(candidate["material_ids"], "coverage material IDs")
         gap_ids = _identifiers(candidate["gap_ids"], "coverage gap IDs")
         if disposition is FacetDisposition.CONTROLLED:
-            if (not materials and not empty_locator_inventory_allowed(facet)) or gap_ids:
+            if not materials or gap_ids:
                 raise WorkflowError("controlled facet must reference material and no gap")
         elif not gap_ids:
             raise WorkflowError("explicit gap facet must reference at least one gap")

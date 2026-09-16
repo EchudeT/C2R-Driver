@@ -24,7 +24,6 @@ from .http_content_validation import validate_http_content_occurrences
 from .material_integrity_validation import validate_material_integrity
 from .repository_manifest import RepositoryAcquisition
 from .revision_manifest import RepositoryPlan, RevisionManifest
-from .source_dependency_validation import validate_initial_source_dependencies
 
 
 def validate_evidence_closure_bundle(context: BundleValidationContext) -> None:
@@ -71,12 +70,6 @@ def validate_evidence_closure_bundle(context: BundleValidationContext) -> None:
         closure.materials.records,
         closure.coverage.facets,
         closure.gaps.gaps,
-        closure.ledger.attempts,
-    )
-    validate_initial_source_dependencies(
-        context.project_root,
-        closure.coverage,
-        closure.materials.records,
         closure.ledger.attempts,
     )
     validate_http_content_occurrences(

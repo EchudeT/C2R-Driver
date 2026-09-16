@@ -9,9 +9,9 @@ from .closure import EvidenceClosurePlan
 from .facets import (
     SOURCE_DRIVER_ENTRY,
     EvidenceFacet,
+    EvidenceLane,
     FacetDisposition,
     RetrievalOutcome,
-    required_facets,
 )
 from .locators import EvidenceLocator
 from .material import MaterialRecord
@@ -32,8 +32,8 @@ def validate_evidence_accounting(
     _require_unique(gaps_by_id, gaps, "gap identifiers")
     _require_unique(attempts_by_id, attempts, "retrieval attempt identifiers")
     _require_unique(materials_by_id, materials, "material identifiers")
-    if set(coverage_by_facet) != set(required_facets()):
-        raise WorkflowError("evidence coverage does not contain every required facet exactly once")
+    if {facet.lane for facet in coverage_by_facet} != set(EvidenceLane):
+        raise WorkflowError("evidence coverage must contain all six evidence domains")
     _validate_attempt_plan(plan, attempts_by_id)
     controlled_ids, gap_ids = _validate_coverage_references(
         coverage_by_facet,

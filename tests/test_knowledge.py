@@ -7,7 +7,6 @@ from dataclasses import replace
 from pathlib import Path
 
 from driver_port_factory.acquisition.facets import (
-    SOURCE_DEPENDENCY_CLOSURE,
     EvidenceFacet,
     EvidenceLane,
     QemuFacet,
@@ -151,10 +150,6 @@ def prepare_project(root: Path) -> tuple[Project, dict[str, CheckoutRecord]]:
     close_evidence(
         project,
         {
-            SOURCE_DEPENDENCY_CLOSURE: (
-                RepositoryRole.SOURCE,
-                "drivers/example.h",
-            ),
             parse_facet("target", TargetFacet.DRIVER_FRAMEWORK.value): (
                 RepositoryRole.TARGET,
                 "docs/driver-contract.md",

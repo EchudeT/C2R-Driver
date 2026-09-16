@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from urllib.parse import urlparse
 
-from ..codex.contracts import CodexArtifact
+from ..codex.contracts import CodexArtifact, CodexOutputError
 from ..core.models import GeneratedArtifact, StageStatus, WorkflowError
 from ..core.project import Project
 from ..intake.contracts import IntakeArtifact, IntakeStage
@@ -238,13 +238,13 @@ class RevisionProposalImporter:
         )
         try:
             proposal = RevisionSelectionProposal.from_dict(json.loads(project.artifacts.read(job)))
-        except (UnicodeDecodeError, json.JSONDecodeError) as error:
-            raise WorkflowError("Codex revision proposal is not UTF-8 JSON") from error
+        except (UnicodeDecodeError, json.JSONDecodeError, WorkflowError) as error:
+            raise CodexOutputError(f"invalid Codex revision proposal: {error}") from error
         envelope_ref = project.artifact(
             IntakeStage.ENVELOPE_FREEZE, IntakeArtifact.MIGRATION_ENVELOPE
         )
         if proposal.migration_envelope_sha256 != envelope_ref.digest:
-            raise WorkflowError("revision proposal migration envelope digest is stale")
+            raise CodexOutputError("revision proposal migration envelope digest is stale")
         binding = JobResultBinding(job.digest, ordinal(job.ordinal), job.source)
         data = (
             json.dumps(

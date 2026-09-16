@@ -56,7 +56,7 @@ python -m driver_port_factory.cli acquire revisions ./runs/ne2000 \
   --proposal-digest SHA256 --proposal-ordinal N
 python -m driver_port_factory.cli acquire repositories ./runs/ne2000
 python -m driver_port_factory.cli codex run ./runs/ne2000 evidence_closure \
-  --objective "Locate the minimum evidence closure for every required facet"
+  --objective "Locate the minimum evidence closure across the six evidence domains"
 python -m driver_port_factory.cli acquire proposal-import ./runs/ne2000 \
   --job-digest SHA256 --job-ordinal N
 python -m driver_port_factory.cli acquire closure-finalize ./runs/ne2000 \

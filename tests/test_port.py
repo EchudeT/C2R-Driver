@@ -8,9 +8,9 @@ from types import SimpleNamespace
 from unittest.mock import patch
 
 from driver_port_factory.cli import parser
-from driver_port_factory.codex.contracts import CodexBackend
-from driver_port_factory.core.models import StageStatus
-from driver_port_factory.knowledge.contracts import KnowledgeInfrastructureError, KnowledgeStage
+from driver_port_factory.codex.contracts import CodexBackend, CodexOutputError
+from driver_port_factory.core.models import StageStatus, WorkflowError
+from driver_port_factory.knowledge.contracts import KnowledgeStage
 from driver_port_factory.port import PortOptions, PortRunner
 from driver_port_factory.source_analysis.clang_backend import AnalyzerFamily
 
@@ -51,18 +51,18 @@ def options(root: Path) -> PortOptions:
 
 
 class PortRunnerTests(unittest.TestCase):
-    def test_knowledge_infrastructure_failure_is_not_sent_back_to_codex(self) -> None:
+    def test_operational_gate_failure_is_not_sent_back_to_codex(self) -> None:
         runner = PortRunner(options(Path("/unused")))
         result = SimpleNamespace(thread_id="knowledge-thread")
 
         def reject(_project, _job) -> None:
-            raise KnowledgeInfrastructureError("deterministic index failure")
+            raise WorkflowError("deterministic index failure")
 
         with (
             patch.object(runner, "_latest_job_occurrence", return_value=None),
             patch.object(runner, "_codex", return_value=(result, None, Path("response"))) as codex,
             patch.object(runner, "_job_occurrence", return_value=object()),
-            self.assertRaisesRegex(KnowledgeInfrastructureError, "deterministic index failure"),
+            self.assertRaisesRegex(WorkflowError, "deterministic index failure"),
         ):
             runner._codex_gate(
                 object(),
@@ -73,6 +73,28 @@ class PortRunnerTests(unittest.TestCase):
             )
 
         self.assertEqual(codex.call_count, 1)
+
+    def test_output_gate_failure_reuses_thread_for_correction(self) -> None:
+        runner = PortRunner(options(Path("/unused")))
+        result = SimpleNamespace(thread_id="same-thread")
+        attempts = 0
+
+        def accept(_project, _job) -> None:
+            nonlocal attempts
+            attempts += 1
+            if attempts == 1:
+                raise CodexOutputError("invalid proposal")
+
+        with (
+            patch.object(runner, "_latest_job_occurrence", return_value=None),
+            patch.object(runner, "_codex", return_value=(result, None, Path("response"))) as codex,
+            patch.object(runner, "_job_occurrence", return_value=object()),
+        ):
+            runner._codex_gate(object(), KnowledgeStage.KNOWLEDGE_BASE, "objective", {}, accept)
+
+        self.assertEqual(codex.call_count, 2)
+        self.assertEqual(codex.call_args.kwargs["thread_id"], "same-thread")
+        self.assertEqual(codex.call_args.kwargs["follow_up"], "invalid proposal")
 
     def test_fresh_port_workspace_is_its_own_git_root(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:

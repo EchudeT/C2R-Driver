@@ -47,6 +47,21 @@ def _render_prompt(
     )
 
 
+def _render_correction(
+    project: Project,
+    error: str,
+    prompt_pack_path: str | None,
+) -> str:
+    configured_pack = prompt_pack_path or project.config.prompt_pack
+    composer = SkillPromptComposer(
+        Path(project.config.skill_root or ""),
+        WORKFLOW_STAGE_CATALOG,
+        project.workflow.stage_values,
+        Path(configured_pack) if configured_pack else None,
+    )
+    return composer.render_correction(error)
+
+
 def _load_context(project: Project, path: str | None) -> dict[str, object] | None:
     if not path:
         return None
@@ -84,7 +99,11 @@ def run_codex_stage(
         context,
         prompt_pack_path,
     )
-    prompt = follow_up or rendered.text
+    prompt = (
+        _render_correction(project, follow_up, prompt_pack_path)
+        if follow_up is not None
+        else rendered.text
+    )
     project.record_artifact(
         stage_key,
         GeneratedArtifact(

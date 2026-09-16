@@ -7,13 +7,20 @@ import unittest
 from jsonschema import Draft202012Validator
 
 from driver_port_factory.acquisition.facets import (
-    SOURCE_DEPENDENCY_CLOSURE,
     SOURCE_DRIVER_ENTRY,
+    EvidenceFacet,
+    EvidenceLane,
     FacetDisposition,
     GapReason,
+    HardwareFacet,
     LocatorKind,
     MaterialRedistribution,
-    required_facets,
+    QemuFacet,
+    TargetFacet,
+    ToolingFacet,
+)
+from driver_port_factory.acquisition.facets import (
+    TestFacet as EvidenceTestFacet,
 )
 from driver_port_factory.acquisition.proposal import EvidenceDiscoveryProposal
 from driver_port_factory.acquisition.repository_role import RepositoryRole
@@ -22,7 +29,15 @@ from driver_port_factory.codex.prompts import default_prompt_pack_path
 
 def proposal() -> dict[str, object]:
     facets: list[dict[str, object]] = []
-    for facet in required_facets():
+    minimum = (
+        SOURCE_DRIVER_ENTRY,
+        EvidenceFacet(EvidenceLane.TARGET, TargetFacet.DRIVER_FRAMEWORK),
+        EvidenceFacet(EvidenceLane.QEMU, QemuFacet.DEVICE_MODEL),
+        EvidenceFacet(EvidenceLane.HARDWARE, HardwareFacet.DEVICE_MANUAL),
+        EvidenceFacet(EvidenceLane.TEST, EvidenceTestFacet.SOURCE_TESTS),
+        EvidenceFacet(EvidenceLane.TOOLING, ToolingFacet.TOOLCHAIN_DOCUMENTATION),
+    )
+    for facet in minimum:
         if facet == SOURCE_DRIVER_ENTRY:
             facets.append(
                 {
@@ -39,16 +54,6 @@ def proposal() -> dict[str, object]:
                             "original": True,
                         }
                     ],
-                }
-            )
-            continue
-        if facet == SOURCE_DEPENDENCY_CLOSURE:
-            facets.append(
-                {
-                    **facet.to_dict(),
-                    "disposition": FacetDisposition.CONTROLLED.value,
-                    "rationale": "entry has no quoted includes",
-                    "locators": [],
                 }
             )
             continue
@@ -96,7 +101,7 @@ class EvidenceProposalSchemaTests(unittest.TestCase):
     def test_schema_and_parser_accept_typed_external_authorities(self) -> None:
         cases = (
             (
-                4,
+                (EvidenceLane.TARGET.value, TargetFacet.DRIVER_FRAMEWORK.value),
                 {
                     "kind": LocatorKind.EXTERNAL_URL.value,
                     "source_url": "https://downloads.example.invalid/target.img",
@@ -116,7 +121,7 @@ class EvidenceProposalSchemaTests(unittest.TestCase):
                 },
             ),
             (
-                16,
+                (EvidenceLane.HARDWARE.value, HardwareFacet.DEVICE_MANUAL.value),
                 {
                     "kind": LocatorKind.EXTERNAL_URL.value,
                     "source_url": "https://vendor.example.invalid/manual.pdf",
@@ -139,10 +144,14 @@ class EvidenceProposalSchemaTests(unittest.TestCase):
                 },
             ),
         )
-        for index, locator in cases:
-            with self.subTest(index=index):
+        for facet_key, locator in cases:
+            with self.subTest(facet=facet_key):
                 document = copy.deepcopy(proposal())
-                facet = document["facets"][index]
+                facet = next(
+                    item
+                    for item in document["facets"]
+                    if (item["lane"], item["facet"]) == facet_key
+                )
                 facet["disposition"] = FacetDisposition.CONTROLLED.value
                 facet["locators"] = [locator]
                 facet.pop("gap")
