@@ -33,6 +33,7 @@ from .core.project import Project
 from .environment.contracts import EnvironmentArtifact, EnvironmentStage
 from .environment.execution import ExperimentExecutor
 from .environment.inventory import EnvironmentInspector
+from .environment.models import ExperimentReadiness
 from .environment.planning import ExperimentPlanRegistrar
 from .intake.contracts import IntakeArtifact, IntakeStage
 from .intake.service import IntakeService
@@ -495,7 +496,9 @@ class PortRunner:
     def _accept_environment_result(project: Project, job: ArtifactOccurrence) -> None:
         response = project.artifacts.path_for_digest(job.digest)
         plan = ExperimentPlanRegistrar().register(project, response)
-        ExperimentExecutor().run(project, plan.route_id)
+        result = ExperimentExecutor().run(project, plan.route_id)
+        if result.readiness is ExperimentReadiness.FAIL:
+            raise WorkflowError(result.message)
 
     def _knowledge(self, project: Project) -> None:
         _, _, response = self._codex(

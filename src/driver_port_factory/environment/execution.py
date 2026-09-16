@@ -274,7 +274,6 @@ class ExperimentExecutor:
                 process["launched"] is True,
                 process["pid"] is not None,
                 process["launch_error"] is None,
-                process["timed_out"] is False,
                 qmp["handshake_error"] is None,
                 handshake is QmpHandshakeStatus.VERIFIED,
                 attempt["exit_accepted"],
