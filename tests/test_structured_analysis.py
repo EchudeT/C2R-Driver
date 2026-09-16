@@ -146,6 +146,62 @@ class StructuredCAnalysisTests(unittest.TestCase):
         )
         self.assertEqual(summary["records"][0]["ast_node_id"], identity["node_id"])
 
+    def test_record_layout_uses_direct_fields_to_disambiguate_shared_location(self) -> None:
+        source_file = "/sdk/include/types.h"
+        record = {
+            "id": "populated-record",
+            "kind": "RecordDecl",
+            "tagUsed": "struct",
+            "loc": {"file": source_file, "line": 25, "col": 3},
+            "inner": [
+                {
+                    "id": "first-field",
+                    "kind": "FieldDecl",
+                    "name": "first_member",
+                    "type": {"qualType": "struct wrapper"},
+                },
+                {
+                    "id": "second-field",
+                    "kind": "FieldDecl",
+                    "name": "payload",
+                    "type": {"qualType": "char[]"},
+                },
+            ],
+        }
+        ast = {
+            "id": "translation-unit",
+            "kind": "TranslationUnitDecl",
+            "inner": [record],
+        }
+        semantic = AstSemanticIndexer("record-structure", Path("driver.c"), ast).build()
+        label = f"struct (unnamed at {source_file}:25:3)"
+        layout = (
+            "*** Dumping AST Record Layout\n"
+            f" 0 | {label}\n"
+            "   | [sizeof=0, align=1]\n"
+            "*** Dumping AST Record Layout\n"
+            f" 0 | {label}\n"
+            " 0 |   struct wrapper first_member\n"
+            " 0 |     unsigned int nested_member\n"
+            " 0 |   char[] payload\n"
+            "   | [sizeof=4, align=4]\n"
+        ).encode()
+
+        _, summary = RawFactParser().summarize(
+            RawFactKind.RECORD_LAYOUT,
+            layout,
+            semantic,
+            "fixture-target",
+        )
+
+        identity = semantic["indexes"]["definition_identities"]["records"][0]
+        self.assertIsNone(summary["records"][0]["ast_node_id"])
+        self.assertEqual(summary["records"][1]["ast_node_id"], identity["node_id"])
+        self.assertEqual(
+            [field["depth"] for field in summary["records"][1]["fields"]],
+            [1, 2, 1],
+        )
+
     def test_abi_compatibility_ignores_compiler_specific_macro_spelling(self) -> None:
         expected = {
             "target_triple": "x86_64-linux-gnu",

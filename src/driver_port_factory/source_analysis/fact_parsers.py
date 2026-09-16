@@ -186,7 +186,8 @@ class RawFactParser:
                 field = self._LAYOUT_FIELD.fullmatch(stripped)
                 if not field:
                     continue
-                declaration = field.group("declaration").strip()
+                raw_declaration = field.group("declaration")
+                declaration = raw_declaration.strip()
                 if not label:
                     label = declaration
                     continue
@@ -204,9 +205,19 @@ class RawFactParser:
                             else None
                         ),
                         "declaration": declaration,
+                        "indent": len(raw_declaration) - len(raw_declaration.lstrip()),
                     }
                 )
             if label and size_bytes is not None and align_bytes is not None:
+                indentation = {
+                    value: depth
+                    for depth, value in enumerate(
+                        sorted({field["indent"] for field in fields}),
+                        start=1,
+                    )
+                }
+                for field in fields:
+                    field["depth"] = indentation[field.pop("indent")]
                 records.append(
                     {
                         "record": label,
@@ -306,6 +317,18 @@ class RawFactParser:
             candidates = [
                 record for record in records if self._record_matches(record["record"], identity)
             ]
+            if len(candidates) > 1:
+                candidates = [
+                    record
+                    for record in candidates
+                    if self._record_structure_matches(record, identity)
+                ]
+            if len(candidates) > 1:
+                candidates = [
+                    record
+                    for record in candidates
+                    if self._record_structure_matches(record, identity, compare_types=True)
+                ]
             if len(candidates) != 1:
                 raise WorkflowError(
                     "record-layout identity correlation failed for AST record "
@@ -316,6 +339,45 @@ class RawFactParser:
                     f"record layout {candidates[0]['record']} maps to multiple AST definitions"
                 )
             candidates[0]["ast_node_id"] = identity["node_id"]
+
+    @classmethod
+    def _record_structure_matches(
+        cls,
+        record: dict[str, Any],
+        identity: dict[str, Any],
+        *,
+        compare_types: bool = False,
+    ) -> bool:
+        ast_fields = identity["direct_fields"]
+        layout_fields = [field for field in record["fields"] if field["depth"] == 1]
+        if len(ast_fields) != len(layout_fields):
+            return False
+        if not ast_fields:
+            return True
+        for ast_field, layout_field in zip(ast_fields, layout_fields, strict=True):
+            field_name = ast_field.get("name")
+            declaration = layout_field["declaration"]
+            field_type = declaration
+            if field_name:
+                field_type = cls._declaration_type(declaration, field_name)
+                if field_type is None:
+                    return False
+            elif not ast_field.get("types"):
+                return False
+            if compare_types or not field_name:
+                ast_types = {cls._normalize_type(value) for value in ast_field["types"]}
+                if cls._normalize_type(field_type) not in ast_types:
+                    return False
+        return True
+
+    @staticmethod
+    def _declaration_type(declaration: str, field_name: str) -> str | None:
+        match = re.search(rf"(?<![A-Za-z0-9_]){re.escape(field_name)}$", declaration)
+        return declaration[: match.start()].strip() if match else None
+
+    @staticmethod
+    def _normalize_type(value: str) -> str:
+        return " ".join(value.split())
 
     def _record_matches(self, layout_label: str, identity: dict[str, Any]) -> bool:
         if layout_label in identity["layout_labels"]:

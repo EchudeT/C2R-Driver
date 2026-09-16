@@ -485,6 +485,14 @@ class AstSemanticIndexer:
             "node_id": node_id,
             "tag": tag,
             "name": name,
+            "direct_fields": [
+                {
+                    "name": child.get("name"),
+                    "types": list(self._type_names(child.get("type"))),
+                }
+                for child in node.get("inner", [])
+                if self._is_node(child) and child["kind"] == ClangNodeKind.FIELD_DECL
+            ],
             "layout_labels": labels,
             "source_location": location,
             "source_location_candidates": candidates,
