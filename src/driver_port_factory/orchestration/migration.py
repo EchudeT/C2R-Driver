@@ -285,6 +285,12 @@ def _migration_rows(config: ProjectConfig) -> tuple[StageRow, ...]:
             "Convert evidence into hardware, platform, safety, and lifecycle obligations.",
             StageOwner.HYBRID,
             (MigrationArtifact.CONTRACTS,),
+            prerequisites=(
+                MigrationStage.HANDOFF,
+                KnowledgeStage.KNOWLEDGE_BASE,
+                TargetStudyStage.STUDY,
+                SourceAnalysisStage.SOURCE_CLOSURE,
+            ),
         ),
         StageRow(
             MigrationStage.TEST_ADAPTATION,

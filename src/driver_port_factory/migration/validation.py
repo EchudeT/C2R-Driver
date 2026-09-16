@@ -7,6 +7,7 @@ from ..core.validation import (
     nonempty,
     utf8_document,
 )
+from .contract_set import validate_contract_bundle
 from .contracts import MigrationArtifact, MigrationStage
 from .handoff import validate_handoff_bundle
 
@@ -27,5 +28,8 @@ VALIDATORS = MappingProxyType[MigrationArtifact, ArtifactValidator](
 )
 
 BUNDLE_VALIDATORS = MappingProxyType[MigrationStage, BundleValidator](
-    {MigrationStage.HANDOFF: validate_handoff_bundle}
+    {
+        MigrationStage.HANDOFF: validate_handoff_bundle,
+        MigrationStage.CONTRACTS: validate_contract_bundle,
+    }
 )

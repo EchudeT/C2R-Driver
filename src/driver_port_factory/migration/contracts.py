@@ -31,3 +31,27 @@ class MigrationArtifact(StrEnum):
 class HandoffMode(StrEnum):
     DEVELOPER = "DEVELOPER"
     BLIND_CANDIDATE = "BLIND_CANDIDATE"
+
+
+class ContractEvidenceStatus(StrEnum):
+    VERIFIED = "VERIFIED"
+    INFERRED = "INFERRED"
+    UNKNOWN = "UNKNOWN"
+
+
+class ContractExecutionStatus(StrEnum):
+    NOT_RUN = "NOT_RUN"
+    NOT_APPLICABLE = "NOT_APPLICABLE"
+    BLOCKED = "BLOCKED"
+    FAIL = "FAIL"
+    PASS = "PASS"
+
+
+class ContractVerificationKind(StrEnum):
+    STATIC = "STATIC"
+    QEMU = "QEMU"
+
+
+class EvidenceSuccessor(StrEnum):
+    KNOWLEDGE = "knowledge"
+    ACQUISITION = "acquisition"
