@@ -6,20 +6,27 @@ import sys
 from pathlib import Path
 from typing import Any
 
-from ..acquisition.contracts import AcquisitionArtifact, AcquisitionStage
-from ..acquisition.models import CheckoutRecord, RepositoryRole
+from ..acquisition.repository import load_repository_acquisition
+from ..acquisition.repository_checkout import CheckoutRecord
+from ..acquisition.repository_role import RepositoryRole
 from ..core.models import WorkflowError
 from ..core.project import Project
+from .corpus import CorpusManifest
 from .index import file_sha256
 
 
 class ProjectKnowledgeSkillGenerator:
-    def generate(self, project: Project, status: dict[str, Any]) -> tuple[Path, dict[str, Any]]:
+    def generate(
+        self,
+        project: Project,
+        status: dict[str, Any],
+        manifest: CorpusManifest,
+    ) -> tuple[Path, dict[str, Any]]:
         template_path = self._template_path(project)
         checkouts = self._checkouts(project)
         target = self._checkout(checkouts, RepositoryRole.TARGET)
         skill_name = self._skill_name(project)
-        replacements = self._replacements(project, checkouts, target, skill_name)
+        replacements = self._replacements(project, checkouts, target, skill_name, manifest)
         rendered = template_path.read_text(encoding="utf-8")
         for key, value in replacements.items():
             rendered = rendered.replace("{{" + key + "}}", value)
@@ -38,9 +45,7 @@ class ProjectKnowledgeSkillGenerator:
             "template_path": str(template_path),
             "template_sha256": file_sha256(template_path),
             "manifest_path": replacements["manifest_path"],
-            "manifest_sha256": file_sha256(
-                project.root / "knowledge" / "manifests" / "materials.jsonl"
-            ),
+            "manifest_sha256": manifest.digest,
             "index_status": status,
             "commands": {
                 "status": replacements["status_command"],
@@ -71,11 +76,7 @@ class ProjectKnowledgeSkillGenerator:
 
     @staticmethod
     def _checkouts(project: Project) -> tuple[CheckoutRecord, ...]:
-        acquisition = project.load_json_artifact(
-            AcquisitionStage.EVIDENCE_ACQUISITION,
-            AcquisitionArtifact.ACQUISITION_MANIFEST,
-        )
-        return tuple(CheckoutRecord.from_dict(record) for record in acquisition["checkouts"])
+        return load_repository_acquisition(project).checkouts
 
     @staticmethod
     def _checkout(records: tuple[CheckoutRecord, ...], role: RepositoryRole) -> CheckoutRecord:
@@ -90,6 +91,7 @@ class ProjectKnowledgeSkillGenerator:
         checkouts: tuple[CheckoutRecord, ...],
         target: CheckoutRecord,
         skill_name: str,
+        manifest: CorpusManifest,
     ) -> dict[str, str]:
         command_prefix = f"{shlex.quote(sys.executable)} -m driver_port_factory.cli knowledge"
         workspace = shlex.quote(str(project.root))
@@ -112,7 +114,7 @@ class ProjectKnowledgeSkillGenerator:
                 "open the controlled original PDF at the page mapped by the indexed derivative"
             ),
             "target_source_root": str(project.root / target.checkout_path),
-            "manifest_path": str(project.root / "knowledge" / "manifests" / "materials.jsonl"),
+            "manifest_path": manifest.source,
         }
 
     @staticmethod

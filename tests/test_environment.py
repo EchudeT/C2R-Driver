@@ -2,14 +2,12 @@ from __future__ import annotations
 
 import json
 import shutil
-import subprocess
 import sys
 import tempfile
 import unittest
 from pathlib import Path
 
-from driver_port_factory.acquisition.execution import EvidenceAcquirer
-from driver_port_factory.acquisition.planning import AcquisitionPlanner
+from driver_port_factory.acquisition.repository import RepositoryAcquirer
 from driver_port_factory.composition import initialize_project
 from driver_port_factory.core.models import (
     ActorRole,
@@ -24,27 +22,7 @@ from driver_port_factory.environment.execution import ExperimentExecutor
 from driver_port_factory.environment.inventory import EnvironmentInspector
 from driver_port_factory.environment.planning import ExperimentPlanRegistrar
 from driver_port_factory.intake.service import IntakeService
-
-
-def git(*arguments: str, cwd: Path) -> str:
-    return subprocess.run(
-        ["git", *arguments], cwd=cwd, check=True, text=True, capture_output=True
-    ).stdout.strip()
-
-
-def repository(root: Path, name: str, files: dict[str, str]) -> Path:
-    path = root / name
-    path.mkdir()
-    git("init", "-b", "main", cwd=path)
-    git("config", "user.name", "DPF Test", cwd=path)
-    git("config", "user.email", "dpf-test@example.invalid", cwd=path)
-    for relative, content in files.items():
-        target = path / relative
-        target.parent.mkdir(parents=True, exist_ok=True)
-        target.write_text(content, encoding="utf-8")
-    git("add", ".", cwd=path)
-    git("commit", "-m", "fixture", cwd=path)
-    return path
+from tests.acquisition_support import close_evidence, repository, select_revisions
 
 
 def acquired_project(root: Path) -> Project:
@@ -97,16 +75,9 @@ def acquired_project(root: Path) -> Project:
         raw_request="Port the example driver",
         catalog_paths=(catalog,),
     )
-    AcquisitionPlanner().plan(
-        project,
-        source_url=str(source),
-        source_ref="main",
-        target_url=str(target),
-        target_ref="main",
-        qemu_url=str(qemu),
-        qemu_ref="main",
-    )
-    EvidenceAcquirer().acquire(project)
+    select_revisions(project, source, target, qemu)
+    RepositoryAcquirer().acquire(project)
+    close_evidence(project)
     return project
 
 

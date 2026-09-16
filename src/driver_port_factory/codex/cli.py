@@ -120,11 +120,6 @@ def command_codex_run(arguments: argparse.Namespace) -> None:
     codex_dir.mkdir(parents=True, exist_ok=True)
     output_path = codex_dir / f"{stage_key.value}-{rendered.digest[:12]}.result"
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    schema = (
-        CodexExecutionPolicy.controlled_input(project, arguments.schema, "output schema")
-        if arguments.schema
-        else None
-    )
     grant = CodexExecutionPolicy().grant(project, stage_key)
     job = CodexJob(
         stage=stage_key,
@@ -133,7 +128,7 @@ def command_codex_run(arguments: argparse.Namespace) -> None:
         prompt=rendered.text,
         execution_root=grant.execution_root,
         sandbox=grant.sandbox,
-        output_schema=schema,
+        output_schema=(rendered.output_schema.path if rendered.output_schema else None),
         model=arguments.model,
     )
     if arguments.backend is CodexBackend.EXEC:
@@ -142,7 +137,7 @@ def command_codex_run(arguments: argparse.Namespace) -> None:
         gateway = CodexSdkGateway()
     result = gateway.run(job)
     output_path.write_text(result.final_response, encoding="utf-8")
-    if schema:
+    if rendered.output_schema:
         try:
             json.loads(output_path.read_text(encoding="utf-8"))
         except json.JSONDecodeError as error:
@@ -196,7 +191,6 @@ def register_commands(commands: CommandRegistry) -> None:
     run.add_argument("--objective", required=True)
     run.add_argument("--context")
     run.add_argument("--prompt-pack", help="override the project's prompt pack for this job")
-    run.add_argument("--schema")
     run.add_argument(
         "--backend", type=CodexBackend, choices=list(CodexBackend), default=CodexBackend.EXEC
     )

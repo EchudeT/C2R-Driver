@@ -31,7 +31,7 @@ class StageOutputContract:
 
     def validate_final_bundle(self, values: Iterable[str]) -> None:
         counts = Counter(values)
-        unexpected = sorted(set(counts) - set(self.required))
+        unexpected = sorted(set(counts) - set(self.required) - set(self.auxiliary))
         cardinality_errors = self._cardinality_errors(counts)
         if cardinality_errors or unexpected:
             details = []

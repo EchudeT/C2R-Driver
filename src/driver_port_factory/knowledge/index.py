@@ -3,6 +3,9 @@ from __future__ import annotations
 import hashlib
 import json
 import re
+import shutil
+import tempfile
+import uuid
 from collections import Counter
 from collections.abc import Iterable
 from pathlib import Path
@@ -10,12 +13,13 @@ from typing import Any
 
 from ..core.ledger import canonical_json
 from ..core.models import WorkflowError
+from ..core.project import Project
 from .contracts import KnowledgeDomain, KnowledgeIndexStatus
+from .corpus import CorpusManifest
 
-MANIFEST = Path("knowledge/manifests/materials.jsonl")
-INDEX_DIR = Path("knowledge/index")
-CHUNKS = INDEX_DIR / "chunks.jsonl"
-STATE = INDEX_DIR / "state.json"
+INDEX_ROOT = Path("knowledge/indexes")
+CHUNKS_FILENAME = "chunks.jsonl"
+STATE_FILENAME = "state.json"
 TOKEN_RE = re.compile(r"[A-Za-z_][A-Za-z0-9_:.+-]*|[0-9]+|[\u3400-\u9fff]")
 TEXT_SUFFIXES = {
     ".c",
@@ -49,14 +53,27 @@ def file_sha256(path: Path) -> str:
 class KnowledgeIndex:
     """Deterministic, provenance-checked index compatible with the upstream KB contract."""
 
-    def __init__(self, workspace: Path) -> None:
+    def __init__(self, workspace: Path, manifest: CorpusManifest) -> None:
         self.workspace = workspace.resolve()
         if not self.workspace.is_dir():
             raise WorkflowError(f"knowledge workspace does not exist: {self.workspace}")
+        self.manifest = manifest
 
     @property
-    def manifest_path(self) -> Path:
-        return self.workspace / MANIFEST
+    def index_directory(self) -> Path:
+        return self.workspace / INDEX_ROOT / self.manifest.digest
+
+    @property
+    def chunks_path(self) -> Path:
+        return self.index_directory / CHUNKS_FILENAME
+
+    @property
+    def state_path(self) -> Path:
+        return self.index_directory / STATE_FILENAME
+
+    @classmethod
+    def for_project(cls, project: Project) -> KnowledgeIndex:
+        return cls(project.root, CorpusManifest.current(project))
 
     def controlled_path(self, relative: str) -> Path:
         candidate = (self.workspace / relative).resolve()
@@ -65,44 +82,7 @@ class KnowledgeIndex:
         return candidate
 
     def load_manifest(self) -> list[dict[str, Any]]:
-        if not self.manifest_path.is_file():
-            raise WorkflowError(f"missing knowledge manifest: {self.manifest_path}")
-        records: list[dict[str, Any]] = []
-        identifiers: set[str] = set()
-        for line_number, line in enumerate(
-            self.manifest_path.read_text(encoding="utf-8").splitlines(), 1
-        ):
-            if not line.strip():
-                continue
-            try:
-                record = json.loads(line)
-            except json.JSONDecodeError as error:
-                raise WorkflowError(
-                    f"invalid JSON at {self.manifest_path}:{line_number}: {error}"
-                ) from error
-            if not isinstance(record, dict):
-                raise WorkflowError(f"manifest record at line {line_number} must be an object")
-            required = {"id", "domain", "path", "source_url", "revision", "sha256"}
-            missing = sorted(required - record.keys())
-            if missing:
-                raise WorkflowError(
-                    f"knowledge manifest line {line_number} missing: {', '.join(missing)}"
-                )
-            try:
-                domain = KnowledgeDomain(record["domain"])
-            except (TypeError, ValueError) as error:
-                raise WorkflowError(
-                    f"knowledge manifest line {line_number} has an invalid domain"
-                ) from error
-            identifier = str(record["id"])
-            if identifier in identifiers:
-                raise WorkflowError(f"duplicate knowledge manifest id: {identifier}")
-            identifiers.add(identifier)
-            record["domain"] = domain.value
-            records.append(record)
-        if not records:
-            raise WorkflowError("knowledge manifest has no records")
-        return records
+        return [record.to_dict() for record in self.manifest.records]
 
     def verified_records(self) -> list[dict[str, Any]]:
         verified: list[dict[str, Any]] = []
@@ -191,17 +171,18 @@ class KnowledgeIndex:
         for record in sorted(records, key=lambda item: str(item["id"])):
             if self._is_text(record):
                 chunks.extend(self._chunks_for(record, line_count, overlap))
-        index_dir = self.workspace / INDEX_DIR
-        index_dir.mkdir(parents=True, exist_ok=True)
-        chunks_path = self.workspace / CHUNKS
-        chunks_path.write_text(
-            "".join(canonical_json(chunk) + "\n" for chunk in chunks),
-            encoding="utf-8",
-        )
+        index_root = self.workspace / INDEX_ROOT
+        index_root.mkdir(parents=True, exist_ok=True)
+        temporary = Path(tempfile.mkdtemp(prefix=f".{self.manifest.digest}.", dir=index_root))
+        chunks_path = temporary / CHUNKS_FILENAME
+        chunks_data = "".join(canonical_json(chunk) + "\n" for chunk in chunks).encode()
+        chunks_path.write_bytes(chunks_data)
         state = {
             "schema_version": 1,
             "status": KnowledgeIndexStatus.READY.value,
             "manifest_fingerprint": self._manifest_fingerprint(records),
+            "manifest_sha256": self.manifest.digest,
+            "index_path": str(self.index_directory.relative_to(self.workspace)),
             "record_count": len(records),
             "indexed_record_count": sum(1 for record in records if self._is_text(record)),
             "chunk_count": len(chunks),
@@ -215,16 +196,35 @@ class KnowledgeIndex:
             "line_count": line_count,
             "overlap": overlap,
         }
-        (self.workspace / STATE).write_text(
-            json.dumps(state, ensure_ascii=False, sort_keys=True, indent=2) + "\n",
-            encoding="utf-8",
-        )
+        state_data = (
+            json.dumps(state, ensure_ascii=False, sort_keys=True, indent=2) + "\n"
+        ).encode()
+        (temporary / STATE_FILENAME).write_bytes(state_data)
+        self._publish_index(temporary, chunks_data, state_data)
         return state
+
+    def _publish_index(self, temporary: Path, chunks_data: bytes, state_data: bytes) -> None:
+        destination = self.index_directory
+        if destination.exists():
+            existing = (
+                (destination / CHUNKS_FILENAME).read_bytes()
+                if (destination / CHUNKS_FILENAME).is_file()
+                else None,
+                (destination / STATE_FILENAME).read_bytes()
+                if (destination / STATE_FILENAME).is_file()
+                else None,
+            )
+            if existing == (chunks_data, state_data):
+                shutil.rmtree(temporary)
+                return
+            quarantine = destination.with_name(f".{destination.name}.replaced-{uuid.uuid4().hex}")
+            destination.rename(quarantine)
+        temporary.rename(destination)
 
     def _current(self) -> tuple[list[dict[str, Any]], dict[str, Any]]:
         records = self.verified_records()
-        state_path = self.workspace / STATE
-        chunks_path = self.workspace / CHUNKS
+        state_path = self.state_path
+        chunks_path = self.chunks_path
         if not state_path.is_file() or not chunks_path.is_file():
             raise WorkflowError("knowledge index is missing; run build")
         try:
@@ -233,6 +233,10 @@ class KnowledgeIndex:
             raise WorkflowError("knowledge index state is invalid") from error
         if state.get("manifest_fingerprint") != self._manifest_fingerprint(records):
             raise WorkflowError("knowledge index is stale: manifest fingerprint changed")
+        if state.get("manifest_sha256") != self.manifest.digest:
+            raise WorkflowError("knowledge index is stale: corpus artifact changed")
+        if state.get("index_path") != str(self.index_directory.relative_to(self.workspace)):
+            raise WorkflowError("knowledge index state has a mismatched content-addressed path")
         if state.get("chunks_sha256") != file_sha256(chunks_path):
             raise WorkflowError("knowledge index is corrupt or stale: chunk hash changed")
         return records, state
@@ -283,7 +287,7 @@ class KnowledgeIndex:
         self._current()
         return [
             json.loads(line)
-            for line in (self.workspace / CHUNKS).read_text(encoding="utf-8").splitlines()
+            for line in self.chunks_path.read_text(encoding="utf-8").splitlines()
             if line
         ]
 

@@ -21,6 +21,7 @@ class StageRow:
     required_outputs: tuple[ArtifactKey, ...]
     auxiliary_outputs: tuple[ArtifactKey, ...] = ()
     repeatable_outputs: tuple[ArtifactKey, ...] = ()
+    prerequisites: tuple[StageKey, ...] = ()
 
 
 def stage_spec(
@@ -33,6 +34,7 @@ def stage_spec(
     *,
     auxiliary_outputs: tuple[ArtifactKey, ...] = (),
     repeatable_outputs: tuple[ArtifactKey, ...] = (),
+    prerequisites: tuple[StageKey, ...] = (),
     accept_failed: bool = False,
 ) -> StageSpec:
     codex_evidence = (
@@ -56,11 +58,14 @@ def stage_spec(
         )
         for output in outputs
     )
+    dependencies = (
+        tuple(dict.fromkeys((dependency, *prerequisites))) if dependency else prerequisites
+    )
     return StageSpec(
         name=name,
         description=description,
         owner=owner,
-        dependencies=(dependency,) if dependency else (),
+        dependencies=dependencies,
         required_outputs=requirements,
         auxiliary_outputs=(*auxiliary_outputs, *codex_evidence),
         allowed_roles=roles,
@@ -86,6 +91,7 @@ def append_linear(
                 roles,
                 auxiliary_outputs=row.auxiliary_outputs,
                 repeatable_outputs=row.repeatable_outputs,
+                prerequisites=row.prerequisites,
             )
         )
         previous = row.name

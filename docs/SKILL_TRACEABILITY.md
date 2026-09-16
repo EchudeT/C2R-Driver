@@ -10,12 +10,12 @@
 |---|---|---|---|
 | clone 前确认 source、target、唯一驱动及设备/总线范围 | `request_intake` 至 `migration_envelope_freeze`、`intake/` | request、候选、一次合并问题、确认答案、冻结 envelope | IMPLEMENTED |
 | 歧义状态可持久恢复且不得重复提问 | `intake/service.py`、SQLite ledger | `WAITING_FOR_USER` 与 answer 事件 | IMPLEMENTED |
-| source/target/QEMU 使用完整提交而非浮动分支 | `revision_selection`、`acquisition/` | revision manifest、解析命令证据 | IMPLEMENTED |
-| 上游输入只读、target baseline 与 writable worktree 分离 | `evidence_acquisition`、`acquisition/git.py` | 三个 baseline lock、独立 target-working | IMPLEMENTED |
-| 最小证据闭包覆盖源码、测试、目标、QEMU、硬件和工具链 | acquisition 扩展闭包 | `materials.jsonl`、coverage inventory、显式 gap | PARTIAL |
-| 环境恢复必须实际达到 `EXPERIMENT_READY` | `environment_recovery` | 主机清单、artifact mode、不可覆盖的真实命令 run | IMPLEMENTED |
-| 不能默认完整源码构建，须比较 runner/SDK/image/injection/CI/full build | environment artifact discovery | 候选路线与选择证据 | IMPLEMENTED |
-| 建立或复用带完整性、search、show、rebuild 的项目知识库 Skill | `knowledge_base` | KB status、query contract、生成 Skill | IMPLEMENTED |
+| source/target/QEMU 使用完整提交而非浮动分支 | `revision_selection`、`acquisition/` | revision manifest、解析命令证据 | PARTIAL |
+| 上游输入只读、target baseline 与 writable worktree 分离 | `repository_acquisition`、`acquisition/` | 三个 baseline lock、独立 target-working、可恢复 partial clone | PARTIAL |
+| 最小证据闭包覆盖源码、测试、目标、QEMU、硬件和工具链 | `evidence_closure`、`acquisition/facets.py` | typed proposal、逐文件 Git blob/external origin、不可变语料 artifact、coverage、gap、retrieval ledger 与 bundle gate | PARTIAL |
+| 环境恢复必须实际达到 `EXPERIMENT_READY` | `environment_recovery` | 主机清单、artifact mode、不可覆盖的真实命令 run | PARTIAL |
+| 不能默认完整源码构建，须比较 runner/SDK/image/injection/CI/full build | environment artifact discovery | 候选路线与选择证据 | PARTIAL |
+| 建立或复用带完整性、search、show、rebuild 的项目知识库 Skill | `knowledge_base` | KB status、query contract、生成 Skill | PARTIAL |
 | 目标专项检索失败时直接查源码、补语料、重建并复测 | KB target probes | probe 与 repair ledger | PARTIAL |
 | 完整 handoff，不能只写“缺少构建信息” | bootstrap handoff | `handoff.json` 全字段验证 | PLANNED |
 
@@ -24,7 +24,7 @@
 | Skill 要求 | 程序阶段/模块 | 强制产物或检查 | 状态 |
 |---|---|---|---|
 | 先完成目标平台画像、API 表和相似驱动端到端链路 | `target_platform_study` | target profile、API evidence、analog trace | IMPLEMENTED |
-| 固定真实 C 编译配置并递归关闭共享源码、头、配置、callback、注册表、测试和框架依赖 | `source_closure`、`source_analysis/` | compiler identity、compile database、依赖扫描、七类 closure、KB revision | IMPLEMENTED |
+| 固定真实 C 编译配置并递归关闭共享源码、头、配置、callback、注册表、测试和框架依赖 | `source_closure`、`source_analysis/` | compiler identity、compile database、依赖扫描、七类 closure、KB revision | PARTIAL |
 | 导出 AST/CPG/CFG/layout/preprocessor/call/global/effect 和精确 source spans | `structured_c_analysis`、`source_analysis/` | Clang/LLVM 原始 facts、AST-derived CPG、工具/命令/输入摘要；bundle gate 重新绑定 checkout/compiler/argv/bytes/unit，重建 AST semantic index，并重放冻结命令拒绝同步伪造 | IMPLEMENTED |
 | 在编码前建立硬件/源/目标/QEMU 四域迁移合同 | `migration_contracts` | 每项证据、Rust 设计、验证 oracle、独立状态 | PARTIAL |
 | 驱动逻辑按合同重构而非逐行或按名称猜测 | `rust_design`、`rust_implementation` | source-to-contract coverage 与 unsafe obligations | PARTIAL |

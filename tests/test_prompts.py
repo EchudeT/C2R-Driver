@@ -28,7 +28,7 @@ def write_prompt_pack(root: Path, *, wrapper: str, stages: dict[str, list[str]])
                 "schema_version": 1,
                 "name": "test-pack",
                 "template": "job.md",
-                "stages": stages,
+                "stages": {stage: {"documents": documents} for stage, documents in stages.items()},
             }
         ),
         encoding="utf-8",
@@ -103,6 +103,41 @@ class SkillPromptTests(unittest.TestCase):
                 ):
                     missing.append(f"{role.value}:{stage.name.value}")
             self.assertEqual(missing, [])
+
+    def test_default_pack_binds_structured_stage_schemas(self) -> None:
+        prompt_pack = load_prompt_pack(None, WORKFLOW_STAGE_CATALOG)
+        expected = {
+            "revision_selection": "revision-selection-proposal.schema.json",
+            "evidence_closure": "evidence-closure-proposal.schema.json",
+        }
+        actual = {
+            stage: specification.output_schema.relative_path
+            for stage, specification in prompt_pack.stages.items()
+            if specification.output_schema is not None
+        }
+        self.assertEqual(actual, expected)
+
+    def test_legacy_stage_document_list_is_rejected(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary) / "prompt-pack"
+            root.mkdir()
+            (root / "job.md").write_text(
+                "{{job_json}}\n{{skill_documents}}\n",
+                encoding="utf-8",
+            )
+            (root / "manifest.json").write_text(
+                json.dumps(
+                    {
+                        "schema_version": 1,
+                        "name": "legacy-pack",
+                        "template": "job.md",
+                        "stages": {"driver_candidate_resolution": ["SKILL.md"]},
+                    }
+                ),
+                encoding="utf-8",
+            )
+            with self.assertRaisesRegex(WorkflowError, "stage specification"):
+                load_prompt_pack(root, WORKFLOW_STAGE_CATALOG)
 
     def test_prompt_sources_and_wrapper_may_change_between_jobs(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:

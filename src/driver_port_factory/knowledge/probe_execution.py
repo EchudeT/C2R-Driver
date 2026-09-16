@@ -2,13 +2,36 @@ from __future__ import annotations
 
 from typing import Any
 
-from .contracts import KnowledgeEvidenceStatus
+from ..acquisition.facets import EvidenceLane, HardwareFacet
+from .contracts import KnowledgeEvidenceStatus, RequiredProbeTopic
 from .index import KnowledgeIndex, file_sha256
 from .probes import KnowledgeProbe
 
 
 class KnowledgeProbeExecutor:
-    def run(self, knowledge: KnowledgeIndex, probe: KnowledgeProbe) -> dict[str, Any]:
+    def run(
+        self,
+        knowledge: KnowledgeIndex,
+        probe: KnowledgeProbe,
+        gap_register: tuple[dict[str, Any], ...],
+    ) -> dict[str, Any]:
+        gap = self._hardware_gap(probe, gap_register)
+        if gap is not None:
+            return {
+                "probe_id": probe.probe_id,
+                "topic": probe.topic,
+                "domain": probe.domain.value,
+                "query": probe.query,
+                "required": probe.required,
+                "result_count": 0,
+                "verification": {
+                    "gap_id": gap["id"],
+                    "reason": gap["reason"],
+                    "impact": gap["impact"],
+                    "positive_evidence": False,
+                },
+                "status": KnowledgeEvidenceStatus.PASS,
+            }
         result = knowledge.search(
             probe.query,
             domain=probe.domain,
@@ -31,6 +54,21 @@ class KnowledgeProbeExecutor:
             "verification": verification,
             "status": (KnowledgeEvidenceStatus.PASS if passed else KnowledgeEvidenceStatus.FAIL),
         }
+
+    @staticmethod
+    def _hardware_gap(
+        probe: KnowledgeProbe,
+        gaps: tuple[dict[str, Any], ...],
+    ) -> dict[str, Any] | None:
+        if probe.required_topic is not RequiredProbeTopic.HARDWARE_OR_EXPLICIT_GAP:
+            return None
+        matches = [
+            gap
+            for gap in gaps
+            if gap.get("lane") == EvidenceLane.HARDWARE.value
+            and gap.get("facet") == HardwareFacet.DEVICE_MANUAL.value
+        ]
+        return matches[0] if len(matches) == 1 else None
 
     @staticmethod
     def _verify_first_match(

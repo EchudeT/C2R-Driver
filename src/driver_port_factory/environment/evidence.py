@@ -5,17 +5,9 @@ import shutil
 from pathlib import Path
 from typing import Any
 
-from ..acquisition.models import CheckoutRecord, RepositoryRole
 from ..core.models import WorkflowError
 from ..core.project import Project
 from .models import WorkspaceEntryKind
-
-
-def checkout_for(checkouts: tuple[CheckoutRecord, ...], role: RepositoryRole) -> CheckoutRecord:
-    matches = [record for record in checkouts if record.role is role]
-    if len(matches) != 1:
-        raise WorkflowError(f"expected exactly one {role.value} checkout")
-    return matches[0]
 
 
 def workspace_path(project: Project, relative: str) -> Path:

@@ -19,6 +19,19 @@ class PromptDocument:
 
 
 @dataclass(frozen=True, slots=True)
+class PromptOutputSchema:
+    relative_path: str
+    path: Path
+    digest: str
+
+
+@dataclass(frozen=True, slots=True)
+class PromptStage:
+    documents: tuple[str, ...]
+    output_schema: PromptOutputSchema | None
+
+
+@dataclass(frozen=True, slots=True)
 class PromptPack:
     name: str
     root: Path
@@ -26,7 +39,7 @@ class PromptPack:
     template_path: Path
     template_digest: str
     template: str
-    stages: dict[str, tuple[str, ...]]
+    stages: dict[str, PromptStage]
 
 
 @dataclass(frozen=True, slots=True)
@@ -37,6 +50,7 @@ class RenderedPrompt:
     prompt_pack_name: str
     prompt_pack_manifest_digest: str
     prompt_template_digest: str
+    output_schema: PromptOutputSchema | None
 
 
 def default_prompt_pack_path() -> Path:
@@ -65,22 +79,49 @@ def _pack_file(root: Path, value: Any, label: str) -> tuple[Path, bytes]:
     return path, path.read_bytes()
 
 
-def _prompt_stages(value: Any, catalog: StageCatalog) -> dict[str, tuple[str, ...]]:
+def _prompt_stages(
+    value: Any,
+    catalog: StageCatalog,
+    root: Path,
+) -> dict[str, PromptStage]:
     if not isinstance(value, dict):
         raise WorkflowError("prompt pack stages must be an object")
-    stages: dict[str, tuple[str, ...]] = {}
-    for stage, documents in value.items():
+    stages: dict[str, PromptStage] = {}
+    for stage, specification in value.items():
         if not isinstance(stage, str) or not stage:
             raise WorkflowError("prompt pack stage names must be non-empty strings")
         if not catalog.contains(stage):
             raise WorkflowError(f"prompt pack contains an unknown stage: {stage}")
+        if not isinstance(specification, dict) or set(specification) - {
+            "documents",
+            "output_schema",
+        }:
+            raise WorkflowError(f"prompt pack stage {stage} must be a stage specification")
+        documents = specification.get("documents")
         if (
             not isinstance(documents, list)
             or not documents
             or not all(isinstance(document, str) and document for document in documents)
         ):
             raise WorkflowError(f"prompt pack stage {stage} needs a non-empty document list")
-        stages[stage] = tuple(documents)
+        output_schema = None
+        if "output_schema" in specification:
+            relative_path = specification["output_schema"]
+            schema_path, schema_raw = _pack_file(root, relative_path, "output schema")
+            try:
+                schema_document = json.loads(schema_raw)
+            except (UnicodeDecodeError, json.JSONDecodeError) as error:
+                raise WorkflowError(
+                    f"prompt pack output schema is not valid UTF-8 JSON: {schema_path}"
+                ) from error
+            if not isinstance(schema_document, dict):
+                raise WorkflowError("prompt pack output schema must be a JSON object")
+            output_schema = PromptOutputSchema(
+                relative_path,
+                schema_path,
+                hashlib.sha256(schema_raw).hexdigest(),
+            )
+        stages[stage] = PromptStage(tuple(documents), output_schema)
     return stages
 
 
@@ -102,7 +143,7 @@ def load_prompt_pack(path: Path | None, stage_catalog: StageCatalog) -> PromptPa
         raise WorkflowError(
             "prompt pack template is missing structural markers: " + ", ".join(missing_markers)
         )
-    stages = _prompt_stages(manifest.get("stages"), stage_catalog)
+    stages = _prompt_stages(manifest.get("stages"), stage_catalog, root)
     return PromptPack(
         name=name,
         root=root,
@@ -150,13 +191,13 @@ class SkillPromptComposer:
     def documents_for_stage(self, stage: StageKey) -> tuple[PromptDocument, ...]:
         if stage.value not in self.allowed_stages:
             raise WorkflowError(f"stage {stage.value} is outside the current project workflow")
-        paths = self.prompt_pack.stages.get(stage.value)
-        if not paths:
+        specification = self.prompt_pack.stages.get(stage.value)
+        if specification is None:
             raise WorkflowError(
                 f"stage {stage.value} has no document mapping in prompt pack "
                 f"{self.prompt_pack.name}"
             )
-        return tuple(self._read_document(path) for path in paths)
+        return tuple(self._read_document(path) for path in specification.documents)
 
     def render(
         self,
@@ -167,6 +208,7 @@ class SkillPromptComposer:
         context: dict[str, object] | None = None,
     ) -> RenderedPrompt:
         documents = self.documents_for_stage(stage)
+        stage_specification = self.prompt_pack.stages[stage.value]
         header: dict[str, Any] = {
             "stage": stage.value,
             "actor_role": actor_role.value,
@@ -176,6 +218,14 @@ class SkillPromptComposer:
                 "name": self.prompt_pack.name,
                 "manifest_sha256": self.prompt_pack.manifest_digest,
                 "template_sha256": self.prompt_pack.template_digest,
+                "output_schema": (
+                    {
+                        "path": stage_specification.output_schema.relative_path,
+                        "sha256": stage_specification.output_schema.digest,
+                    }
+                    if stage_specification.output_schema is not None
+                    else None
+                ),
             },
             "skill_documents": [
                 {"path": document.relative_path, "sha256": document.digest}
@@ -203,4 +253,5 @@ class SkillPromptComposer:
             prompt_pack_name=self.prompt_pack.name,
             prompt_pack_manifest_digest=self.prompt_pack.manifest_digest,
             prompt_template_digest=self.prompt_pack.template_digest,
+            output_schema=stage_specification.output_schema,
         )

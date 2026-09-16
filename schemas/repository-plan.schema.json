@@ -1,0 +1,103 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://driver-port-factory.local/schemas/repository-plan.schema.json",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "repositories",
+    "compatibility_evidence",
+    "revision_proposal",
+    "selection_job",
+    "migration_envelope_digest",
+    "planned_at"
+  ],
+  "properties": {
+    "schema_version": {"const": 1},
+    "repositories": {
+      "type": "array",
+      "minItems": 3,
+      "maxItems": 3,
+      "items": {"$ref": "#/$defs/repository"}
+    },
+    "compatibility_evidence": {
+      "type": "array",
+      "minItems": 1,
+      "items": {"$ref": "#/$defs/compatibilityEvidence"}
+    },
+    "revision_proposal": {"$ref": "#/$defs/occurrence"},
+    "selection_job": {"$ref": "#/$defs/jobBinding"},
+    "migration_envelope_digest": {"$ref": "#/$defs/sha256"},
+    "planned_at": {"type": "string", "minLength": 1}
+  },
+  "$defs": {
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "objectId": {"type": "string", "pattern": "^(?:[0-9a-f]{40}|[0-9a-f]{64})$"},
+    "role": {"enum": ["source", "target", "qemu"]},
+    "repository": {
+      "type": "object",
+      "required": ["role", "platform", "url", "requested_ref", "resolved_commit", "selection_rule"],
+      "properties": {
+        "role": {"$ref": "#/$defs/role"},
+        "platform": {"type": "string", "minLength": 1},
+        "url": {"type": "string", "minLength": 1},
+        "requested_ref": {"type": "string", "minLength": 1},
+        "resolved_commit": {"$ref": "#/$defs/objectId"},
+        "selection_rule": {"type": "string", "minLength": 1}
+      },
+      "additionalProperties": false
+    },
+    "compatibilityEvidence": {
+      "type": "object",
+      "required": ["source_url", "resolved_url", "claim", "excerpt", "claim_kind", "bindings", "citation_status", "compatibility_status", "sha256", "size_bytes", "retrieved_at"],
+      "properties": {
+        "source_url": {"type": "string", "minLength": 1},
+        "resolved_url": {"type": "string", "minLength": 1},
+        "claim": {"type": "string", "minLength": 1},
+        "excerpt": {"type": "string", "minLength": 1},
+        "claim_kind": {"enum": ["maintenance", "cross-repository-compatibility"]},
+        "bindings": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {"$ref": "#/$defs/resolvedBinding"}
+        },
+        "citation_status": {"const": "VERIFIED"},
+        "compatibility_status": {"const": "INFERRED"},
+        "sha256": {"$ref": "#/$defs/sha256"},
+        "size_bytes": {"type": "integer", "minimum": 1},
+        "retrieved_at": {"type": "string", "minLength": 1}
+      },
+      "additionalProperties": false
+    },
+    "resolvedBinding": {
+      "type": "object",
+      "required": ["role", "requested_ref", "resolved_commit"],
+      "properties": {
+        "role": {"$ref": "#/$defs/role"},
+        "requested_ref": {"type": "string", "minLength": 1},
+        "resolved_commit": {"$ref": "#/$defs/objectId"}
+      },
+      "additionalProperties": false
+    },
+    "occurrence": {
+      "type": "object",
+      "required": ["digest", "ordinal"],
+      "properties": {
+        "digest": {"$ref": "#/$defs/sha256"},
+        "ordinal": {"type": "integer", "minimum": 0}
+      },
+      "additionalProperties": false
+    },
+    "jobBinding": {
+      "type": "object",
+      "required": ["digest", "ordinal", "source"],
+      "properties": {
+        "digest": {"$ref": "#/$defs/sha256"},
+        "ordinal": {"type": "integer", "minimum": 0},
+        "source": {"type": "string", "minLength": 1}
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

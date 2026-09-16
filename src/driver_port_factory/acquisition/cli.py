@@ -6,37 +6,65 @@ from pathlib import Path
 
 from ..cli_support import CommandRegistry, command_registry
 from ..composition import open_project
-from ..core.models import WorkflowError
-from .execution import EvidenceAcquirer
-from .planning import AcquisitionPlanner
+from .closure import EvidenceClosureFinalizer
+from .job import ArtifactOccurrence
+from .proposal import EvidenceProposalImporter
+from .repository import RepositoryAcquirer
+from .revision_proposal import RevisionProposalImporter
+from .revision_selection import RevisionSelector
 from .verification import AcquisitionVerifier
 
 
-def command_plan(arguments: argparse.Namespace) -> None:
+def command_revisions(arguments: argparse.Namespace) -> None:
     project = open_project(Path(arguments.path))
-    plan = AcquisitionPlanner().plan(
+    plan = RevisionSelector().select(
         project,
-        source_url=arguments.source_url,
-        source_ref=arguments.source_ref,
-        target_url=arguments.target_url,
-        target_ref=arguments.target_ref,
-        qemu_url=arguments.qemu_url,
-        qemu_ref=arguments.qemu_ref,
-        registry_path=Path(arguments.registry).resolve() if arguments.registry else None,
+        proposal=ArtifactOccurrence(arguments.proposal_digest, arguments.proposal_ordinal),
     )
     print(json.dumps(plan.to_dict(), ensure_ascii=False, sort_keys=True, indent=2))
 
 
-def command_run(arguments: argparse.Namespace) -> None:
+def command_repositories(arguments: argparse.Namespace) -> None:
     project = open_project(Path(arguments.path))
-    result = EvidenceAcquirer().acquire(project)
+    acquisition = RepositoryAcquirer().acquire(project)
+    print(json.dumps(acquisition.to_dict(), ensure_ascii=False, sort_keys=True, indent=2))
+
+
+def command_revision_proposal_import(arguments: argparse.Namespace) -> None:
+    project = open_project(Path(arguments.path))
+    occurrence = RevisionProposalImporter().import_job_result(
+        project,
+        job_digest=arguments.job_digest,
+        job_ordinal=arguments.job_ordinal,
+    )
+    print(
+        json.dumps(
+            {"digest": occurrence.digest, "ordinal": occurrence.ordinal},
+            ensure_ascii=False,
+            sort_keys=True,
+            indent=2,
+        )
+    )
+
+
+def command_proposal_import(arguments: argparse.Namespace) -> None:
+    project = open_project(Path(arguments.path))
+    imported = EvidenceProposalImporter().import_job_result(
+        project,
+        job_digest=arguments.job_digest,
+        job_ordinal=arguments.job_ordinal,
+    )
     print(
         json.dumps(
             {
-                "status": result.status.value,
-                "target_worktree": result.target_worktree,
-                "source_identity_consistent": result.source_identity_consistent,
-                "checkouts": [record.to_dict() for record in result.checkouts],
+                "proposal": {
+                    "digest": imported.occurrence.digest,
+                    "ordinal": imported.occurrence.ordinal,
+                },
+                "job_result": {
+                    "digest": imported.job_result.digest,
+                    "ordinal": imported.job_result.ordinal,
+                },
             },
             ensure_ascii=False,
             sort_keys=True,
@@ -45,32 +73,60 @@ def command_run(arguments: argparse.Namespace) -> None:
     )
 
 
-def command_verify(arguments: argparse.Namespace) -> None:
+def command_closure_finalize(arguments: argparse.Namespace) -> None:
+    project = open_project(Path(arguments.path))
+    result = EvidenceClosureFinalizer().finalize(
+        project,
+        proposal=ArtifactOccurrence(arguments.proposal_digest, arguments.proposal_ordinal),
+    )
+    print(
+        json.dumps(
+            {
+                "controlled_materials": result.controlled_materials,
+                "explicit_gaps": result.explicit_gaps,
+                "materials_manifest_digest": result.materials_manifest_digest,
+            },
+            ensure_ascii=False,
+            sort_keys=True,
+            indent=2,
+        )
+    )
+
+
+def command_repositories_verify(arguments: argparse.Namespace) -> None:
     project = open_project(Path(arguments.path))
     result = AcquisitionVerifier().verify(project)
     print(json.dumps(result, ensure_ascii=False, sort_keys=True, indent=2))
-    if not result["valid"]:
-        raise WorkflowError("one or more acquired repositories failed verification")
 
 
 def register_commands(commands: CommandRegistry) -> None:
     acquire = commands.add_parser(
-        "acquire", help="pin and acquire source, target, and QEMU repositories"
+        "acquire", help="pin repositories and close provenance-tracked evidence"
     )
-    acquire_commands = command_registry(acquire, dest="acquire_command")
-    plan = acquire_commands.add_parser("plan")
-    plan.add_argument("path")
-    plan.add_argument("--source-url")
-    plan.add_argument("--source-ref")
-    plan.add_argument("--target-url")
-    plan.add_argument("--target-ref")
-    plan.add_argument("--qemu-url")
-    plan.add_argument("--qemu-ref")
-    plan.add_argument("--registry")
-    plan.set_defaults(handler=command_plan)
-    run = acquire_commands.add_parser("run")
-    run.add_argument("path")
-    run.set_defaults(handler=command_run)
-    verify = acquire_commands.add_parser("verify")
+    subcommands = command_registry(acquire, dest="acquire_command")
+    revisions = subcommands.add_parser("revisions")
+    revisions.add_argument("path")
+    revisions.add_argument("--proposal-digest", required=True)
+    revisions.add_argument("--proposal-ordinal", required=True, type=int)
+    revisions.set_defaults(handler=command_revisions)
+    revision_proposal = subcommands.add_parser("revision-proposal-import")
+    revision_proposal.add_argument("path")
+    revision_proposal.add_argument("--job-digest", required=True)
+    revision_proposal.add_argument("--job-ordinal", required=True, type=int)
+    revision_proposal.set_defaults(handler=command_revision_proposal_import)
+    repositories = subcommands.add_parser("repositories")
+    repositories.add_argument("path")
+    repositories.set_defaults(handler=command_repositories)
+    proposal = subcommands.add_parser("proposal-import")
+    proposal.add_argument("path")
+    proposal.add_argument("--job-digest", required=True)
+    proposal.add_argument("--job-ordinal", required=True, type=int)
+    proposal.set_defaults(handler=command_proposal_import)
+    finalize = subcommands.add_parser("closure-finalize")
+    finalize.add_argument("path")
+    finalize.add_argument("--proposal-digest", required=True)
+    finalize.add_argument("--proposal-ordinal", required=True, type=int)
+    finalize.set_defaults(handler=command_closure_finalize)
+    verify = subcommands.add_parser("repositories-verify")
     verify.add_argument("path")
-    verify.set_defaults(handler=command_verify)
+    verify.set_defaults(handler=command_repositories_verify)

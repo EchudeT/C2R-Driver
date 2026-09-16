@@ -65,12 +65,12 @@ def command_artifact_add(arguments: argparse.Namespace) -> None:
     project = open_project(Path(arguments.path))
     stage = project.workflow.parse_stage(arguments.stage)
     kind = ARTIFACT_VALIDATORS.parse(arguments.kind)
-    digest = project.record_artifact(
+    occurrence = project.record_artifact(
         stage,
         FileArtifact(kind, Path(arguments.file)),
         direction=arguments.direction,
     )
-    print(digest)
+    print(occurrence.digest)
 
 
 def command_ledger_verify(arguments: argparse.Namespace) -> None:

@@ -1,0 +1,57 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://driver-port-factory.local/schemas/repository-manifest.schema.json",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "project_id",
+    "acquired_at",
+    "migration_envelope_sha256",
+    "repository_plan_sha256",
+    "checkouts",
+    "target_worktree",
+    "commands"
+  ],
+  "properties": {
+    "schema_version": {"const": 1},
+    "project_id": {"type": "string", "minLength": 1},
+    "acquired_at": {"type": "string", "minLength": 1},
+    "migration_envelope_sha256": {"$ref": "#/$defs/sha256"},
+    "repository_plan_sha256": {"$ref": "#/$defs/sha256"},
+    "checkouts": {
+      "type": "array",
+      "minItems": 3,
+      "maxItems": 3,
+      "items": {"$ref": "#/$defs/checkout"}
+    },
+    "target_worktree": {"type": "string", "minLength": 1},
+    "commands": {"type": "array", "items": {"type": "object"}}
+  },
+  "$defs": {
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "objectId": {"type": "string", "pattern": "^(?:[0-9a-f]{40}|[0-9a-f]{64})$"},
+    "checkout": {
+      "type": "object",
+      "required": [
+        "role", "platform", "source_url", "requested_ref", "resolved_commit", "tree_id",
+        "bare_repository", "checkout_path", "clean", "lock_path", "lock_sha256", "acquired_at"
+      ],
+      "properties": {
+        "role": {"enum": ["source", "target", "qemu"]},
+        "platform": {"type": "string", "minLength": 1},
+        "source_url": {"type": "string", "minLength": 1},
+        "requested_ref": {"type": "string", "minLength": 1},
+        "resolved_commit": {"$ref": "#/$defs/objectId"},
+        "tree_id": {"$ref": "#/$defs/objectId"},
+        "bare_repository": {"type": "string", "minLength": 1},
+        "checkout_path": {"type": "string", "minLength": 1},
+        "clean": {"const": true},
+        "lock_path": {"type": "string", "minLength": 1},
+        "lock_sha256": {"$ref": "#/$defs/sha256"},
+        "acquired_at": {"type": "string", "minLength": 1}
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

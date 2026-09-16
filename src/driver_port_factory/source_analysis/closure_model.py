@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from ..acquisition.models import CheckoutRecord
+from ..acquisition.repository_checkout import CheckoutRecord
 from .compiler import GccCompatibleCommand
 
 

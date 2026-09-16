@@ -1,0 +1,271 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:dpf:acquisition:evidence-discovery-proposal",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "migration_envelope_sha256", "repository_manifest_sha256", "facets"],
+  "properties": {
+    "schema_version": {"const": 1},
+    "migration_envelope_sha256": {"$ref": "#/$defs/sha256"},
+    "repository_manifest_sha256": {"$ref": "#/$defs/sha256"},
+    "facets": {
+      "type": "array",
+      "minItems": 25,
+      "maxItems": 25,
+      "prefixItems": [
+        {"$ref": "#/$defs/source_driver_entry"},
+        {"$ref": "#/$defs/source_dependency_closure"},
+        {"$ref": "#/$defs/source_framework_contracts"},
+        {"$ref": "#/$defs/source_build_configuration"},
+        {"$ref": "#/$defs/target_extension_points"},
+        {"$ref": "#/$defs/target_driver_framework"},
+        {"$ref": "#/$defs/target_analogous_implementations"},
+        {"$ref": "#/$defs/target_api_definitions_and_calls"},
+        {"$ref": "#/$defs/target_lifecycle"},
+        {"$ref": "#/$defs/target_artifact_runtime_path"},
+        {"$ref": "#/$defs/target_coding_and_safety_rules"},
+        {"$ref": "#/$defs/target_test_conventions"},
+        {"$ref": "#/$defs/target_release_assets"},
+        {"$ref": "#/$defs/qemu_device_model"},
+        {"$ref": "#/$defs/qemu_device_model_documentation"},
+        {"$ref": "#/$defs/qemu_observability_and_injection"},
+        {"$ref": "#/$defs/hardware_device_manual"},
+        {"$ref": "#/$defs/hardware_register_state_machine"},
+        {"$ref": "#/$defs/hardware_bus_specification"},
+        {"$ref": "#/$defs/hardware_errata"},
+        {"$ref": "#/$defs/test_source_tests"},
+        {"$ref": "#/$defs/test_framework_documentation"},
+        {"$ref": "#/$defs/tooling_toolchain_documentation"},
+        {"$ref": "#/$defs/tooling_packaging_and_release_documentation"},
+        {"$ref": "#/$defs/tooling_runtime_documentation"}
+      ],
+      "items": false
+    }
+  },
+  "$defs": {
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "relative_path": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^(?!/)(?!\\.$)(?!.*(?:^|/)\\.\\.(?:/|$)).+"
+    },
+    "http_url": {"type": "string", "pattern": "^https?://[^/\\s]+(?:/[^\\s]*)?$"},
+    "facet": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["lane", "facet", "disposition", "rationale", "locators"],
+      "properties": {
+        "lane": {"enum": ["source", "target", "qemu", "hardware", "test", "tooling"]},
+        "facet": {"type": "string", "minLength": 1},
+        "disposition": {"enum": ["CONTROLLED", "EXPLICIT_GAP"]},
+        "rationale": {"type": "string", "minLength": 1},
+        "locators": {"type": "array"},
+        "gap": {"$ref": "#/$defs/gap"}
+      },
+      "allOf": [
+        {
+          "if": {"properties": {"disposition": {"const": "EXPLICIT_GAP"}}, "required": ["disposition"]},
+          "then": {"required": ["gap"]},
+          "else": {
+            "properties": {"locators": {"items": {"not": {"$ref": "#/$defs/external_reference"}}}},
+            "not": {"required": ["gap"]}
+          }
+        }
+      ]
+    },
+    "source_driver_entry": {
+      "allOf": [
+        {"$ref": "#/$defs/facet"},
+        {"properties": {"lane": {"const": "source"}, "facet": {"const": "driver_entry"}, "disposition": {"const": "CONTROLLED"}, "locators": {"minItems": 1, "items": {"$ref": "#/$defs/git_source"}}}}
+      ]
+    },
+    "source_dependency_closure": {"$ref": "#/$defs/source_dependency_facet"},
+    "source_framework_contracts": {"$ref": "#/$defs/source_repository_facet"},
+    "source_build_configuration": {"$ref": "#/$defs/source_repository_facet_build"},
+    "source_dependency_facet": {
+      "allOf": [
+        {"$ref": "#/$defs/facet"},
+        {"properties": {"lane": {"const": "source"}, "facet": {"const": "dependency_closure"}, "locators": {"minItems": 0, "items": {"$ref": "#/$defs/source_dependency_locator"}}}}
+      ]
+    },
+    "source_repository_facet": {
+      "allOf": [
+        {"$ref": "#/$defs/facet"},
+        {"properties": {"lane": {"const": "source"}, "facet": {"const": "framework_contracts"}, "locators": {"minItems": 1, "items": {"$ref": "#/$defs/source_repository_locator"}}}}
+      ]
+    },
+    "source_repository_facet_build": {
+      "allOf": [
+        {"$ref": "#/$defs/facet"},
+        {"properties": {"lane": {"const": "source"}, "facet": {"const": "build_configuration"}, "locators": {"minItems": 1, "items": {"$ref": "#/$defs/source_repository_locator"}}}}
+      ]
+    },
+    "target_extension_points": {"$ref": "#/$defs/target_facet_extension_points"},
+    "target_driver_framework": {"$ref": "#/$defs/target_facet_driver_framework"},
+    "target_analogous_implementations": {"$ref": "#/$defs/target_facet_analogous_implementations"},
+    "target_api_definitions_and_calls": {"$ref": "#/$defs/target_facet_api_definitions_and_calls"},
+    "target_lifecycle": {"$ref": "#/$defs/target_facet_lifecycle"},
+    "target_artifact_runtime_path": {"$ref": "#/$defs/target_facet_artifact_runtime_path"},
+    "target_coding_and_safety_rules": {"$ref": "#/$defs/target_facet_coding_and_safety_rules"},
+    "target_test_conventions": {"$ref": "#/$defs/target_facet_test_conventions"},
+    "target_release_assets": {"$ref": "#/$defs/target_facet_release_assets"},
+    "target_facet_extension_points": {"$ref": "#/$defs/target_facet_template_extension_points"},
+    "target_facet_driver_framework": {"$ref": "#/$defs/target_facet_template_driver_framework"},
+    "target_facet_analogous_implementations": {"$ref": "#/$defs/target_facet_template_analogous_implementations"},
+    "target_facet_api_definitions_and_calls": {"$ref": "#/$defs/target_facet_template_api_definitions_and_calls"},
+    "target_facet_lifecycle": {"$ref": "#/$defs/target_facet_template_lifecycle"},
+    "target_facet_artifact_runtime_path": {"$ref": "#/$defs/target_facet_template_artifact_runtime_path"},
+    "target_facet_coding_and_safety_rules": {"$ref": "#/$defs/target_facet_template_coding_and_safety_rules"},
+    "target_facet_test_conventions": {"$ref": "#/$defs/target_facet_template_test_conventions"},
+    "target_facet_release_assets": {"$ref": "#/$defs/target_facet_template_release_assets"},
+    "target_facet_template_extension_points": {"allOf": [{"$ref": "#/$defs/facet"}, {"properties": {"lane": {"const": "target"}, "facet": {"const": "extension_points"}, "locators": {"minItems": 1, "items": {"$ref": "#/$defs/target_repository_locator"}}}}]},
+    "target_facet_template_driver_framework": {"allOf": [{"$ref": "#/$defs/facet"}, {"properties": {"lane": {"const": "target"}, "facet": {"const": "driver_framework"}, "locators": {"minItems": 1, "items": {"$ref": "#/$defs/target_repository_locator"}}}}]},
+    "target_facet_template_analogous_implementations": {"allOf": [{"$ref": "#/$defs/facet"}, {"properties": {"lane": {"const": "target"}, "facet": {"const": "analogous_implementations"}, "locators": {"minItems": 1, "items": {"$ref": "#/$defs/target_repository_locator"}}}}]},
+    "target_facet_template_api_definitions_and_calls": {"allOf": [{"$ref": "#/$defs/facet"}, {"properties": {"lane": {"const": "target"}, "facet": {"const": "api_definitions_and_calls"}, "locators": {"minItems": 1, "items": {"$ref": "#/$defs/target_repository_locator"}}}}]},
+    "target_facet_template_lifecycle": {"allOf": [{"$ref": "#/$defs/facet"}, {"properties": {"lane": {"const": "target"}, "facet": {"const": "lifecycle"}, "locators": {"minItems": 1, "items": {"$ref": "#/$defs/target_repository_locator"}}}}]},
+    "target_facet_template_artifact_runtime_path": {"allOf": [{"$ref": "#/$defs/facet"}, {"properties": {"lane": {"const": "target"}, "facet": {"const": "artifact_runtime_path"}, "locators": {"minItems": 1, "items": {"$ref": "#/$defs/target_repository_locator"}}}}]},
+    "target_facet_template_coding_and_safety_rules": {"allOf": [{"$ref": "#/$defs/facet"}, {"properties": {"lane": {"const": "target"}, "facet": {"const": "coding_and_safety_rules"}, "locators": {"minItems": 1, "items": {"$ref": "#/$defs/target_repository_locator"}}}}]},
+    "target_facet_template_test_conventions": {"allOf": [{"$ref": "#/$defs/facet"}, {"properties": {"lane": {"const": "target"}, "facet": {"const": "test_conventions"}, "locators": {"minItems": 1, "items": {"$ref": "#/$defs/target_repository_locator"}}}}]},
+    "target_facet_template_release_assets": {"allOf": [{"$ref": "#/$defs/facet"}, {"properties": {"lane": {"const": "target"}, "facet": {"const": "release_assets"}, "locators": {"minItems": 1, "items": {"$ref": "#/$defs/target_repository_locator"}}}}]},
+    "qemu_device_model": {"$ref": "#/$defs/qemu_facet_device_model"},
+    "qemu_device_model_documentation": {"$ref": "#/$defs/qemu_facet_device_model_documentation"},
+    "qemu_observability_and_injection": {"$ref": "#/$defs/qemu_facet_observability_and_injection"},
+    "qemu_facet_device_model": {"allOf": [{"$ref": "#/$defs/facet"}, {"properties": {"lane": {"const": "qemu"}, "facet": {"const": "device_model"}, "locators": {"minItems": 1, "items": {"$ref": "#/$defs/qemu_repository_locator"}}}}]},
+    "qemu_facet_device_model_documentation": {"allOf": [{"$ref": "#/$defs/facet"}, {"properties": {"lane": {"const": "qemu"}, "facet": {"const": "device_model_documentation"}, "locators": {"minItems": 1, "items": {"$ref": "#/$defs/qemu_repository_locator"}}}}]},
+    "qemu_facet_observability_and_injection": {"allOf": [{"$ref": "#/$defs/facet"}, {"properties": {"lane": {"const": "qemu"}, "facet": {"const": "observability_and_injection"}, "locators": {"minItems": 1, "items": {"$ref": "#/$defs/qemu_repository_locator"}}}}]},
+    "hardware_device_manual": {"$ref": "#/$defs/hardware_facet_device_manual"},
+    "hardware_register_state_machine": {"$ref": "#/$defs/hardware_facet_register_state_machine"},
+    "hardware_bus_specification": {"$ref": "#/$defs/hardware_facet_bus_specification"},
+    "hardware_errata": {"$ref": "#/$defs/hardware_facet_errata"},
+    "hardware_facet_device_manual": {"allOf": [{"$ref": "#/$defs/facet"}, {"properties": {"lane": {"const": "hardware"}, "facet": {"const": "device_manual"}, "locators": {"minItems": 1, "items": {"$ref": "#/$defs/hardware_locator"}}}}]},
+    "hardware_facet_register_state_machine": {"allOf": [{"$ref": "#/$defs/facet"}, {"properties": {"lane": {"const": "hardware"}, "facet": {"const": "register_state_machine"}, "locators": {"minItems": 1, "items": {"$ref": "#/$defs/hardware_locator"}}}}]},
+    "hardware_facet_bus_specification": {"allOf": [{"$ref": "#/$defs/facet"}, {"properties": {"lane": {"const": "hardware"}, "facet": {"const": "bus_specification"}, "locators": {"minItems": 1, "items": {"$ref": "#/$defs/hardware_locator"}}}}]},
+    "hardware_facet_errata": {"allOf": [{"$ref": "#/$defs/facet"}, {"properties": {"lane": {"const": "hardware"}, "facet": {"const": "errata"}, "locators": {"minItems": 1, "items": {"$ref": "#/$defs/hardware_locator"}}}}]},
+    "test_source_tests": {"$ref": "#/$defs/test_facet_source_tests"},
+    "test_framework_documentation": {"$ref": "#/$defs/test_facet_framework_documentation"},
+    "test_facet_source_tests": {"allOf": [{"$ref": "#/$defs/facet"}, {"properties": {"lane": {"const": "test"}, "facet": {"const": "source_tests"}, "locators": {"minItems": 1, "items": {"$ref": "#/$defs/source_test_locator"}}}}]},
+    "test_facet_framework_documentation": {"allOf": [{"$ref": "#/$defs/facet"}, {"properties": {"lane": {"const": "test"}, "facet": {"const": "test_framework_documentation"}, "locators": {"minItems": 1, "items": {"$ref": "#/$defs/test_documentation_locator"}}}}]},
+    "tooling_toolchain_documentation": {"$ref": "#/$defs/tooling_facet_toolchain_documentation"},
+    "tooling_packaging_and_release_documentation": {"$ref": "#/$defs/tooling_facet_packaging_and_release_documentation"},
+    "tooling_runtime_documentation": {"$ref": "#/$defs/tooling_facet_runtime_documentation"},
+    "tooling_facet_toolchain_documentation": {"allOf": [{"$ref": "#/$defs/facet"}, {"properties": {"lane": {"const": "tooling"}, "facet": {"const": "toolchain_documentation"}, "locators": {"minItems": 1, "items": {"$ref": "#/$defs/tooling_locator"}}}}]},
+    "tooling_facet_packaging_and_release_documentation": {"allOf": [{"$ref": "#/$defs/facet"}, {"properties": {"lane": {"const": "tooling"}, "facet": {"const": "packaging_and_release_documentation"}, "locators": {"minItems": 1, "items": {"$ref": "#/$defs/tooling_locator"}}}}]},
+    "tooling_facet_runtime_documentation": {"allOf": [{"$ref": "#/$defs/facet"}, {"properties": {"lane": {"const": "tooling"}, "facet": {"const": "runtime_documentation"}, "locators": {"minItems": 1, "items": {"$ref": "#/$defs/tooling_locator"}}}}]},
+    "locator": {"oneOf": [{"$ref": "#/$defs/git_blob"}, {"$ref": "#/$defs/external_reference"}, {"$ref": "#/$defs/external_url"}]},
+    "source_dependency_locator": {"oneOf": [{"$ref": "#/$defs/git_source"}, {"$ref": "#/$defs/external_reference"}]},
+    "source_repository_locator": {"oneOf": [{"$ref": "#/$defs/git_source"}, {"$ref": "#/$defs/external_reference"}, {"$ref": "#/$defs/external_url_source_endorsed"}]},
+    "target_repository_locator": {"oneOf": [{"$ref": "#/$defs/git_target"}, {"$ref": "#/$defs/external_reference"}, {"$ref": "#/$defs/external_url_target_endorsed"}]},
+    "qemu_repository_locator": {"oneOf": [{"$ref": "#/$defs/git_qemu"}, {"$ref": "#/$defs/external_reference"}, {"$ref": "#/$defs/external_url_qemu_endorsed"}]},
+    "hardware_locator": {"oneOf": [{"$ref": "#/$defs/external_reference"}, {"$ref": "#/$defs/external_url_corroborated"}]},
+    "source_test_locator": {"oneOf": [{"$ref": "#/$defs/git_source"}, {"$ref": "#/$defs/external_reference"}, {"$ref": "#/$defs/external_url_source_endorsed"}, {"$ref": "#/$defs/external_url_corroborated"}]},
+    "test_documentation_locator": {"oneOf": [{"$ref": "#/$defs/git_source_or_target"}, {"$ref": "#/$defs/external_reference"}, {"$ref": "#/$defs/external_url_source_or_target_endorsed"}, {"$ref": "#/$defs/external_url_corroborated"}]},
+    "tooling_locator": {"oneOf": [{"$ref": "#/$defs/git_blob"}, {"$ref": "#/$defs/external_reference"}, {"$ref": "#/$defs/external_url_repository_endorsed"}, {"$ref": "#/$defs/external_url_corroborated"}]},
+    "git_source": {"allOf": [{"$ref": "#/$defs/git_blob"}, {"properties": {"repository": {"const": "source"}}}]},
+    "git_target": {"allOf": [{"$ref": "#/$defs/git_blob"}, {"properties": {"repository": {"const": "target"}}}]},
+    "git_qemu": {"allOf": [{"$ref": "#/$defs/git_blob"}, {"properties": {"repository": {"const": "qemu"}}}]},
+    "git_source_or_target": {"allOf": [{"$ref": "#/$defs/git_blob"}, {"properties": {"repository": {"enum": ["source", "target"]}}}]},
+    "git_blob": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "repository", "path", "license", "redistribution", "original"],
+      "properties": {
+        "kind": {"const": "git_blob"},
+        "repository": {"enum": ["source", "target", "qemu"]},
+        "path": {"$ref": "#/$defs/relative_path"},
+        "license": {"type": "string", "minLength": 1},
+        "redistribution": {"enum": ["allowed", "restricted", "unknown"]},
+        "original": {"type": "boolean"},
+        "derived_from": {"type": "string", "minLength": 1},
+        "original_path": {"$ref": "#/$defs/relative_path"},
+        "page_map": {"type": "string", "minLength": 1}
+      },
+      "allOf": [{"$ref": "#/$defs/derivative_linkage"}]
+    },
+    "external_reference": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "source_url", "max_bytes"],
+      "properties": {
+        "kind": {"const": "external_reference"},
+        "source_url": {"$ref": "#/$defs/http_url"},
+        "max_bytes": {"type": "integer", "minimum": 1, "maximum": 536870912}
+      }
+    },
+    "external_url_source_endorsed": {"allOf": [{"$ref": "#/$defs/external_url"}, {"properties": {"authority": {"$ref": "#/$defs/source_endorsement"}}}]},
+    "external_url_target_endorsed": {"allOf": [{"$ref": "#/$defs/external_url"}, {"properties": {"authority": {"$ref": "#/$defs/target_endorsement"}}}]},
+    "external_url_qemu_endorsed": {"allOf": [{"$ref": "#/$defs/external_url"}, {"properties": {"authority": {"$ref": "#/$defs/qemu_endorsement"}}}]},
+    "external_url_source_or_target_endorsed": {"allOf": [{"$ref": "#/$defs/external_url"}, {"properties": {"authority": {"$ref": "#/$defs/source_or_target_endorsement"}}}]},
+    "external_url_repository_endorsed": {"allOf": [{"$ref": "#/$defs/external_url"}, {"properties": {"authority": {"$ref": "#/$defs/repository_endorsement"}}}]},
+    "external_url_corroborated": {"allOf": [{"$ref": "#/$defs/external_url"}, {"properties": {"authority": {"$ref": "#/$defs/corroborated_authority"}}}]},
+    "external_url": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "source_url", "revision", "expected_sha256", "max_bytes", "authority", "license", "redistribution", "original"],
+      "properties": {
+        "kind": {"const": "external_url"},
+        "source_url": {"$ref": "#/$defs/http_url"},
+        "revision": {"type": "string", "minLength": 1},
+        "expected_sha256": {"$ref": "#/$defs/sha256"},
+        "max_bytes": {"type": "integer", "minimum": 1, "maximum": 536870912},
+        "authority": {"oneOf": [{"$ref": "#/$defs/repository_endorsement"}, {"$ref": "#/$defs/corroborated_authority"}]},
+        "license": {"type": "string", "minLength": 1},
+        "redistribution": {"enum": ["allowed", "restricted", "unknown"]},
+        "original": {"type": "boolean"},
+        "derived_from": {"type": "string", "minLength": 1},
+        "original_path": {"$ref": "#/$defs/relative_path"},
+        "page_map": {"type": "string", "minLength": 1}
+      },
+      "allOf": [{"$ref": "#/$defs/derivative_linkage"}]
+    },
+    "derivative_linkage": {
+      "if": {"properties": {"original": {"const": true}}, "required": ["original"]},
+      "then": {"not": {"anyOf": [{"required": ["derived_from"]}, {"required": ["original_path"]}, {"required": ["page_map"]}]}},
+      "else": {"required": ["derived_from", "original_path", "page_map"]}
+    },
+    "repository_endorsement": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "repository", "path", "line_start", "line_end"],
+      "properties": {
+        "kind": {"const": "repository_endorsement"},
+        "repository": {"enum": ["source", "target", "qemu"]},
+        "path": {"$ref": "#/$defs/relative_path"},
+        "line_start": {"type": "integer", "minimum": 1},
+        "line_end": {"type": "integer", "minimum": 1}
+      }
+    },
+    "source_endorsement": {"allOf": [{"$ref": "#/$defs/repository_endorsement"}, {"properties": {"repository": {"const": "source"}}}]},
+    "target_endorsement": {"allOf": [{"$ref": "#/$defs/repository_endorsement"}, {"properties": {"repository": {"const": "target"}}}]},
+    "qemu_endorsement": {"allOf": [{"$ref": "#/$defs/repository_endorsement"}, {"properties": {"repository": {"const": "qemu"}}}]},
+    "source_or_target_endorsement": {"allOf": [{"$ref": "#/$defs/repository_endorsement"}, {"properties": {"repository": {"enum": ["source", "target"]}}}]},
+    "corroborated_authority": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "sources"],
+      "properties": {
+        "kind": {"const": "corroborated"},
+        "sources": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/corroboration_source"}}
+      }
+    },
+    "corroboration_source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source_url", "expected_sha256", "max_bytes"],
+      "properties": {
+        "source_url": {"$ref": "#/$defs/http_url"},
+        "expected_sha256": {"$ref": "#/$defs/sha256"},
+        "max_bytes": {"type": "integer", "minimum": 1, "maximum": 536870912}
+      }
+    },
+    "gap": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["reason", "impact", "repair_trigger"],
+      "properties": {
+        "reason": {"enum": ["NOT_FOUND", "ACCESS_RESTRICTED", "LICENSE_UNCERTAIN", "CONFLICTING_SOURCES", "UNAVAILABLE_PUBLIC_EVIDENCE"]},
+        "impact": {"type": "string", "minLength": 1},
+        "repair_trigger": {"type": "string", "minLength": 1}
+      }
+    }
+  }
+}

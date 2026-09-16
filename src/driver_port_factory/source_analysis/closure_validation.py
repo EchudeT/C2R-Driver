@@ -1,16 +1,12 @@
 from __future__ import annotations
 
-import json
 from types import MappingProxyType
 
+from ..acquisition.material import parse_materials
 from ..core.models import WorkflowError
 from ..core.validation import ArtifactValidator, json_object, json_value
-from ..knowledge.contracts import (
-    KnowledgeDomain,
-    KnowledgeIndexStatus,
-    MaterialRedistribution,
-)
 from .contracts import SourceAnalysisArtifact, SourceClosureStatus, ValidationStatus
+from .corpus_revision import SourceCorpusRevision
 
 
 def _source_closure(data: bytes) -> None:
@@ -67,40 +63,13 @@ def _compilation_database(data: bytes) -> None:
 
 
 def _materials_manifest(data: bytes) -> None:
-    try:
-        lines = [json.loads(line) for line in data.decode("utf-8").splitlines() if line]
-    except (UnicodeDecodeError, json.JSONDecodeError) as error:
-        raise WorkflowError("source closure materials manifest must be JSON Lines") from error
-    if not lines or any(
-        not isinstance(line, dict) or "sha256" not in line or "revision" not in line
-        for line in lines
-    ):
-        raise WorkflowError("source closure material entries require sha256 and revision")
-    try:
-        for line in lines:
-            KnowledgeDomain(line.get("domain"))
-            MaterialRedistribution(line.get("redistribution"))
-    except (TypeError, ValueError) as error:
-        raise WorkflowError(
-            "source closure material has invalid domain or redistribution"
-        ) from error
+    parse_materials(data)
 
 
 def _knowledge_revision(data: bytes) -> None:
-    value = json_object(data, SourceAnalysisArtifact.KNOWLEDGE_REVISION.value)
-    index_status = value.get("index_status")
-    if value.get("schema_version") != 1 or len(str(value.get("manifest_sha256", ""))) != 64:
-        raise WorkflowError("knowledge_revision requires a hashed schema_version=1 manifest")
-    if not isinstance(value.get("added_materials"), list):
-        raise WorkflowError("knowledge_revision.added_materials must be a list")
-    if not isinstance(index_status, dict):
-        raise WorkflowError("knowledge_revision requires a rebuilt READY index")
-    try:
-        status = KnowledgeIndexStatus(index_status.get("status"))
-    except (TypeError, ValueError) as error:
-        raise WorkflowError("knowledge_revision has an invalid index status") from error
-    if status is not KnowledgeIndexStatus.READY:
-        raise WorkflowError("knowledge_revision requires a rebuilt READY index")
+    SourceCorpusRevision.from_dict(
+        json_object(data, SourceAnalysisArtifact.KNOWLEDGE_REVISION.value)
+    )
 
 
 VALIDATORS = MappingProxyType[SourceAnalysisArtifact, ArtifactValidator](

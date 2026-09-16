@@ -21,9 +21,10 @@ registration table、source test 与 framework contract 七类闭包。
 
 - 原闭包与静态验证报告；
 - `compile_commands.json` 及带编译器身份的 compile manifest；
-- 扩展后的 KB materials manifest；
-- 重建并验证为 `READY` 的 knowledge revision。
+- 继承 acquisition 语料的不可变 successor corpus manifest；
+- 绑定 parent/successor digest、新增 source Git blob 和 `READY` 索引身份的 knowledge revision。
 
 失败尝试进入独立、不可覆盖的 attempt 目录，阶段保持 `RUNNING`。知识索引重建等后置操作失败后，
-允许用同一份闭包重试；已写入 manifest 的相同摘要记录会复用，不会重复添加。只有全部产物登记后，
-`structured_c_analysis` 才变为 `READY`。
+允许用同一份闭包重试。bundle gate 会拒绝父语料被修改或重排、伪造的 successor digest、非冻结
+source Git blob，以及与新增记录不一致的索引。只有全部产物原子登记后，`structured_c_analysis` 才
+变为 `READY`。

@@ -135,7 +135,7 @@ class WorkflowTests(unittest.TestCase):
                 project.record_artifact(
                     AcquisitionStage.REVISION_SELECTION,
                     GeneratedArtifact(
-                        AcquisitionArtifact.ACQUISITION_ATTEMPT,
+                        AcquisitionArtifact.REPOSITORY_ACQUISITION_ATTEMPT,
                         b"{}",
                         "test:too-early",
                     ),
@@ -210,7 +210,7 @@ class WorkflowTests(unittest.TestCase):
             project = initialize_project(Path(temporary) / "run", config())
             project.start(IntakeStage.REQUEST)
             wrong = GeneratedArtifact(
-                AcquisitionArtifact.ACQUISITION_ATTEMPT,
+                AcquisitionArtifact.REPOSITORY_ACQUISITION_ATTEMPT,
                 b"{}",
                 "test:wrong-domain",
             )
@@ -224,11 +224,13 @@ class WorkflowTests(unittest.TestCase):
             project.start(IntakeStage.REQUEST)
             events_before = self._event_count(project)
             wrong = GeneratedArtifact(
-                AcquisitionArtifact.ACQUISITION_ATTEMPT,
+                AcquisitionArtifact.REPOSITORY_ACQUISITION_ATTEMPT,
                 b"{}",
                 "test:wrong-domain",
             )
-            with self.assertRaisesRegex(WorkflowError, "unexpected: acquisition_attempt"):
+            with self.assertRaisesRegex(
+                WorkflowError, "unexpected: repository_acquisition_attempt"
+            ):
                 project.finalize_stage(IntakeStage.REQUEST, (self._request_artifact(), wrong))
             self.assertEqual(project.artifact_refs(stage=IntakeStage.REQUEST), [])
             self.assertEqual(
@@ -242,7 +244,7 @@ class WorkflowTests(unittest.TestCase):
             project = initialize_project(Path(temporary) / "run", config())
             project.start(IntakeStage.REQUEST)
             wrong = GeneratedArtifact(
-                AcquisitionArtifact.ACQUISITION_ATTEMPT,
+                AcquisitionArtifact.REPOSITORY_ACQUISITION_ATTEMPT,
                 b"{}",
                 "test:injected-wrong-domain",
             )
@@ -274,7 +276,7 @@ class WorkflowTests(unittest.TestCase):
             )
             self._inject_corrupt_output(project, AcquisitionStage.REVISION_SELECTION, revision)
             plan = GeneratedArtifact(
-                AcquisitionArtifact.ACQUISITION_PLAN,
+                AcquisitionArtifact.REPOSITORY_PLAN,
                 b"{}",
                 "test:incomplete-current-bundle",
             )

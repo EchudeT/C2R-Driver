@@ -7,13 +7,14 @@ import sys
 from pathlib import Path
 from typing import Any
 
-from ..acquisition.contracts import AcquisitionArtifact, AcquisitionStage
-from ..acquisition.models import CheckoutRecord, RepositoryRole
+from ..acquisition.repository import load_repository_acquisition
+from ..acquisition.repository_checkout import CheckoutRecord
+from ..acquisition.repository_role import RepositoryRole
 from ..core.models import ActorRole, ArtifactDirection, StageStatus, WorkflowError, utc_now
 from ..core.project import Project
 from .contracts import EnvironmentArtifact, EnvironmentStage, RouteDiscoveryStatus
 from .documents import json_artifact
-from .evidence import checkout_for, workspace_path
+from .evidence import workspace_path
 from .models import ArtifactMode
 
 
@@ -44,13 +45,9 @@ class EnvironmentInspector:
             raise WorkflowError(
                 f"environment_recovery must be READY or RUNNING, got {stage.status.value}"
             )
-        acquisition = project.load_json_artifact(
-            AcquisitionStage.EVIDENCE_ACQUISITION,
-            AcquisitionArtifact.ACQUISITION_MANIFEST,
-        )
-        checkouts = tuple(CheckoutRecord.from_dict(record) for record in acquisition["checkouts"])
-        target = checkout_for(checkouts, RepositoryRole.TARGET)
-        qemu = checkout_for(checkouts, RepositoryRole.QEMU)
+        acquisition = load_repository_acquisition(project)
+        target = acquisition.checkout(RepositoryRole.TARGET)
+        qemu = acquisition.checkout(RepositoryRole.QEMU)
         metadata = self._operational_metadata(workspace_path(project, target.checkout_path))
         tools: list[dict[str, Any]] = []
         for name in self.TOOLS:

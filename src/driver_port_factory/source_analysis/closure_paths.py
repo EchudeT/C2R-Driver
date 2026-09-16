@@ -3,7 +3,8 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-from ..acquisition.models import CheckoutRecord, RepositoryRole
+from ..acquisition.repository_checkout import CheckoutRecord
+from ..acquisition.repository_role import RepositoryRole
 from ..core.models import WorkflowError
 
 

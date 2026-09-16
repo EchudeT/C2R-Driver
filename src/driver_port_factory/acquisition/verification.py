@@ -1,19 +1,23 @@
 from typing import Any
 
+from ..core.models import WorkflowError
 from ..core.project import Project
-from .contracts import AcquisitionArtifact, AcquisitionStage
-from .git import GitAcquirer
-from .models import CheckoutRecord
+from .frozen_checkout_validation import verify_git_checkout, verify_lock
+from .repository import load_repository_acquisition
 
 
 class AcquisitionVerifier:
     def verify(self, project: Project) -> dict[str, Any]:
-        manifest = project.load_json_artifact(
-            AcquisitionStage.EVIDENCE_ACQUISITION,
-            AcquisitionArtifact.ACQUISITION_MANIFEST,
-        )
-        git = GitAcquirer(project.root, project.control)
-        results = [git.verify(CheckoutRecord.from_dict(record)) for record in manifest["checkouts"]]
+        acquisition = load_repository_acquisition(project)
+        results = []
+        for record in acquisition.checkouts:
+            try:
+                verify_lock(project.root, record)
+                verify_git_checkout(project.root, record)
+            except WorkflowError as error:
+                results.append({"role": record.role.value, "valid": False, "failure": str(error)})
+            else:
+                results.append({"role": record.role.value, "valid": True})
         return {
             "project_id": project.config.project_id,
             "repositories": results,

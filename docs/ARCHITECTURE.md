@@ -23,9 +23,9 @@ DPF 是证据驱动的工作流控制器，不是拥有全局权限的长对话�
 |---|---|---|
 | `control` | 项目创建、通用控制命令、ledger 验证 | `ControlStage`、`ControlArtifact` |
 | `intake` | clone 前需求解析、候选消歧、范围冻结 | `IntakeStage`、`IntakeArtifact`、`IntakeStatus` |
-| `acquisition` | revision 固定、受控 checkout、来源身份 | `AcquisitionStage`、`CoverageDisposition` |
+| `acquisition` | revision、受控 repository、逐 facet 证据闭包 | `AcquisitionStage`、各域 facet、typed origin/gap |
 | `environment` | artifact mode 与可执行实验路线 | `EnvironmentInspector`、`ExperimentPlanRegistrar`、`ExperimentExecutor` |
-| `knowledge` | 受控语料、索引、probes、项目 KB Skill | `KnowledgeMaterialRegistrar`、`KnowledgeProbeExecutor`、`KnowledgeBootstrapper` |
+| `knowledge` | 消费不可变受控语料、建立索引、执行 probes、生成项目 KB Skill | `CorpusManifest`、`KnowledgeProbeExecutor`、`KnowledgeBootstrapper` |
 | `target_study` | 目标画像、API 原文证据、相似驱动链路 | target-study contracts 与 validators |
 | `source_analysis` | C 闭包、固定编译配置、结构化语义事实 | closure/fact/semantic/analysis 四组契约 |
 | `migration` | 合同、测试适配、Rust 实现、运行和审计产物 | `MigrationStage`、`MigrationArtifact` |
@@ -66,7 +66,7 @@ WorkflowDefinition   ValidationRegistry
 | Skill phase | DPF gate |
 |---|---|
 | 0 迁移 envelope | `project_init` → intake 四阶段 → `revision_selection` |
-| 1 证据、运行环境和 baseline | `evidence_acquisition` → `environment_recovery` → `knowledge_base` |
+| 1 证据、运行环境和 baseline | `repository_acquisition` → `evidence_closure` → `environment_recovery` → `knowledge_base` |
 | 2 目标平台研究 | `target_platform_study` |
 | 3 来源范围闭包 | `source_closure` → `structured_c_analysis` |
 | 4 编码前迁移合同 | `migration_contracts` |

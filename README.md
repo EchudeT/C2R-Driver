@@ -18,7 +18,8 @@ Prompt Pack、模板、Skill 文档和完整 Prompt 的 SHA256，但普通开发
 
 - 按角色与评测模式生成阶段 DAG；
 - clone 前的请求解析、候选驱动发现、单次确认和迁移范围冻结；
-- source/target/QEMU 的轻量 revision 解析、任务本地 bare fetch 和受控 worktree；
+- source/target/QEMU 的轻量 revision 解析、可恢复 bare fetch 和受控 worktree；
+- 六域逐 facet 最小证据闭包、Git blob/外部输入 provenance 与独立 gap register；
 - 主机/目标/QEMU 路线发现、不可覆盖恢复尝试和真实 `EXPERIMENT_READY` 门禁；
 - provenance-checked 本地知识库、目标专项 probes 和项目 KB Skill 生成；
 - 目标平台画像、API 原文证据、相似驱动端到端链路和 target-change 计划门禁；
@@ -47,9 +48,20 @@ python -m driver_port_factory.cli intake analyze ./runs/ne2000 \
   --request "把 Linux 的 NE2000 PCI 驱动迁移到星绽OS" \
   --catalog examples/fixtures/linux-ne2000.catalog.json
 python -m driver_port_factory.cli intake show ./runs/ne2000
-python -m driver_port_factory.cli acquire plan ./runs/ne2000
-python -m driver_port_factory.cli acquire run ./runs/ne2000
-python -m driver_port_factory.cli acquire verify ./runs/ne2000
+python -m driver_port_factory.cli codex run ./runs/ne2000 revision_selection \
+  --objective "Select maintained, mutually compatible source, target, and QEMU releases"
+python -m driver_port_factory.cli acquire revision-proposal-import ./runs/ne2000 \
+  --job-digest SHA256 --job-ordinal N
+python -m driver_port_factory.cli acquire revisions ./runs/ne2000 \
+  --proposal-digest SHA256 --proposal-ordinal N
+python -m driver_port_factory.cli acquire repositories ./runs/ne2000
+python -m driver_port_factory.cli codex run ./runs/ne2000 evidence_closure \
+  --objective "Locate the minimum evidence closure for every required facet"
+python -m driver_port_factory.cli acquire proposal-import ./runs/ne2000 \
+  --job-digest SHA256 --job-ordinal N
+python -m driver_port_factory.cli acquire closure-finalize ./runs/ne2000 \
+  --proposal-digest SHA256 --proposal-ordinal N
+python -m driver_port_factory.cli acquire repositories-verify ./runs/ne2000
 python -m driver_port_factory.cli environment inspect ./runs/ne2000
 ```
 

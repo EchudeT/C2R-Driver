@@ -5,7 +5,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from driver_port_factory.acquisition.models import CheckoutRecord
+from driver_port_factory.acquisition.repository_checkout import CheckoutRecord
 from driver_port_factory.core.models import StageStatus
 from driver_port_factory.environment.contracts import EnvironmentArtifact, EnvironmentStage
 from driver_port_factory.knowledge.bootstrap import KnowledgeBootstrapper
@@ -18,7 +18,7 @@ from driver_port_factory.target_study.service import (
     TRACE_STEPS,
     TargetStudyService,
 )
-from tests.test_knowledge import add_controlled_materials, prepare_project, probe_plan
+from tests.test_knowledge import prepare_project, probe_plan
 
 
 def write_json(path: Path, value: dict) -> Path:
@@ -31,7 +31,7 @@ def target_study_inputs(
     project,
     checkouts: dict[str, CheckoutRecord],
 ) -> tuple[dict[str, Path], dict[str, str]]:
-    index = KnowledgeIndex(project.root)
+    index = KnowledgeIndex.for_project(project)
     target_hit = index.search("registration lifecycle", domain=KnowledgeDomain.TARGET)["results"][0]
     source_hit = index.search("example driver source entry", domain=KnowledgeDomain.SOURCE)[
         "results"
@@ -130,7 +130,12 @@ def target_study_inputs(
         "change_plan": write_json(root / "target-changes.json", changes),
     }
     paths["profile_markdown"].write_text(markdown, encoding="utf-8")
-    return paths, {"target": target_ref["chunk_id"], "source": source_ref["chunk_id"]}
+    return paths, {
+        "target": target_ref["chunk_id"],
+        "target_record": target_ref["record_id"],
+        "source": source_ref["chunk_id"],
+        "source_record": source_ref["record_id"],
+    }
 
 
 PROFILE_HEADINGS_TO_STRUCTURED = (
@@ -147,13 +152,12 @@ class TargetStudyTests(unittest.TestCase):
     def test_non_target_evidence_is_rejected_then_corrected_submission_passes(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             project, checkouts = prepare_project(Path(temporary))
-            add_controlled_materials(project, checkouts)
             KnowledgeBootstrapper().bootstrap(project, probe_plan_path=probe_plan(project.root))
             paths, chunks = target_study_inputs(project.root, project, checkouts)
             api = json.loads(paths["api_table"].read_text(encoding="utf-8"))
             api["entries"][0]["definition_evidence"] = {
                 "chunk_id": chunks["source"],
-                "record_id": "source-driver-entry",
+                "record_id": chunks["source_record"],
             }
             write_json(paths["api_table"], api)
             service = TargetStudyService()
@@ -167,7 +171,7 @@ class TargetStudyTests(unittest.TestCase):
 
             api["entries"][0]["definition_evidence"] = {
                 "chunk_id": chunks["target"],
-                "record_id": "target-contract",
+                "record_id": chunks["target_record"],
             }
             write_json(paths["api_table"], api)
             passed = service.validate(project, **paths)

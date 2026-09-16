@@ -5,7 +5,7 @@ import json
 from dataclasses import asdict, dataclass
 from pathlib import Path
 
-from ..acquisition.contracts import AcquisitionArtifact, AcquisitionStage
+from ..acquisition.repository import load_repository_acquisition
 from ..core.execution import CommandResult, CommandRunner
 from ..core.models import (
     ActorRole,
@@ -61,10 +61,7 @@ class ExperimentExecutor:
             timeout_seconds=plan.timeout_seconds,
         )
         observations = self._observations(plan, result)
-        acquisition = project.load_json_artifact(
-            AcquisitionStage.EVIDENCE_ACQUISITION,
-            AcquisitionArtifact.ACQUISITION_MANIFEST,
-        )
+        acquisition = load_repository_acquisition(project)
         evidence = [file_identity(project, item) for item in plan.runner_evidence_paths]
         attempt = {
             "schema_version": 1,
@@ -72,7 +69,7 @@ class ExperimentExecutor:
             "run": asdict(result),
             "runner_evidence": evidence,
             "command_executable": executable_identity(plan.command[0], cwd),
-            "frozen_repository_locks": acquisition["checkouts"],
+            "frozen_repository_locks": [checkout.to_dict() for checkout in acquisition.checkouts],
             "marker_observations": observations["markers"],
             "exit_accepted": observations["exit_accepted"],
             "readiness": observations["readiness"],

@@ -145,18 +145,44 @@ def _migration_rows() -> tuple[StageRow, ...]:
             AcquisitionStage.REVISION_SELECTION,
             "Pin source, target, and QEMU revisions.",
             StageOwner.HYBRID,
-            (AcquisitionArtifact.REVISION_MANIFEST, AcquisitionArtifact.ACQUISITION_PLAN),
+            (
+                AcquisitionArtifact.REVISION_MANIFEST,
+                AcquisitionArtifact.REPOSITORY_PLAN,
+                AcquisitionArtifact.REVISION_EVIDENCE_CONTENT,
+            ),
+            (AcquisitionArtifact.REVISION_SELECTION_PROPOSAL,),
+            (AcquisitionArtifact.REVISION_EVIDENCE_CONTENT,),
         ),
         StageRow(
-            AcquisitionStage.EVIDENCE_ACQUISITION,
-            "Acquire the minimum provenance-tracked evidence closure.",
-            StageOwner.HYBRID,
+            AcquisitionStage.REPOSITORY_ACQUISITION,
+            "Acquire immutable source, target, and QEMU repository baselines.",
+            StageOwner.STATIC,
             (
-                AcquisitionArtifact.ACQUISITION_MANIFEST,
-                AcquisitionArtifact.MATERIALS_MANIFEST,
+                AcquisitionArtifact.REPOSITORY_MANIFEST,
                 AcquisitionArtifact.SOURCE_IDENTITY_VERIFICATION,
             ),
-            (AcquisitionArtifact.ACQUISITION_ATTEMPT,),
+            (AcquisitionArtifact.REPOSITORY_ACQUISITION_ATTEMPT,),
+            prerequisites=(IntakeStage.ENVELOPE_FREEZE,),
+        ),
+        StageRow(
+            AcquisitionStage.EVIDENCE_CLOSURE,
+            "Close every required evidence facet with controlled content or an audited gap.",
+            StageOwner.HYBRID,
+            (
+                AcquisitionArtifact.EVIDENCE_CLOSURE_PLAN,
+                AcquisitionArtifact.MATERIALS_MANIFEST,
+                AcquisitionArtifact.EVIDENCE_COVERAGE_INVENTORY,
+                AcquisitionArtifact.EVIDENCE_GAP_REGISTER,
+                AcquisitionArtifact.EVIDENCE_RETRIEVAL_LEDGER,
+            ),
+            (
+                AcquisitionArtifact.EVIDENCE_DISCOVERY_PROPOSAL,
+                AcquisitionArtifact.EVIDENCE_HTTP_CONTENT,
+            ),
+            prerequisites=(
+                IntakeStage.ENVELOPE_FREEZE,
+                AcquisitionStage.REVISION_SELECTION,
+            ),
         ),
         StageRow(
             EnvironmentStage.RECOVERY,
@@ -176,7 +202,6 @@ def _migration_rows() -> tuple[StageRow, ...]:
             "Build or validate the evidence knowledge base and query contract.",
             StageOwner.STATIC,
             (
-                KnowledgeArtifact.MATERIALS_MANIFEST,
                 KnowledgeArtifact.STATUS,
                 KnowledgeArtifact.QUERY_CONTRACT,
                 KnowledgeArtifact.GENERATED_SKILL,
@@ -212,6 +237,10 @@ def _migration_rows() -> tuple[StageRow, ...]:
                 SourceAnalysisArtifact.KNOWLEDGE_REVISION,
             ),
             (SourceAnalysisArtifact.SOURCE_CLOSURE_VALIDATION_ATTEMPT,),
+            prerequisites=(
+                AcquisitionStage.EVIDENCE_CLOSURE,
+                AcquisitionStage.REPOSITORY_ACQUISITION,
+            ),
         ),
         StageRow(
             SourceAnalysisStage.STRUCTURED_C_ANALYSIS,

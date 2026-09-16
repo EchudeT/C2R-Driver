@@ -3,8 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 
-from ..acquisition.contracts import AcquisitionArtifact, AcquisitionStage
-from ..acquisition.models import CheckoutRecord
+from ..acquisition.repository import load_repository_acquisition
 from ..core.contracts import StageKey
 from ..core.models import WorkflowError
 from ..core.project import Project
@@ -26,20 +25,15 @@ class CodexExecutionPolicy:
     def grant(self, project: Project, stage: StageKey) -> CodexExecutionGrant:
         if stage not in self.WRITABLE_STAGES:
             return CodexExecutionGrant(project.root, CodexSandbox.READ_ONLY)
-        manifest = project.load_json_artifact(
-            AcquisitionStage.EVIDENCE_ACQUISITION,
-            AcquisitionArtifact.ACQUISITION_MANIFEST,
-        )
+        acquisition = load_repository_acquisition(project)
         execution_root = self._project_path(
             project,
-            manifest.get("target_worktree"),
+            acquisition.target_worktree.path,
             "target worktree",
         )
         frozen = tuple(
             self._project_path(project, record.checkout_path, f"{record.role.value} baseline")
-            for record in (
-                CheckoutRecord.from_dict(value) for value in manifest.get("checkouts", [])
-            )
+            for record in acquisition.checkouts
         )
         self._validate_writable_root(project, execution_root, frozen)
         return CodexExecutionGrant(execution_root, CodexSandbox.WORKSPACE_WRITE)
@@ -56,7 +50,7 @@ class CodexExecutionPolicy:
     @staticmethod
     def _project_path(project: Project, value: object, label: str) -> Path:
         if not isinstance(value, str) or not value:
-            raise WorkflowError(f"acquisition manifest has no {label} path")
+            raise WorkflowError(f"repository manifest has no {label} path")
         path = (project.root / value).resolve()
         if path != project.root and project.root not in path.parents:
             raise WorkflowError(f"{label} escapes the project workspace")

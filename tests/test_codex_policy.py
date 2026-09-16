@@ -50,8 +50,57 @@ def checkout(role: str, path: str) -> dict[str, Any]:
         "bare_repository": f".dpf/repositories/{role}.git",
         "checkout_path": path,
         "clean": True,
+        "lock_path": f".dpf/manifests/repository-locks/{role}.json",
         "lock_sha256": "3" * 64,
         "acquired_at": "2026-09-16T00:00:00Z",
+    }
+
+
+def repository_manifest(target_worktree: str, checkouts: list[dict[str, Any]]) -> dict[str, Any]:
+    target = next(checkout for checkout in checkouts if checkout["role"] == "target")
+    return {
+        "schema_version": 1,
+        "project_id": "policy-test",
+        "acquired_at": "2026-09-16T00:00:00Z",
+        "migration_envelope_sha256": "4" * 64,
+        "repository_plan_sha256": "5" * 64,
+        "target_worktree": {
+            "path": target_worktree,
+            "base_commit": target["resolved_commit"],
+            "branch": "dpf/policy-test",
+            "observation": {
+                "head_commit": target["resolved_commit"],
+                "branch": "dpf/policy-test",
+                "git_dir": ".dpf/repositories/target.git/worktrees/target-working",
+                "work_tree": target_worktree,
+                "status_sha256": "6" * 64,
+                "dirty": False,
+            },
+        },
+        "checkouts": checkouts,
+        "commands": [repository_command()],
+    }
+
+
+def repository_command() -> dict[str, Any]:
+    return {
+        "operation": "target_status_observation",
+        "role": "target",
+        "result": {
+            "argv": ["git", "status"],
+            "cwd": "/tmp/policy-test",
+            "started_at": "2026-09-16T00:00:00Z",
+            "completed_at": "2026-09-16T00:00:01Z",
+            "exit_code": 0,
+            "launched": True,
+            "launch_error": None,
+            "timed_out": False,
+            "duration_milliseconds": 1,
+            "stdout_sha256": "7" * 64,
+            "stderr_sha256": "8" * 64,
+            "stdout_path": "/tmp/policy-test.stdout",
+            "stderr_path": "/tmp/policy-test.stderr",
+        },
     }
 
 
@@ -77,10 +126,10 @@ class CodexPolicyTests(unittest.TestCase):
             }
             for relative in (*paths.values(), "work/target-working", ".dpf"):
                 (root / relative).mkdir(parents=True, exist_ok=True)
-            manifest = {
-                "target_worktree": "work/target-working",
-                "checkouts": [checkout(role, path) for role, path in paths.items()],
-            }
+            manifest = repository_manifest(
+                "work/target-working",
+                [checkout(role, path) for role, path in paths.items()],
+            )
             policy_project = PolicyProject(root, manifest)
             policy = CodexExecutionPolicy()
 
@@ -153,7 +202,7 @@ class CodexPolicyTests(unittest.TestCase):
                 with self.subTest(target=target):
                     policy_project = PolicyProject(
                         root,
-                        {"target_worktree": target, "checkouts": base},
+                        repository_manifest(target, base),
                     )
                     with self.assertRaises(WorkflowError):
                         CodexExecutionPolicy().grant(
@@ -169,6 +218,7 @@ class CodexPolicyTests(unittest.TestCase):
                 "--finalize-as",
                 "--danger-full-access",
                 "--dangerously-bypass-approvals-and-sandbox",
+                "--schema",
             }.isdisjoint(options)
         )
 

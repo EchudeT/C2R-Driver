@@ -3,13 +3,13 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from ..acquisition.contracts import AcquisitionArtifact, AcquisitionStage
-from ..acquisition.models import CheckoutRecord, RepositoryRole
+from ..acquisition.repository import load_repository_acquisition
+from ..acquisition.repository_role import RepositoryRole
 from ..core.models import ActorRole, ArtifactDirection, FileArtifact, StageStatus, WorkflowError
 from ..core.project import Project
 from .contracts import EnvironmentArtifact, EnvironmentStage
 from .documents import json_bytes, plan_path
-from .evidence import checkout_for, executable_identity, workspace_path
+from .evidence import executable_identity, workspace_path
 from .models import ExperimentPlan
 from .route_policy import ExperimentRoutePolicy, RouteEvidence
 
@@ -22,11 +22,7 @@ class ExperimentPlanValidator:
         for relative in plan.runner_evidence_paths:
             if not workspace_path(project, relative).exists():
                 raise WorkflowError(f"runner evidence does not exist: {relative}")
-        acquisition = project.load_json_artifact(
-            AcquisitionStage.EVIDENCE_ACQUISITION,
-            AcquisitionArtifact.ACQUISITION_MANIFEST,
-        )
-        checkouts = tuple(CheckoutRecord.from_dict(record) for record in acquisition["checkouts"])
+        acquisition = load_repository_acquisition(project)
         evidence_paths = tuple(Path(path).as_posix() for path in plan.runner_evidence_paths)
         cited_files = tuple(
             path for path in plan.runner_evidence_paths if workspace_path(project, path).is_file()
@@ -37,7 +33,7 @@ class ExperimentPlanValidator:
             if executable["resolved"]
             else Path(plan.command[0]).name
         )
-        roots = {role: checkout_for(checkouts, role).checkout_path for role in RepositoryRole}
+        roots = {role: acquisition.checkout(role).checkout_path for role in RepositoryRole}
         ExperimentRoutePolicy().validate(
             plan.route_kind,
             RouteEvidence(
@@ -46,7 +42,7 @@ class ExperimentPlanValidator:
                 cited_files,
                 roots[RepositoryRole.SOURCE],
                 roots[RepositoryRole.TARGET],
-                str(acquisition["target_worktree"]),
+                acquisition.target_worktree,
                 roots[RepositoryRole.QEMU],
             ),
         )

@@ -14,14 +14,16 @@ from driver_port_factory.core.models import (
     WorkflowError,
 )
 from driver_port_factory.knowledge.bootstrap import KnowledgeBootstrapper
-from driver_port_factory.knowledge.index import CHUNKS, KnowledgeIndex, file_sha256
+from driver_port_factory.knowledge.corpus import CorpusManifest
+from driver_port_factory.knowledge.index import KnowledgeIndex, file_sha256
 from driver_port_factory.source_analysis.closure import SourceClosureService
 from driver_port_factory.source_analysis.compiler import GccCompatibleCommand
 from driver_port_factory.source_analysis.contracts import (
     SourceAnalysisStage,
 )
+from driver_port_factory.source_analysis.corpus_revision import SourceCorpusRevision
 from driver_port_factory.target_study.service import TargetStudyService
-from tests.test_knowledge import add_controlled_materials, prepare_project, probe_plan
+from tests.test_knowledge import prepare_project, probe_plan
 from tests.test_target_study import target_study_inputs
 
 
@@ -32,7 +34,6 @@ def write_json(path: Path, value: dict) -> Path:
 
 def ready_project(root: Path):
     project, checkouts = prepare_project(root)
-    add_controlled_materials(project, checkouts)
     KnowledgeBootstrapper().bootstrap(project, probe_plan_path=probe_plan(project.root))
     target_inputs, _ = target_study_inputs(project.root, project, checkouts)
     TargetStudyService().validate(project, **target_inputs)
@@ -132,6 +133,68 @@ def source_closure(project, checkouts) -> dict:
 
 
 class SourceClosureTests(unittest.TestCase):
+    def test_successor_corpus_cannot_omit_validated_closure_paths(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            project, checkouts = ready_project(Path(temporary))
+            submission = write_json(
+                project.root / "source-closure.json",
+                source_closure(project, checkouts),
+            )
+
+            def omit_additions(
+                _service: SourceClosureService,
+                current_project,
+                _source_files,
+            ):
+                corpus = CorpusManifest.current(current_project)
+                status = KnowledgeIndex(current_project.root, corpus).build()
+                return (
+                    SourceCorpusRevision(corpus.digest, (), corpus.digest, status),
+                    corpus,
+                    (),
+                )
+
+            with (
+                patch.object(SourceClosureService, "_extend_knowledge", new=omit_additions),
+                self.assertRaisesRegex(WorkflowError, "exactly close"),
+            ):
+                SourceClosureService().validate(project, closure_path=submission)
+            self.assertEqual(
+                project.stage(SourceAnalysisStage.SOURCE_CLOSURE).status,
+                StageStatus.RUNNING,
+            )
+
+    def test_corpus_revision_must_bind_the_acquisition_parent_manifest(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            project, checkouts = ready_project(Path(temporary))
+            submission = write_json(
+                project.root / "source-closure.json",
+                source_closure(project, checkouts),
+            )
+            original = SourceCorpusRevision.to_dict
+            base_index = KnowledgeIndex.for_project(project)
+            base_status = base_index.status()
+
+            def wrong_parent(revision: SourceCorpusRevision) -> dict[str, object]:
+                value = original(revision)
+                value["parent_manifest_sha256"] = "0" * 64
+                return value
+
+            with (
+                patch.object(SourceCorpusRevision, "to_dict", new=wrong_parent),
+                self.assertRaisesRegex(WorkflowError, "acquisition manifest"),
+            ):
+                SourceClosureService().validate(project, closure_path=submission)
+            self.assertEqual(
+                project.stage(SourceAnalysisStage.SOURCE_CLOSURE).status,
+                StageStatus.RUNNING,
+            )
+            self.assertEqual(base_index.status(), base_status)
+            self.assertEqual(
+                SourceClosureService().validate(project, closure_path=submission).status.value,
+                "PASS",
+            )
+
     def test_compiler_target_triple_and_abi_are_verified(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             project, checkouts = ready_project(Path(temporary))
@@ -197,7 +260,7 @@ class SourceClosureTests(unittest.TestCase):
             self.assertIn("omits compiler-discovered dependencies", failed_dependency.errors[0])
 
             closure["translation_units"][0]["dependencies"].insert(0, header)
-            chunks = project.root / CHUNKS
+            chunks = KnowledgeIndex.for_project(project).chunks_path
             chunks.write_text("stale index contents\n", encoding="utf-8")
             passed = service.validate(
                 project,
@@ -212,8 +275,8 @@ class SourceClosureTests(unittest.TestCase):
                 project.stage(SourceAnalysisStage.STRUCTURED_C_ANALYSIS).status,
                 StageStatus.READY,
             )
-            self.assertEqual(KnowledgeIndex(project.root).status()["status"], "READY")
-            manifest = KnowledgeIndex(project.root).load_manifest()
+            self.assertEqual(KnowledgeIndex.for_project(project).status()["status"], "READY")
+            manifest = KnowledgeIndex.for_project(project).load_manifest()
             controlled_paths = {record["path"] for record in manifest}
             self.assertIn(
                 f"{checkouts['source'].checkout_path}/drivers/shared.c",

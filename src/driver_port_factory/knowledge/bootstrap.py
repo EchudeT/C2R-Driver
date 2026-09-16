@@ -4,6 +4,7 @@ import json
 from dataclasses import dataclass
 from pathlib import Path
 
+from ..acquisition.contracts import AcquisitionArtifact, AcquisitionStage
 from ..core.models import FileArtifact, GeneratedArtifact, StageStatus, utc_now
 from ..core.project import Project
 from .contracts import (
@@ -35,12 +36,17 @@ class KnowledgeBootstrapResult:
 class KnowledgeBootstrapper:
     def bootstrap(self, project: Project, *, probe_plan_path: Path) -> KnowledgeBootstrapResult:
         ensure_knowledge_stage_running(project)
-        knowledge = KnowledgeIndex(project.root)
+        knowledge = KnowledgeIndex.for_project(project)
         plan = KnowledgeProbePlan.load(probe_plan_path)
         knowledge.build()
         status = knowledge.status()
         executor = KnowledgeProbeExecutor()
-        probe_results = [executor.run(knowledge, probe) for probe in plan.probes]
+        gap_register = project.load_json_artifact(
+            AcquisitionStage.EVIDENCE_CLOSURE,
+            AcquisitionArtifact.EVIDENCE_GAP_REGISTER,
+        )
+        gaps = tuple(gap_register["gaps"])
+        probe_results = [executor.run(knowledge, probe, gaps) for probe in plan.probes]
         failed = tuple(
             str(result["probe_id"])
             for result in probe_results
@@ -61,11 +67,12 @@ class KnowledgeBootstrapper:
                 KnowledgeEvidenceStatus.FAIL, StageStatus.RUNNING, None, failed
             )
 
-        generated_skill, contract = ProjectKnowledgeSkillGenerator().generate(project, status)
+        generated_skill, contract = ProjectKnowledgeSkillGenerator().generate(
+            project, status, knowledge.manifest
+        )
         project.finalize_stage(
             KnowledgeStage.KNOWLEDGE_BASE,
             (
-                FileArtifact(KnowledgeArtifact.MATERIALS_MANIFEST, knowledge.manifest_path),
                 GeneratedArtifact(
                     KnowledgeArtifact.STATUS,
                     _json_bytes(status),

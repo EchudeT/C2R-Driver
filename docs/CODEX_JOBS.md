@@ -5,7 +5,7 @@
 阶段 Prompt 由 Prompt Pack 组合。默认 Pack 位于
 `src/driver_port_factory/data/prompt-packs/default/`，包含：
 
-- `manifest.json`：阶段到 Skill/reference 的映射；
+- `manifest.json`：阶段到 Skill/reference 及唯一默认输出 Schema 的映射；
 - `job.md`：可自由调整的外层提示词，使用 `{{job_json}}` 和 `{{skill_documents}}` 插槽。
 
 渲染结果包含角色与信任边界、对应 Skill 原文、本次 artifact/evidence 清单、目标和输出约束。
@@ -26,7 +26,7 @@ execution_root, sandbox, output_schema?, model?
 ```
 
 调用者不能通过 CLI 指定 sandbox、可写目录或 thread ID。`CodexExecutionPolicy` 从 typed stage 和
-acquisition manifest 推导唯一 grant：
+repository manifest 推导唯一 grant：
 
 | 阶段 | sandbox | execution root |
 |---|---|---|
@@ -48,9 +48,13 @@ CLI 不提供把模型响应转换为 required output 或直接 finalize 的通�
 契约骨架，adapter 完整度以
 `SKILL_TRACEABILITY.md` 的 `PARTIAL/PLANNED` 标记为准。
 
-传入 `--schema` 时，exec Gateway 会把 Schema 交给 `codex exec --output-schema`，控制器并再次确认
-响应为 JSON。控制器当前尚未独立执行完整 JSON Schema 校验，SDK Gateway 也没有等价的本地 Schema
-enforcement；因此这一能力仍是 `PARTIAL`，不能作为已完成的领域 adapter 或独立 gate 报告。
+调用方不能传入任意 Schema。Prompt Pack 为结构化阶段声明唯一默认输出 Schema，控制器把它自动交给
+`codex exec --output-schema`，并再次确认响应为 JSON。领域 importer 继续执行 typed parser 与跨记录
+不变量校验；SDK Gateway 尚无等价的本地 Schema enforcement，因此整体能力仍为 `PARTIAL`。
+
+`evidence_closure` 是已实现的领域 adapter：其 Schema 约束提议外形，随后 importer 按
+`codex_job_result` 的 digest+ordinal 精确绑定并执行 Python typed validator；静态 materializer 再验证
+真实文件、Git blob、外部输入和完整五件套 bundle。原始/结构化 Codex 输出仍只是 auxiliary。
 
 ## Gateway
 

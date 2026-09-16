@@ -5,6 +5,7 @@ from types import MappingProxyType
 from ..core.models import WorkflowError
 from ..core.validation import ArtifactValidator, BundleValidator, json_object, json_value
 from .bundle_validation import validate_structured_bundle
+from .closure_bundle_validation import validate_source_closure_bundle
 from .contracts import SourceAnalysisArtifact, SourceAnalysisStage
 from .fact_model import RawFactKind, StructuredAnalysisStatus
 
@@ -106,5 +107,8 @@ VALIDATORS = MappingProxyType[SourceAnalysisArtifact, ArtifactValidator](
 )
 
 BUNDLE_VALIDATORS = MappingProxyType[SourceAnalysisStage, BundleValidator](
-    {SourceAnalysisStage.STRUCTURED_C_ANALYSIS: validate_structured_bundle}
+    {
+        SourceAnalysisStage.SOURCE_CLOSURE: validate_source_closure_bundle,
+        SourceAnalysisStage.STRUCTURED_C_ANALYSIS: validate_structured_bundle,
+    }
 )

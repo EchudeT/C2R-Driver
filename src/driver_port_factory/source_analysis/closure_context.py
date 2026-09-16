@@ -4,8 +4,9 @@ import shutil
 from pathlib import Path
 from typing import Any
 
-from ..acquisition.contracts import AcquisitionArtifact, AcquisitionStage
-from ..acquisition.models import CheckoutRecord, RepositoryRole
+from ..acquisition.repository import load_repository_acquisition
+from ..acquisition.repository_checkout import CheckoutRecord
+from ..acquisition.repository_role import RepositoryRole
 from ..core.models import WorkflowError
 from ..core.project import Project
 from .closure_model import ClosureContext
@@ -87,11 +88,7 @@ class ClosureContextValidator:
 
     @staticmethod
     def _source_checkout(project: Project) -> CheckoutRecord:
-        acquisition = project.load_json_artifact(
-            AcquisitionStage.EVIDENCE_ACQUISITION,
-            AcquisitionArtifact.ACQUISITION_MANIFEST,
-        )
-        records = tuple(CheckoutRecord.from_dict(record) for record in acquisition["checkouts"])
+        records = load_repository_acquisition(project).checkouts
         return checkout(records, RepositoryRole.SOURCE)
 
     @staticmethod

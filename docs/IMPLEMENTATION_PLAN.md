@@ -16,7 +16,8 @@
 - SHA256 CAS；
 - 角色化 WorkflowDefinition；
 - clone 前请求解析、通用 Resolver/MetadataProvider、单次确认与范围冻结；
-- source/target/QEMU revision 解析、bare repository、受控 worktree 和 materials manifest；
+- source/target/QEMU revision 解析、可恢复 bare repository、受控 worktree；
+- 六域逐 facet 最小证据闭包、typed provenance、retrieval ledger 与独立 gap register；
 - 阶段依赖及 required-output Gate；
 - Skill Prompt composer；
 - Codex exec/SDK Gateway；

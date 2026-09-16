@@ -1,35 +1,14 @@
 from __future__ import annotations
 
-import json
 from types import MappingProxyType
 
 from ..core.models import WorkflowError
 from ..core.validation import ArtifactValidator, json_object, utf8_document
 from .contracts import (
     KnowledgeArtifact,
-    KnowledgeDomain,
     KnowledgeEvidenceStatus,
     KnowledgeIndexStatus,
-    MaterialRedistribution,
 )
-
-
-def _materials_manifest(data: bytes) -> None:
-    try:
-        lines = [json.loads(line) for line in data.decode("utf-8").splitlines() if line]
-    except (UnicodeDecodeError, json.JSONDecodeError) as error:
-        raise WorkflowError("knowledge_materials_manifest must be JSON Lines") from error
-    if not lines or any(
-        not isinstance(line, dict) or "sha256" not in line or "revision" not in line
-        for line in lines
-    ):
-        raise WorkflowError("knowledge material entries require sha256 and revision")
-    try:
-        for line in lines:
-            KnowledgeDomain(line.get("domain"))
-            MaterialRedistribution(line.get("redistribution"))
-    except (TypeError, ValueError) as error:
-        raise WorkflowError("knowledge material has invalid domain or redistribution") from error
 
 
 def _status(data: bytes) -> None:
@@ -90,7 +69,6 @@ def _target_probes(data: bytes) -> None:
 
 VALIDATORS = MappingProxyType[KnowledgeArtifact, ArtifactValidator](
     {
-        KnowledgeArtifact.MATERIALS_MANIFEST: _materials_manifest,
         KnowledgeArtifact.STATUS: _status,
         KnowledgeArtifact.QUERY_CONTRACT: _query_contract,
         KnowledgeArtifact.PROBE_ATTEMPT: _probe_attempt,

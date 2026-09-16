@@ -15,14 +15,14 @@ class ArtifactStore:
         self.objects = self.root / "objects" / "sha256"
         self.objects.mkdir(parents=True, exist_ok=True)
 
-    def _path_for_digest(self, digest: str) -> Path:
+    def path_for_digest(self, digest: str) -> Path:
         if len(digest) != 64 or any(c not in "0123456789abcdef" for c in digest):
             raise WorkflowError(f"invalid SHA256 digest: {digest}")
         return self.objects / digest[:2] / digest[2:]
 
     def put_bytes(self, data: bytes, *, kind: str) -> ArtifactContent:
         digest = hashlib.sha256(data).hexdigest()
-        target = self._path_for_digest(digest)
+        target = self.path_for_digest(digest)
         target.parent.mkdir(parents=True, exist_ok=True)
         if target.exists():
             if target.read_bytes() != data:
@@ -39,7 +39,7 @@ class ArtifactStore:
         )
 
     def read(self, ref: ArtifactContent | ArtifactRef) -> bytes:
-        path = self._path_for_digest(ref.digest)
+        path = self.path_for_digest(ref.digest)
         canonical = path.relative_to(self.root).as_posix()
         if ref.cas_path != canonical:
             raise WorkflowError(f"artifact has non-canonical CAS path: {ref.digest}")

@@ -3,8 +3,11 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+from .acquisition.artifact_validation import VALIDATORS as ACQUISITION_VALIDATORS
+from .acquisition.bundle_validation import (
+    BUNDLE_VALIDATORS as ACQUISITION_BUNDLE_VALIDATORS,
+)
 from .acquisition.contracts import AcquisitionStage
-from .acquisition.validation import VALIDATORS as ACQUISITION_VALIDATORS
 from .codex.validation import VALIDATORS as CODEX_VALIDATORS
 from .control.contracts import ControlArtifact, ControlStage
 from .control.validation import VALIDATORS as CONTROL_VALIDATORS
@@ -54,7 +57,7 @@ ARTIFACT_VALIDATORS = ValidationRegistry.compose(
         EVALUATION_VALIDATORS,
         CODEX_VALIDATORS,
     ),
-    (SOURCE_BUNDLE_VALIDATORS,),
+    (ACQUISITION_BUNDLE_VALIDATORS, SOURCE_BUNDLE_VALIDATORS),
 )
 
 WORKFLOW_STAGE_CATALOG = StageCatalog.compose(

@@ -87,15 +87,14 @@ class Project:
         artifact: FileArtifact | GeneratedArtifact,
         *,
         direction: ArtifactDirection = ArtifactDirection.OUTPUT,
-    ) -> str:
+    ) -> ArtifactRef:
         if direction is ArtifactDirection.OUTPUT:
             self.workflow.output_contract(stage).require_auxiliary(artifact.kind.value)
         data, source = self._materialize(artifact)
         self.validators.validate(artifact.kind, data)
         content = self.artifacts.put_bytes(data, kind=artifact.kind.value)
         ref = ArtifactRef(content, source)
-        self._persistence.register_artifact(ref, stage=stage, direction=direction)
-        return ref.digest
+        return self._persistence.register_artifact(ref, stage=stage, direction=direction)
 
     def finalize_stage(
         self,
@@ -125,12 +124,20 @@ class Project:
                 direction=ArtifactDirection.OUTPUT,
             )
         )
+        current_stage_artifacts = tuple(
+            (ref, self.artifacts.read(ref))
+            for ref in self._persistence.artifact_refs(
+                stage=stage,
+                direction=ArtifactDirection.OUTPUT,
+            )
+        )
         self.validators.validate_bundle(
             stage,
             BundleValidationContext(
                 self.root,
                 tuple(artifacts_with_data),
                 dependency_artifacts,
+                current_stage_artifacts,
             ),
         )
         refs = [ref for ref, _ in artifacts_with_data]

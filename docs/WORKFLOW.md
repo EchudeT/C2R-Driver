@@ -10,23 +10,24 @@
 | 4 | scope_confirmation | 混合/用户门 | 唯一候选或一次合并问题 |
 | 5 | migration_envelope_freeze | 静态 | 固定驱动、设备、总线、包含与排除范围 |
 | 6 | revision_selection | 混合 | pinned revisions |
-| 7 | evidence_acquisition | 混合 | acquisition manifest |
-| 8 | environment_recovery | 混合 | artifact mode、experiment route |
-| 9 | knowledge_base | 静态 | KB integrity、query contract、target probes、生成的项目 KB Skill |
-| 10 | target_platform_study | Codex+Gate | target profile、API evidence、analog trace、target-change plan |
-| 11 | source_closure | Codex+静态 Gate | frozen compile manifest、compiler-discovered closure、KB revision |
-| 12 | structured_c_analysis | 静态 | Clang AST/CFG/layout/preprocessor、LLVM IR、CPG/call/global/effect/span indexes |
-| 13 | migration_contracts | 混合 | evidence-backed contracts |
-| 14 | test_adaptation | 混合 | retained/adapted/excluded matrix |
-| 15 | rust_design | Codex+Gate | ownership/concurrency/unsafe design |
-| 16 | rust_implementation | Codex+静态 | source/patch and contract mapping |
-| 17 | target_compliance | 混合 | target rules review |
-| 18 | artifact_preparation | 静态 | runtime artifact + identity proof |
-| 19 | public_qemu_validation | 静态 | public functional/failure runs |
-| 20 | public_repair | 混合 | diagnoses、patches、reruns |
-| 21 | candidate_sealing（仅 blind mode） | 静态 | canonical candidate manifest/digest |
-| 22 | digest export / candidate transfer（仅 blind mode） | 静态 | anchored digest or transfer record |
-| 23 | completion_audit | 静态 | final read-only coverage, chronology and evidence audit |
+| 7 | repository_acquisition | 静态 | 三个 repository lock、source identity、独立 target worktree |
+| 8 | evidence_closure | 混合 | plan、受控 materials、逐 facet coverage、gap register、retrieval ledger |
+| 9 | environment_recovery | 混合 | artifact mode、experiment route |
+| 10 | knowledge_base | 静态 | KB integrity、query contract、target probes、生成的项目 KB Skill |
+| 11 | target_platform_study | Codex+Gate | target profile、API evidence、analog trace、target-change plan |
+| 12 | source_closure | Codex+静态 Gate | frozen compile manifest、compiler-discovered closure、KB revision |
+| 13 | structured_c_analysis | 静态 | Clang AST/CFG/layout/preprocessor、LLVM IR、CPG/call/global/effect/span indexes |
+| 14 | migration_contracts | 混合 | evidence-backed contracts |
+| 15 | test_adaptation | 混合 | retained/adapted/excluded matrix |
+| 16 | rust_design | Codex+Gate | ownership/concurrency/unsafe design |
+| 17 | rust_implementation | Codex+静态 | source/patch and contract mapping |
+| 18 | target_compliance | 混合 | target rules review |
+| 19 | artifact_preparation | 静态 | runtime artifact + identity proof |
+| 20 | public_qemu_validation | 静态 | public functional/failure runs |
+| 21 | public_repair | 混合 | diagnoses、patches、reruns |
+| 22 | candidate_sealing（仅 blind mode） | 静态 | canonical candidate manifest/digest |
+| 23 | digest export / candidate transfer（仅 blind mode） | 静态 | anchored digest or transfer record |
+| 24 | completion_audit | 静态 | final read-only coverage, chronology and evidence audit |
 
 `DEVELOPER_EVIDENCE` 跳过第 21–22 阶段，在 public repair 后直接执行 completion audit。
 `MIGRATION_OPERATOR` 在前瞻盲测中必须先导入 `public_bundle` 和 `curator_commitment`。

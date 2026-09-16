@@ -5,11 +5,18 @@ import tempfile
 import unittest
 from pathlib import Path
 
+from driver_port_factory.acquisition.repository_checkout import CheckoutRecord
+from driver_port_factory.acquisition.repository_role import RepositoryRole
+from driver_port_factory.acquisition.source_identity import (
+    SourceIdentityStatus,
+    SourceIdentityVerifier,
+)
+from driver_port_factory.core.models import WorkflowError
 from driver_port_factory.intake.resolver import (
     CompositeSourceDriverResolver,
     DriverRequest,
-    SourceEntryVerifier,
 )
+from tests.acquisition_support import git, repository
 
 NE2000_FIXTURE = Path(__file__).parents[1] / "examples" / "fixtures" / "linux-ne2000.catalog.json"
 
@@ -62,20 +69,47 @@ class GenericResolverTests(unittest.TestCase):
         self.assertEqual(len(result.candidates), 1)
         self.assertEqual(len(result.metadata_sources), 1)
 
-    def test_source_entry_verifier_is_platform_and_driver_agnostic(self) -> None:
+    def test_source_identity_verifier_is_platform_and_driver_agnostic(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
-            entry = root / "drivers" / "example.c"
-            entry.parent.mkdir()
-            entry.write_text("/* fixture */\n", encoding="utf-8")
+            source_root = repository(
+                root,
+                "source",
+                {"drivers/example.c": "/* fixture */\n"},
+            )
+            commit = git("rev-parse", "HEAD", cwd=source_root)
+            tree = git("rev-parse", "HEAD^{tree}", cwd=source_root)
+            source = CheckoutRecord(
+                RepositoryRole.SOURCE,
+                "arbitrary-source-platform",
+                source_root.as_uri(),
+                commit,
+                commit,
+                tree,
+                ".dpf/repositories/source.git",
+                "source",
+                True,
+                ".dpf/locks/source.json",
+                "1" * 64,
+                "2026-09-16T00:00:00Z",
+            )
             envelope = {"source_driver_entry_or_repository_hint": "drivers/example.c"}
-            verified = SourceEntryVerifier().verify(envelope, root)
-            self.assertTrue(verified.consistent)
+            verified = SourceIdentityVerifier().verify(
+                project_root=root,
+                migration_envelope_sha256="2" * 64,
+                migration_envelope=envelope,
+                source=source,
+            )
+            self.assertIs(verified.status, SourceIdentityStatus.VERIFIED)
 
             escaped = {"source_driver_entry_or_repository_hint": "../outside.c"}
-            rejected = SourceEntryVerifier().verify(escaped, root)
-            self.assertFalse(rejected.consistent)
-            self.assertTrue(rejected.conflicts)
+            with self.assertRaisesRegex(WorkflowError, "safe relative path"):
+                SourceIdentityVerifier().verify(
+                    project_root=root,
+                    migration_envelope_sha256="2" * 64,
+                    migration_envelope=escaped,
+                    source=source,
+                )
 
 
 if __name__ == "__main__":

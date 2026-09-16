@@ -14,7 +14,7 @@ dependencies = []
 
 [project.optional-dependencies]
 codex = ["openai-codex"]
-dev = ["pytest>=8", "ruff>=0.6"]
+dev = ["jsonschema>=4.23", "pytest>=8", "referencing>=0.37", "ruff>=0.6"]
 
 [project.scripts]
 dpf = "driver_port_factory.cli:main"
@@ -23,7 +23,12 @@ dpf = "driver_port_factory.cli:main"
 where = ["src"]
 
 [tool.setuptools.package-data]
-driver_port_factory = ["data/*.json", "data/prompt-packs/*/*.json", "data/prompt-packs/*/*.md"]
+driver_port_factory = [
+  "data/*.json",
+  "data/prompt-packs/*/*.json",
+  "data/prompt-packs/*/*.md",
+  "data/schemas/acquisition/*.json",
+]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

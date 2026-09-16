@@ -3,8 +3,9 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-from ..acquisition.contracts import AcquisitionArtifact, AcquisitionStage
-from ..acquisition.models import CheckoutRecord, RepositoryRole
+from ..acquisition.repository import load_repository_acquisition
+from ..acquisition.repository_checkout import CheckoutRecord
+from ..acquisition.repository_role import RepositoryRole
 from ..core.models import WorkflowError
 from ..core.project import Project
 from ..environment.contracts import EnvironmentArtifact, EnvironmentStage
@@ -81,11 +82,7 @@ class TargetProfileValidator:
         }
 
     def _target_checkout(self) -> CheckoutRecord:
-        acquisition = self.project.load_json_artifact(
-            AcquisitionStage.EVIDENCE_ACQUISITION,
-            AcquisitionArtifact.ACQUISITION_MANIFEST,
-        )
-        records = tuple(CheckoutRecord.from_dict(record) for record in acquisition["checkouts"])
+        records = load_repository_acquisition(self.project).checkouts
         matches = [record for record in records if record.role is RepositoryRole.TARGET]
         if len(matches) != 1:
             raise WorkflowError("expected one target checkout")

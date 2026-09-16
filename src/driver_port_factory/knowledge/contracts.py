@@ -6,17 +6,12 @@ class KnowledgeStage(StrEnum):
 
 
 class KnowledgeArtifact(StrEnum):
-    MATERIALS_MANIFEST = "knowledge_materials_manifest"
     STATUS = "kb_status"
     QUERY_CONTRACT = "kb_query_contract"
     PROBE_ATTEMPT = "kb_probe_attempt"
     GENERATED_SKILL = "generated_kb_skill"
     READINESS_REPORT = "kb_readiness_report"
     TARGET_PROBE_RESULTS = "target_probe_results"
-
-
-class KnowledgeEvent(StrEnum):
-    MATERIAL_ADDED = "knowledge.material_added"
 
 
 class KnowledgeIndexStatus(StrEnum):
@@ -41,12 +36,6 @@ class KnowledgeDomain(StrEnum):
     QEMU = "qemu"
     TOOLING = "tooling"
     TEST = "test"
-
-
-class MaterialRedistribution(StrEnum):
-    ALLOWED = "allowed"
-    RESTRICTED = "restricted"
-    UNKNOWN = "unknown"
 
 
 class RequiredProbeTopic(StrEnum):

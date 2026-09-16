@@ -20,6 +20,27 @@ class BundleValidationContext:
     project_root: Path
     artifacts: tuple[tuple[ArtifactRef, bytes], ...]
     dependency_artifacts: tuple[tuple[ArtifactRef, bytes], ...]
+    current_stage_artifacts: tuple[tuple[ArtifactRef, bytes], ...] = ()
+
+    def one_current(self, kind: ArtifactKey) -> tuple[ArtifactRef, bytes]:
+        return self._one(self.artifacts, kind, "final bundle")
+
+    def one_dependency(self, kind: ArtifactKey) -> tuple[ArtifactRef, bytes]:
+        return self._one(self.dependency_artifacts, kind, "dependency bundle")
+
+    def one_auxiliary(self, kind: ArtifactKey) -> tuple[ArtifactRef, bytes]:
+        return self._one(self.current_stage_artifacts, kind, "auxiliary bundle")
+
+    @staticmethod
+    def _one(
+        artifacts: tuple[tuple[ArtifactRef, bytes], ...],
+        kind: ArtifactKey,
+        label: str,
+    ) -> tuple[ArtifactRef, bytes]:
+        matches = [artifact for artifact in artifacts if artifact[0].kind == kind.value]
+        if len(matches) != 1:
+            raise WorkflowError(f"{label} requires exactly one {kind.value}, found {len(matches)}")
+        return matches[0]
 
 
 class BundleValidator(Protocol):

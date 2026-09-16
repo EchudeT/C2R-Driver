@@ -1,0 +1,254 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:dpf:acquisition:evidence-definitions",
+  "$defs": {
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "object_id": {"type": "string", "pattern": "^[0-9a-fA-F]{40}([0-9a-fA-F]{24})?$"},
+    "identifier": {"type": "string", "pattern": "^[A-Za-z0-9._-]+$"},
+    "nonempty": {"type": "string", "pattern": ".*\\S.*"},
+    "facet_properties": {
+      "lane": {"enum": ["source", "target", "qemu", "hardware", "test", "tooling"]},
+      "facet": {
+        "enum": [
+          "driver_entry", "dependency_closure", "framework_contracts", "build_configuration",
+          "extension_points", "driver_framework", "analogous_implementations",
+          "api_definitions_and_calls", "lifecycle", "artifact_runtime_path",
+          "coding_and_safety_rules", "test_conventions", "release_assets", "device_model",
+          "device_model_documentation", "observability_and_injection", "device_manual",
+          "register_state_machine", "bus_specification", "errata", "source_tests",
+          "test_framework_documentation", "toolchain_documentation",
+          "packaging_and_release_documentation", "runtime_documentation"
+        ]
+      }
+    },
+    "content_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "digest", "ordinal", "source"],
+      "properties": {
+        "kind": {"const": "evidence_http_content"},
+        "digest": {"$ref": "#/$defs/sha256"},
+        "ordinal": {"type": "integer", "minimum": 0},
+        "source": {"$ref": "#/$defs/nonempty"}
+      }
+    },
+    "http_response": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["requested_url", "resolved_url", "sha256", "size_bytes", "media_type", "retrieved_at", "content_ref"],
+      "properties": {
+        "requested_url": {"$ref": "#/$defs/nonempty"},
+        "resolved_url": {"$ref": "#/$defs/nonempty"},
+        "sha256": {"$ref": "#/$defs/sha256"},
+        "size_bytes": {"type": "integer", "minimum": 1},
+        "media_type": {"type": "string", "pattern": "^[^;/]+/[^;/]+$"},
+        "retrieved_at": {"$ref": "#/$defs/nonempty"},
+        "content_ref": {"$ref": "#/$defs/content_ref"}
+      }
+    },
+    "git_origin": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "repository", "commit", "blob", "path"],
+      "properties": {
+        "kind": {"const": "git_blob"},
+        "repository": {"enum": ["source", "target", "qemu"]},
+        "commit": {"$ref": "#/$defs/object_id"},
+        "blob": {"$ref": "#/$defs/object_id"},
+        "path": {"$ref": "#/$defs/nonempty"}
+      }
+    },
+    "external_origin": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "source_url", "revision", "authority_basis", "authority", "response", "corroboration"],
+      "properties": {
+        "kind": {"const": "external_url"},
+        "source_url": {"$ref": "#/$defs/nonempty"},
+        "revision": {"$ref": "#/$defs/nonempty"},
+        "authority_basis": {"$ref": "urn:dpf:acquisition:evidence-discovery-proposal#/$defs/external_url/properties/authority"},
+        "authority": {"enum": ["primary", "corroborated"]},
+        "response": {"$ref": "#/$defs/http_response"},
+        "corroboration": {"type": "array", "items": {"$ref": "#/$defs/http_response"}}
+      }
+    },
+    "material": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "domain", "facet", "path", "source_url", "revision", "acquired_at", "license", "redistribution", "sha256", "size_bytes", "media_type", "original", "index", "origin"],
+      "properties": {
+        "id": {"$ref": "#/$defs/identifier"},
+        "domain": {"$ref": "#/$defs/facet_properties/lane"},
+        "facet": {"$ref": "#/$defs/facet_properties/facet"},
+        "path": {"$ref": "#/$defs/nonempty"},
+        "source_url": {"$ref": "#/$defs/nonempty"},
+        "revision": {"$ref": "#/$defs/nonempty"},
+        "acquired_at": {"$ref": "#/$defs/nonempty"},
+        "license": {"$ref": "#/$defs/nonempty"},
+        "redistribution": {"enum": ["allowed", "restricted", "unknown"]},
+        "sha256": {"$ref": "#/$defs/sha256"},
+        "size_bytes": {"type": "integer", "minimum": 1},
+        "media_type": {"type": "string", "pattern": "^[^;/]+/[^;/]+$"},
+        "original": {"type": "boolean"},
+        "index": {"type": "boolean"},
+        "origin": {"oneOf": [{"$ref": "#/$defs/git_origin"}, {"$ref": "#/$defs/external_origin"}]},
+        "derived_from": {"$ref": "#/$defs/nonempty"},
+        "original_path": {"$ref": "#/$defs/nonempty"},
+        "page_map": {"$ref": "#/$defs/nonempty"},
+        "category": {"$ref": "#/$defs/nonempty"},
+        "notes": {"$ref": "#/$defs/nonempty"}
+      },
+      "allOf": [
+        {
+          "if": {"properties": {"original": {"const": true}}, "required": ["original"]},
+          "then": {"not": {"anyOf": [{"required": ["derived_from"]}, {"required": ["original_path"]}, {"required": ["page_map"]}]}},
+          "else": {"required": ["derived_from", "original_path", "page_map"]}
+        }
+      ]
+    },
+    "coverage_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["lane", "facet", "disposition", "material_ids", "gap_ids"],
+      "properties": {
+        "lane": {"$ref": "#/$defs/facet_properties/lane"},
+        "facet": {"$ref": "#/$defs/facet_properties/facet"},
+        "disposition": {"enum": ["CONTROLLED", "EXPLICIT_GAP"]},
+        "material_ids": {"type": "array", "items": {"$ref": "#/$defs/identifier"}},
+        "gap_ids": {"type": "array", "items": {"$ref": "#/$defs/identifier"}}
+      }
+    },
+    "gap": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "lane", "facet", "reason", "impact", "repair_trigger", "retrieval_attempt_ids"],
+      "properties": {
+        "id": {"$ref": "#/$defs/identifier"},
+        "lane": {"$ref": "#/$defs/facet_properties/lane"},
+        "facet": {"$ref": "#/$defs/facet_properties/facet"},
+        "reason": {"enum": ["NOT_FOUND", "ACCESS_RESTRICTED", "LICENSE_UNCERTAIN", "CONFLICTING_SOURCES", "UNAVAILABLE_PUBLIC_EVIDENCE"]},
+        "impact": {"$ref": "#/$defs/nonempty"},
+        "repair_trigger": {"$ref": "#/$defs/nonempty"},
+        "retrieval_attempt_ids": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/identifier"}}
+      }
+    },
+    "attempt": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "lane", "facet", "locator", "outcome", "detail", "material_ids", "content_refs", "observed_at"],
+      "properties": {
+        "id": {"$ref": "#/$defs/identifier"},
+        "lane": {"$ref": "#/$defs/facet_properties/lane"},
+        "facet": {"$ref": "#/$defs/facet_properties/facet"},
+        "locator": {"$ref": "urn:dpf:acquisition:evidence-discovery-proposal#/$defs/locator"},
+        "outcome": {"enum": ["RETRIEVED", "NOT_FOUND", "ACCESS_RESTRICTED", "LICENSE_UNCERTAIN", "CONFLICT", "FAILED"]},
+        "detail": {"$ref": "#/$defs/nonempty"},
+        "material_ids": {"type": "array", "items": {"$ref": "#/$defs/identifier"}},
+        "content_refs": {"type": "array", "items": {"$ref": "#/$defs/content_ref"}},
+        "observed_at": {"$ref": "#/$defs/nonempty"}
+      }
+    },
+    "dependency_inventory": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schema_version", "scope", "entry_material_id", "entry_commit", "entry_blob", "entry_sha256", "scanner", "requirements"],
+      "properties": {
+        "schema_version": {"const": 1},
+        "scope": {"const": "initial-acquisition-quoted-includes"},
+        "entry_material_id": {"$ref": "#/$defs/nonempty"},
+        "entry_commit": {"$ref": "#/$defs/object_id"},
+        "entry_blob": {"$ref": "#/$defs/object_id"},
+        "entry_sha256": {"$ref": "#/$defs/sha256"},
+        "scanner": {"$ref": "#/$defs/dependency_scanner"},
+        "requirements": {"type": "array", "items": {"$ref": "#/$defs/dependency_requirement"}}
+      }
+    },
+    "dependency_scanner": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["version", "include_form", "resolution_rule"],
+      "properties": {
+        "version": {"const": "quoted-include-v1"},
+        "include_form": {"const": "quoted-only"},
+        "resolution_rule": {"const": "including-directory"}
+      }
+    },
+    "dependency_requirement": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "repository_path", "sites", "disposition", "retrieval_attempt_id", "material_id", "gap_id"],
+      "properties": {
+        "id": {"$ref": "#/$defs/nonempty"},
+        "repository_path": {"$ref": "#/$defs/nonempty"},
+        "sites": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/include_site"}},
+        "disposition": {"enum": ["CONTROLLED", "EXPLICIT_GAP"]},
+        "retrieval_attempt_id": {"$ref": "#/$defs/nonempty"},
+        "material_id": {"type": ["string", "null"]},
+        "gap_id": {"type": ["string", "null"]}
+      }
+    },
+    "include_site": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["including_path", "line", "spelling"],
+      "properties": {
+        "including_path": {"$ref": "#/$defs/nonempty"},
+        "line": {"type": "integer", "minimum": 1},
+        "spelling": {"$ref": "#/$defs/nonempty"}
+      }
+    },
+    "plan": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schema_version", "created_at", "migration_envelope_sha256", "repository_manifest_sha256", "proposal_occurrence", "job_result", "facets"],
+      "properties": {
+        "schema_version": {"const": 1},
+        "created_at": {"$ref": "#/$defs/nonempty"},
+        "migration_envelope_sha256": {"$ref": "#/$defs/sha256"},
+        "repository_manifest_sha256": {"$ref": "#/$defs/sha256"},
+        "proposal_occurrence": {"$ref": "#/$defs/occurrence"},
+        "job_result": {"$ref": "#/$defs/job_result"},
+        "facets": {
+          "type": "array",
+          "minItems": 25,
+          "maxItems": 25,
+          "items": {"$ref": "urn:dpf:acquisition:evidence-discovery-proposal#/$defs/facet"}
+        }
+      }
+    },
+    "occurrence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["digest", "ordinal"],
+      "properties": {"digest": {"$ref": "#/$defs/sha256"}, "ordinal": {"type": "integer", "minimum": 0}}
+    },
+    "job_result": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["digest", "ordinal", "source"],
+      "properties": {"digest": {"$ref": "#/$defs/sha256"}, "ordinal": {"type": "integer", "minimum": 0}, "source": {"$ref": "#/$defs/nonempty"}}
+    },
+    "coverage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schema_version", "facets", "source_dependencies"],
+      "properties": {
+        "schema_version": {"const": 1},
+        "facets": {"type": "array", "minItems": 25, "maxItems": 25, "items": {"$ref": "#/$defs/coverage_entry"}},
+        "source_dependencies": {"$ref": "#/$defs/dependency_inventory"}
+      }
+    },
+    "gap_register": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schema_version", "gaps"],
+      "properties": {"schema_version": {"const": 1}, "gaps": {"type": "array", "items": {"$ref": "#/$defs/gap"}}}
+    },
+    "ledger": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schema_version", "attempts"],
+      "properties": {"schema_version": {"const": 1}, "attempts": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/attempt"}}}
+    }
+  }
+}
