@@ -9,7 +9,7 @@
     "compatibility_evidence"
   ],
   "properties": {
-    "schema_version": {"const": 1},
+    "schema_version": {"type": "integer", "const": 1},
     "migration_envelope_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
     "repositories": {
       "type": "array",
@@ -29,7 +29,7 @@
       "additionalProperties": false,
       "required": ["role", "platform", "url", "requested_ref", "selection_rule"],
       "properties": {
-        "role": {"enum": ["source", "target", "qemu"]},
+        "role": {"type": "string", "enum": ["source", "target", "qemu"]},
         "platform": {"type": "string", "minLength": 1},
         "url": {"type": "string", "minLength": 1},
         "requested_ref": {
@@ -42,18 +42,18 @@
     "evidence": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["source_url", "claim", "excerpt", "claim_kind", "bindings"],
+      "required": ["source_url", "claim", "excerpt", "claim_kind", "bindings", "max_bytes"],
       "properties": {
         "source_url": {"type": "string", "pattern": "^https?://"},
         "claim": {"type": "string", "minLength": 1},
         "excerpt": {"type": "string", "minLength": 1},
         "claim_kind": {
+          "type": "string",
           "enum": ["maintenance", "cross-repository-compatibility"]
         },
         "bindings": {
           "type": "array",
           "minItems": 1,
-          "uniqueItems": true,
           "items": {"$ref": "#/$defs/binding"}
         },
         "max_bytes": {"type": "integer", "minimum": 1, "maximum": 16777216}
@@ -64,7 +64,7 @@
       "additionalProperties": false,
       "required": ["role", "requested_ref"],
       "properties": {
-        "role": {"enum": ["source", "target", "qemu"]},
+        "role": {"type": "string", "enum": ["source", "target", "qemu"]},
         "requested_ref": {"type": "string", "minLength": 1}
       }
     }
