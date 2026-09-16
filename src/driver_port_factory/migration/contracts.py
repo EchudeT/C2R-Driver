@@ -21,6 +21,8 @@ class MigrationArtifact(StrEnum):
     TRANSLATION_COVERAGE = "translation_coverage"
     TARGET_CHANGE_INVENTORY = "target_change_inventory"
     COMPLIANCE_REPORT = "compliance_report"
+    ARTIFACT_PREPARATION_PLAN = "artifact_preparation_plan"
+    ARTIFACT_PREPARATION_ATTEMPT = "artifact_preparation_attempt"
     RUNTIME_ARTIFACT = "runtime_artifact"
     ARTIFACT_IDENTITY = "artifact_identity"
     PUBLIC_QEMU_REPORT = "public_qemu_report"

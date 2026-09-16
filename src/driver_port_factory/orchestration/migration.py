@@ -339,6 +339,12 @@ def _migration_rows(config: ProjectConfig) -> tuple[StageRow, ...]:
             "Build or inject the runtime artifact and prove its identity.",
             StageOwner.STATIC,
             (MigrationArtifact.RUNTIME_ARTIFACT, MigrationArtifact.ARTIFACT_IDENTITY),
+            (MigrationArtifact.ARTIFACT_PREPARATION_ATTEMPT,),
+            prerequisites=(
+                MigrationStage.HANDOFF,
+                MigrationStage.DRIVER_IMPLEMENTATION,
+                EnvironmentStage.RECOVERY,
+            ),
         ),
         StageRow(
             MigrationStage.PUBLIC_QEMU_VALIDATION,

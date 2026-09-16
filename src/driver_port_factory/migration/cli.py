@@ -13,6 +13,7 @@ from ..core.project import Project
 from ..knowledge.contracts import KnowledgeArtifact, KnowledgeStage
 from ..source_analysis.contracts import SourceAnalysisArtifact, SourceAnalysisStage
 from ..target_study.contracts import TargetStudyArtifact, TargetStudyStage
+from .artifact_preparation import ArtifactPreparationService
 from .compliance import ComplianceReport, ComplianceService
 from .contract_set import MigrationContractService, MigrationContractSet
 from .contracts import MigrationArtifact, MigrationStage
@@ -249,6 +250,13 @@ def command_target_compliance_run(arguments: argparse.Namespace) -> None:
     )
 
 
+def command_artifact_preparation_run(arguments: argparse.Namespace) -> None:
+    result = ArtifactPreparationService().run(
+        open_project(Path(arguments.path)), Path(arguments.plan)
+    )
+    print(json.dumps(result, ensure_ascii=False, sort_keys=True, indent=2))
+
+
 def register_commands(commands: CommandRegistry) -> None:
     migration = commands.add_parser("migration", help="run controlled migration transitions")
     subcommands = command_registry(migration, dest="migration_command")
@@ -307,3 +315,12 @@ def register_commands(commands: CommandRegistry) -> None:
     run.add_argument("--codex-bin", default="codex")
     run.add_argument("--model")
     run.set_defaults(handler=command_target_compliance_run)
+
+    preparation = commands.add_parser(
+        "artifact-preparation", help="build or inject and freeze the current driver artifact"
+    )
+    preparation_commands = command_registry(preparation, dest="artifact_preparation_command")
+    run = preparation_commands.add_parser("run")
+    run.add_argument("path")
+    run.add_argument("--plan", required=True)
+    run.set_defaults(handler=command_artifact_preparation_run)

@@ -6,6 +6,7 @@ from ..core.validation import (
     json_object_document,
     nonempty,
 )
+from .artifact_preparation import validate_artifact_bundle
 from .compliance import validate_compliance_bundle
 from .contract_set import validate_contract_bundle
 from .contracts import MigrationArtifact, MigrationStage
@@ -22,6 +23,8 @@ VALIDATORS = MappingProxyType[MigrationArtifact, ArtifactValidator](
         MigrationArtifact.TRANSLATION_COVERAGE: json_object_document,
         MigrationArtifact.TARGET_CHANGE_INVENTORY: json_object_document,
         MigrationArtifact.COMPLIANCE_REPORT: json_object_document,
+        MigrationArtifact.ARTIFACT_PREPARATION_PLAN: json_object_document,
+        MigrationArtifact.ARTIFACT_PREPARATION_ATTEMPT: json_object_document,
         MigrationArtifact.RUNTIME_ARTIFACT: nonempty,
         MigrationArtifact.ARTIFACT_IDENTITY: json_object_document,
         MigrationArtifact.PUBLIC_QEMU_REPORT: json_object_document,
@@ -37,5 +40,6 @@ BUNDLE_VALIDATORS = MappingProxyType[MigrationStage, BundleValidator](
         MigrationStage.TEST_ADAPTATION: validate_test_matrix_bundle,
         MigrationStage.DRIVER_IMPLEMENTATION: validate_implementation_bundle,
         MigrationStage.TARGET_COMPLIANCE: validate_compliance_bundle,
+        MigrationStage.ARTIFACT_PREPARATION: validate_artifact_bundle,
     }
 )
