@@ -74,17 +74,17 @@ class TargetStudyService:
         }
         errors: list[str] = []
         details: dict[str, Any] = {}
+        knowledge = KnowledgeIndex.for_project(project)
+        evidence = TargetEvidenceVerifier(knowledge)
+        details["knowledge_status"] = knowledge.status()
+        details["acquisition_verification"] = AcquisitionVerifier().verify(project)
+        if not details["acquisition_verification"]["valid"]:
+            raise WorkflowError("one or more frozen baselines failed verification")
         try:
             profile = self._load_json(paths["profile_json"])
             api = self._load_json(paths["api_table"])
             trace = self._load_json(paths["analogous_trace"])
             changes = self._load_json(paths["change_plan"])
-            knowledge = KnowledgeIndex.for_project(project)
-            evidence = TargetEvidenceVerifier(knowledge)
-            details["knowledge_status"] = knowledge.status()
-            details["acquisition_verification"] = AcquisitionVerifier().verify(project)
-            if not details["acquisition_verification"]["valid"]:
-                raise WorkflowError("one or more frozen baselines failed verification")
             details["profile"] = TargetProfileValidator(project, evidence).validate(profile)
             details["changes"] = TargetChangePlanValidator(evidence).validate(changes)
             details["api_table"] = self._validate_api_table(
@@ -93,7 +93,7 @@ class TargetStudyService:
             details["analogous_trace"] = self._validate_trace(evidence, trace)
             self._ready_gate(details["changes"], details["analogous_trace"])
             self._validate_profile_markdown(paths["profile_markdown"], profile)
-        except (WorkflowError, OSError, UnicodeDecodeError) as error:
+        except (WorkflowError, UnicodeDecodeError) as error:
             errors.append(str(error))
         report = {
             "schema_version": 1,

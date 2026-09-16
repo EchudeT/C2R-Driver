@@ -10,9 +10,12 @@ from unittest.mock import patch
 from driver_port_factory.cli import parser
 from driver_port_factory.codex.contracts import CodexBackend, CodexOutputError
 from driver_port_factory.core.models import StageStatus, WorkflowError
+from driver_port_factory.knowledge.bootstrap import KnowledgeBootstrapper
 from driver_port_factory.knowledge.contracts import KnowledgeStage
 from driver_port_factory.port import PortOptions, PortRunner
 from driver_port_factory.source_analysis.clang_backend import AnalyzerFamily
+from tests.test_knowledge import prepare_project, probe_plan
+from tests.test_target_study import target_study_inputs
 
 
 class FakeProject:
@@ -94,6 +97,21 @@ class PortRunnerTests(unittest.TestCase):
         self.assertEqual(codex.call_count, 2)
         self.assertEqual(codex.call_args.kwargs["thread_id"], "same-thread")
         self.assertEqual(codex.call_args.kwargs["follow_up"], "invalid proposal")
+
+    def test_target_study_document_gate_is_codex_output_error(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            project, checkouts = prepare_project(root)
+            KnowledgeBootstrapper().bootstrap(project, probe_plan_path=probe_plan(project.root))
+            parts, _ = target_study_inputs(project.root, project, checkouts)
+            parts["api_table"].write_text("[]", encoding="utf-8")
+            runner = PortRunner(options(root))
+
+            with (
+                patch.object(runner, "_write_response_parts", return_value=parts),
+                self.assertRaisesRegex(CodexOutputError, "JSON must be an object"),
+            ):
+                runner._accept_target_study_result(project, object())
 
     def test_fresh_port_workspace_is_its_own_git_root(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:

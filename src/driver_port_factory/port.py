@@ -526,7 +526,7 @@ class PortRunner:
             change_plan=parts["change_plan"],
         )
         if result.errors:
-            raise WorkflowError("target study failed: " + "; ".join(result.errors))
+            raise CodexOutputError("target study failed: " + "; ".join(result.errors))
 
     @staticmethod
     def _handoff(project: Project) -> None:
