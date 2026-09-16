@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import subprocess
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
@@ -183,9 +184,11 @@ class PortRunner:
                 )
 
     def _project(self) -> Project:
-        control = self.options.workspace.resolve() / Project.CONTROL_DIR
+        workspace = self.options.workspace.resolve()
+        self._ensure_git_root(workspace)
+        control = workspace / Project.CONTROL_DIR
         if control.exists():
-            project = open_project(self.options.workspace)
+            project = open_project(workspace)
             expected = (
                 self.options.source_platform,
                 self.options.target_platform,
@@ -200,9 +203,9 @@ class PortRunner:
                 raise WorkflowError("run inputs differ from the persisted migration request")
             return project
         return initialize_project(
-            self.options.workspace,
+            workspace,
             ProjectConfig(
-                project_id=self.options.workspace.resolve().name,
+                project_id=workspace.name,
                 source_platform=self.options.source_platform,
                 target_platform=self.options.target_platform,
                 driver_name=self.options.driver_name,
@@ -211,6 +214,22 @@ class PortRunner:
                 skill_root=str(self.options.skill_root.resolve()),
             ),
         )
+
+    @staticmethod
+    def _ensure_git_root(workspace: Path) -> None:
+        workspace.mkdir(parents=True, exist_ok=True)
+        if (workspace / ".git").exists():
+            return
+        completed = subprocess.run(
+            ["git", "init", "--quiet", "--initial-branch=main", str(workspace)],
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+        if completed.returncode != 0:
+            raise WorkflowError(
+                f"cannot initialize local Git workspace: {completed.stderr.strip()}"
+            )
 
     @staticmethod
     def _current(project: Project):

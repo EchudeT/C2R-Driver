@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import subprocess
 import tempfile
 import unittest
 from pathlib import Path
@@ -49,6 +50,21 @@ def options(root: Path) -> PortOptions:
 
 
 class PortRunnerTests(unittest.TestCase):
+    def test_fresh_port_workspace_is_its_own_git_root(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            workspace = Path(temporary) / "fresh-port"
+            project = PortRunner(options(workspace))._project()
+            git_root = subprocess.run(
+                ["git", "rev-parse", "--show-toplevel"],
+                cwd=workspace,
+                text=True,
+                capture_output=True,
+                check=True,
+            ).stdout.strip()
+
+            self.assertEqual(Path(git_root), workspace.resolve())
+            self.assertEqual(project.root, workspace.resolve())
+
     def test_single_entry_runs_typed_dag_to_completion(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             runner = PortRunner(options(Path(temporary)))
