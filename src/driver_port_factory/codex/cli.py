@@ -17,7 +17,7 @@ from ..core.models import (
     WorkflowError,
 )
 from ..core.project import Project
-from .contracts import CodexArtifact, CodexBackend
+from .contracts import CodexArtifact, CodexBackend, CodexExecEventType
 from .gateway import CodexExecGateway, CodexJob, CodexResult, CodexSdkGateway
 from .policy import CodexExecutionPolicy
 from .prompts import RenderedPrompt, SkillPromptComposer
@@ -214,6 +214,33 @@ def command_codex_run(arguments: argparse.Namespace) -> None:
     )
 
 
+def command_codex_transcript(arguments: argparse.Namespace) -> None:
+    project = open_project(Path(arguments.path))
+    stage = project.workflow.parse_stage(arguments.stage)
+    artifacts = []
+    codex_kinds = set(CodexArtifact)
+    for direction in ArtifactDirection:
+        for reference in project.artifact_refs(stage=stage, direction=direction):
+            if reference.kind not in codex_kinds:
+                continue
+            record = {
+                "direction": direction.value,
+                **reference.to_dict(),
+                "path": str(project.artifacts.path_for_digest(reference.digest)),
+            }
+            data = project.artifacts.read(reference)
+            if reference.kind == CodexArtifact.EVENT_LOG:
+                for line in data.decode("utf-8").splitlines():
+                    event = json.loads(line)
+                    if event.get("type") == CodexExecEventType.THREAD_STARTED:
+                        record["thread_id"] = event.get("thread_id")
+                        break
+            if arguments.include_content:
+                record["content"] = data.decode("utf-8")
+            artifacts.append(record)
+    print(json.dumps({"stage": stage.value, "artifacts": artifacts}, ensure_ascii=False, indent=2))
+
+
 def register_commands(commands: CommandRegistry) -> None:
     prompt = commands.add_parser("prompt", help="compose versioned prompts from upstream Skills")
     prompt_commands = command_registry(prompt, dest="prompt_command")
@@ -240,3 +267,11 @@ def register_commands(commands: CommandRegistry) -> None:
     run.add_argument("--codex-bin", default="codex")
     run.add_argument("--model")
     run.set_defaults(handler=command_codex_run)
+
+    transcript = codex_commands.add_parser(
+        "transcript", help="inspect persisted Codex prompts, responses, and event logs"
+    )
+    transcript.add_argument("path")
+    transcript.add_argument("stage")
+    transcript.add_argument("--include-content", action="store_true")
+    transcript.set_defaults(handler=command_codex_transcript)
