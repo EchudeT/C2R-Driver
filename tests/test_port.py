@@ -10,7 +10,7 @@ from unittest.mock import patch
 from driver_port_factory.cli import parser
 from driver_port_factory.codex.contracts import CodexBackend
 from driver_port_factory.core.models import StageStatus
-from driver_port_factory.knowledge.contracts import KnowledgeDependencyClosureError, KnowledgeStage
+from driver_port_factory.knowledge.contracts import KnowledgeInfrastructureError, KnowledgeStage
 from driver_port_factory.port import PortOptions, PortRunner
 from driver_port_factory.source_analysis.clang_backend import AnalyzerFamily
 
@@ -51,18 +51,18 @@ def options(root: Path) -> PortOptions:
 
 
 class PortRunnerTests(unittest.TestCase):
-    def test_dependency_closure_failure_is_not_sent_back_to_codex(self) -> None:
+    def test_knowledge_infrastructure_failure_is_not_sent_back_to_codex(self) -> None:
         runner = PortRunner(options(Path("/unused")))
         result = SimpleNamespace(thread_id="knowledge-thread")
 
         def reject(_project, _job) -> None:
-            raise KnowledgeDependencyClosureError("deterministic Cargo failure")
+            raise KnowledgeInfrastructureError("deterministic index failure")
 
         with (
             patch.object(runner, "_latest_job_occurrence", return_value=None),
             patch.object(runner, "_codex", return_value=(result, None, Path("response"))) as codex,
             patch.object(runner, "_job_occurrence", return_value=object()),
-            self.assertRaisesRegex(KnowledgeDependencyClosureError, "deterministic Cargo failure"),
+            self.assertRaisesRegex(KnowledgeInfrastructureError, "deterministic index failure"),
         ):
             runner._codex_gate(
                 object(),

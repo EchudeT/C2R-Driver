@@ -45,8 +45,8 @@ from driver_port_factory.knowledge.bootstrap import KnowledgeBootstrapper
 from driver_port_factory.knowledge.cargo_dependencies import _extract_target_archive
 from driver_port_factory.knowledge.contracts import (
     KnowledgeArtifact,
-    KnowledgeDependencyClosureError,
     KnowledgeDomain,
+    KnowledgeInfrastructureError,
     KnowledgeStage,
 )
 from driver_port_factory.knowledge.corpus import CorpusManifest
@@ -225,6 +225,9 @@ def fake_cargo(
             "pub trait RegistryApi {{ fn register(&self); }}\\n",
             encoding="utf-8",
         )
+        binary_text = package / "data/readme.txt"
+        binary_text.parent.mkdir()
+        binary_text.write_bytes(b"not utf-8: \\xff\\xfe")
         expected_archive = b"fixture registry crate archive"
         checksum = hashlib.sha256(expected_archive).hexdigest()
         cache = cargo_home / "registry/cache/fixture-index"
@@ -403,6 +406,9 @@ class KnowledgeBootstrapTests(unittest.TestCase):
             archive = next(
                 record for record in registry if record.origin.crate_relative_path is None
             )
+            self.assertFalse(
+                any(record.origin.crate_relative_path == "data/readme.txt" for record in registry)
+            )
             self.assertEqual(source.origin.registry_url, "https://registry.example/index")
             self.assertEqual(source.origin.package_version, "1.2.3")
             self.assertEqual(archive.sha256, archive.origin.archive_sha256)
@@ -427,7 +433,7 @@ class KnowledgeBootstrapTests(unittest.TestCase):
             with (
                 patch.dict(os.environ, {"PATH": f"{cargo_bin}:{os.environ['PATH']}"}),
                 self.assertRaisesRegex(
-                    KnowledgeDependencyClosureError,
+                    KnowledgeInfrastructureError,
                     "archive checksum mismatch",
                 ),
             ):
@@ -446,7 +452,7 @@ class KnowledgeBootstrapTests(unittest.TestCase):
             cargo_bin = fake_cargo(root, fail_metadata=True)
             with (
                 patch.dict(os.environ, {"PATH": f"{cargo_bin}:{os.environ['PATH']}"}),
-                self.assertRaises(KnowledgeDependencyClosureError) as failure,
+                self.assertRaises(KnowledgeInfrastructureError) as failure,
             ):
                 KnowledgeBootstrapper().bootstrap(
                     project,

@@ -21,9 +21,9 @@ from ..core.project import Project
 from .cargo_dependencies import CargoDependencyClosure
 from .contracts import (
     KnowledgeArtifact,
-    KnowledgeDependencyClosureError,
     KnowledgeDomain,
     KnowledgeEvidenceStatus,
+    KnowledgeInfrastructureError,
     KnowledgeStage,
 )
 from .corpus import CorpusManifest
@@ -33,7 +33,7 @@ from .probe_execution import KnowledgeProbeExecutor
 from .probes import KnowledgeProbe, KnowledgeProbePlan
 from .skill_generation import ProjectKnowledgeSkillGenerator
 
-_CARGO_DEPENDENCY_GATE = "target-cargo-dependency-resolution"
+_INFRASTRUCTURE_GATE = "knowledge-infrastructure"
 
 
 def _json_bytes(value: dict[str, object]) -> bytes:
@@ -54,11 +54,15 @@ class KnowledgeBootstrapper:
     def bootstrap(self, project: Project, *, probe_plan_path: Path) -> KnowledgeBootstrapResult:
         ensure_knowledge_stage_running(project)
         plan = KnowledgeProbePlan.load(probe_plan_path)
-        manifest = CorpusManifest.current(project)
         try:
+            manifest = CorpusManifest.current(project)
             manifest = CargoDependencyClosure().extend(project, manifest)
+            knowledge = KnowledgeIndex(project.root, manifest)
+            probes = self._bind_originals(knowledge.manifest, plan)
+            knowledge.build()
+            status = knowledge.status()
         except (OSError, WorkflowError) as error:
-            attempt = self._dependency_failure_attempt(probe_plan_path, str(error))
+            attempt = self._infrastructure_failure_attempt(probe_plan_path, str(error))
             project.record_artifact(
                 KnowledgeStage.KNOWLEDGE_BASE,
                 GeneratedArtifact(
@@ -67,11 +71,7 @@ class KnowledgeBootstrapper:
                     f"generated:knowledge:probe-attempt:{attempt['probe_plan_sha256']}",
                 ),
             )
-            raise KnowledgeDependencyClosureError(str(error)) from error
-        knowledge = KnowledgeIndex(project.root, manifest)
-        probes = self._bind_originals(knowledge.manifest, plan)
-        knowledge.build()
-        status = knowledge.status()
+            raise KnowledgeInfrastructureError(str(error)) from error
         executor = KnowledgeProbeExecutor()
         gap_register = project.load_json_artifact(
             AcquisitionStage.EVIDENCE_CLOSURE,
@@ -244,13 +244,13 @@ class KnowledgeBootstrapper:
         }
 
     @staticmethod
-    def _dependency_failure_attempt(probe_plan_path: Path, error: str) -> dict[str, object]:
+    def _infrastructure_failure_attempt(probe_plan_path: Path, error: str) -> dict[str, object]:
         return {
             "schema_version": 1,
             "status": KnowledgeEvidenceStatus.FAIL,
             "probe_plan_sha256": file_sha256(probe_plan_path.resolve()),
             "probes": [],
-            "failed_probe_ids": [_CARGO_DEPENDENCY_GATE],
+            "failed_probe_ids": [_INFRASTRUCTURE_GATE],
             "errors": [error],
             "recorded_at": utc_now(),
         }

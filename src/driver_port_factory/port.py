@@ -40,8 +40,8 @@ from .intake.service import IntakeService
 from .knowledge.bootstrap import KnowledgeBootstrapper
 from .knowledge.contracts import (
     KnowledgeArtifact,
-    KnowledgeDependencyClosureError,
     KnowledgeEvidenceStatus,
+    KnowledgeInfrastructureError,
     KnowledgeStage,
 )
 from .migration.artifact_preparation import ArtifactPreparationPlan, ArtifactPreparationService
@@ -348,7 +348,7 @@ class PortRunner:
             try:
                 accept(project, pending)
                 return
-            except KnowledgeDependencyClosureError:
+            except KnowledgeInfrastructureError:
                 raise
             except WorkflowError as error:
                 last_error = error
@@ -366,7 +366,7 @@ class PortRunner:
             try:
                 accept(project, self._job_occurrence(project, stage, response))
                 return
-            except KnowledgeDependencyClosureError:
+            except KnowledgeInfrastructureError:
                 raise
             except WorkflowError as error:
                 last_error = error

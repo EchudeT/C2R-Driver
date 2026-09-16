@@ -320,6 +320,10 @@ class CargoDependencyClosure:
             data = resolved.read_bytes()
             if not data:
                 continue
+            try:
+                data.decode("utf-8")
+            except UnicodeDecodeError:
+                continue
             relative = source.relative_to(package_root).as_posix()
             destination = root / "source" / relative
             _publish(destination, data)
