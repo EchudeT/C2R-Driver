@@ -605,10 +605,15 @@ class PortRunner:
 
     @staticmethod
     def _accept_contracts_result(project: Project, job: ArtifactOccurrence) -> None:
-        MigrationContractService().finalize(
-            project,
-            MigrationContractSet.read(project.artifacts.path_for_digest(job.digest)),
-        )
+        try:
+            MigrationContractService().finalize(
+                project,
+                MigrationContractSet.read(project.artifacts.path_for_digest(job.digest)),
+            )
+        except CodexOutputError:
+            raise
+        except WorkflowError as error:
+            raise CodexOutputError(f"migration contracts failed: {error}") from error
 
     def _test_adaptation(self, project: Project) -> None:
         self._codex_gate(
