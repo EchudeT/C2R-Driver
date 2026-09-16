@@ -27,15 +27,14 @@ class CommandEvidenceValidator:
         source_path: Path,
         source_root: Path,
         manifest_unit: dict[str, Any],
-        compile_manifest: dict[str, Any],
+        analyzer: dict[str, Any],
         raw_payloads: dict[RawFactKind, ArtifactPayload],
         rebuilt_semantic: dict[str, Any],
     ) -> None:
         if not isinstance(commands, list):
             raise WorkflowError(f"command records are not an array for unit {unit_id}")
         by_kind = self._index(commands, unit_id)
-        compiler = compile_manifest["compiler"]
-        executable = Path(compiler["resolved_path"]).resolve()
+        executable = Path(analyzer["resolved_path"]).resolve()
         compile_directory = Path(str(manifest_unit.get("compile_directory", ""))).resolve()
         require_within(source_root, compile_directory, f"compile directory for {unit_id}")
         arguments = manifest_unit.get("arguments")
@@ -44,7 +43,7 @@ class CommandEvidenceValidator:
         base = GccCompatibleCommand.analysis_base_arguments(
             arguments,
             executable,
-            target_triple=compiler["verified_target_triple"],
+            target_triple=analyzer["requested_target_triple"],
         )
         for specification in CLANG_EXTRACTIONS:
             self._validate_record(
@@ -54,7 +53,7 @@ class CommandEvidenceValidator:
                 source_path,
                 compile_directory,
                 [*base, *specification.arguments],
-                compiler,
+                analyzer,
                 raw_payloads[specification.kind].data,
                 rebuilt_semantic,
             )
@@ -67,7 +66,7 @@ class CommandEvidenceValidator:
         source_path: Path,
         compile_directory: Path,
         expected_argv: list[str],
-        compiler: dict[str, Any],
+        analyzer: dict[str, Any],
         raw_data: bytes,
         rebuilt_semantic: dict[str, Any],
     ) -> None:
@@ -80,8 +79,8 @@ class CommandEvidenceValidator:
             "output_stream": specification.stream,
             "output_sha256": hashlib.sha256(raw_data).hexdigest(),
             "output_size": len(raw_data),
-            "analyzer_sha256": compiler["sha256"],
-            "target_triple": compiler["verified_target_triple"],
+            "analyzer_sha256": analyzer["sha256"],
+            "target_triple": analyzer["observed_target_triple"],
             "argv": expected_argv,
             "cwd": str(compile_directory),
             "exit_code": 0,

@@ -45,11 +45,6 @@ class StructuredBundleExtractor:
         self._validate_database(compilation_database, compile_manifest)
         target_triple, target_abi = self._target(compiler_record)
         backend = ClangAnalysisBackend.discover(analyzer_name)
-        if compiler_record.get("sha256") != backend.identity.sha256:
-            raise WorkflowError(
-                "structured analysis must use the frozen source compiler binary; "
-                "cross-compiler preprocessing equivalence has not been proven"
-            )
 
         source_root = Path(str(compile_manifest.get("source_root", ""))).resolve()
         if not source_root.is_dir():
@@ -78,6 +73,12 @@ class StructuredBundleExtractor:
         analyzer_targets = {result.fact["analyzer_target_triple"] for result in unit_results}
         if len(analyzer_targets) != 1:
             raise WorkflowError("translation units do not share one analyzer target triple")
+        analyzer_abis = {
+            json.dumps(result.fact["verified_target_abi"], sort_keys=True)
+            for result in unit_results
+        }
+        if len(analyzer_abis) != 1:
+            raise WorkflowError("translation units do not share one analyzer target ABI")
         identity_after = self._source_identity(source_root)
         if identity_after != identity_before:
             raise WorkflowError("structured analyzer changed the frozen source checkout")
@@ -89,7 +90,7 @@ class StructuredBundleExtractor:
             identity_after,
             backend,
             target_triple,
-            target_abi,
+            unit_results[0].fact["verified_target_abi"],
             analyzer_targets.pop(),
             unit_results,
         )

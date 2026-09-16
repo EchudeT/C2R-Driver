@@ -92,7 +92,7 @@ class TranslationUnitBundleValidator:
             source_path,
             source_root,
             manifest_unit,
-            compile_manifest,
+            facts["analyzer"],
             raw_payloads,
             rebuilt_semantic,
         )

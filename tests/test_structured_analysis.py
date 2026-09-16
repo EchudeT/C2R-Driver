@@ -12,6 +12,7 @@ from driver_port_factory.core.models import StageStatus, WorkflowError
 from driver_port_factory.migration.contracts import MigrationStage
 from driver_port_factory.source_analysis.ast_index import AstSemanticIndexer
 from driver_port_factory.source_analysis.closure import SourceClosureService
+from driver_port_factory.source_analysis.compiler import AbiCompatibility, GccCompatibleCommand
 from driver_port_factory.source_analysis.contracts import (
     SourceAnalysisArtifact,
     SourceAnalysisStage,
@@ -23,6 +24,34 @@ from tests.test_source_closure import ready_project, source_closure, write_json
 
 
 class StructuredCAnalysisTests(unittest.TestCase):
+    def test_abi_compatibility_ignores_compiler_specific_macro_spelling(self) -> None:
+        expected = {
+            "target_triple": "x86_64-linux-gnu",
+            "pointer_width_bits": 64,
+            "long_width_bits": 64,
+            "long_long_width_bits": 64,
+            "int_width_bits": 32,
+            "size_t_width_bits": 64,
+            "char_width_bits": 8,
+            "byte_order": "little",
+            "wchar_width_bits": 32,
+            "biggest_alignment_bytes": 16,
+            "abi_flags": ["-m64"],
+            "predefined_macros": {"__BYTE_ORDER__": "__ORDER_LITTLE_ENDIAN__"},
+            "fingerprint_sha256": "0" * 64,
+        }
+        observed = {
+            **expected,
+            "target_triple": "x86_64-unknown-linux-gnu",
+            "predefined_macros": {"__BYTE_ORDER__": "1234"},
+            "fingerprint_sha256": "f" * 64,
+        }
+
+        self.assertEqual(
+            AbiCompatibility.from_record(expected),
+            AbiCompatibility.from_record(observed),
+        )
+
     def test_cfg_identity_uses_ast_candidates_for_callback_declarators(self) -> None:
         functions = [
             {
@@ -310,6 +339,53 @@ class StructuredCAnalysisTests(unittest.TestCase):
                     SourceAnalysisArtifact.STRUCTURED_C_FACTS,
                     (json.dumps(facts) + "\n").encode(),
                 )
+
+    def test_clang_analyzes_frozen_gcc_compile_commands(self) -> None:
+        gcc = shutil.which("gcc")
+        clang = shutil.which("clang")
+        if not gcc or not clang:
+            self.skipTest("test requires GCC and Clang")
+        with tempfile.TemporaryDirectory() as temporary:
+            project, checkouts = ready_project(Path(temporary))
+            closure = source_closure(project, checkouts)
+            source_root = Path(closure["source_root"])
+            for unit in closure["translation_units"]:
+                unit["arguments"][0] = gcc
+            probe_arguments = closure["translation_units"][0]["arguments"]
+            version = GccCompatibleCommand.version(Path(gcc).resolve())
+            closure["compiler"] = {
+                "family": "gcc-compatible",
+                "executable": gcc,
+                "version": version.splitlines()[0],
+                "target_triple": GccCompatibleCommand.effective_target_triple(
+                    probe_arguments, source_root
+                ),
+                "target_abi": GccCompatibleCommand.abi_signature(
+                    probe_arguments, source_root
+                ),
+                "language_mode": "gnu11",
+            }
+            SourceClosureService().validate(
+                project,
+                closure_path=write_json(project.root / "source-closure.json", closure),
+            )
+
+            result = StructuredCAnalysisService().analyze(project, analyzer=clang)
+
+            self.assertEqual(result.stage_status, StageStatus.PASS, result.errors)
+            facts = project.load_json_artifact(
+                SourceAnalysisStage.STRUCTURED_C_ANALYSIS,
+                SourceAnalysisArtifact.STRUCTURED_C_FACTS,
+            )
+            compiler = project.load_json_artifact(
+                SourceAnalysisStage.SOURCE_CLOSURE,
+                SourceAnalysisArtifact.COMPILE_MANIFEST,
+            )["compiler"]
+            self.assertNotEqual(facts["analyzer"]["sha256"], compiler["sha256"])
+            self.assertEqual(
+                AbiCompatibility.from_record(facts["analyzer"]["target_abi"]),
+                AbiCompatibility.from_record(compiler["verified_target_abi"]),
+            )
 
 
 if __name__ == "__main__":

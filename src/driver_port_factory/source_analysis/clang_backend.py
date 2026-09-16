@@ -11,7 +11,7 @@ from typing import Any
 from ..core.execution import CommandResult, CommandRunner
 from ..core.models import WorkflowError
 from ..knowledge.index import file_sha256
-from .compiler import GccCompatibleCommand
+from .compiler import AbiCompatibility, GccCompatibleCommand
 from .fact_model import RawFactKind
 
 
@@ -179,7 +179,11 @@ class ClangAnalysisBackend:
             executable=self.identity.resolved_path,
             target_triple=target_triple,
         )
-        if observed_abi != expected_abi:
+        if observed_target != observed_abi["target_triple"]:
+            raise WorkflowError("analyzer target probes disagree")
+        if AbiCompatibility.from_record(observed_abi) != AbiCompatibility.from_record(
+            expected_abi
+        ):
             raise WorkflowError("analyzer target ABI differs from frozen source compiler")
 
         raw_dir = unit_dir / "raw"

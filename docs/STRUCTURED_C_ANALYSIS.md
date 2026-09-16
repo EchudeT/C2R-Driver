@@ -20,6 +20,9 @@ layout 会解析为 record 大小、对齐和字段/位字段偏移。预处理�
 `RAW_VALIDATED` 原始证据，不会冒充已经重建完毕的 CPG 事实。
 
 控制器记录 analyzer 二进制、版本与 SHA256，以及每条命令、退出码、stdout/stderr 摘要和原始输出。
+冻结的 GCC-compatible 编译命令可由独立 Clang analyzer 消费；compiler 与 analyzer 身份分别保存并
+校验。门禁要求目标 triple（允许 Clang 补全 `unknown` vendor）、布局/调用约定字段和 ABI flags 一致，
+不把编译器专属 predefined macro 拼写或其总指纹当成跨编译器等价条件。
 它还从 AST JSON 字段构造节点、父子边、声明引用、直接调用目标、函数指针绑定和间接调用候选目标组成的
 code-property graph，并索引 function、global、call、control-flow、structural effect candidate 和 source
 span。函数指针候选来自 Clang 的 `FunctionToPointerDecay`、结构体/联合体注册表初始化和赋值关系；该过程

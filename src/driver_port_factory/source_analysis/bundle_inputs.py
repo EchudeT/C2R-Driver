@@ -9,6 +9,7 @@ from typing import Any
 from ..core.models import WorkflowError
 from ..knowledge.index import file_sha256
 from .bundle_artifacts import ArtifactPayload, require_within
+from .compiler import AbiCompatibility
 
 
 class FrozenAnalysisInputs:
@@ -77,15 +78,15 @@ class FrozenAnalysisInputs:
         compiler = compile_manifest.get("compiler")
         if not isinstance(analyzer, dict) or not isinstance(compiler, dict):
             raise WorkflowError("structured facts lack analyzer/compiler identities")
-        resolved = Path(str(compiler.get("resolved_path", ""))).resolve()
-        if not resolved.is_file() or file_sha256(resolved) != compiler.get("sha256"):
+        compiler_path = Path(str(compiler.get("resolved_path", ""))).resolve()
+        if not compiler_path.is_file() or file_sha256(compiler_path) != compiler.get("sha256"):
+            raise WorkflowError("frozen compiler executable identity changed")
+        resolved = Path(str(analyzer.get("resolved_path", ""))).resolve()
+        if not resolved.is_file() or file_sha256(resolved) != analyzer.get("sha256"):
             raise WorkflowError("frozen analyzer executable identity changed")
         expected = {
             "resolved_path": str(resolved),
-            "sha256": compiler.get("sha256"),
             "requested_target_triple": compiler.get("verified_target_triple"),
-            "observed_target_triple": compiler.get("verified_target_triple"),
-            "target_abi": compiler.get("verified_target_abi"),
         }
         mismatched = [
             field
@@ -94,9 +95,19 @@ class FrozenAnalysisInputs:
         ]
         if mismatched:
             raise WorkflowError(
-                "structured analyzer differs from the frozen compiler: "
+                "structured analyzer identity is inconsistent with its frozen inputs: "
                 + ", ".join(sorted(mismatched))
             )
+        analyzer_abi = analyzer.get("target_abi")
+        compiler_abi = compiler.get("verified_target_abi")
+        if not isinstance(analyzer_abi, dict) or not isinstance(compiler_abi, dict):
+            raise WorkflowError("structured facts lack analyzer/compiler target ABI")
+        if analyzer.get("observed_target_triple") != analyzer_abi.get("target_triple"):
+            raise WorkflowError("structured analyzer target probes disagree")
+        if AbiCompatibility.from_record(analyzer_abi) != AbiCompatibility.from_record(
+            compiler_abi
+        ):
+            raise WorkflowError("structured analyzer target ABI differs from frozen compiler")
         version_output = analyzer.get("version_output")
         if not isinstance(version_output, str) or hashlib.sha256(
             version_output.encode()

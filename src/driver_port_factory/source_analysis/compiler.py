@@ -4,6 +4,7 @@ import hashlib
 import json
 import shlex
 import subprocess
+from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
 
@@ -12,6 +13,48 @@ from ..core.models import WorkflowError
 
 class CompilerFamily(StrEnum):
     GCC_COMPATIBLE = "gcc-compatible"
+
+
+@dataclass(frozen=True, slots=True)
+class AbiCompatibility:
+    """Compiler-independent ABI fields that must agree for structured analysis."""
+
+    target_triple: tuple[str, ...]
+    pointer_width_bits: int
+    long_width_bits: int
+    long_long_width_bits: int
+    int_width_bits: int
+    size_t_width_bits: int
+    char_width_bits: int
+    byte_order: str
+    wchar_width_bits: int
+    biggest_alignment_bytes: int
+    abi_flags: tuple[str, ...]
+
+    @classmethod
+    def from_record(cls, record: dict[str, object]) -> AbiCompatibility:
+        try:
+            triple = str(record["target_triple"]).split("-")
+            if len(triple) > 3 and triple[1] == "unknown":
+                triple.pop(1)
+            flags = record["abi_flags"]
+            if not isinstance(flags, list) or not all(isinstance(flag, str) for flag in flags):
+                raise TypeError
+            return cls(
+                tuple(triple),
+                int(record["pointer_width_bits"]),
+                int(record["long_width_bits"]),
+                int(record["long_long_width_bits"]),
+                int(record["int_width_bits"]),
+                int(record["size_t_width_bits"]),
+                int(record["char_width_bits"]),
+                str(record["byte_order"]),
+                int(record["wchar_width_bits"]),
+                int(record["biggest_alignment_bytes"]),
+                tuple(flags),
+            )
+        except (KeyError, TypeError, ValueError) as error:
+            raise WorkflowError("target ABI lacks a valid compatibility profile") from error
 
 
 class GccCompatibleCommand:
@@ -238,8 +281,11 @@ class GccCompatibleCommand:
             or any(name.startswith(prefix) for prefix in cls.ABI_MACRO_PREFIXES)
         }
         abi_flags = cls._abi_affecting_arguments(arguments)
-        effective_target = target_triple or cls.effective_target_triple(
-            arguments, compile_directory, executable=executable
+        effective_target = cls.effective_target_triple(
+            arguments,
+            compile_directory,
+            executable=executable,
+            target_triple=target_triple,
         )
         fingerprint_material = json.dumps(
             {
