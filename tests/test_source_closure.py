@@ -16,6 +16,7 @@ from driver_port_factory.core.models import (
 from driver_port_factory.knowledge.bootstrap import KnowledgeBootstrapper
 from driver_port_factory.knowledge.corpus import CorpusManifest
 from driver_port_factory.knowledge.index import KnowledgeIndex, file_sha256
+from driver_port_factory.migration.handoff import MigrationHandoff
 from driver_port_factory.source_analysis.closure import SourceClosureService
 from driver_port_factory.source_analysis.compiler import GccCompatibleCommand
 from driver_port_factory.source_analysis.contracts import (
@@ -37,6 +38,7 @@ def ready_project(root: Path):
     KnowledgeBootstrapper().bootstrap(project, probe_plan_path=probe_plan(project.root))
     target_inputs, _ = target_study_inputs(project.root, project, checkouts)
     TargetStudyService().validate(project, **target_inputs)
+    MigrationHandoff().create(project)
     return project, checkouts
 
 

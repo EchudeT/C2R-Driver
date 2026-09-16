@@ -41,7 +41,7 @@ def migration_workflow(config: ProjectConfig) -> tuple[StageSpec, ...]:
         )
         previous = EvaluationStage.BLIND_BINDING
 
-    previous = append_linear(specs, _migration_rows(), previous, MIGRATION_ROLES)
+    previous = append_linear(specs, _migration_rows(config), previous, MIGRATION_ROLES)
     specs.append(
         stage_spec(
             MigrationStage.PUBLIC_REPAIR,
@@ -114,7 +114,7 @@ def migration_workflow(config: ProjectConfig) -> tuple[StageSpec, ...]:
     return tuple(specs)
 
 
-def _migration_rows() -> tuple[StageRow, ...]:
+def _migration_rows(config: ProjectConfig) -> tuple[StageRow, ...]:
     return (
         StageRow(
             IntakeStage.REQUEST,
@@ -223,6 +223,25 @@ def _migration_rows() -> tuple[StageRow, ...]:
                 TargetStudyArtifact.REPORT,
             ),
             (TargetStudyArtifact.VALIDATION_ATTEMPT,),
+        ),
+        StageRow(
+            MigrationStage.HANDOFF,
+            "Freeze the verified bootstrap environment for downstream migration.",
+            StageOwner.STATIC,
+            (MigrationArtifact.HANDOFF,),
+            prerequisites=(
+                IntakeStage.ENVELOPE_FREEZE,
+                AcquisitionStage.REVISION_SELECTION,
+                AcquisitionStage.REPOSITORY_ACQUISITION,
+                AcquisitionStage.EVIDENCE_CLOSURE,
+                EnvironmentStage.RECOVERY,
+                KnowledgeStage.KNOWLEDGE_BASE,
+                *(
+                    (EvaluationStage.BLIND_BINDING,)
+                    if config.evaluation_mode is EvaluationMode.PROSPECTIVE_BLIND
+                    else ()
+                ),
+            ),
         ),
         StageRow(
             SourceAnalysisStage.SOURCE_CLOSURE,

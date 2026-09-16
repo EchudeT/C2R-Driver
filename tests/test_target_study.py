@@ -11,7 +11,7 @@ from driver_port_factory.environment.contracts import EnvironmentArtifact, Envir
 from driver_port_factory.knowledge.bootstrap import KnowledgeBootstrapper
 from driver_port_factory.knowledge.contracts import KnowledgeDomain
 from driver_port_factory.knowledge.index import KnowledgeIndex
-from driver_port_factory.source_analysis.contracts import SourceAnalysisStage
+from driver_port_factory.migration.contracts import MigrationStage
 from driver_port_factory.target_study.contracts import TargetStudyArtifact, TargetStudyStage
 from driver_port_factory.target_study.service import (
     PROFILE_HEADINGS,
@@ -181,7 +181,7 @@ class TargetStudyTests(unittest.TestCase):
                 StageStatus.PASS,
             )
             self.assertEqual(
-                project.stage(SourceAnalysisStage.SOURCE_CLOSURE).status,
+                project.stage(MigrationStage.HANDOFF).status,
                 StageStatus.READY,
             )
             report = project.load_json_artifact(TargetStudyStage.STUDY, TargetStudyArtifact.REPORT)
