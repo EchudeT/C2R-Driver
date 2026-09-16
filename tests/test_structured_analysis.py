@@ -185,6 +185,12 @@ class StructuredCAnalysisTests(unittest.TestCase):
             " 0 |     unsigned int nested_member\n"
             " 0 |   char[] payload\n"
             "   | [sizeof=4, align=4]\n"
+            "*** Dumping AST Record Layout\n"
+            f" 0 | {label}\n"
+            " 0 |   struct wrapper first_member\n"
+            " 0 |     unsigned int nested_member\n"
+            " 0 |   char[] payload\n"
+            "   | [sizeof=4, align=4]\n"
         ).encode()
 
         _, summary = RawFactParser().summarize(
@@ -201,6 +207,27 @@ class StructuredCAnalysisTests(unittest.TestCase):
             [field["depth"] for field in summary["records"][1]["fields"]],
             [1, 2, 1],
         )
+        self.assertEqual(summary["record_fact_count"], 2)
+
+    def test_record_layout_keeps_facts_with_different_field_offsets(self) -> None:
+        label = "struct example"
+        first = (
+            "*** Dumping AST Record Layout\n"
+            f" 0 | {label}\n"
+            " 0 |   int value\n"
+            "   | [sizeof=4, align=4]\n"
+        )
+        duplicate = first + first
+        different = (
+            "*** Dumping AST Record Layout\n"
+            f" 0 | {label}\n"
+            " 4 |   int value\n"
+            "   | [sizeof=4, align=4]\n"
+        )
+
+        parser = RawFactParser()
+        self.assertEqual(len(parser._parse_record_layout(duplicate.splitlines())), 1)
+        self.assertEqual(len(parser._parse_record_layout((duplicate + different).splitlines())), 2)
 
     def test_abi_compatibility_ignores_compiler_specific_macro_spelling(self) -> None:
         expected = {

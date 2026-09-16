@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import re
 from pathlib import Path
 from typing import Any
@@ -52,7 +53,7 @@ class RawFactParser:
             return (
                 FactAvailability.STRUCTURED if records else FactAvailability.EMPTY_VALID,
                 {
-                    "record_dump_count": len(records),
+                    "record_fact_count": len(records),
                     "ast_record_definition_count": len(identities["records"]),
                     "records": records,
                 },
@@ -235,7 +236,11 @@ class RawFactParser:
             else:
                 section.append(line)
         finish()
-        return records
+        unique = {
+            json.dumps(record, ensure_ascii=False, sort_keys=True, separators=(",", ":")): record
+            for record in records
+        }
+        return list(unique.values())
 
     @classmethod
     def _correlate_functions(

@@ -92,9 +92,9 @@ def _validate_layout(summary: dict[str, object], counts: dict[str, object]) -> i
         set(layout_ids)
     ):
         raise WorkflowError("structured C layout is not one-to-one with AST definitions")
-    if summary.get("record_dump_count", 0) != len(summary["records"]):
+    if summary.get("record_fact_count", 0) != len(summary["records"]):
         raise WorkflowError("structured C layout summary lacks parsed record facts")
-    return int(summary.get("record_dump_count", 0))
+    return int(summary.get("record_fact_count", 0))
 
 
 def _validate_textual_facts(raw_facts: dict[str, object], unit: dict[str, object]) -> None:
