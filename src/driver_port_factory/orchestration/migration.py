@@ -349,7 +349,18 @@ def _migration_rows(config: ProjectConfig) -> tuple[StageRow, ...]:
         StageRow(
             MigrationStage.PUBLIC_QEMU_VALIDATION,
             "Run the public QEMU evidence ladder.",
-            StageOwner.STATIC,
+            StageOwner.HYBRID,
             (MigrationArtifact.PUBLIC_QEMU_REPORT,),
+            (MigrationArtifact.PUBLIC_QEMU_ATTEMPT,),
+            prerequisites=(
+                MigrationStage.HANDOFF,
+                MigrationStage.CONTRACTS,
+                MigrationStage.TEST_ADAPTATION,
+                MigrationStage.DRIVER_IMPLEMENTATION,
+                MigrationStage.TARGET_COMPLIANCE,
+                EnvironmentStage.RECOVERY,
+                KnowledgeStage.KNOWLEDGE_BASE,
+                SourceAnalysisStage.SOURCE_CLOSURE,
+            ),
         ),
     )

@@ -12,6 +12,7 @@ from .contract_set import validate_contract_bundle
 from .contracts import MigrationArtifact, MigrationStage
 from .handoff import validate_handoff_bundle
 from .implementation import validate_implementation_bundle
+from .public_qemu import validate_public_qemu_bundle
 from .test_matrix import validate_test_matrix_bundle
 
 VALIDATORS = MappingProxyType[MigrationArtifact, ArtifactValidator](
@@ -27,6 +28,7 @@ VALIDATORS = MappingProxyType[MigrationArtifact, ArtifactValidator](
         MigrationArtifact.ARTIFACT_PREPARATION_ATTEMPT: json_object_document,
         MigrationArtifact.RUNTIME_ARTIFACT: nonempty,
         MigrationArtifact.ARTIFACT_IDENTITY: json_object_document,
+        MigrationArtifact.PUBLIC_QEMU_ATTEMPT: json_object_document,
         MigrationArtifact.PUBLIC_QEMU_REPORT: json_object_document,
         MigrationArtifact.PUBLIC_REPAIR_REPORT: json_object_document,
         MigrationArtifact.EVIDENCE_AUDIT: json_object_document,
@@ -41,5 +43,6 @@ BUNDLE_VALIDATORS = MappingProxyType[MigrationStage, BundleValidator](
         MigrationStage.DRIVER_IMPLEMENTATION: validate_implementation_bundle,
         MigrationStage.TARGET_COMPLIANCE: validate_compliance_bundle,
         MigrationStage.ARTIFACT_PREPARATION: validate_artifact_bundle,
+        MigrationStage.PUBLIC_QEMU_VALIDATION: validate_public_qemu_bundle,
     }
 )

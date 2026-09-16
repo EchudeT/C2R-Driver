@@ -10,6 +10,7 @@ from ..codex.contracts import CodexBackend
 from ..composition import open_project
 from ..core.contracts import ArtifactKey, StageKey
 from ..core.project import Project
+from ..environment.contracts import EnvironmentArtifact, EnvironmentStage
 from ..knowledge.contracts import KnowledgeArtifact, KnowledgeStage
 from ..source_analysis.contracts import SourceAnalysisArtifact, SourceAnalysisStage
 from ..target_study.contracts import TargetStudyArtifact, TargetStudyStage
@@ -19,6 +20,7 @@ from .contract_set import MigrationContractService, MigrationContractSet
 from .contracts import MigrationArtifact, MigrationStage
 from .handoff import MigrationHandoff
 from .implementation import DriverImplementationService, ImplementationResponse
+from .public_qemu import PublicQemuPlan, PublicQemuService
 from .test_matrix import TestSelectionMatrix, TestSelectionService
 
 MIGRATION_CONTRACTS_OBJECTIVE = (
@@ -50,6 +52,15 @@ TARGET_COMPLIANCE_OBJECTIVE = (
     "required target rules, APIs, unsafe obligations, and pre-existing target changes. Set "
     "compile and runtime to NOT_RUN. A violation or evidence gap must not claim PASS and must "
     "identify IMPLEMENTATION or KNOWLEDGE repair."
+)
+PUBLIC_QEMU_OBJECTIVE = (
+    "Freeze the public Phase 8 QEMU evidence plan for the current runtime artifact. Return only "
+    "schema_version=1 JSON with runs and the complete ordered ladder. Bind every run to the "
+    "provided artifact, implementation, packaged-test and environment-route identities; cover "
+    "every QEMU contract and retained/adapted public test. Each run defines qemu, stimulus and "
+    "external checker argv without shell syntax, device/topology/CPU/memory/backend, predeclared "
+    "oracle, cleanup, controls and pinned QEMU-original evidence. Use EXECUTE, "
+    "FROZEN_PREREQUISITE, NOT_APPLICABLE or BLOCKED honestly; do not include private tests."
 )
 
 
@@ -257,6 +268,52 @@ def command_artifact_preparation_run(arguments: argparse.Namespace) -> None:
     print(json.dumps(result, ensure_ascii=False, sort_keys=True, indent=2))
 
 
+def command_public_qemu_run(arguments: argparse.Namespace) -> None:
+    project = open_project(Path(arguments.path))
+    inputs = {
+        kind.value: _prompt_artifact(project, stage, kind)
+        for stage, kind in (
+            (MigrationStage.HANDOFF, MigrationArtifact.HANDOFF),
+            (MigrationStage.CONTRACTS, MigrationArtifact.CONTRACTS),
+            (MigrationStage.TEST_ADAPTATION, MigrationArtifact.TEST_PORT_MATRIX),
+            (MigrationStage.DRIVER_IMPLEMENTATION, MigrationArtifact.IMPLEMENTATION_BUNDLE),
+            (MigrationStage.TARGET_COMPLIANCE, MigrationArtifact.COMPLIANCE_REPORT),
+            (MigrationStage.ARTIFACT_PREPARATION, MigrationArtifact.RUNTIME_ARTIFACT),
+            (MigrationStage.ARTIFACT_PREPARATION, MigrationArtifact.ARTIFACT_IDENTITY),
+            (EnvironmentStage.RECOVERY, EnvironmentArtifact.EXPERIMENT_READY_RUN),
+            (EnvironmentStage.RECOVERY, EnvironmentArtifact.EXPERIMENT_ROUTE),
+            (KnowledgeStage.KNOWLEDGE_BASE, KnowledgeArtifact.QUERY_CONTRACT),
+            (SourceAnalysisStage.SOURCE_CLOSURE, SourceAnalysisArtifact.MATERIALS_MANIFEST),
+        )
+    }
+    artifact = project.artifact(
+        MigrationStage.ARTIFACT_PREPARATION, MigrationArtifact.RUNTIME_ARTIFACT
+    )
+    identity = project.load_json_artifact(
+        MigrationStage.ARTIFACT_PREPARATION, MigrationArtifact.ARTIFACT_IDENTITY
+    )
+    codex_result, rendered, response_path = run_codex_stage(
+        project,
+        MigrationStage.PUBLIC_QEMU_VALIDATION,
+        objective=PUBLIC_QEMU_OBJECTIVE,
+        context={
+            "frozen_inputs": inputs,
+            "runtime_artifact_path": str(project.artifacts.path_for_digest(artifact.digest)),
+            "runtime_artifact_sha256": artifact.digest,
+            "implementation_sha256": identity["inputs"][
+                MigrationArtifact.IMPLEMENTATION_BUNDLE.value
+            ]["digest"],
+            "packaged_test_sha256": identity["packaged_test_artifact"]["sha256"],
+        },
+        backend=arguments.backend,
+        codex_bin=arguments.codex_bin,
+        model=arguments.model,
+    )
+    result = PublicQemuService().run(project, PublicQemuPlan.read(response_path))
+    result.update(job_id=codex_result.job_id, prompt_sha256=rendered.digest)
+    print(json.dumps(result, ensure_ascii=False, sort_keys=True, indent=2))
+
+
 def register_commands(commands: CommandRegistry) -> None:
     migration = commands.add_parser("migration", help="run controlled migration transitions")
     subcommands = command_registry(migration, dest="migration_command")
@@ -324,3 +381,16 @@ def register_commands(commands: CommandRegistry) -> None:
     run.add_argument("path")
     run.add_argument("--plan", required=True)
     run.set_defaults(handler=command_artifact_preparation_run)
+
+    qemu = commands.add_parser(
+        "public-qemu-validation", help="execute and freeze the public QEMU evidence ladder"
+    )
+    qemu_commands = command_registry(qemu, dest="public_qemu_validation_command")
+    run = qemu_commands.add_parser("run")
+    run.add_argument("path")
+    run.add_argument(
+        "--backend", type=CodexBackend, choices=list(CodexBackend), default=CodexBackend.EXEC
+    )
+    run.add_argument("--codex-bin", default="codex")
+    run.add_argument("--model")
+    run.set_defaults(handler=command_public_qemu_run)
