@@ -44,14 +44,6 @@ from .knowledge.contracts import (
     KnowledgeStage,
 )
 from .migration.artifact_preparation import ArtifactPreparationPlan, ArtifactPreparationService
-from .migration.cli import (
-    DRIVER_IMPLEMENTATION_OBJECTIVE,
-    MIGRATION_CONTRACTS_OBJECTIVE,
-    PUBLIC_QEMU_OBJECTIVE,
-    PUBLIC_REPAIR_OBJECTIVE,
-    TARGET_COMPLIANCE_AND_ARTIFACT_OBJECTIVE,
-    TEST_ADAPTATION_OBJECTIVE,
-)
 from .migration.completion_audit import CompletionAuditService
 from .migration.compliance import ComplianceReport, ComplianceService
 from .migration.contract_set import MigrationContractService, MigrationContractSet
@@ -68,34 +60,6 @@ from .source_analysis.structured import StructuredCAnalysisService
 from .target_study.contracts import TargetStudyArtifact, TargetStudyStage
 from .target_study.service import TargetStudyService
 
-REVISION_OBJECTIVE = (
-    "Select exact maintained source, target, and QEMU revisions for the frozen driver scope. "
-    "Every evidence excerpt must be one byte-for-byte contiguous substring of the retrieved "
-    "source; never join fragments or use ellipses. "
-    "Include at least one cross-repository compatibility citation whose bindings contain all "
-    "three selected source, target, and QEMU refs. "
-    "Return only the revision-selection proposal required by the output schema."
-)
-EVIDENCE_OBJECTIVE = (
-    "Propose the minimum evidence closure covering the source, target, QEMU, hardware, test, "
-    "and tooling domains. Return only the evidence-closure proposal required by the output schema."
-)
-ENVIRONMENT_OBJECTIVE = (
-    "Select one concrete, least-cost QEMU/QMP experiment route from the frozen repositories and "
-    "host inventory. Return only one schema_version=2 environment experiment plan."
-)
-KNOWLEDGE_OBJECTIVE = (
-    "Create the mandatory target-specific knowledge probe plan from controlled originals. "
-    "Return only one schema_version=1 object containing the complete probes array."
-)
-TARGET_STUDY_OBJECTIVE = (
-    "Complete the target-platform study from pinned originals. Return only one JSON object with "
-    "profile_json, profile_markdown, api_table, analogous_trace, and change_plan."
-)
-SOURCE_CLOSURE_OBJECTIVE = (
-    "Close the behaviorally required source set using the frozen compile commands. Return only "
-    "one source-closure JSON object for the controller to verify."
-)
 CODEX_GATE_CORRECTION_ATTEMPTS = 3
 
 
@@ -257,7 +221,6 @@ class PortRunner:
         self,
         project: Project,
         stage: StageKey,
-        objective: str,
         context: dict[str, object],
         *,
         thread_id: str | None = None,
@@ -266,7 +229,6 @@ class PortRunner:
         return run_codex_stage(
             project,
             stage,
-            objective=objective,
             context=context,
             backend=self.options.backend,
             codex_bin=self.options.codex_bin,
@@ -334,7 +296,6 @@ class PortRunner:
         self,
         project: Project,
         stage: StageKey,
-        objective: str,
         context: dict[str, object],
         accept: Callable[[Project, ArtifactOccurrence], None],
     ) -> None:
@@ -354,7 +315,6 @@ class PortRunner:
             result, _, response = self._codex(
                 project,
                 stage,
-                objective,
                 context,
                 thread_id=thread_id,
                 follow_up=follow_up,
@@ -438,7 +398,6 @@ class PortRunner:
         self._codex_gate(
             project,
             AcquisitionStage.REVISION_SELECTION,
-            REVISION_OBJECTIVE,
             {"migration_envelope": envelope},
             self._accept_revision_result,
         )
@@ -468,7 +427,6 @@ class PortRunner:
         self._codex_gate(
             project,
             AcquisitionStage.EVIDENCE_CLOSURE,
-            EVIDENCE_OBJECTIVE,
             inputs,
             self._accept_evidence_result,
         )
@@ -486,7 +444,6 @@ class PortRunner:
         self._codex_gate(
             project,
             EnvironmentStage.RECOVERY,
-            ENVIRONMENT_OBJECTIVE,
             {
                 kind.value: self._artifact_context(
                     project,
@@ -511,7 +468,6 @@ class PortRunner:
         self._codex_gate(
             project,
             KnowledgeStage.KNOWLEDGE_BASE,
-            KNOWLEDGE_OBJECTIVE,
             {
                 kind.value: self._artifact_context(project, AcquisitionStage.EVIDENCE_CLOSURE, kind)
                 for kind in (
@@ -536,7 +492,6 @@ class PortRunner:
         self._codex_gate(
             project,
             TargetStudyStage.STUDY,
-            TARGET_STUDY_OBJECTIVE,
             {
                 "target_repository": {
                     "path": str((project.root / target.checkout_path).resolve()),
@@ -583,7 +538,6 @@ class PortRunner:
         self._codex_gate(
             project,
             SourceAnalysisStage.SOURCE_CLOSURE,
-            SOURCE_CLOSURE_OBJECTIVE,
             {
                 "migration_handoff": self._artifact_context(
                     project, MigrationStage.HANDOFF, MigrationArtifact.HANDOFF
@@ -621,7 +575,6 @@ class PortRunner:
         self._codex_gate(
             project,
             MigrationStage.CONTRACTS,
-            MIGRATION_CONTRACTS_OBJECTIVE,
             self._migration_context(
                 project,
                 (
@@ -653,7 +606,6 @@ class PortRunner:
         self._codex_gate(
             project,
             MigrationStage.TEST_ADAPTATION,
-            TEST_ADAPTATION_OBJECTIVE,
             self._migration_context(
                 project,
                 (
@@ -683,7 +635,6 @@ class PortRunner:
         self._codex_gate(
             project,
             MigrationStage.DRIVER_IMPLEMENTATION,
-            DRIVER_IMPLEMENTATION_OBJECTIVE,
             self._migration_context(
                 project,
                 (
@@ -727,7 +678,6 @@ class PortRunner:
         self._codex_gate(
             project,
             MigrationStage.TARGET_COMPLIANCE,
-            TARGET_COMPLIANCE_AND_ARTIFACT_OBJECTIVE,
             self._migration_context(
                 project,
                 (
@@ -783,7 +733,6 @@ class PortRunner:
         self._codex_gate(
             project,
             MigrationStage.PUBLIC_QEMU_VALIDATION,
-            PUBLIC_QEMU_OBJECTIVE,
             self._migration_context(
                 project,
                 (
@@ -835,7 +784,6 @@ class PortRunner:
         _, _, response = self._codex(
             project,
             MigrationStage.PUBLIC_REPAIR,
-            PUBLIC_REPAIR_OBJECTIVE,
             {
                 "failed_attempt": source_ref,
                 "failed_evidence": failure,

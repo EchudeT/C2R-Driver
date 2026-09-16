@@ -26,7 +26,7 @@ from .prompts import RenderedPrompt, SkillPromptComposer
 def _render_prompt(
     project: Project,
     stage: StageKey,
-    objective: str,
+    objective: str | None,
     context: dict[str, object] | None,
     prompt_pack_path: str | None,
 ) -> RenderedPrompt:
@@ -76,7 +76,7 @@ def run_codex_stage(
     project: Project,
     stage_key: StageKey,
     *,
-    objective: str,
+    objective: str | None = None,
     context: dict[str, object] | None,
     backend: CodexBackend,
     codex_bin: str,
@@ -119,7 +119,7 @@ def run_codex_stage(
     job = CodexJob(
         stage=stage_key,
         actor_role=project.config.actor_role,
-        objective=objective,
+        objective=rendered.objective,
         prompt=prompt,
         execution_root=grant.execution_root,
         sandbox=grant.sandbox,
@@ -220,7 +220,7 @@ def register_commands(commands: CommandRegistry) -> None:
     render = prompt_commands.add_parser("render")
     render.add_argument("path")
     render.add_argument("stage")
-    render.add_argument("--objective", required=True)
+    render.add_argument("--objective")
     render.add_argument("--context")
     render.add_argument("--prompt-pack", help="override the project's prompt pack for this job")
     render.add_argument("--output")
@@ -231,7 +231,7 @@ def register_commands(commands: CommandRegistry) -> None:
     run = codex_commands.add_parser("run")
     run.add_argument("path")
     run.add_argument("stage")
-    run.add_argument("--objective", required=True)
+    run.add_argument("--objective")
     run.add_argument("--context")
     run.add_argument("--prompt-pack", help="override the project's prompt pack for this job")
     run.add_argument(

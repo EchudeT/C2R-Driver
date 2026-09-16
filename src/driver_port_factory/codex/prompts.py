@@ -29,6 +29,7 @@ class PromptOutputSchema:
 class PromptStage:
     documents: tuple[str, ...]
     output_schema: PromptOutputSchema | None
+    objective: str | None
 
 
 @dataclass(frozen=True, slots=True)
@@ -47,6 +48,7 @@ class PromptPack:
 class RenderedPrompt:
     text: str
     digest: str
+    objective: str
     documents: tuple[PromptDocument, ...]
     prompt_pack_name: str
     prompt_pack_manifest_digest: str
@@ -95,6 +97,7 @@ def _prompt_stages(
             raise WorkflowError(f"prompt pack contains an unknown stage: {stage}")
         if not isinstance(specification, dict) or set(specification) - {
             "documents",
+            "objective",
             "output_schema",
         }:
             raise WorkflowError(f"prompt pack stage {stage} must be a stage specification")
@@ -122,7 +125,14 @@ def _prompt_stages(
                 schema_path,
                 hashlib.sha256(schema_raw).hexdigest(),
             )
-        stages[stage] = PromptStage(tuple(documents), output_schema)
+        objective = specification.get("objective")
+        if objective is not None and (
+            not isinstance(objective, str) or not objective.strip()
+        ):
+            raise WorkflowError(
+                f"prompt pack stage {stage} objective must be a non-empty string"
+            )
+        stages[stage] = PromptStage(tuple(documents), output_schema, objective)
     return stages
 
 
@@ -213,15 +223,22 @@ class SkillPromptComposer:
         *,
         stage: StageKey,
         actor_role: ActorRole,
-        objective: str,
+        objective: str | None = None,
         context: dict[str, object] | None = None,
     ) -> RenderedPrompt:
         documents = self.documents_for_stage(stage)
         stage_specification = self.prompt_pack.stages[stage.value]
+        effective_objective = (
+            objective if objective is not None else stage_specification.objective
+        )
+        if not isinstance(effective_objective, str) or not effective_objective.strip():
+            raise WorkflowError(
+                f"stage {stage.value} needs an objective in the prompt pack or caller"
+            )
         header: dict[str, Any] = {
             "stage": stage.value,
             "actor_role": actor_role.value,
-            "objective": objective,
+            "objective": effective_objective,
             "context": context or {},
             "prompt_pack": {
                 "name": self.prompt_pack.name,
@@ -258,6 +275,7 @@ class SkillPromptComposer:
         return RenderedPrompt(
             text=text,
             digest=digest,
+            objective=effective_objective,
             documents=documents,
             prompt_pack_name=self.prompt_pack.name,
             prompt_pack_manifest_digest=self.prompt_pack.manifest_digest,

@@ -4,7 +4,7 @@
 `translation.md` 的 Required source facts。Codex 可分析候选闭包，但只有静态验证器可令阶段通过。
 
 ```sh
-dpf source-closure run ./run
+dpf port run ./run --source-platform linux --target-platform asterinas --driver-name ne2k-pci
 ```
 
 该命令从 migration handoff 读取冻结源码、初始路径、测试与知识库上下文，调用 Codex 生成闭包描述，

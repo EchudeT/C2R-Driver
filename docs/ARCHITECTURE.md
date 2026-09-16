@@ -156,11 +156,10 @@ CLI 不接受 thread ID 或 resume 参数。正式独立性还要求新进程/�
 
 ## 7. CLI adapters
 
-根 `cli.py` 只负责命令组装、dispatch 和统一错误边界。各 bounded context 的 `cli.py` 同时拥有
-该领域的参数 schema 和 application handler，例如 `knowledge/cli.py` 与
-`source_analysis/cli.py`。application 层使用明确用例而不是万能 facade：environment 分为盘点、
-计划登记和执行，knowledge 分为材料登记、probe、Skill 生成和 bootstrap 编排。这样参数转换在边界
-完成，领域逻辑不依赖一个中央命令文件，也没有空转发层或第二套兼容入口。
+根 `cli.py` 只负责命令组装、dispatch 和统一错误边界。完整开发迁移只由 `dpf port run` 驱动；
+源码闭包、结构化分析和迁移阶段由 `PortRunner` 直接调用领域服务，不再暴露第二套阶段 CLI。
+其他 bounded context 的维护命令仍在各自 `cli.py` 中完成参数转换，例如 environment 的盘点、
+计划登记和执行，以及 knowledge 的材料登记、probe、Skill 生成和 bootstrap 编排。
 
 ## 8. 数据与信任域
 

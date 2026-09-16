@@ -4,7 +4,8 @@
 `compile_commands.json`，不重新猜测编译参数：
 
 ```sh
-dpf structured-c analyze ./run --analyzer clang
+dpf port run ./run --source-platform linux --target-platform asterinas \
+  --driver-name ne2k-pci --analyzer clang
 ```
 
 当前 `clang-llvm` 后端对每个 translation unit 执行并保存：

@@ -67,7 +67,6 @@ class PortRunnerTests(unittest.TestCase):
             runner._codex_gate(
                 object(),
                 KnowledgeStage.KNOWLEDGE_BASE,
-                "editable objective",
                 {},
                 reject,
             )
@@ -90,7 +89,7 @@ class PortRunnerTests(unittest.TestCase):
             patch.object(runner, "_codex", return_value=(result, None, Path("response"))) as codex,
             patch.object(runner, "_job_occurrence", return_value=object()),
         ):
-            runner._codex_gate(object(), KnowledgeStage.KNOWLEDGE_BASE, "objective", {}, accept)
+            runner._codex_gate(object(), KnowledgeStage.KNOWLEDGE_BASE, {}, accept)
 
         self.assertEqual(codex.call_count, 2)
         self.assertEqual(codex.call_args.kwargs["thread_id"], "same-thread")

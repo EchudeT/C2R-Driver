@@ -19,7 +19,13 @@ from driver_port_factory.environment.contracts import EnvironmentStage
 from driver_port_factory.intake.contracts import IntakeStage
 
 
-def write_prompt_pack(root: Path, *, wrapper: str, stages: dict[str, list[str]]) -> Path:
+def write_prompt_pack(
+    root: Path,
+    *,
+    wrapper: str,
+    stages: dict[str, list[str]],
+    objectives: dict[str, str] | None = None,
+) -> Path:
     root.mkdir(parents=True, exist_ok=True)
     (root / "job.md").write_text(wrapper, encoding="utf-8")
     (root / "correction.md").write_text("Rejected: {{error}}\n", encoding="utf-8")
@@ -30,7 +36,17 @@ def write_prompt_pack(root: Path, *, wrapper: str, stages: dict[str, list[str]])
                 "name": "test-pack",
                 "template": "job.md",
                 "correction_template": "correction.md",
-                "stages": {stage: {"documents": documents} for stage, documents in stages.items()},
+                "stages": {
+                    stage: {
+                        "documents": documents,
+                        **(
+                            {"objective": objectives[stage]}
+                            if objectives and stage in objectives
+                            else {}
+                        ),
+                    }
+                    for stage, documents in stages.items()
+                },
             }
         ),
         encoding="utf-8",
@@ -76,6 +92,34 @@ class SkillPromptTests(unittest.TestCase):
             for document in rendered.documents:
                 self.assertEqual(document.content, expected[document.relative_path])
                 self.assertIn(expected[document.relative_path], rendered.text)
+
+    def test_prompt_uses_editable_stage_objective_when_caller_omits_it(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            skill_root = root / "skills"
+            relative = "open-kernel-driver-port/SKILL.md"
+            skill = skill_root / relative
+            skill.parent.mkdir(parents=True)
+            skill.write_text("skill\n", encoding="utf-8")
+            prompt_pack = write_prompt_pack(
+                root / "prompt-pack",
+                wrapper="{{job_json}}\n{{skill_documents}}\n",
+                stages={EnvironmentStage.RECOVERY.value: [relative]},
+                objectives={EnvironmentStage.RECOVERY.value: "Editable pack objective"},
+            )
+
+            rendered = SkillPromptComposer(
+                skill_root,
+                WORKFLOW_STAGE_CATALOG,
+                (EnvironmentStage.RECOVERY.value,),
+                prompt_pack,
+            ).render(
+                stage=EnvironmentStage.RECOVERY,
+                actor_role=ActorRole.DEVELOPER,
+            )
+
+            self.assertEqual(rendered.objective, "Editable pack objective")
+            self.assertIn('"objective": "Editable pack objective"', rendered.text)
 
     def test_default_pack_maps_every_non_static_stage(self) -> None:
         configurations = (
