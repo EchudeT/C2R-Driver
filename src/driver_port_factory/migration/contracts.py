@@ -27,6 +27,7 @@ class MigrationArtifact(StrEnum):
     ARTIFACT_IDENTITY = "artifact_identity"
     PUBLIC_QEMU_ATTEMPT = "public_qemu_attempt"
     PUBLIC_QEMU_REPORT = "public_qemu_report"
+    PUBLIC_REPAIR_ATTEMPT = "public_repair_attempt"
     PUBLIC_REPAIR_REPORT = "public_repair_report"
     EVIDENCE_AUDIT = "evidence_audit"
 
@@ -171,3 +172,29 @@ class PublicRunAttribution(StrEnum):
     PUBLIC_HARNESS = "PUBLIC_HARNESS"
     ENVIRONMENT = "ENVIRONMENT"
     INCONCLUSIVE = "INCONCLUSIVE"
+
+
+class RepairAttribution(StrEnum):
+    DRIVER_TRANSLATION = "DRIVER_TRANSLATION"
+    ADAPTED_TEST = "ADAPTED_TEST"
+    HARNESS_PACKAGING = "HARNESS_PACKAGING"
+    SOURCE_ASSUMPTION = "SOURCE_ASSUMPTION"
+    TARGET_API_PLATFORM = "TARGET_API_PLATFORM"
+    QEMU_MODEL = "QEMU_MODEL"
+    ENVIRONMENT_TOOLING = "ENVIRONMENT_TOOLING"
+    INCONCLUSIVE = "INCONCLUSIVE"
+
+    @property
+    def writable(self) -> bool:
+        return self in {
+            self.DRIVER_TRANSLATION,
+            self.ADAPTED_TEST,
+            self.HARNESS_PACKAGING,
+            self.SOURCE_ASSUMPTION,
+            self.TARGET_API_PLATFORM,
+        }
+
+
+class RepairAction(StrEnum):
+    APPLY = "APPLY"
+    BLOCKED = "BLOCKED"

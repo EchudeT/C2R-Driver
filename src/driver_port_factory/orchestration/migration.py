@@ -50,6 +50,7 @@ def migration_workflow(config: ProjectConfig) -> tuple[StageSpec, ...]:
             previous,
             (MigrationArtifact.PUBLIC_REPAIR_REPORT,),
             MIGRATION_ROLES,
+            auxiliary_outputs=(MigrationArtifact.PUBLIC_REPAIR_ATTEMPT,),
             accept_failed=True,
         )
     )

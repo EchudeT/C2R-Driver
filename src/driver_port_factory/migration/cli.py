@@ -21,6 +21,7 @@ from .contracts import MigrationArtifact, MigrationStage
 from .handoff import MigrationHandoff
 from .implementation import DriverImplementationService, ImplementationResponse
 from .public_qemu import PublicQemuPlan, PublicQemuService
+from .public_repair import PublicRepairPlan, PublicRepairService
 from .test_matrix import TestSelectionMatrix, TestSelectionService
 
 MIGRATION_CONTRACTS_OBJECTIVE = (
@@ -61,6 +62,16 @@ PUBLIC_QEMU_OBJECTIVE = (
     "external checker argv without shell syntax, device/topology/CPU/memory/backend, predeclared "
     "oracle, cleanup, controls and pinned QEMU-original evidence. Use EXECUTE, "
     "FROZEN_PREREQUISITE, NOT_APPLICABLE or BLOCKED honestly; do not include private tests."
+)
+PUBLIC_REPAIR_OBJECTIVE = (
+    "Perform exactly one bounded Phase 9 diagnosis against the frozen failed public run. Query "
+    "the local knowledge base and inspect each cited original before deciding. Do not edit files, "
+    "build, run QEMU, seal a candidate, or use private evidence. Return only schema_version=1 JSON "
+    "with attribution, action, failure_run_ids, contract_ids, test_ids, changed_paths (path and "
+    "implementation role), a minimal UTF-8 unified patch, pinned evidence, rationale, and "
+    "temporary_diagnostics_removed. Use APPLY only for DRIVER_TRANSLATION, ADAPTED_TEST, "
+    "HARNESS_PACKAGING, SOURCE_ASSUMPTION, or a necessity-backed existing TARGET_API_PLATFORM "
+    "path; otherwise use BLOCKED with an empty patch and changed_paths."
 )
 
 
@@ -314,6 +325,52 @@ def command_public_qemu_run(arguments: argparse.Namespace) -> None:
     print(json.dumps(result, ensure_ascii=False, sort_keys=True, indent=2))
 
 
+def command_public_repair_run(arguments: argparse.Namespace) -> None:
+    project = open_project(Path(arguments.path))
+    service = PublicRepairService()
+    prepared = service.prepare(project)
+    if prepared is None:
+        result = service.finalize_not_applicable(project)
+        print(json.dumps(result, ensure_ascii=False, sort_keys=True, indent=2))
+        return
+    source_ref, failure = prepared
+    bundle = project.load_json_artifact(
+        MigrationStage.DRIVER_IMPLEMENTATION, MigrationArtifact.IMPLEMENTATION_BUNDLE
+    )
+    codex_result, rendered, response_path = run_codex_stage(
+        project,
+        MigrationStage.PUBLIC_REPAIR,
+        objective=PUBLIC_REPAIR_OBJECTIVE,
+        context={
+            "failed_attempt": source_ref,
+            "failed_evidence": failure,
+            "implementation_files": [
+                {"path": item["path"], "role": item["role"]} for item in bundle["files"]
+            ],
+            "frozen_inputs": {
+                kind.value: _prompt_artifact(project, stage, kind)
+                for stage, kind in (
+                    (MigrationStage.CONTRACTS, MigrationArtifact.CONTRACTS),
+                    (MigrationStage.TEST_ADAPTATION, MigrationArtifact.TEST_PORT_MATRIX),
+                    (
+                        MigrationStage.DRIVER_IMPLEMENTATION,
+                        MigrationArtifact.IMPLEMENTATION_BUNDLE,
+                    ),
+                    (MigrationStage.ARTIFACT_PREPARATION, MigrationArtifact.ARTIFACT_IDENTITY),
+                    (KnowledgeStage.KNOWLEDGE_BASE, KnowledgeArtifact.QUERY_CONTRACT),
+                    (TargetStudyStage.STUDY, TargetStudyArtifact.CHANGE_PLAN),
+                )
+            },
+        },
+        backend=arguments.backend,
+        codex_bin=arguments.codex_bin,
+        model=arguments.model,
+    )
+    result = service.run(project, PublicRepairPlan.read(response_path), source_ref, failure)
+    result.update(job_id=codex_result.job_id, prompt_sha256=rendered.digest)
+    print(json.dumps(result, ensure_ascii=False, sort_keys=True, indent=2))
+
+
 def register_commands(commands: CommandRegistry) -> None:
     migration = commands.add_parser("migration", help="run controlled migration transitions")
     subcommands = command_registry(migration, dest="migration_command")
@@ -394,3 +451,16 @@ def register_commands(commands: CommandRegistry) -> None:
     run.add_argument("--codex-bin", default="codex")
     run.add_argument("--model")
     run.set_defaults(handler=command_public_qemu_run)
+
+    repair = commands.add_parser(
+        "public-repair", help="attribute one public failure and run one bounded repair attempt"
+    )
+    repair_commands = command_registry(repair, dest="public_repair_command")
+    run = repair_commands.add_parser("run")
+    run.add_argument("path")
+    run.add_argument(
+        "--backend", type=CodexBackend, choices=list(CodexBackend), default=CodexBackend.EXEC
+    )
+    run.add_argument("--codex-bin", default="codex")
+    run.add_argument("--model")
+    run.set_defaults(handler=command_public_repair_run)

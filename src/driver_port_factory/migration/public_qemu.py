@@ -264,7 +264,7 @@ class PublicQemuService:
         plan_digest = hashlib.sha256(self._json(plan.to_dict())).hexdigest()
         attempt_dir = project.control / "public-qemu" / plan_digest[:20]
         attempt_dir.mkdir(parents=True, exist_ok=False)
-        results = [self._execute_run(project, run, attempt_dir / run.run_id) for run in plan.runs]
+        results = self.execute_runs(project, plan.runs, attempt_dir)
         ladder = self._ladder_results(plan, results)
         report = {
             "schema_version": 1,
@@ -302,6 +302,11 @@ class PublicQemuService:
             ),
         )
         return {"status": StageStatus.PASS.value, "attempt": str(attempt_path)}
+
+    def execute_runs(
+        self, project: Project, runs: tuple[PublicRun, ...], attempt_dir: Path
+    ) -> list[dict[str, Any]]:
+        return [self._execute_run(project, run, attempt_dir / run.run_id) for run in runs]
 
     def _plan_gate(
         self,
