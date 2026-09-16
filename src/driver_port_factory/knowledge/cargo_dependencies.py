@@ -5,9 +5,11 @@ import json
 import tarfile
 import tempfile
 import tomllib
+from collections.abc import Mapping
 from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path, PurePosixPath
+from types import MappingProxyType
 
 from ..acquisition.facets import (
     EvidenceFacet,
@@ -39,27 +41,79 @@ class TargetDependencySystem(StrEnum):
 
 
 @dataclass(frozen=True, slots=True)
-class CargoPackage:
-    package_id: str
+class CargoRegistryIdentity:
     name: str
     version: str
-    registry_url: str
+    source: str
+
+    @classmethod
+    def from_record(cls, value: dict[str, object]) -> CargoRegistryIdentity | None:
+        source = value.get("source")
+        if not isinstance(source, str) or not source.startswith(_REGISTRY_SOURCE_PREFIX):
+            return None
+        return cls(_text(value, "name"), _text(value, "version"), source)
+
+    @property
+    def registry_url(self) -> str:
+        return self.source.removeprefix(_REGISTRY_SOURCE_PREFIX)
+
+
+@dataclass(frozen=True, slots=True)
+class CargoLock:
+    checksums: Mapping[CargoRegistryIdentity, str]
+
+    @classmethod
+    def from_path(cls, path: Path) -> CargoLock:
+        try:
+            document = tomllib.loads(path.read_text(encoding="utf-8"))
+        except (OSError, UnicodeError, tomllib.TOMLDecodeError) as error:
+            raise WorkflowError(f"Cargo.lock is unreadable: {error}") from error
+        packages = document.get("package")
+        if not isinstance(packages, list):
+            raise WorkflowError("Cargo.lock lacks package records")
+        checksums: dict[CargoRegistryIdentity, str] = {}
+        for value in packages:
+            if not isinstance(value, dict):
+                continue
+            identity = CargoRegistryIdentity.from_record(value)
+            if identity is None:
+                continue
+            if identity in checksums:
+                raise WorkflowError(
+                    f"Cargo.lock has duplicate registry package: {identity.name}@{identity.version}"
+                )
+            checksums[identity] = sha256(
+                value.get("checksum"),
+                f"Cargo.lock checksum for {identity.name}@{identity.version}",
+            )
+        return cls(MappingProxyType(checksums))
+
+
+@dataclass(frozen=True, slots=True)
+class CargoPackage:
+    package_id: str
+    identity: CargoRegistryIdentity
     checksum: str
     manifest_path: Path
     license_note: str
 
     @classmethod
-    def from_metadata(cls, value: dict[str, object]) -> CargoPackage:
-        source = _text(value, "source")
-        if not source.startswith(_REGISTRY_SOURCE_PREFIX):
-            raise WorkflowError("resolved Cargo package is not registry-backed")
+    def from_metadata(
+        cls,
+        value: dict[str, object],
+        identity: CargoRegistryIdentity,
+        lock: CargoLock,
+    ) -> CargoPackage:
+        checksum = lock.checksums.get(identity)
+        if checksum is None:
+            raise WorkflowError(
+                f"Cargo.lock has no registry checksum for {identity.name}@{identity.version}"
+            )
         license_note = value.get("license")
         return cls(
             _text(value, "id"),
-            _text(value, "name"),
-            _text(value, "version"),
-            source.removeprefix(_REGISTRY_SOURCE_PREFIX),
-            sha256(value.get("checksum"), "Cargo registry package checksum"),
+            identity,
+            checksum,
             Path(_text(value, "manifest_path")).resolve(),
             license_note if isinstance(license_note, str) and license_note else "review-required",
         )
@@ -71,7 +125,7 @@ class CargoResolution:
     registry_packages: tuple[CargoPackage, ...]
 
     @classmethod
-    def from_bytes(cls, data: bytes) -> CargoResolution:
+    def from_bytes(cls, data: bytes, lock: CargoLock) -> CargoResolution:
         try:
             document = json.loads(data)
         except (UnicodeDecodeError, json.JSONDecodeError) as error:
@@ -88,14 +142,14 @@ class CargoResolution:
             for node in nodes
             if isinstance(node, dict) and isinstance(node.get("id"), str)
         }
-        registry_packages = tuple(
-            CargoPackage.from_metadata(package)
-            for package in packages
-            if isinstance(package, dict)
-            and package.get("id") in resolved
-            and str(package.get("source", "")).startswith(_REGISTRY_SOURCE_PREFIX)
-        )
-        return cls(graph, registry_packages)
+        registry_packages = []
+        for package in packages:
+            if not isinstance(package, dict) or package.get("id") not in resolved:
+                continue
+            identity = CargoRegistryIdentity.from_record(package)
+            if identity is not None:
+                registry_packages.append(CargoPackage.from_metadata(package, identity, lock))
+        return cls(graph, tuple(registry_packages))
 
 
 class CargoDependencyClosure:
@@ -128,10 +182,13 @@ class CargoDependencyClosure:
         )
         (attempt / "cargo-identity.txt").write_bytes(identity)
         (attempt / "metadata.json").write_bytes(metadata_bytes)
-        lock = export / "Cargo.lock"
-        if not lock.is_file():
+        lock_path = export / "Cargo.lock"
+        if not lock_path.is_file():
             raise WorkflowError("cargo metadata did not preserve a Cargo.lock resolution")
-        resolution = CargoResolution.from_bytes(metadata_bytes)
+        resolution = CargoResolution.from_bytes(
+            metadata_bytes,
+            CargoLock.from_path(lock_path),
+        )
         (attempt / "resolve.json").write_text(
             json.dumps(resolution.graph, ensure_ascii=False, sort_keys=True, indent=2) + "\n",
             encoding="utf-8",
@@ -214,26 +271,12 @@ class CargoDependencyClosure:
         package: CargoPackage,
     ) -> tuple[MaterialRecord, ...]:
         package_root = package.manifest_path.parent
-        if cargo_home.resolve() not in package_root.parents or not package.manifest_path.is_file():
-            raise WorkflowError("Cargo registry source is outside the project-local CARGO_HOME")
-        archive = next(
-            (
-                path
-                for path in cargo_home.glob(
-                    f"registry/cache/*/{package.name}-{package.version}.crate"
-                )
-                if file_sha256(path) == package.checksum
-            ),
-            None,
-        )
-        if archive is None:
-            raise WorkflowError(
-                "Cargo registry archive is unavailable or invalid: "
-                f"{package.name}@{package.version}"
-            )
+        if not package.manifest_path.is_file():
+            raise WorkflowError("Cargo registry package manifest is missing")
+        archive = _verified_registry_archive(cargo_home, package)
         key = hashlib.sha256(package.package_id.encode("utf-8")).hexdigest()[:20]
         root = project.root / "knowledge" / "raw" / "target-cargo" / key
-        archive_path = root / f"{package.name}-{package.version}.crate"
+        archive_path = root / f"{package.identity.name}-{package.identity.version}.crate"
         archive_bytes = archive.read_bytes()
         _publish(archive_path, archive_bytes)
         controlled_archive = str(archive_path.relative_to(project.root))
@@ -241,9 +284,9 @@ class CargoDependencyClosure:
 
         def origin(relative: str | None) -> CargoRegistryOrigin:
             return CargoRegistryOrigin(
-                package.registry_url,
-                package.name,
-                package.version,
+                package.identity.registry_url,
+                package.identity.name,
+                package.identity.version,
                 package.checksum,
                 controlled_archive,
                 hashlib.sha256(archive_bytes).hexdigest(),
@@ -255,8 +298,8 @@ class CargoDependencyClosure:
                 f"target.cargo.{key}.archive",
                 _TARGET_FACET,
                 controlled_archive,
-                package.registry_url,
-                package.version,
+                package.identity.registry_url,
+                package.identity.version,
                 acquired_at,
                 package.license_note,
                 MaterialRedistribution.UNKNOWN,
@@ -287,8 +330,8 @@ class CargoDependencyClosure:
                     f"target.cargo.{key}.source.{identifier}",
                     _TARGET_FACET,
                     str(destination.relative_to(project.root)),
-                    package.registry_url,
-                    package.version,
+                    package.identity.registry_url,
+                    package.identity.version,
                     acquired_at,
                     package.license_note,
                     MaterialRedistribution.UNKNOWN,
@@ -301,6 +344,39 @@ class CargoDependencyClosure:
                 )
             )
         return tuple(records)
+
+
+def _verified_registry_archive(cargo_home: Path, package: CargoPackage) -> Path:
+    source_root = (cargo_home / "registry" / "src").resolve()
+    try:
+        source_path = package.manifest_path.parent.relative_to(source_root)
+    except ValueError as error:
+        raise WorkflowError("Cargo registry source is outside the local registry root") from error
+    if len(source_path.parts) != 2:
+        raise WorkflowError("Cargo registry source has an unexpected local layout")
+    archive = (
+        cargo_home
+        / "registry"
+        / "cache"
+        / source_path.parts[0]
+        / f"{package.identity.name}-{package.identity.version}.crate"
+    )
+    if not archive.is_file():
+        raise WorkflowError(
+            "Cargo registry archive is missing: "
+            f"{package.identity.name}@{package.identity.version}"
+        )
+    resolved = archive.resolve()
+    if cargo_home.resolve() not in resolved.parents:
+        raise WorkflowError("Cargo registry archive is outside the project-local CARGO_HOME")
+    actual = file_sha256(resolved)
+    if actual != package.checksum:
+        raise WorkflowError(
+            "Cargo registry archive checksum mismatch for "
+            f"{package.identity.name}@{package.identity.version}: "
+            f"expected {package.checksum}, got {actual}"
+        )
+    return resolved
 
 
 def _extract_target_archive(archive_path: Path, destination: Path) -> None:

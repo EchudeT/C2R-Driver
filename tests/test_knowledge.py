@@ -190,7 +190,9 @@ def prepare_project(
     return project, checkouts
 
 
-def fake_cargo(root: Path, *, fail_metadata: bool = False) -> Path:
+def fake_cargo(
+    root: Path, *, fail_metadata: bool = False, corrupt_archive: bool = False
+) -> Path:
     directory = root / "fake-bin"
     directory.mkdir()
     executable = directory / "cargo"
@@ -223,13 +225,17 @@ def fake_cargo(root: Path, *, fail_metadata: bool = False) -> Path:
             "pub trait RegistryApi {{ fn register(&self); }}\\n",
             encoding="utf-8",
         )
-        archive = b"fixture registry crate archive"
-        checksum = hashlib.sha256(archive).hexdigest()
+        expected_archive = b"fixture registry crate archive"
+        checksum = hashlib.sha256(expected_archive).hexdigest()
         cache = cargo_home / "registry/cache/fixture-index"
         cache.mkdir(parents=True)
+        archive = expected_archive + b"-corrupt" if {corrupt_archive!r} else expected_archive
         (cache / "example-dep-1.2.3.crate").write_bytes(archive)
+        registry_source = "registry+https://registry.example/index"
         Path("Cargo.lock").write_text(
-            'version = 4\\n\\n[[package]]\\nname = "example-dep"\\nversion = "1.2.3"\\n',
+            'version = 4\\n\\n[[package]]\\nname = "example-dep"\\n'
+            'version = "1.2.3"\\nsource = "' + registry_source + '"\\n'
+            'checksum = "' + checksum + '"\\n',
             encoding="utf-8",
         )
         package_id = "registry+https://registry.example/index#example-dep@1.2.3"
@@ -238,8 +244,8 @@ def fake_cargo(root: Path, *, fail_metadata: bool = False) -> Path:
                 "id": package_id,
                 "name": "example-dep",
                 "version": "1.2.3",
-                "source": "registry+https://registry.example/index",
-                "checksum": checksum,
+                "source": registry_source,
+                "checksum": None,
                 "manifest_path": str(package / "Cargo.toml"),
                 "license": "MIT",
             }}],
@@ -409,6 +415,26 @@ class KnowledgeBootstrapTests(unittest.TestCase):
             archive_path.write_bytes(archive_path.read_bytes() + b"changed")
             with self.assertRaises(WorkflowError):
                 index.status()
+
+    def test_cargo_archive_must_match_locked_checksum(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            project, _ = prepare_project(
+                root,
+                target_manifest='[package]\nname = "target-kernel"\nversion = "0.1.0"\n',
+            )
+            cargo_bin = fake_cargo(root, corrupt_archive=True)
+            with (
+                patch.dict(os.environ, {"PATH": f"{cargo_bin}:{os.environ['PATH']}"}),
+                self.assertRaisesRegex(
+                    KnowledgeDependencyClosureError,
+                    "archive checksum mismatch",
+                ),
+            ):
+                KnowledgeBootstrapper().bootstrap(
+                    project,
+                    probe_plan_path=probe_plan(project.root),
+                )
 
     def test_cargo_metadata_failure_blocks_knowledge_gate(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
