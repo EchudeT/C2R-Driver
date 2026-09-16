@@ -20,7 +20,7 @@
     "source_closure": {"documents": ["knowledge-guided-driver-port/SKILL.md", "knowledge-guided-driver-port/references/workflow.md", "knowledge-guided-driver-port/references/translation.md"]},
     "structured_c_analysis": {"documents": ["knowledge-guided-driver-port/SKILL.md", "knowledge-guided-driver-port/references/translation.md"]},
     "migration_contracts": {"documents": ["knowledge-guided-driver-port/SKILL.md", "knowledge-guided-driver-port/references/translation.md", "knowledge-guided-driver-port/references/knowledge-contract.md"]},
-    "test_adaptation": {"documents": ["knowledge-guided-driver-port/SKILL.md", "knowledge-guided-driver-port/references/test-porting.md"]},
+    "test_adaptation": {"documents": ["knowledge-guided-driver-port/SKILL.md", "knowledge-guided-driver-port/references/workflow.md", "knowledge-guided-driver-port/references/test-porting.md", "knowledge-guided-driver-port/references/knowledge-contract.md"]},
     "rust_design": {"documents": ["knowledge-guided-driver-port/SKILL.md", "knowledge-guided-driver-port/references/translation.md", "knowledge-guided-driver-port/references/target-changes.md"]},
     "rust_implementation": {"documents": ["knowledge-guided-driver-port/SKILL.md", "knowledge-guided-driver-port/references/translation.md", "knowledge-guided-driver-port/references/target-changes.md"]},
     "target_compliance": {"documents": ["knowledge-guided-driver-port/SKILL.md", "knowledge-guided-driver-port/references/target-changes.md", "knowledge-guided-driver-port/references/target-platform-study.md"]},

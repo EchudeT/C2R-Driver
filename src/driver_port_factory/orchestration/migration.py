@@ -297,6 +297,12 @@ def _migration_rows(config: ProjectConfig) -> tuple[StageRow, ...]:
             "Triage source tests and preserve portable device scenarios and oracles.",
             StageOwner.HYBRID,
             (MigrationArtifact.TEST_PORT_MATRIX,),
+            prerequisites=(
+                MigrationStage.HANDOFF,
+                KnowledgeStage.KNOWLEDGE_BASE,
+                TargetStudyStage.STUDY,
+                SourceAnalysisStage.SOURCE_CLOSURE,
+            ),
         ),
         StageRow(
             MigrationStage.RUST_DESIGN,
