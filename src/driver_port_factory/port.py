@@ -97,7 +97,7 @@ SOURCE_CLOSURE_OBJECTIVE = (
     "Close the behaviorally required source set using the frozen compile commands. Return only "
     "one source-closure JSON object for the controller to verify."
 )
-REVISION_CORRECTION_ATTEMPTS = 3
+CODEX_GATE_CORRECTION_ATTEMPTS = 3
 
 
 @dataclass(frozen=True, slots=True)
@@ -331,6 +331,57 @@ class PortRunner:
                 return thread_id if isinstance(thread_id, str) else None
         return None
 
+    def _codex_gate(
+        self,
+        project: Project,
+        stage: StageKey,
+        objective: str,
+        context: dict[str, object],
+        accept: Callable[[Project, ArtifactOccurrence], None],
+    ) -> None:
+        thread_id = None
+        follow_up = None
+        last_error: WorkflowError | None = None
+        pending = self._latest_job_occurrence(project, stage)
+        if pending is not None:
+            try:
+                accept(project, pending)
+                return
+            except WorkflowError as error:
+                last_error = error
+                thread_id = self._latest_thread_id(project, stage)
+                follow_up = self._codex_correction(error)
+        for _ in range(CODEX_GATE_CORRECTION_ATTEMPTS):
+            result, _, response = self._codex(
+                project,
+                stage,
+                objective,
+                context,
+                thread_id=thread_id,
+                follow_up=follow_up,
+            )
+            try:
+                accept(project, self._job_occurrence(project, stage, response))
+                return
+            except WorkflowError as error:
+                last_error = error
+                if not result.thread_id:
+                    raise
+                thread_id = result.thread_id
+                follow_up = self._codex_correction(error)
+        raise WorkflowError(
+            f"{stage.value} failed after same-session corrections: {last_error}"
+        )
+
+    @staticmethod
+    def _codex_correction(error: WorkflowError) -> str:
+        return (
+            "The controller rejected the previous proposal: "
+            f"{error}. Preserve all proposal requirements and previously accepted evidence, "
+            "correct the failure, re-check every cited or located input, and return only a "
+            "complete replacement matching the same output schema."
+        )
+
     @staticmethod
     def _write_response_parts(
         project: Project,
@@ -376,43 +427,12 @@ class PortRunner:
             IntakeStage.ENVELOPE_FREEZE,
             IntakeArtifact.MIGRATION_ENVELOPE,
         )
-        thread_id = None
-        follow_up = None
-        last_error: WorkflowError | None = None
-        pending = self._latest_job_occurrence(project, AcquisitionStage.REVISION_SELECTION)
-        if pending is not None:
-            try:
-                self._accept_revision_result(project, pending)
-                return
-            except WorkflowError as error:
-                last_error = error
-                thread_id = self._latest_thread_id(
-                    project, AcquisitionStage.REVISION_SELECTION
-                )
-                follow_up = self._revision_correction(error)
-        for _ in range(REVISION_CORRECTION_ATTEMPTS):
-            result, _, response = self._codex(
-                project,
-                AcquisitionStage.REVISION_SELECTION,
-                REVISION_OBJECTIVE,
-                {"migration_envelope": envelope},
-                thread_id=thread_id,
-                follow_up=follow_up,
-            )
-            try:
-                job = self._job_occurrence(
-                    project, AcquisitionStage.REVISION_SELECTION, response
-                )
-                self._accept_revision_result(project, job)
-                return
-            except WorkflowError as error:
-                last_error = error
-                if not result.thread_id:
-                    raise
-                thread_id = result.thread_id
-                follow_up = self._revision_correction(error)
-        raise WorkflowError(
-            f"revision selection failed after same-session corrections: {last_error}"
+        self._codex_gate(
+            project,
+            AcquisitionStage.REVISION_SELECTION,
+            REVISION_OBJECTIVE,
+            {"migration_envelope": envelope},
+            self._accept_revision_result,
         )
 
     @staticmethod
@@ -421,15 +441,6 @@ class PortRunner:
             project, job_digest=job.digest, job_ordinal=job.ordinal
         )
         RevisionSelector().select(project, proposal=proposal)
-
-    @staticmethod
-    def _revision_correction(error: WorkflowError) -> str:
-        return (
-            "The controller rejected the previous proposal: "
-            f"{error}. Preserve all proposal requirements and previously accepted evidence, "
-            "correct the failure, re-check every retrieved excerpt, and return only a complete "
-            "replacement proposal matching the same output schema."
-        )
 
     @staticmethod
     def _repositories(project: Project) -> None:
@@ -446,10 +457,16 @@ class PortRunner:
                 (AcquisitionStage.REPOSITORY_ACQUISITION, AcquisitionArtifact.REPOSITORY_MANIFEST),
             )
         }
-        _, _, response = self._codex(
-            project, AcquisitionStage.EVIDENCE_CLOSURE, EVIDENCE_OBJECTIVE, inputs
+        self._codex_gate(
+            project,
+            AcquisitionStage.EVIDENCE_CLOSURE,
+            EVIDENCE_OBJECTIVE,
+            inputs,
+            self._accept_evidence_result,
         )
-        job = self._job_occurrence(project, AcquisitionStage.EVIDENCE_CLOSURE, response)
+
+    @staticmethod
+    def _accept_evidence_result(project: Project, job: ArtifactOccurrence) -> None:
         imported = EvidenceProposalImporter().import_job_result(
             project, job_digest=job.digest, job_ordinal=job.ordinal
         )
