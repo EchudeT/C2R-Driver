@@ -3,12 +3,16 @@ from __future__ import annotations
 import json
 import tempfile
 import unittest
+from dataclasses import replace
 from pathlib import Path
 
 from driver_port_factory.acquisition.facets import (
     SOURCE_DEPENDENCY_CLOSURE,
+    EvidenceFacet,
+    EvidenceLane,
     QemuFacet,
     TargetFacet,
+    ToolingFacet,
     parse_facet,
 )
 from driver_port_factory.acquisition.repository import (
@@ -33,7 +37,9 @@ from driver_port_factory.environment.planning import ExperimentPlanRegistrar
 from driver_port_factory.intake.service import IntakeService
 from driver_port_factory.knowledge.bootstrap import KnowledgeBootstrapper
 from driver_port_factory.knowledge.contracts import KnowledgeDomain, KnowledgeStage
+from driver_port_factory.knowledge.corpus import CorpusManifest
 from driver_port_factory.knowledge.index import KnowledgeIndex
+from driver_port_factory.knowledge.probes import KnowledgeProbePlan
 from driver_port_factory.target_study.contracts import TargetStudyStage
 from tests.acquisition_support import close_evidence, repository, select_revisions
 from tests.test_environment import qemu_fixture, write_plan
@@ -245,6 +251,62 @@ def probe_plan(root: Path, *, break_topic: str | None = None) -> Path:
 
 
 class KnowledgeBootstrapTests(unittest.TestCase):
+    def test_original_binding_uses_all_records_in_the_probe_domain(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            project, _ = prepare_project(Path(temporary))
+            manifest = KnowledgeIndex.for_project(project).manifest
+            seed = next(
+                record
+                for record in manifest.records
+                if getattr(record.origin, "repository", None) is RepositoryRole.TARGET
+            )
+            original = "src/driver-api.rs"
+            records = (
+                replace(
+                    seed,
+                    identifier="target-z",
+                    facet=EvidenceFacet(EvidenceLane.TARGET, TargetFacet.DRIVER_FRAMEWORK),
+                    origin=replace(seed.origin, path=original),
+                ),
+                replace(
+                    seed,
+                    identifier="tooling-a",
+                    facet=EvidenceFacet(
+                        EvidenceLane.TOOLING,
+                        ToolingFacet.RUNTIME_DOCUMENTATION,
+                    ),
+                    origin=replace(seed.origin, path=original),
+                ),
+                replace(
+                    seed,
+                    identifier="target-a",
+                    facet=EvidenceFacet(
+                        EvidenceLane.TARGET,
+                        TargetFacet.API_DEFINITIONS_AND_CALLS,
+                    ),
+                    origin=replace(seed.origin, path=original),
+                ),
+            )
+            plan = KnowledgeProbePlan.load(probe_plan(project.root))
+            plan = KnowledgeProbePlan(
+                tuple(
+                    replace(probe, expected_record_ids=("untrusted-plan-id",))
+                    if probe.probe_id == "target-registration"
+                    else probe
+                    for probe in plan.probes
+                )
+            )
+
+            bound = KnowledgeBootstrapper._bind_originals(
+                CorpusManifest.candidate(records, parent_digest=manifest.digest),
+                plan,
+            )
+
+            registration = next(
+                probe for probe in bound if probe.probe_id == "target-registration"
+            )
+            self.assertEqual(registration.expected_record_ids, ("target-a", "target-z"))
+
     def test_cli_has_no_uncontrolled_material_registration_path(self) -> None:
         root_commands = next(
             action.choices for action in parser()._actions if getattr(action, "choices", None)

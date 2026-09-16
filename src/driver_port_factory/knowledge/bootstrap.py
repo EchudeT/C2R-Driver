@@ -159,14 +159,19 @@ class KnowledgeBootstrapper:
     def _bind_originals(
         manifest: CorpusManifest, plan: KnowledgeProbePlan
     ) -> tuple[KnowledgeProbe, ...]:
-        target_records = {
-            record.origin.path: record.identifier
-            for record in manifest.records
-            if getattr(record.origin, "repository", None) is RepositoryRole.TARGET
-        }
         return tuple(
-            replace(probe, expected_record_ids=(target_records[probe.target_original],))
-            if probe.target_original is not None and probe.target_original in target_records
+            replace(
+                probe,
+                expected_record_ids=tuple(
+                    sorted(
+                        record.identifier
+                        for record in manifest.records
+                        if getattr(record.origin, "path", None) == probe.target_original
+                        and record.facet.lane.value == probe.domain.value
+                    )
+                ),
+            )
+            if probe.target_original is not None
             else probe
             for probe in plan.probes
         )
