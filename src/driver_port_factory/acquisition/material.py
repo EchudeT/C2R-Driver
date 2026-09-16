@@ -13,7 +13,7 @@ from .authority import (
 )
 from .contracts import AcquisitionArtifact
 from .facets import EvidenceFacet, MaterialOriginKind, MaterialRedistribution, parse_facet
-from .parsing import exact_object, nonempty, object_id, sha256
+from .parsing import exact_object, nonempty, object_id, relative_path, sha256
 from .repository_role import RepositoryRole
 
 
@@ -171,7 +171,64 @@ class ExternalUrlOrigin:
         }
 
 
-MaterialOrigin: TypeAlias = GitBlobOrigin | ExternalUrlOrigin
+@dataclass(frozen=True, slots=True)
+class CargoRegistryOrigin:
+    registry_url: str
+    package_name: str
+    package_version: str
+    package_checksum: str
+    archive_path: str
+    archive_sha256: str
+    crate_relative_path: str | None
+    kind = MaterialOriginKind.CARGO_REGISTRY
+
+    def __post_init__(self) -> None:
+        if self.package_checksum != self.archive_sha256:
+            raise WorkflowError("Cargo package checksum differs from its registry archive")
+
+    @classmethod
+    def from_dict(cls, value: object) -> CargoRegistryOrigin:
+        candidate = exact_object(
+            value,
+            required={
+                "kind",
+                "registry_url",
+                "package_name",
+                "package_version",
+                "package_checksum",
+                "archive_path",
+                "archive_sha256",
+                "crate_relative_path",
+            },
+            label="Cargo registry material origin",
+        )
+        relative = candidate["crate_relative_path"]
+        if relative is not None:
+            relative = relative_path(relative, "Cargo registry crate-relative path")
+        return cls(
+            nonempty(candidate["registry_url"], "Cargo registry URL"),
+            nonempty(candidate["package_name"], "Cargo registry package name"),
+            nonempty(candidate["package_version"], "Cargo registry package version"),
+            sha256(candidate["package_checksum"], "Cargo registry package checksum"),
+            relative_path(candidate["archive_path"], "Cargo registry archive path"),
+            sha256(candidate["archive_sha256"], "Cargo registry archive SHA256"),
+            relative,
+        )
+
+    def to_dict(self) -> dict[str, object]:
+        return {
+            "kind": self.kind.value,
+            "registry_url": self.registry_url,
+            "package_name": self.package_name,
+            "package_version": self.package_version,
+            "package_checksum": self.package_checksum,
+            "archive_path": self.archive_path,
+            "archive_sha256": self.archive_sha256,
+            "crate_relative_path": self.crate_relative_path,
+        }
+
+
+MaterialOrigin: TypeAlias = GitBlobOrigin | ExternalUrlOrigin | CargoRegistryOrigin
 
 
 @dataclass(frozen=True, slots=True)
@@ -242,8 +299,16 @@ class MaterialRecord:
         if isinstance(origin, GitBlobOrigin):
             if revision != origin.commit:
                 raise WorkflowError("Git material revision differs from its origin commit")
-        elif (source_url, revision) != (origin.source_url, origin.revision):
+        elif isinstance(origin, ExternalUrlOrigin) and (source_url, revision) != (
+            origin.source_url,
+            origin.revision,
+        ):
             raise WorkflowError("external material provenance differs from its origin")
+        elif isinstance(origin, CargoRegistryOrigin) and (source_url, revision) != (
+            origin.registry_url,
+            origin.package_version,
+        ):
+            raise WorkflowError("Cargo registry material provenance differs from its origin")
         return cls(
             _identifier(candidate["id"], "controlled material ID"),
             parse_facet(candidate["domain"], candidate["facet"]),
@@ -324,6 +389,13 @@ def parse_origin(value: object) -> MaterialOrigin:
             "authority",
             "response",
             "corroboration",
+            "registry_url",
+            "package_name",
+            "package_version",
+            "package_checksum",
+            "archive_path",
+            "archive_sha256",
+            "crate_relative_path",
         },
         label="controlled material origin",
     )
@@ -347,6 +419,8 @@ def parse_origin(value: object) -> MaterialOrigin:
             object_id(candidate["blob"], "Git material blob"),
             nonempty(candidate["path"], "Git material path"),
         )
+    if kind is MaterialOriginKind.CARGO_REGISTRY:
+        return CargoRegistryOrigin.from_dict(candidate)
     exact_object(
         candidate,
         required={
