@@ -4,6 +4,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
+from driver_port_factory.codex.contracts import CodexArtifact
 from driver_port_factory.core.models import StageStatus, WorkflowError
 from driver_port_factory.environment.contracts import EnvironmentArtifact
 from driver_port_factory.knowledge.bootstrap import KnowledgeBootstrapper
@@ -34,6 +35,15 @@ class MigrationHandoffTests(unittest.TestCase):
             self.assertEqual(record["schema_version"], 2)
             self.assertEqual(record["evaluation"], {"mode": HandoffMode.DEVELOPER.value})
             artifacts = {item["kind"]: item for item in record["upstream_artifacts"]}
+            self.assertIn(EnvironmentArtifact.RECOVERY_ATTEMPT.value, artifacts)
+            self.assertTrue(
+                {
+                    CodexArtifact.JOB_RESULT.value,
+                    CodexArtifact.EVENT_LOG.value,
+                    KnowledgeArtifact.PROBE_ATTEMPT.value,
+                    TargetStudyArtifact.VALIDATION_ATTEMPT.value,
+                }.isdisjoint(artifacts)
+            )
             for kind in (
                 EnvironmentArtifact.EXPERIMENT_ROUTE,
                 KnowledgeArtifact.QUERY_CONTRACT,

@@ -23,6 +23,8 @@ from ..core.project import Project
 from ..core.validation import BundleValidationContext, json_object
 from ..environment.contracts import EnvironmentArtifact
 from ..environment.models import ExperimentReadiness
+from ..evaluation.contracts import EvaluationArtifact
+from ..intake.contracts import IntakeArtifact
 from ..knowledge.contracts import (
     KnowledgeArtifact,
     KnowledgeEvidenceStatus,
@@ -33,6 +35,30 @@ from ..target_study.contracts import (
     TargetStudyOutcome,
 )
 from .contracts import HandoffMode, MigrationArtifact, MigrationStage
+
+_HANDOFF_ARTIFACTS = (
+    IntakeArtifact.MIGRATION_ENVELOPE,
+    AcquisitionArtifact.REPOSITORY_MANIFEST,
+    AcquisitionArtifact.MATERIALS_MANIFEST,
+    AcquisitionArtifact.EVIDENCE_GAP_REGISTER,
+    EnvironmentArtifact.MODE_RECORD,
+    EnvironmentArtifact.EXPERIMENT_READY_RUN,
+    EnvironmentArtifact.EXPERIMENT_ROUTE,
+    EnvironmentArtifact.RECOVERY_ATTEMPT,
+    KnowledgeArtifact.STATUS,
+    KnowledgeArtifact.QUERY_CONTRACT,
+    KnowledgeArtifact.GENERATED_SKILL,
+    KnowledgeArtifact.TARGET_PROBE_RESULTS,
+    TargetStudyArtifact.STRUCTURED_PROFILE,
+    TargetStudyArtifact.API_EVIDENCE,
+    TargetStudyArtifact.ANALOGOUS_DRIVER_TRACE,
+    TargetStudyArtifact.CHANGE_PLAN,
+    TargetStudyArtifact.REPORT,
+)
+_BLIND_HANDOFF_ARTIFACTS = (
+    EvaluationArtifact.PUBLIC_BUNDLE,
+    EvaluationArtifact.CURATOR_COMMITMENT,
+)
 
 
 class MigrationHandoff:
@@ -108,10 +134,15 @@ class MigrationHandoff:
 
     @staticmethod
     def _dependency_refs(project: Project) -> list[dict[str, Any]]:
+        artifacts = _HANDOFF_ARTIFACTS
+        if project.config.evaluation_mode is EvaluationMode.PROSPECTIVE_BLIND:
+            artifacts += _BLIND_HANDOFF_ARTIFACTS
+        kinds = {artifact.value for artifact in artifacts}
         refs = [
             ref
             for stage in project.workflow.spec(MigrationStage.HANDOFF).dependencies
             for ref in project.artifact_refs(stage=stage, direction=ArtifactDirection.OUTPUT)
+            if ref.kind in kinds
         ]
         return [
             {
@@ -145,6 +176,12 @@ def validate_handoff_bundle(context: BundleValidationContext) -> None:
         or record["downstream_skill"] != "knowledge-guided-driver-port"
     ):
         raise WorkflowError("migration handoff has an invalid schema")
+    evaluation = record["evaluation"]
+    _validate_evaluation(evaluation)
+    artifacts = _HANDOFF_ARTIFACTS
+    if evaluation["mode"] == HandoffMode.BLIND_CANDIDATE.value:
+        artifacts += _BLIND_HANDOFF_ARTIFACTS
+    kinds = {artifact.value for artifact in artifacts}
     expected = [
         {
             **ref.to_dict(),
@@ -158,6 +195,7 @@ def validate_handoff_bundle(context: BundleValidationContext) -> None:
             ),
         }
         for ref, _ in sorted(context.dependency_artifacts, key=_payload_key)
+        if ref.kind in kinds
     ]
     if record.get("upstream_artifacts") != expected:
         raise WorkflowError("migration handoff does not bind every upstream artifact")
@@ -188,7 +226,6 @@ def validate_handoff_bundle(context: BundleValidationContext) -> None:
         or TargetStudyOutcome(target.get("status")) is not TargetStudyOutcome.PASS
     ):
         raise WorkflowError("migration handoff upstream readiness is incomplete")
-    _validate_evaluation(record.get("evaluation"))
 
 
 def _validate_evaluation(value: object) -> None:
