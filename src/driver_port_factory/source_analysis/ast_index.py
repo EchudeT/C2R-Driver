@@ -256,6 +256,15 @@ class AstSemanticIndexer:
                 control_flow.append(node_id)
             self._index_effect(node, node_id, effects)
 
+        referenced_external_ids = {
+            relation["target"]
+            for relation in relations
+            if relation["target"] in self.external_declarations
+        }
+        external_declarations = [
+            self.external_declarations[key] for key in sorted(referenced_external_ids)
+        ]
+
         return {
             "schema_version": 1,
             "unit_id": self.unit_id,
@@ -276,9 +285,7 @@ class AstSemanticIndexer:
                 "control_flow": control_flow,
                 "effects": effects,
                 "function_pointer_bindings": pointers.binding_records(),
-                "external_declarations": [
-                    self.external_declarations[key] for key in sorted(self.external_declarations)
-                ],
+                "external_declarations": external_declarations,
             },
             "counts": self._counts(
                 nodes,
@@ -291,7 +298,7 @@ class AstSemanticIndexer:
                 control_flow,
                 effects,
                 source_span_count,
-                len(self.external_declarations),
+                len(external_declarations),
             ),
             "effect_classification": (
                 "Structural candidates only; hardware meaning requires evidence-backed contract "

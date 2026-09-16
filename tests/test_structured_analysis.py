@@ -25,6 +25,46 @@ from tests.test_source_closure import ready_project, source_closure, write_json
 
 
 class StructuredCAnalysisTests(unittest.TestCase):
+    def test_external_declarations_exclude_unreferenced_analysis_candidates(self) -> None:
+        ast = {
+            "kind": "TranslationUnitDecl",
+            "inner": [
+                {
+                    "id": "table",
+                    "kind": "VarDecl",
+                    "loc": {"file": "driver.c", "line": 1, "col": 1},
+                    "type": {"qualType": "const struct operations"},
+                    "inner": [
+                        {
+                            "id": "initializer",
+                            "kind": "InitListExpr",
+                            "field": {
+                                "id": "external-field",
+                                "kind": "FieldDecl",
+                                "name": "callback",
+                                "type": {"qualType": "int (*)(void)"},
+                            },
+                            "inner": [
+                                {
+                                    "id": "zero",
+                                    "kind": "IntegerLiteral",
+                                    "type": {"qualType": "int"},
+                                    "value": "0",
+                                }
+                            ],
+                        }
+                    ],
+                }
+            ],
+        }
+
+        indexer = AstSemanticIndexer("external-candidate", Path("driver.c"), ast)
+        semantic = indexer.build()
+
+        self.assertEqual(len(indexer.external_declarations), 1)
+        self.assertEqual(semantic["indexes"]["external_declarations"], [])
+        self.assertEqual(semantic["counts"]["external_declarations"], 0)
+
     def test_anonymous_record_inherits_elided_clang_source_location(self) -> None:
         header = "/sdk/include/driver.h"
         source = Path("driver.c")
