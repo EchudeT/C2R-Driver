@@ -18,7 +18,6 @@ from ..acquisition.repository_role import RepositoryRole
 from ..acquisition.retrieval import material_identifier
 from ..core.models import FileArtifact, GeneratedArtifact, StageStatus, WorkflowError, utc_now
 from ..core.project import Project
-from .cargo_dependencies import CargoDependencyClosure
 from .contracts import (
     KnowledgeArtifact,
     KnowledgeDomain,
@@ -56,7 +55,6 @@ class KnowledgeBootstrapper:
         plan = KnowledgeProbePlan.load(probe_plan_path)
         try:
             manifest = CorpusManifest.current(project)
-            manifest = CargoDependencyClosure().extend(project, manifest)
             knowledge = KnowledgeIndex(project.root, manifest)
             probes = self._bind_originals(knowledge.manifest, plan)
             knowledge.build()

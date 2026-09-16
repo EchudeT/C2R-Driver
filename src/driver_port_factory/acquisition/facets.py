@@ -90,7 +90,6 @@ class LocatorKind(StrEnum):
 class MaterialOriginKind(StrEnum):
     GIT_BLOB = "git_blob"
     EXTERNAL_URL = "external_url"
-    CARGO_REGISTRY = "cargo_registry"
 
 
 class MaterialRedistribution(StrEnum):
