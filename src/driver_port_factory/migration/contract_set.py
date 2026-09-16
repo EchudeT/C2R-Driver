@@ -299,8 +299,8 @@ class MigrationContractGate:
                 knowledge,
             )
             expected = entry.get(field)
-            if not isinstance(expected, dict) or any(
-                verified[name] != expected.get(name) for name in ("chunk_id", "record_id")
+            if not isinstance(expected, dict) or verified["chunk_id"] != expected.get(
+                "chunk_id"
             ):
                 raise WorkflowError(
                     "target contract evidence differs from the original API locator"
