@@ -27,10 +27,10 @@
 | 9 | environment_recovery | 2 份响应、1 次纠错；得到 direct-device-model 的 RISC-V QMP smoke。 | 仅是 model baseline；最终仍需证明当前驱动进入目标 artifact。 |
 | 10 | knowledge_base | 本轮恢复后 1 次通过；补入 Taskless、WithDevice、DmaPool/TSC 与目标编码规则等受影响 originals。只读 status/search/show 已正常工作。 | 旧轮 4 次重试主要来自本地 archive/UTF-8/Cargo/probe 基础设施，不应反馈给模型。 |
 | 11 | target_platform_study | 1 次通过；模型复用了旧 thread，依据更新后的 KB 重建五件套，结果为 `target_platform_study-b248cb62-ee47-483e-bf28-106d4af62371.result`。 | 门禁满足，但为少量 KNOWLEDGE findings 重读了旧 study、完整 compliance 和临时结构检查；见优化项 O1。 |
-| 12 | migration_handoff | 首次静态组装失败，阶段遗留为 `RUNNING`；错误为 `migration handoff does not bind every upstream artifact`。根因是生成端读取全部历史产物，而 bundle 门禁只比较各依赖阶段当前 attempt 的产物。 | 改为只绑定 `current_artifact_refs`，并允许静态阶段从自身失败遗留的 `RUNNING` 状态恢复；不放宽 handoff 内容门禁。 |
-| 13 | source_closure | 等待；已有一次通过的 closure 可在知识更新后静态重验。 | 不应再次调用 Codex 生成相同 closure。 |
-| 14 | structured_c_analysis | 等待；由固定 clang 后端生成。 | 保持静态，禁止模型猜 C 语义。 |
-| 15 | migration_contracts | 等待；旧轮 7 份响应、6 次 locator/证据 lane 纠错。 | 新 Prompt 已要求精确复制 API locator；见优化项 O2。 |
+| 12 | migration_handoff | 首次静态组装失败，错误为 `migration handoff does not bind every upstream artifact`；修复后从 `RUNNING` 恢复并 `PASS`。根因是生成端读取全部历史产物，而 bundle 门禁只比较各依赖阶段当前 attempt 的产物。 | 已改为只绑定 `current_artifact_refs`；未放宽 handoff 内容门禁。 |
+| 13 | source_closure | 复用历史已验收 Codex 响应，在当前 handoff/KB/manifest 上静态重验后 `PASS`，未再次调用模型。 | 这是正确的低成本恢复方式，应推广到内容未变化且只需重绑依赖的阶段。 |
+| 14 | structured_c_analysis | 固定 Clang/LLVM 后端一次 `PASS`；处理 `ne2k-pci-front-end` 与 `8390-shared-core` 两个单元，生成 285336 字节结构化事实，无 Codex 调用。 | 符合 Skill 的 typed AST/CFG/layout/effect 路径，保持静态。 |
+| 15 | migration_contracts | 新响应已生成，但控制器以 `migration contracts require one migration_handoff input` 退回。原因不是输出内容，而是 finalizer 混入历史 handoff；不可能由模型纠正。检测到后停止必败纠错。 | finalizer 改为只解析当前依赖产物，并同步检查阶段 16/17 的同类代码；见优化项 O5。 |
 | 16 | test_adaptation | 等待；旧轮 1 次通过。 | 测试分类符合 Skill，无需扩框架。 |
 | 17 | driver_implementation | 等待；旧轮 5 份响应，包含 compliance 驱动的修复。 | 继续复用 implementation thread，只写目标工作树。 |
 | 18 | target_compliance | 等待；旧轮 4 份响应，真实发现 API 闭包、锁内 I/O/分配、IRQ 路由、重试和无关修改问题。 | findings 必须按 KNOWLEDGE/IMPLEMENTATION 精确回到最早受影响门禁。 |
@@ -64,6 +64,12 @@ implementation paths、目标 evidence refs 和必须补齐的符号，形成一
 同阶段纠错和短修复应复用 thread；当阶段已经通过、随后因远端 finding 被重新打开且历史发生多次
 compaction 时，应比较“缓存复用成本”和“当前验收产物 + repair delta 的新 thread 成本”。本轮完成后
 用 event log 的 cached/input/output token 和工具调用数决定阈值，不先硬编码轮数。
+
+### O5：依赖绑定只认当前 attempt（已实施）
+
+业务产物的 finalizer 和 bundle validator 必须使用同一 attempt 视图。历史产物只用于审计、会话恢复和
+失败诊断，不能参与当前依赖唯一性判断。本轮已修正 handoff、migration contracts、test adaptation 与
+driver implementation 四处路径，避免下游对同一缺陷重复发起 Codex 纠错。
 
 ## 已验证的本轮改进
 

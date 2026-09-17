@@ -363,7 +363,7 @@ class DriverImplementationService:
             matches = [
                 ref
                 for stage in dependencies
-                for ref in project.artifact_refs(stage=stage)
+                for ref in project.current_artifact_refs(stage=stage)
                 if ref.kind == kind.value
             ]
             if len(matches) != 1:
