@@ -433,10 +433,15 @@ class PortRunner:
 
     @staticmethod
     def _accept_revision_result(project: Project, job: ArtifactOccurrence) -> None:
-        proposal = RevisionProposalImporter().import_job_result(
-            project, job_digest=job.digest, job_ordinal=job.ordinal
-        )
-        RevisionSelector().select(project, proposal=proposal)
+        try:
+            proposal = RevisionProposalImporter().import_job_result(
+                project, job_digest=job.digest, job_ordinal=job.ordinal
+            )
+            RevisionSelector().select(project, proposal=proposal)
+        except CodexOutputError:
+            raise
+        except WorkflowError as error:
+            raise CodexOutputError(f"revision proposal failed: {error}") from error
 
     @staticmethod
     def _repositories(project: Project) -> None:
@@ -462,10 +467,15 @@ class PortRunner:
 
     @staticmethod
     def _accept_evidence_result(project: Project, job: ArtifactOccurrence) -> None:
-        imported = EvidenceProposalImporter().import_job_result(
-            project, job_digest=job.digest, job_ordinal=job.ordinal
-        )
-        EvidenceClosureFinalizer().finalize(project, proposal=imported.occurrence)
+        try:
+            imported = EvidenceProposalImporter().import_job_result(
+                project, job_digest=job.digest, job_ordinal=job.ordinal
+            )
+            EvidenceClosureFinalizer().finalize(project, proposal=imported.occurrence)
+        except CodexOutputError:
+            raise
+        except WorkflowError as error:
+            raise CodexOutputError(f"evidence proposal failed: {error}") from error
 
     def _environment(self, project: Project) -> None:
         if project.stage(EnvironmentStage.RECOVERY).status is StageStatus.READY:
@@ -487,11 +497,14 @@ class PortRunner:
 
     @staticmethod
     def _accept_environment_result(project: Project, job: ArtifactOccurrence) -> None:
-        response = project.artifacts.path_for_digest(job.digest)
-        plan = ExperimentPlanRegistrar().register(project, response)
+        try:
+            response = project.artifacts.path_for_digest(job.digest)
+            plan = ExperimentPlanRegistrar().register(project, response)
+        except WorkflowError as error:
+            raise CodexOutputError(f"environment route failed: {error}") from error
         result = ExperimentExecutor().run(project, plan.route_id)
         if result.readiness is ExperimentReadiness.FAIL:
-            raise WorkflowError(result.message)
+            raise CodexOutputError(result.message)
 
     def _knowledge(self, project: Project) -> None:
         context = {
@@ -612,7 +625,7 @@ class PortRunner:
             project, closure_path=project.artifacts.path_for_digest(job.digest)
         )
         if result.errors:
-            raise WorkflowError("source closure failed: " + "; ".join(result.errors))
+            raise CodexOutputError("source closure failed: " + "; ".join(result.errors))
 
     def _structured_c(self, project: Project) -> None:
         StructuredCAnalysisService().analyze(
@@ -678,10 +691,15 @@ class PortRunner:
 
     @staticmethod
     def _accept_test_adaptation_result(project: Project, job: ArtifactOccurrence) -> None:
-        TestSelectionService().finalize(
-            project,
-            TestSelectionMatrix.read(project.artifacts.path_for_digest(job.digest)),
-        )
+        try:
+            TestSelectionService().finalize(
+                project,
+                TestSelectionMatrix.read(project.artifacts.path_for_digest(job.digest)),
+            )
+        except CodexOutputError:
+            raise
+        except WorkflowError as error:
+            raise CodexOutputError(f"test adaptation failed: {error}") from error
 
     def _implementation(self, project: Project) -> None:
         facts = project.load_json_artifact(
@@ -814,7 +832,10 @@ class PortRunner:
         )
 
     def _accept_compliance_result(self, project: Project, job: ArtifactOccurrence) -> None:
-        report = ComplianceReport.read(project.artifacts.path_for_digest(job.digest))
+        try:
+            report = ComplianceReport.read(project.artifacts.path_for_digest(job.digest))
+        except WorkflowError as error:
+            raise CodexOutputError(f"target compliance failed: {error}") from error
         if report.requires_repair(ComplianceRepairTarget.KNOWLEDGE):
             project.retry_from(
                 KnowledgeStage.KNOWLEDGE_BASE,
@@ -835,7 +856,10 @@ class PortRunner:
                 ),
             )
             return
-        ComplianceService().finalize(project, report)
+        try:
+            ComplianceService().finalize(project, report)
+        except WorkflowError as error:
+            raise CodexOutputError(f"target compliance failed: {error}") from error
 
     def _artifact_preparation(self, project: Project) -> None:
         self._codex_gate(
@@ -901,10 +925,13 @@ class PortRunner:
 
     @staticmethod
     def _accept_public_qemu_result(project: Project, job: ArtifactOccurrence) -> None:
-        PublicQemuService().run(
-            project,
-            PublicQemuPlan.read(project.artifacts.path_for_digest(job.digest)),
-        )
+        try:
+            PublicQemuService().run(
+                project,
+                PublicQemuPlan.read(project.artifacts.path_for_digest(job.digest)),
+            )
+        except WorkflowError as error:
+            raise CodexOutputError(f"public QEMU plan failed: {error}") from error
 
     def _public_repair(self, project: Project) -> None:
         service = PublicRepairService()

@@ -27,6 +27,7 @@ from .contracts import (
     ContractExecutionStatus,
     MigrationArtifact,
     MigrationStage,
+    PublicRunAttribution,
     TestDisposition,
 )
 
@@ -76,6 +77,16 @@ class CompletionAuditService:
         )
 
         runs = (public or {}).get("runs", [])
+        target_driver_ran = (
+            public is not None
+            and public.get("integration_boundary") is None
+            and any(
+                run.get("execution_status") == ContractExecutionStatus.PASS.value
+                and run.get("attribution")
+                == PublicRunAttribution.TARGET_DRIVER_ON_QEMU.value
+                for run in runs
+            )
+        )
         contract_results = _contract_results(contracts, runs)
         test_results = _test_results(tests, runs)
         lineage = self._lineage(project, implementation, compliance, identity, public)
@@ -135,8 +146,8 @@ class CompletionAuditService:
             "blind_candidate": blind,
             "scope_limits": {
                 "qemu_evidence": (
-                    "TARGET_DRIVER_ON_QEMU"
-                    if public is not None and public.get("integration_boundary") is None
+                    PublicRunAttribution.TARGET_DRIVER_ON_QEMU.value
+                    if target_driver_ran
                     else "QEMU_MODEL_ONLY"
                 ),
                 "integration_boundary": (public or {}).get("integration_boundary"),

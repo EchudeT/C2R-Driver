@@ -24,7 +24,7 @@ from ..core.validation import BundleValidationContext, json_object
 from ..environment.contracts import EnvironmentArtifact
 from ..environment.models import ExperimentReadiness
 from ..evaluation.contracts import EvaluationArtifact
-from ..intake.contracts import IntakeArtifact
+from ..intake.contracts import IntakeArtifact, IntakeStage
 from ..knowledge.contracts import (
     KnowledgeArtifact,
     KnowledgeEvidenceStatus,
@@ -69,12 +69,15 @@ class MigrationHandoff:
         elif stage.status is not StageStatus.RUNNING:
             raise WorkflowError(f"migration_handoff is {stage.status.value}, not READY")
         acquisition = load_repository_acquisition(project)
+        envelope = project.load_json_artifact(
+            IntakeStage.ENVELOPE_FREEZE, IntakeArtifact.MIGRATION_ENVELOPE
+        )
         record = {
             "schema_version": 2,
             "status": StageStatus.READY.value,
             "source_platform": project.config.source_platform,
             "target_platform": project.config.target_platform,
-            "confirmed_driver_name": project.config.driver_name,
+            "confirmed_driver_name": envelope["canonical_source_driver_name"],
             "downstream_skill": "knowledge-guided-driver-port",
             "workspace_root": str(project.root),
             "local_git_state": self._git_state(project, acquisition.target_worktree.path),
