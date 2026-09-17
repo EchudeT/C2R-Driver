@@ -91,9 +91,19 @@ Skill 规定的合法中间状态，不等于无证据猜测。阶段 17 原门�
 definition evidence、call-site evidence 与冻结 API 表完全一致时才可通过。实际实现及 target change 的正确性
 继续由阶段 18 compliance、构建和运行证据验证，不在阶段 17 提前宣称 `VERIFIED`。
 
+### O9：生成的 KB Skill 不应把可演进 manifest 写成永久路径（建议）
+
+阶段 10 冻结的 KB Skill 写明初始 manifest `88bdb…`，阶段 13 source closure 按 Skill 要求补入完整
+源码闭包并生成子 revision `290b2…`。`status/search/show` 命令会动态解析新 revision，实际查询仍为
+`READY`，但 Skill 末行把旧路径称为 authoritative，容易使后续 Codex 节点误判为知识库漂移。
+生成模板应把 `status` 输出定义为当前 authoritative manifest，并把初始 manifest 仅作为 bootstrap
+provenance；query contract 保留初始 digest，source-closure knowledge revision 记录父子关系。无需新增阶段，
+也不应要求阶段 10 因正常源码闭包扩展而重跑。
+
 ## 已验证的本轮改进
 
 - KB 查询只以 `O_RDONLY` 打开 `run.sqlite3`，不创建 WAL/SHM sidecar。
 - Codex 已成功执行 KB `status` 和多组 `search`，未再出现 `unable to open database file`。
-- 新生成 KB Skill 指向本轮更新后的 authoritative manifest。
+- KB 动态查询已解析阶段 13 扩展后的 manifest `290b2…`，状态为 `READY`；生成 Skill 中旧 manifest
+  路径的措辞问题记录为 O9。
 - E2E 只运行一个控制器和一个当前 Codex job，没有并发重复翻译。
