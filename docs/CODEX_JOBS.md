@@ -22,7 +22,7 @@
 
 ```text
 job_id, stage, actor_role, objective, prompt,
-execution_root, sandbox, output_schema?, model?
+execution_root, sandbox, output_schema?, model?, thread_id?
 ```
 
 调用者不能通过 CLI 指定 sandbox、可写目录或 thread ID。`CodexExecutionPolicy` 从 typed stage 和
@@ -58,12 +58,12 @@ CLI 不提供把模型响应转换为 required output 或直接 finalize 的通�
 
 ## Gateway
 
-- `CodexExecGateway`：一次性 ephemeral 执行，消费 JSONL 事件并提取最后的 agent message；
+- `CodexExecGateway`：首次执行创建 thread；同一开发阶段 retry 时由控制器恢复该阶段保存的 thread，
+  并发送包含最新证据的完整 Job；消费 JSONL 事件并提取最后的 agent message；
 - `CodexSdkGateway`：延迟导入可选 SDK，按同一 execution root/sandbox 启动新 thread；
 
-模型名称可按 Job 覆盖。thread ID 只是 Gateway 结果 provenance，不是可由 CLI 恢复或跨信任域注入的
-输入。exec backend 总是带 `--ephemeral`，SDK backend 每个 Job 都新建 thread；没有 resume 路径。
-sandbox 始终由控制器策略拥有。
+模型名称可按 Job 覆盖。thread ID 由控制器从同一阶段保存的事件中恢复，不能由 CLI 注入，也不能跨
+阶段或信任域使用；sandbox 始终由阶段策略唯一确定。SDK backend 当前每个 Job 都新建 thread。
 
 对 `INDEPENDENT` owner，这个 fresh-thread 行为只是必要条件。Job 还必须从未保留迁移对话的新
 Codex 上下文/进程启动，并使用角色专属项目、凭据和材料挂载。共享迁移上下文或能读取候选/私测双方

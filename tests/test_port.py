@@ -76,7 +76,7 @@ class PortRunnerTests(unittest.TestCase):
         ):
             PortRunner._accept_implementation_result(project, job)
 
-    def test_compliance_implementation_finding_retries_smallest_gate(self) -> None:
+    def test_compliance_knowledge_finding_retries_earliest_affected_gate(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
             report = root / "compliance.json"
@@ -128,10 +128,10 @@ class PortRunnerTests(unittest.TestCase):
                 runner._accept_compliance_result(project, job)
 
             project.retry_from.assert_called_once_with(
-                MigrationStage.DRIVER_IMPLEMENTATION,
+                KnowledgeStage.KNOWLEDGE_BASE,
                 trigger=MigrationStage.TARGET_COMPLIANCE,
                 reason=(
-                    "target compliance requested implementation repair from "
+                    "target compliance requested knowledge repair from "
                     f"job {job.digest}:{job.ordinal}"
                 ),
             )
@@ -144,6 +144,7 @@ class PortRunnerTests(unittest.TestCase):
             raise WorkflowError("deterministic index failure")
 
         with (
+            patch.object(runner, "_latest_thread_id", return_value=None),
             patch.object(runner, "_latest_job_occurrence", return_value=None),
             patch.object(runner, "_codex", return_value=(result, None, Path("response"))) as codex,
             patch.object(runner, "_job_occurrence", return_value=object()),
@@ -170,6 +171,7 @@ class PortRunnerTests(unittest.TestCase):
                 raise CodexOutputError("invalid proposal")
 
         with (
+            patch.object(runner, "_latest_thread_id", return_value=None),
             patch.object(runner, "_latest_job_occurrence", return_value=None),
             patch.object(runner, "_codex", return_value=(result, None, Path("response"))) as codex,
             patch.object(runner, "_job_occurrence", return_value=object()),
@@ -179,6 +181,21 @@ class PortRunnerTests(unittest.TestCase):
         self.assertEqual(codex.call_count, 2)
         self.assertEqual(codex.call_args.kwargs["thread_id"], "same-thread")
         self.assertEqual(codex.call_args.kwargs["follow_up"], "invalid proposal")
+
+    def test_retried_stage_resumes_history_with_complete_job(self) -> None:
+        runner = PortRunner(options(Path("/unused")))
+        result = SimpleNamespace(thread_id="existing-thread")
+
+        with (
+            patch.object(runner, "_latest_thread_id", return_value="existing-thread"),
+            patch.object(runner, "_latest_job_occurrence", return_value=None),
+            patch.object(runner, "_codex", return_value=(result, None, Path("response"))) as codex,
+            patch.object(runner, "_job_occurrence", return_value=object()),
+        ):
+            runner._codex_gate(object(), KnowledgeStage.KNOWLEDGE_BASE, {}, lambda *_: None)
+
+        self.assertEqual(codex.call_args.kwargs["thread_id"], "existing-thread")
+        self.assertIsNone(codex.call_args.kwargs["follow_up"])
 
     def test_target_study_document_gate_is_codex_output_error(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:

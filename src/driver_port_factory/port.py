@@ -285,7 +285,7 @@ class PortRunner:
     def _latest_thread_id(project: Project, stage: StageKey) -> str | None:
         logs = [
             ref
-            for ref in project.current_artifact_refs(
+            for ref in project.artifact_refs(
                 stage=stage,
                 direction=ArtifactDirection.OUTPUT,
             )
@@ -308,7 +308,7 @@ class PortRunner:
         context: dict[str, object],
         accept: Callable[[Project, ArtifactOccurrence], None],
     ) -> None:
-        thread_id = None
+        thread_id = self._latest_thread_id(project, stage)
         follow_up = None
         last_error: WorkflowError | None = None
         pending = self._latest_job_occurrence(project, stage)
@@ -318,7 +318,6 @@ class PortRunner:
                 return
             except CodexOutputError as error:
                 last_error = error
-                thread_id = self._latest_thread_id(project, stage)
                 follow_up = str(error)
         for _ in range(CODEX_GATE_CORRECTION_ATTEMPTS):
             result, _, response = self._codex(
@@ -477,16 +476,20 @@ class PortRunner:
             raise WorkflowError(result.message)
 
     def _knowledge(self, project: Project) -> None:
+        context = {
+            kind.value: self._artifact_context(project, AcquisitionStage.EVIDENCE_CLOSURE, kind)
+            for kind in (
+                AcquisitionArtifact.MATERIALS_MANIFEST,
+                AcquisitionArtifact.EVIDENCE_GAP_REGISTER,
+            )
+        }
+        repair = self._latest_compliance_result(project)
+        if repair is not None:
+            context["compliance_recheck"] = repair
         self._codex_gate(
             project,
             KnowledgeStage.KNOWLEDGE_BASE,
-            {
-                kind.value: self._artifact_context(project, AcquisitionStage.EVIDENCE_CLOSURE, kind)
-                for kind in (
-                    AcquisitionArtifact.MATERIALS_MANIFEST,
-                    AcquisitionArtifact.EVIDENCE_GAP_REGISTER,
-                )
-            },
+            context,
             self._accept_knowledge_result,
         )
 
@@ -667,7 +670,7 @@ class PortRunner:
                 for unit in facts["units"]
             ]
         }
-        repair = self._implementation_repair_context(project)
+        repair = self._latest_compliance_result(project)
         if repair is not None:
             extra["compliance_repair"] = repair
         self._codex_gate(
@@ -697,18 +700,13 @@ class PortRunner:
         )
 
     @staticmethod
-    def _implementation_repair_context(project: Project) -> dict[str, object] | None:
-        previous = [
-            ref
-            for ref in project.artifact_refs(stage=MigrationStage.DRIVER_IMPLEMENTATION)
-            if ref.kind == MigrationArtifact.IMPLEMENTATION_BUNDLE.value
-        ]
+    def _latest_compliance_result(project: Project) -> dict[str, object] | None:
         findings = [
             ref
             for ref in project.artifact_refs(stage=MigrationStage.TARGET_COMPLIANCE)
             if ref.kind == CodexArtifact.JOB_RESULT.value and ref.ordinal is not None
         ]
-        if not previous or not findings:
+        if not findings:
             return None
         latest = max(findings, key=lambda ref: ref.ordinal)
         return {
@@ -732,6 +730,10 @@ class PortRunner:
             raise CodexOutputError(f"driver implementation failed: {error}") from error
 
     def _compliance(self, project: Project) -> None:
+        extra = {}
+        recheck = self._latest_compliance_result(project)
+        if recheck is not None:
+            extra["compliance_recheck"] = recheck
         self._codex_gate(
             project,
             MigrationStage.TARGET_COMPLIANCE,
@@ -755,6 +757,7 @@ class PortRunner:
                     (EnvironmentStage.RECOVERY, EnvironmentArtifact.MODE_RECORD),
                     (EnvironmentStage.RECOVERY, EnvironmentArtifact.EXPERIMENT_ROUTE),
                 ),
+                extra=extra,
             ),
             self._accept_compliance_result,
         )
@@ -767,6 +770,16 @@ class PortRunner:
             ("compliance_report", "artifact_preparation_plan"),
         )
         report = ComplianceReport.read(parts["compliance_report"])
+        if report.requires_repair(ComplianceRepairTarget.KNOWLEDGE):
+            project.retry_from(
+                KnowledgeStage.KNOWLEDGE_BASE,
+                trigger=MigrationStage.TARGET_COMPLIANCE,
+                reason=(
+                    "target compliance requested knowledge repair from "
+                    f"job {job.digest}:{job.ordinal}"
+                ),
+            )
+            return
         if report.requires_repair(ComplianceRepairTarget.IMPLEMENTATION):
             project.retry_from(
                 MigrationStage.DRIVER_IMPLEMENTATION,
