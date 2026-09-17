@@ -101,7 +101,7 @@ class CompatibilityCitation:
     def from_dict(cls, value: object) -> CompatibilityCitation:
         candidate = exact_object(
             value,
-            required={"source_url", "claim", "excerpt", "claim_kind", "bindings"},
+            required={"source_url", "claim", "excerpt", "bindings"},
             optional={"max_bytes"},
             label="compatibility citation",
         )
@@ -121,10 +121,11 @@ class CompatibilityCitation:
         parsed_url = urlparse(source_url)
         if parsed_url.scheme not in {"http", "https"} or not parsed_url.netloc:
             raise WorkflowError("compatibility citation must use HTTP or HTTPS")
-        try:
-            claim_kind = CompatibilityClaimKind(candidate["claim_kind"])
-        except (TypeError, ValueError) as error:
-            raise WorkflowError("compatibility citation has an invalid claim kind") from error
+        claim_kind = (
+            CompatibilityClaimKind.CROSS_REPOSITORY
+            if len(parsed_bindings) > 1
+            else CompatibilityClaimKind.MAINTENANCE
+        )
         return cls(
             source_url,
             nonempty(candidate["claim"], "compatibility claim"),
@@ -139,7 +140,6 @@ class CompatibilityCitation:
             "source_url": self.source_url,
             "claim": self.claim,
             "excerpt": self.excerpt,
-            "claim_kind": self.claim_kind.value,
             "bindings": [binding.to_dict() for binding in self.bindings],
             "max_bytes": self.max_bytes,
         }

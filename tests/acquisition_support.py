@@ -99,7 +99,6 @@ def select_revisions(
                         "source_url": evidence_url,
                         "claim": f"{repository['role']} fixture release is maintained",
                         "excerpt": evidence_text.decode().strip(),
-                        "claim_kind": "maintenance",
                         "bindings": [
                             {
                                 "role": repository["role"],
@@ -113,7 +112,6 @@ def select_revisions(
                     "source_url": evidence_url,
                     "claim": "the three fixture releases form one compatible set",
                     "excerpt": evidence_text.decode().strip(),
-                    "claim_kind": "cross-repository-compatibility",
                     "bindings": [
                         {
                             "role": repository["role"],

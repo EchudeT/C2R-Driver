@@ -36,40 +36,36 @@ Prompt Pack、模板、Skill 文档和完整 Prompt 的 SHA256，但普通开发
 
 ## 快速开始
 
-```sh
-python -m driver_port_factory.cli init ./runs/ne2000 \
-  --source linux --target asterinas --driver ne2k-pci \
-  --mode developer-evidence --role developer \
-  --skill-root /path/to/C-kernel-to-Rust/skill \
-  --prompt-pack /path/to/editable/prompt-pack
+在源码仓库中，一条命令会创建工作区并按 Skill 顺序执行完整开发者迁移流程：
 
-python -m driver_port_factory.cli status ./runs/ne2000
-python -m driver_port_factory.cli intake analyze ./runs/ne2000 \
-  --request "把 Linux 的 NE2000 PCI 驱动迁移到星绽OS" \
-  --catalog examples/fixtures/linux-ne2000.catalog.json
-python -m driver_port_factory.cli intake show ./runs/ne2000
-python -m driver_port_factory.cli codex run ./runs/ne2000 revision_selection \
-  --objective "Select maintained, mutually compatible source, target, and QEMU releases"
-python -m driver_port_factory.cli acquire revision-proposal-import ./runs/ne2000 \
-  --job-digest SHA256 --job-ordinal N
-python -m driver_port_factory.cli acquire revisions ./runs/ne2000 \
-  --proposal-digest SHA256 --proposal-ordinal N
-python -m driver_port_factory.cli acquire repositories ./runs/ne2000
-python -m driver_port_factory.cli codex run ./runs/ne2000 evidence_closure \
-  --objective "Locate the minimum evidence closure across the six evidence domains"
-python -m driver_port_factory.cli acquire proposal-import ./runs/ne2000 \
-  --job-digest SHA256 --job-ordinal N
-python -m driver_port_factory.cli acquire closure-finalize ./runs/ne2000 \
-  --proposal-digest SHA256 --proposal-ordinal N
-python -m driver_port_factory.cli acquire repositories-verify ./runs/ne2000
-python -m driver_port_factory.cli environment inspect ./runs/ne2000
+```sh
+PYTHONPATH=src python -m driver_port_factory.cli port run ./runs/ne2000 \
+  --source-platform linux \
+  --target-platform asterinas \
+  --driver-name ne2k-pci \
+  --skill-root /path/to/C-kernel-to-Rust/skill \
+  --catalog examples/fixtures/linux-ne2000.catalog.json \
+  --backend exec \
+  --codex-bin codex
 ```
 
-`--prompt-pack` 可省略以使用随包提供的默认 Pack，也可在每次 `dpf prompt render` 或
-`dpf codex run` 时覆盖。修改 Pack 或 Skill 后无需改代码、重建数据库或迁移旧摘要；已运行 Job
-仍由 CAS 中的完整 Prompt 和 SHA256 复现。只有正式 held-out batch 才在实验层冻结所选版本。
+命令会一直推进，直到流程完成、需要一次驱动范围确认，或某个有界 repair 保持
+`RUNNING`。重复执行同一条命令即从 SQLite/CAS 中的当前阶段恢复，不会重跑已通过阶段。
+查看进度和 Codex 原始记录：
 
-这里的 NE2000 catalog 只是集成测试 fixture，不会安装进生产包。正式运行由源平台 Resolver 加载一个或多个带来源、版本和 SHA256 的轻量元数据 provider。如果输入只有 `NE2000`，fixture 会产生 PCI、ISA、PCMCIA 候选的合并问题并进入 `WAITING_FOR_USER`。随后执行：
+```sh
+PYTHONPATH=src python -m driver_port_factory.cli status ./runs/ne2000
+PYTHONPATH=src python -m driver_port_factory.cli codex transcript ./runs/ne2000 STAGE
+```
+
+默认 Prompt Pack 位于 `src/driver_port_factory/data/prompt-packs/default/`。可直接调整其
+`manifest.json`、`job.md` 和 `correction.md`；新 Job 使用新内容，已运行 Job 仍由 CAS 中的完整
+Prompt 复现。若需项目专用 Pack，先用 `dpf init --prompt-pack PATH` 创建工作区，再对同一工作区
+执行 `dpf port run`。
+
+这里的 NE2000 catalog 只是集成样例。正式运行由源平台 Resolver 加载一个或多个带来源、版本和
+SHA256 的轻量元数据 provider。如果输入只有 `NE2000`，样例 catalog 会产生 PCI、ISA、PCMCIA
+候选的合并问题并进入 `WAITING_FOR_USER`。确认后重复上面的 `port run` 命令：
 
 ```sh
 python -m driver_port_factory.cli intake answer ./runs/ne2000 \
