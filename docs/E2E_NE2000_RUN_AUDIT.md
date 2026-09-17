@@ -30,9 +30,9 @@
 | 12 | migration_handoff | 首次静态组装失败，错误为 `migration handoff does not bind every upstream artifact`；修复后从 `RUNNING` 恢复并 `PASS`。根因是生成端读取全部历史产物，而 bundle 门禁只比较各依赖阶段当前 attempt 的产物。 | 已改为只绑定 `current_artifact_refs`；未放宽 handoff 内容门禁。 |
 | 13 | source_closure | 复用历史已验收 Codex 响应，在当前 handoff/KB/manifest 上静态重验后 `PASS`，未再次调用模型。 | 这是正确的低成本恢复方式，应推广到内容未变化且只需重绑依赖的阶段。 |
 | 14 | structured_c_analysis | 固定 Clang/LLVM 后端一次 `PASS`；处理 `ne2k-pci-front-end` 与 `8390-shared-core` 两个单元，生成 285336 字节结构化事实，无 Codex 调用。 | 符合 Skill 的 typed AST/CFG/layout/effect 路径，保持静态。 |
-| 15 | migration_contracts | 新响应已生成，但控制器以 `migration contracts require one migration_handoff input` 退回。原因不是输出内容，而是 finalizer 混入历史 handoff；不可能由模型纠正。检测到后停止必败纠错。 | finalizer 改为只解析当前依赖产物，并同步检查阶段 16/17 的同类代码；见优化项 O5。 |
-| 16 | test_adaptation | 等待；旧轮 1 次通过。 | 测试分类符合 Skill，无需扩框架。 |
-| 17 | driver_implementation | 等待；旧轮 5 份响应，包含 compliance 驱动的修复。 | 继续复用 implementation thread，只写目标工作树。 |
+| 15 | migration_contracts | 新响应生成后曾被控制器误退回；修复 current-attempt 依赖绑定后直接重验该响应并 `PASS`，没有再次调用模型。 | 内容本身一次可用；finalizer 已同步修正阶段 16/17 的同类代码。 |
+| 16 | test_adaptation | 1 次响应、一次 `PASS`；先检查 KB status，再检索并打开 source/target/test originals，完成公开测试分类和适配矩阵。 | 预先提供 source-test inventory 可减少发现型搜索，但分类、原文核对和适配判断继续由 Codex 完成；见 O6。 |
+| 17 | driver_implementation | 复用 implementation thread，读取当前合同/测试矩阵、结构化索引和历史 compliance；对驱动私有 `device.rs`/`pci.rs` 作集中修复。首份响应被全文件 `todo` 扫描误退回，目标既有文件中的上游 TODO 被错误视为本次未完成代码。 | 停止会诱发无关注释改写的纠错；unfinished 检查只保留给新增迁移文件，既有目标文件交由 diff 范围、compliance 和构建审查；见 O7。 |
 | 18 | target_compliance | 等待；旧轮 4 份响应，真实发现 API 闭包、锁内 I/O/分配、IRQ 路由、重试和无关修改问题。 | findings 必须按 KNOWLEDGE/IMPLEMENTATION 精确回到最早受影响门禁。 |
 | 19 | artifact_preparation | 等待。 | 必须证明 artifact 含当前实现，不能只证明编译命令成功。 |
 | 20 | public_qemu_validation | 等待。 | 按固定 evidence ladder 运行并保存外部 oracle。 |
@@ -70,6 +70,17 @@ compaction 时，应比较“缓存复用成本”和“当前验收产物 + rep
 业务产物的 finalizer 和 bundle validator 必须使用同一 attempt 视图。历史产物只用于审计、会话恢复和
 失败诊断，不能参与当前依赖唯一性判断。本轮已修正 handoff、migration contracts、test adaptation 与
 driver implementation 四处路径，避免下游对同一缺陷重复发起 Codex 纠错。
+
+### O6：静态提供源测试 inventory（建议）
+
+控制器从已冻结 source closure/materials 中提取候选测试路径、provenance 和关联合同，作为阶段 16 的
+小型输入。Codex 仍负责按 Skill taxonomy 分类、核对原文并设计目标适配；只去掉重复的“文件在哪里”搜索。
+
+### O7：unfinished 标记只检查新增迁移文件（已实施）
+
+既有目标文件可能合法包含上游 TODO。对整文件做字符串扫描会迫使模型改写无关注释，随后又被
+target compliance 退回。现在只对新增 driver/public-test 文件保留该检查；既有文件由变更清单、目标
+compliance 和实际构建覆盖。
 
 ## 已验证的本轮改进
 

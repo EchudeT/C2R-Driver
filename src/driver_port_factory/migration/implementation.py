@@ -412,7 +412,7 @@ class DriverImplementationGate:
         by_path = {item.path: item for item in self.files}
         if len(by_path) != len(self.files) or set(by_path) != changed:
             raise WorkflowError("declared implementation files differ from Git changed paths")
-        contents = self._file_contents(worktree, by_path)
+        contents = self._file_contents(worktree, by_path, existing)
         self._target_changes(by_path, existing)
         self._target_symbols()
         obligations = self._unsafe_obligations(contents)
@@ -446,7 +446,10 @@ class DriverImplementationGate:
         return worktree, changed, existing
 
     def _file_contents(
-        self, worktree: Path, by_path: dict[str, ImplementationFile]
+        self,
+        worktree: Path,
+        by_path: dict[str, ImplementationFile],
+        existing: set[str],
     ) -> dict[str, str]:
         contents = {}
         for relative, declared in by_path.items():
@@ -460,7 +463,7 @@ class DriverImplementationGate:
                 or frozen.get("content") != content
             ):
                 raise WorkflowError(f"implementation content changed after freezing: {relative}")
-            if any(
+            if relative not in existing and any(
                 marker in content.casefold()
                 for marker in (
                     "todo!",
