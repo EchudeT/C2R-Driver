@@ -336,10 +336,7 @@ def _migration_rows(config: ProjectConfig) -> tuple[StageRow, ...]:
             MigrationStage.TARGET_COMPLIANCE,
             "Review target API, style, safety, lifecycle, and integration rules.",
             StageOwner.HYBRID,
-            (
-                MigrationArtifact.COMPLIANCE_REPORT,
-                MigrationArtifact.ARTIFACT_PREPARATION_PLAN,
-            ),
+            (MigrationArtifact.COMPLIANCE_REPORT,),
             prerequisites=(
                 MigrationStage.HANDOFF,
                 KnowledgeStage.KNOWLEDGE_BASE,
@@ -350,7 +347,7 @@ def _migration_rows(config: ProjectConfig) -> tuple[StageRow, ...]:
         StageRow(
             MigrationStage.ARTIFACT_PREPARATION,
             "Build or inject the runtime artifact and prove its identity.",
-            StageOwner.STATIC,
+            StageOwner.HYBRID,
             (MigrationArtifact.RUNTIME_ARTIFACT, MigrationArtifact.ARTIFACT_IDENTITY),
             (MigrationArtifact.ARTIFACT_PREPARATION_ATTEMPT,),
             prerequisites=(

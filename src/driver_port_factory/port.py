@@ -43,7 +43,7 @@ from .knowledge.contracts import (
     KnowledgeEvidenceStatus,
     KnowledgeStage,
 )
-from .migration.artifact_preparation import ArtifactPreparationPlan, ArtifactPreparationService
+from .migration.artifact_preparation import ArtifactPreparationService
 from .migration.completion_audit import CompletionAuditService
 from .migration.compliance import ComplianceReport, ComplianceService
 from .migration.contract_set import MigrationContractService, MigrationContractSet
@@ -246,7 +246,8 @@ class PortRunner:
     ) -> dict[str, object]:
         reference = project.artifact(stage, kind, direction=direction)
         return {
-            **reference.to_dict(),
+            "kind": reference.kind,
+            "digest": reference.digest,
             "path": str(project.artifacts.path_for_digest(reference.digest)),
         }
 
@@ -701,6 +702,17 @@ class PortRunner:
         repair = self._latest_compliance_result(project, ComplianceRepairTarget.IMPLEMENTATION)
         if repair is not None:
             extra["compliance_repair"] = repair
+            baseline = DriverImplementationService.baseline_context(project)
+            if baseline is not None:
+                extra["implementation_baseline"] = {
+                    "file_roles": baseline["file_roles"],
+                    "unchanged_collections": [
+                        "coverage",
+                        "target_changes",
+                        "target_symbols",
+                        "unsafe_obligations",
+                    ],
+                }
         self._codex_gate(
             project,
             MigrationStage.DRIVER_IMPLEMENTATION,
@@ -809,7 +821,7 @@ class PortRunner:
             project,
             MigrationStage.TARGET_COMPLIANCE,
             job,
-            ("compliance_report", "artifact_preparation_plan"),
+            ("compliance_report",),
         )
         report = ComplianceReport.read(parts["compliance_report"])
         if report.requires_repair(ComplianceRepairTarget.KNOWLEDGE):
@@ -832,19 +844,40 @@ class PortRunner:
                 ),
             )
             return
-        plan, _ = ArtifactPreparationPlan.read(parts["artifact_preparation_plan"])
-        ComplianceService().finalize(
-            project,
-            report,
-            plan,
-        )
+        ComplianceService().finalize(project, report)
 
     def _artifact_preparation(self, project: Project) -> None:
-        plan = project.artifact(
-            MigrationStage.TARGET_COMPLIANCE,
-            MigrationArtifact.ARTIFACT_PREPARATION_PLAN,
+        self._codex_gate(
+            project,
+            MigrationStage.ARTIFACT_PREPARATION,
+            self._migration_context(
+                project,
+                (
+                    (MigrationStage.HANDOFF, MigrationArtifact.HANDOFF),
+                    (MigrationStage.DRIVER_IMPLEMENTATION, MigrationArtifact.IMPLEMENTATION_BUNDLE),
+                    (MigrationStage.TARGET_COMPLIANCE, MigrationArtifact.COMPLIANCE_REPORT),
+                    (EnvironmentStage.RECOVERY, EnvironmentArtifact.MODE_RECORD),
+                    (EnvironmentStage.RECOVERY, EnvironmentArtifact.EXPERIMENT_ROUTE),
+                    (TargetStudyStage.STUDY, TargetStudyArtifact.STRUCTURED_PROFILE),
+                ),
+            ),
+            self._accept_artifact_preparation_result,
         )
-        ArtifactPreparationService().run(project, project.artifacts.path_for_digest(plan.digest))
+
+    @staticmethod
+    def _accept_artifact_preparation_result(
+        project: Project, job: ArtifactOccurrence
+    ) -> None:
+        try:
+            result = ArtifactPreparationService().run(
+                project, project.artifacts.path_for_digest(job.digest)
+            )
+            if result["status"] != StageStatus.PASS.value:
+                raise CodexOutputError(str(result["error"]))
+        except CodexOutputError:
+            raise
+        except WorkflowError as error:
+            raise CodexOutputError(f"artifact preparation failed: {error}") from error
 
     def _public_qemu(self, project: Project) -> None:
         artifact = project.artifact(

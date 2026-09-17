@@ -59,6 +59,15 @@ INDEX_FACTS = {
 }
 
 
+def _git(root: Path, *arguments: str) -> str:
+    completed = subprocess.run(
+        ["git", "-C", str(root), *arguments], text=True, capture_output=True, check=False
+    )
+    if completed.returncode:
+        raise WorkflowError(f"Git inspection failed: {completed.stderr.strip()}")
+    return completed.stdout.strip()
+
+
 def _object(value: Any, label: str) -> dict[str, Any]:
     if not isinstance(value, dict):
         raise WorkflowError(f"{label} must be an object")
@@ -69,6 +78,23 @@ def _strings(value: Any, label: str) -> tuple[str, ...]:
     if not isinstance(value, list) or not all(isinstance(item, str) for item in value):
         raise WorkflowError(f"{label} must be a string list")
     return tuple(value)
+
+
+@dataclass(frozen=True, slots=True)
+class ImplementationFileDeclaration:
+    path: str
+    role: ImplementationFileRole
+
+    @classmethod
+    def from_dict(cls, value: Any) -> ImplementationFileDeclaration:
+        item = _object(value, "implementation file declaration")
+        try:
+            return cls(str(item["path"]), ImplementationFileRole(item["role"]))
+        except (KeyError, TypeError, ValueError) as error:
+            raise WorkflowError("implementation file has an invalid typed boundary") from error
+
+    def to_dict(self) -> dict[str, str]:
+        return {"path": self.path, "role": self.role.value}
 
 
 @dataclass(frozen=True, slots=True)
@@ -210,11 +236,11 @@ class CoverageRecord:
 
 @dataclass(frozen=True, slots=True)
 class ImplementationResponse:
-    files: tuple[ImplementationFile, ...]
-    coverage: tuple[CoverageRecord, ...]
-    target_changes: tuple[dict[str, Any], ...]
-    target_symbols: tuple[dict[str, Any], ...]
-    unsafe_obligations: tuple[dict[str, Any], ...]
+    file_roles: tuple[ImplementationFileDeclaration, ...]
+    coverage: tuple[CoverageRecord, ...] | None
+    target_changes: tuple[dict[str, Any], ...] | None
+    target_symbols: tuple[dict[str, Any], ...] | None
+    unsafe_obligations: tuple[dict[str, Any], ...] | None
 
     @classmethod
     def read(cls, path: Path) -> ImplementationResponse:
@@ -222,27 +248,37 @@ class ImplementationResponse:
             value = json.loads(path.read_text(encoding="utf-8"))
         except (OSError, UnicodeDecodeError, json.JSONDecodeError) as error:
             raise WorkflowError("Codex implementation response is not UTF-8 JSON") from error
-        if not isinstance(value, dict) or value.get("schema_version") != 1:
-            raise WorkflowError("implementation response must be a schema_version=1 object")
+        if not isinstance(value, dict) or value.get("schema_version") != 2:
+            raise WorkflowError("implementation response must be a schema_version=2 object")
         try:
-            collections = [
-                value[name]
-                for name in (
-                    "files",
-                    "coverage",
-                    "target_changes",
-                    "target_symbols",
-                    "unsafe_obligations",
-                )
-            ]
-            if not all(isinstance(items, list) for items in collections):
+            file_roles = value["file_roles"]
+            if not isinstance(file_roles, list):
                 raise TypeError
+
+            def optional_items(name: str) -> list[Any] | None:
+                items = value[name]
+                if items is not None and not isinstance(items, list):
+                    raise TypeError
+                return items
+
+            coverage = optional_items("coverage")
+            target_changes = optional_items("target_changes")
+            target_symbols = optional_items("target_symbols")
+            unsafe_obligations = optional_items("unsafe_obligations")
             return cls(
-                tuple(ImplementationFile.from_dict(item) for item in collections[0]),
-                tuple(CoverageRecord.from_dict(item) for item in collections[1]),
-                tuple(_object(item, "target change") for item in collections[2]),
-                tuple(_object(item, "target symbol") for item in collections[3]),
-                tuple(_object(item, "unsafe obligation") for item in collections[4]),
+                tuple(ImplementationFileDeclaration.from_dict(item) for item in file_roles),
+                None
+                if coverage is None
+                else tuple(CoverageRecord.from_dict(item) for item in coverage),
+                None
+                if target_changes is None
+                else tuple(_object(item, "target change") for item in target_changes),
+                None
+                if target_symbols is None
+                else tuple(_object(item, "target symbol") for item in target_symbols),
+                None
+                if unsafe_obligations is None
+                else tuple(_object(item, "unsafe obligation") for item in unsafe_obligations),
             )
         except (KeyError, TypeError) as error:
             raise WorkflowError("implementation response has an invalid typed boundary") from error
@@ -254,8 +290,20 @@ class DriverImplementationService:
             raise WorkflowError("driver_implementation must be RUNNING")
         acquisition = load_repository_acquisition(project)
         worktree = (project.root / acquisition.target_worktree.path).resolve()
+        baseline = self.baseline_context(project)
+        declared_files = self._resolved_files(worktree, response.file_roles, baseline)
+        coverage = self._resolved_collection(response.coverage, baseline, "coverage")
+        target_changes = self._resolved_collection(
+            response.target_changes, baseline, "target_changes"
+        )
+        target_symbols = self._resolved_collection(
+            response.target_symbols, baseline, "target_symbols"
+        )
+        unsafe_obligations = self._resolved_collection(
+            response.unsafe_obligations, baseline, "unsafe_obligations"
+        )
         files = []
-        for declared in response.files:
+        for declared in declared_files:
             relative = PurePosixPath(declared.path)
             if (
                 relative.is_absolute()
@@ -273,8 +321,6 @@ class DriverImplementationService:
                 content = data.decode("utf-8")
             except UnicodeDecodeError as error:
                 raise WorkflowError(f"implementation file is not UTF-8: {declared.path}") from error
-            if hashlib.sha256(data).hexdigest() != declared.sha256:
-                raise WorkflowError(f"implementation file hash differs: {declared.path}")
             files.append(declared.to_dict(content))
         inputs = self._inputs(project)
         fact_inventory = _source_fact_inventory(
@@ -317,7 +363,7 @@ class DriverImplementationService:
                     "inputs": inputs,
                     "coverage": [
                         self._expanded_coverage(record, fact_inventory)
-                        for record in response.coverage
+                        for record in coverage
                     ],
                 },
             ),
@@ -326,9 +372,9 @@ class DriverImplementationService:
                 {
                     "schema_version": 1,
                     "inputs": inputs,
-                    "target_changes": list(response.target_changes),
-                    "target_symbols": list(response.target_symbols),
-                    "unsafe_obligations": list(response.unsafe_obligations),
+                    "target_changes": list(target_changes),
+                    "target_symbols": list(target_symbols),
+                    "unsafe_obligations": list(unsafe_obligations),
                 },
             ),
         )
@@ -338,6 +384,90 @@ class DriverImplementationService:
                 GeneratedArtifact(kind, self._json(value), f"generated:{kind.value}")
                 for kind, value in documents
             ),
+        )
+
+    @staticmethod
+    def baseline_context(project: Project) -> dict[str, Any] | None:
+        documents = {}
+        for kind in (
+            MigrationArtifact.IMPLEMENTATION_BUNDLE,
+            MigrationArtifact.TRANSLATION_COVERAGE,
+            MigrationArtifact.TARGET_CHANGE_INVENTORY,
+        ):
+            refs = [
+                ref
+                for ref in project.artifact_refs(stage=MigrationStage.DRIVER_IMPLEMENTATION)
+                if ref.kind == kind.value and ref.ordinal is not None
+            ]
+            if not refs:
+                return None
+            ref = max(refs, key=lambda item: item.ordinal)
+            documents[kind] = json.loads(project.artifacts.read(ref))
+        bundle = documents[MigrationArtifact.IMPLEMENTATION_BUNDLE]
+        coverage = documents[MigrationArtifact.TRANSLATION_COVERAGE]
+        inventory = documents[MigrationArtifact.TARGET_CHANGE_INVENTORY]
+        return {
+            "file_roles": [
+                ImplementationFileDeclaration.from_dict(item).to_dict()
+                for item in bundle["files"]
+            ],
+            "coverage": [
+                CoverageRecord.from_dict(item).to_dict() for item in coverage["coverage"]
+            ],
+            "target_changes": inventory["target_changes"],
+            "target_symbols": inventory["target_symbols"],
+            "unsafe_obligations": inventory["unsafe_obligations"],
+        }
+
+    @staticmethod
+    def _resolved_collection(
+        proposed: tuple[Any, ...] | None,
+        baseline: dict[str, Any] | None,
+        name: str,
+    ) -> tuple[Any, ...]:
+        if proposed is not None:
+            return proposed
+        if baseline is None:
+            raise WorkflowError(f"initial implementation must provide {name}")
+        if name == "coverage":
+            return tuple(CoverageRecord.from_dict(item) for item in baseline[name])
+        return tuple(_object(item, name) for item in baseline[name])
+
+    @staticmethod
+    def _resolved_files(
+        worktree: Path,
+        declarations: tuple[ImplementationFileDeclaration, ...],
+        baseline: dict[str, Any] | None,
+    ) -> tuple[ImplementationFile, ...]:
+        roles = {
+            item.path: item.role
+            for item in (
+                ImplementationFileDeclaration.from_dict(value)
+                for value in (baseline or {}).get("file_roles", [])
+            )
+        }
+        for declaration in declarations:
+            roles[declaration.path] = declaration.role
+        changed = set(
+            filter(
+                None,
+                _git(worktree, "diff", "--name-only", "HEAD").splitlines(),
+            )
+        )
+        changed.update(
+            filter(
+                None,
+                _git(worktree, "ls-files", "--others", "--exclude-standard").splitlines(),
+            )
+        )
+        missing = changed - roles.keys()
+        if missing:
+            raise WorkflowError(
+                "implementation needs roles for new changed paths: " + ", ".join(sorted(missing))
+            )
+        return tuple(
+            ImplementationFile(path, roles[path], file_sha256(worktree / path))
+            for path in sorted(changed)
         )
 
     @staticmethod
@@ -423,23 +553,23 @@ class DriverImplementationGate:
         target = _object(repositories.get("target_worktree"), "target worktree")
         worktree = (self.context.project_root / str(target.get("path", ""))).resolve()
         self._within(self.context.project_root, worktree, "target worktree")
-        head = self._git(worktree, "rev-parse", "HEAD^{commit}")
+        head = _git(worktree, "rev-parse", "HEAD^{commit}")
         if head != target.get("base_commit"):
             raise WorkflowError("target worktree HEAD differs from its frozen baseline")
-        changed = set(filter(None, self._git(worktree, "diff", "--name-only", "HEAD").splitlines()))
+        changed = set(filter(None, _git(worktree, "diff", "--name-only", "HEAD").splitlines()))
         changed.update(
             filter(
-                None, self._git(worktree, "ls-files", "--others", "--exclude-standard").splitlines()
+                None, _git(worktree, "ls-files", "--others", "--exclude-standard").splitlines()
             )
         )
         existing = set(
-            filter(None, self._git(worktree, "ls-tree", "-r", "--name-only", "HEAD").splitlines())
+            filter(None, _git(worktree, "ls-tree", "-r", "--name-only", "HEAD").splitlines())
         )
         for baseline in repositories.get("baselines", []):
             item = _object(baseline, "repository baseline")
             root = (self.context.project_root / str(item.get("path", ""))).resolve()
             self._within(self.context.project_root, root, "repository baseline")
-            if self._git(root, "rev-parse", "HEAD^{commit}") != item.get("commit") or self._git(
+            if _git(root, "rev-parse", "HEAD^{commit}") != item.get("commit") or _git(
                 root, "status", "--porcelain"
             ):
                 raise WorkflowError("a frozen source or target baseline changed")
@@ -752,16 +882,6 @@ class DriverImplementationGate:
     def _within(root: Path, path: Path, label: str) -> None:
         if path != root and root not in path.parents:
             raise WorkflowError(f"{label} escapes the project workspace")
-
-    @staticmethod
-    def _git(root: Path, *arguments: str) -> str:
-        completed = subprocess.run(
-            ["git", "-C", str(root), *arguments], text=True, capture_output=True, check=False
-        )
-        if completed.returncode:
-            raise WorkflowError(f"Git inspection failed: {completed.stderr.strip()}")
-        return completed.stdout.strip()
-
 
 def validate_implementation_bundle(context: BundleValidationContext) -> None:
     DriverImplementationGate(context).validate()

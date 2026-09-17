@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import hashlib
 import json
 import tempfile
 import unittest
@@ -71,7 +70,6 @@ def write_implementation(project, *, modify_target: bool = False) -> tuple[Path,
             {
                 "path": relative,
                 "role": roles[relative],
-                "sha256": hashlib.sha256(content.encode()).hexdigest(),
             }
         )
     return worktree, files
@@ -126,8 +124,8 @@ def implementation_response(project, files: list[dict], *, modify_target: bool =
         TargetStudyArtifact.API_EVIDENCE,
     )["entries"][0]
     return {
-        "schema_version": 1,
-        "files": files,
+        "schema_version": 2,
+        "file_roles": files,
         "coverage": coverage,
         "target_changes": (
             [

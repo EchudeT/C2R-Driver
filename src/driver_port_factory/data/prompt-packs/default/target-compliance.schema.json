@@ -1,0 +1,71 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["compliance_report"],
+  "properties": {
+    "compliance_report": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schema_version", "status", "areas", "apis", "target_changes", "execution"],
+      "properties": {
+        "schema_version": {"const": 1},
+        "status": {"enum": ["PASS", "VIOLATION", "UNKNOWN"]},
+        "areas": {"type": "array", "items": {"$ref": "#/$defs/area_review"}},
+        "apis": {"type": "array", "items": {"$ref": "#/$defs/api_review"}},
+        "target_changes": {"type": "array", "items": {"$ref": "#/$defs/change_review"}},
+        "execution": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["compile", "runtime"],
+          "properties": {
+            "compile": {"const": "NOT_RUN"},
+            "runtime": {"const": "NOT_RUN"}
+          }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "review": {
+      "type": "object",
+      "required": ["status", "repair_target", "summary", "implementation_paths", "target_evidence", "unsafe_obligation_ids", "details"],
+      "properties": {
+        "status": {"enum": ["PASS", "VIOLATION", "UNKNOWN"]},
+        "repair_target": {"enum": ["NONE", "IMPLEMENTATION", "KNOWLEDGE"]},
+        "summary": {"type": "string"},
+        "implementation_paths": {"type": "array", "items": {"type": "string"}},
+        "target_evidence": {"type": "array", "items": {"$ref": "#/$defs/evidence"}},
+        "unsafe_obligation_ids": {"type": "array", "items": {"type": "string"}},
+        "details": {"type": "object"}
+      }
+    },
+    "area_review": {
+      "allOf": [
+        {"$ref": "#/$defs/review"},
+        {"type": "object", "required": ["area"], "properties": {"area": {"enum": ["FORMATTING_NAMING", "API_USAGE", "ARCHITECTURE_LAYERING", "FEATURE_MANIFEST", "SAFE_UNSAFE", "LOCK_IRQ_ORDERING_ALLOCATION", "ERROR_SEMANTICS", "LIFECYCLE_CLEANUP", "COMPATIBILITY", "LOGGING_OBSERVABILITY", "DOCUMENTATION"]}}}
+      ]
+    },
+    "api_review": {
+      "allOf": [
+        {"$ref": "#/$defs/review"},
+        {"type": "object", "required": ["api_id"], "properties": {"api_id": {"type": "string"}}}
+      ]
+    },
+    "change_review": {
+      "allOf": [
+        {"$ref": "#/$defs/review"},
+        {"type": "object", "required": ["change_id"], "properties": {"change_id": {"type": "string"}}}
+      ]
+    },
+    "evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["chunk_id", "record_id"],
+      "properties": {
+        "chunk_id": {"type": "string"},
+        "record_id": {"type": "string"}
+      }
+    }
+  }
+}

@@ -33,7 +33,7 @@
 | 15 | migration_contracts | 新响应生成后曾被控制器误退回；修复 current-attempt 依赖绑定后直接重验该响应并 `PASS`，没有再次调用模型。 | 内容本身一次可用；finalizer 已同步修正阶段 16/17 的同类代码。 |
 | 16 | test_adaptation | 1 次响应、一次 `PASS`；先检查 KB status，再检索并打开 source/target/test originals，完成公开测试分类和适配矩阵。 | 预先提供 source-test inventory 可减少发现型搜索，但分类、原文核对和适配判断继续由 Codex 完成；见 O6。 |
 | 17 | driver_implementation | 复用 implementation thread，读取当前合同/测试矩阵、结构化索引和历史 compliance；对驱动私有 `device.rs`/`pci.rs` 作集中修复。首份响应依次暴露三个控制器误拒绝：既有文件 TODO、带当前 target change 的 `UNKNOWN` API、以及实现后已解除阻塞的 `PRESERVE_BLOCKED` 测试。三次纠错均在新模型结果产生前中止。合规回退后的首次新调用在 Prompt 审计中发现 delta 来源仍泄露完整旧结果路径，已在无响应时中止。 | unfinished 检查已限于新增文件；未知接口须精确绑定当前 target change；coverage 必须覆盖 `RETAIN/ADAPT`，可激活已实现的 `PRESERVE_BLOCKED`，禁止 `EXCLUDE`。repair delta 来源现只保留 digest/ordinal，不能诱导模型重开完整历史；见 O1、O7、O8、O10。 |
-| 18 | target_compliance | 新一轮 1 次响应，`VIOLATION`；复核确认三个真实实现缺陷：普通 controller lease 竞争消耗硬件失败预算、停止成功前提前置 `quiesced`、非抢占 Taskless 中忙等 10ms。合规节点只读 KB/目标原文且未编辑或执行，但旧 thread 累计上下文导致本轮约 400 万输入 token。 | findings 已精确回到阶段 17；同 attempt 纠错继续复用 thread，跨门禁回退开启新 thread，并只携带非 PASS repair delta；见 O1、O4。 |
+| 18 | target_compliance | 新一轮 `VIOLATION` 确认三个真实实现缺陷并已回到阶段 17 修复。修复后的复查仍读取工厂校验器/测试并累计约 315 万 token，已在产出响应前停止。 | 合规只保留 Skill Phase 7；Phase 8 计划移到阶段 19；见 O11、O12。 |
 | 19 | artifact_preparation | 等待。 | 必须证明 artifact 含当前实现，不能只证明编译命令成功。 |
 | 20 | public_qemu_validation | 等待。 | 按固定 evidence ladder 运行并保存外部 oracle。 |
 | 21 | public_repair | 等待。 | 仅对公开失败证据作一次有归因的最小修复。 |
@@ -109,6 +109,32 @@ provenance；query contract 保留初始 digest，source-closure knowledge revis
 `RETAIN/ADAPT` 必须覆盖，允许实际实现的 `PRESERVE_BLOCKED` 进入 coverage，同时继续禁止 `EXCLUDE`。
 阶段 20 应从已验收 implementation coverage 派生本轮可执行测试，而非再次只读取阶段 16 的静态
 disposition；到达该阶段时用真实 Prompt 和运行计划验证，不预建额外转换层。
+
+### O11：Codex 不读取工厂实现来猜输出协议（已实施）
+
+真实 event log 显示所有 Codex 阶段都曾读取 `driver-port-factory/src` 或临时测试；其中
+`driver_implementation` 有 419 条命令，`target_compliance` 有 222 条命令。主要原因是节点为猜测
+控制器字段和校验器而阅读工厂源码，而不是执行对应 Skill。通用 Prompt 现明确禁止重读已嵌入 Skill
+以及检查工厂源码/测试；阶段 18、19 的关键输出直接绑定小型 JSON Schema。模型只负责 Skill 要求的
+语义判断，控制器只负责结构化边界。
+
+### O12：合规与产物准备分离，身份由程序生成（已实施）
+
+旧阶段 18 在每次未通过合规时仍生成完整 Phase 8 构建脚本，并让模型把实现 SHA256 和 payload 列表
+拼进 Python 命令，既不属于合规审查，也会随每次修复失效。现在阶段 18 只返回合规报告；通过后阶段
+19 才生成一次目标构建/检查计划。changed paths、文件哈希、实现 bundle 绑定和 presence manifest 全由
+程序从 Git 与当前产物计算，模型不得生成这些值。
+
+### 其他 Codex 节点审计结论
+
+| 节点 | 已确认的冗余/偏离 | 收敛方式 |
+|---|---|---|
+| revision/evidence | 已有输出 Schema 仍读取工厂解析器和策略实现。 | 通用 Prompt 禁止读取工厂；只按 Schema 与 Skill 返回。 |
+| environment | 为猜 plan 字段读取内部 Schema/registrar。 | 后续直接绑定现有环境 plan Schema，不让模型读实现。 |
+| knowledge | 静态下载、UTF-8/Cargo 故障曾反馈给模型诊断。 | 基础设施错误留在程序；Codex 只负责 target probe 语义。 |
+| target study/source closure | 为猜五件套/closure 字段读取 service 与测试。 | 以阶段输出契约提供结构，不让模型反查门禁。 |
+| contracts/tests/implementation | 多次读取 validator、enum 和测试 fixture。 | Prompt 只给阶段契约；枚举/哈希/changed paths 由程序处理。 |
+| compliance/artifact | 一个节点同时审查、规划、拼哈希。 | 已拆为 Skill Phase 7 与 Phase 8 两个顺序阶段。 |
 
 ## 已验证的本轮改进
 

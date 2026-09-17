@@ -240,26 +240,9 @@ class SkillPromptComposer:
             "actor_role": actor_role.value,
             "objective": effective_objective,
             "context": context or {},
-            "prompt_pack": {
-                "name": self.prompt_pack.name,
-                "manifest_sha256": self.prompt_pack.manifest_digest,
-                "template_sha256": self.prompt_pack.template_digest,
-                "output_schema": (
-                    {
-                        "path": stage_specification.output_schema.relative_path,
-                        "sha256": stage_specification.output_schema.digest,
-                    }
-                    if stage_specification.output_schema is not None
-                    else None
-                ),
-            },
-            "skill_documents": [
-                {"path": document.relative_path, "sha256": document.digest}
-                for document in documents
-            ],
         }
         embedded_documents = "\n\n".join(
-            f'<skill_document path="{document.relative_path}" sha256="{document.digest}">\n'
+            f'<skill_document path="{document.relative_path}">\n'
             f"{document.content}\n</skill_document>"
             for document in documents
         )

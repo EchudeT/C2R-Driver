@@ -15,7 +15,6 @@ from ..knowledge.index import KnowledgeIndex
 from ..source_analysis.contracts import SourceAnalysisArtifact
 from ..target_study.contracts import TargetStudyArtifact
 from ..target_study.evidence import TargetEvidenceVerifier
-from .artifact_preparation import ArtifactPreparationPlan
 from .contracts import (
     ComplianceArea,
     ComplianceRepairTarget,
@@ -124,21 +123,35 @@ class ComplianceReport:
                 target is None or review.repair_target is target
             )
 
-        areas = [
-            review.to_dict("area", area.value)
-            for area, review in self.areas
-            if selected(review)
-        ]
-        apis = [review.to_dict("api_id") for review in self.apis if selected(review)]
-        target_changes = [
-            review.to_dict("change_id") for review in self.target_changes if selected(review)
-        ]
-        if not areas and not apis and not target_changes:
+        reviews = [
+            *(review for review in self.apis if selected(review)),
+            *(review for review in self.target_changes if selected(review)),
+        ] or [review for _area, review in self.areas if selected(review)]
+        if not reviews:
             return None
+        evidence = {
+            (str(item.get("chunk_id")), str(item.get("record_id"))): item
+            for review in reviews
+            for item in review.target_evidence
+        }
         return {
-            "areas": areas,
-            "apis": apis,
-            "target_changes": target_changes,
+            "required_repairs": sorted(
+                {
+                    str(review.details.get("required_repair") or review.summary)
+                    for review in reviews
+                }
+            ),
+            "implementation_paths": sorted(
+                {path for review in reviews for path in review.implementation_paths}
+            ),
+            "target_evidence": list(evidence.values()),
+            "unsafe_obligation_ids": sorted(
+                {
+                    obligation
+                    for review in reviews
+                    for obligation in review.unsafe_obligation_ids
+                }
+            ),
         }
 
     @classmethod
@@ -199,7 +212,6 @@ class ComplianceService:
         self,
         project: Project,
         report: ComplianceReport,
-        artifact_plan: ArtifactPreparationPlan,
     ) -> None:
         if project.stage(MigrationStage.TARGET_COMPLIANCE).status is not StageStatus.RUNNING:
             raise WorkflowError("target_compliance must be RUNNING")
@@ -214,19 +226,6 @@ class ComplianceService:
                     MigrationArtifact.COMPLIANCE_REPORT,
                     data,
                     "generated:compliance",
-                ),
-                GeneratedArtifact(
-                    MigrationArtifact.ARTIFACT_PREPARATION_PLAN,
-                    (
-                        json.dumps(
-                            artifact_plan.to_dict(),
-                            ensure_ascii=False,
-                            sort_keys=True,
-                            indent=2,
-                        )
-                        + "\n"
-                    ).encode(),
-                    "generated:target-compliance-artifact-plan",
                 ),
             ),
         )
