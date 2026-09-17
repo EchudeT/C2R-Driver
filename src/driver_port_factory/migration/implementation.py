@@ -667,12 +667,18 @@ class DriverImplementationGate:
         tests = json_object(
             self.context.one_dependency(MigrationArtifact.TEST_PORT_MATRIX)[1], "test matrix"
         )
-        expected_tests = {
+        required_tests = {
             str(test.get("test_id"))
             for test in tests.get("tests", [])
             if isinstance(test, dict)
             and test.get("disposition")
             in {TestDisposition.RETAIN.value, TestDisposition.ADAPT.value}
+        }
+        eligible_tests = {
+            str(test.get("test_id"))
+            for test in tests.get("tests", [])
+            if isinstance(test, dict)
+            and test.get("disposition") != TestDisposition.EXCLUDE.value
         }
         covered_tests = set()
         identifiers = set()
@@ -715,11 +721,11 @@ class DriverImplementationGate:
             raise WorkflowError(
                 "translation coverage does not exactly cover structured source facts"
             )
-        if covered_tests != expected_tests:
+        if not required_tests <= covered_tests or not covered_tests <= eligible_tests:
             raise WorkflowError(
-                "translation coverage does not exactly cover retained/adapted public tests"
+                "translation coverage omits required tests or references excluded tests"
             )
-        if expected_tests and not any(
+        if covered_tests and not any(
             item.role is ImplementationFileRole.PUBLIC_TEST for item in by_path.values()
         ):
             raise WorkflowError("adapted public tests have no implementation file")

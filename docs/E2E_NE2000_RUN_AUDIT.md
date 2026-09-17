@@ -32,7 +32,7 @@
 | 14 | structured_c_analysis | 固定 Clang/LLVM 后端一次 `PASS`；处理 `ne2k-pci-front-end` 与 `8390-shared-core` 两个单元，生成 285336 字节结构化事实，无 Codex 调用。 | 符合 Skill 的 typed AST/CFG/layout/effect 路径，保持静态。 |
 | 15 | migration_contracts | 新响应生成后曾被控制器误退回；修复 current-attempt 依赖绑定后直接重验该响应并 `PASS`，没有再次调用模型。 | 内容本身一次可用；finalizer 已同步修正阶段 16/17 的同类代码。 |
 | 16 | test_adaptation | 1 次响应、一次 `PASS`；先检查 KB status，再检索并打开 source/target/test originals，完成公开测试分类和适配矩阵。 | 预先提供 source-test inventory 可减少发现型搜索，但分类、原文核对和适配判断继续由 Codex 完成；见 O6。 |
-| 17 | driver_implementation | 复用 implementation thread，读取当前合同/测试矩阵、结构化索引和历史 compliance；对驱动私有 `device.rs`/`pci.rs` 作集中修复。首份响应先被全文件 `todo` 扫描误退回；重验后又因控制器禁止所有 `UNKNOWN` API 而误退回。四个相关 API 均精确复制冻结 API 表，并分别绑定当前 target-change inventory 中的变更 ID。第二次纠错已在模型返回前中止。 | unfinished 检查已限于新增文件；`UNKNOWN` 仅在精确绑定当前 target change 时进入阶段 18 审查，未绑定的未知接口继续拒绝。修复后直接重验首份响应，不重新翻译；见 O7、O8。 |
+| 17 | driver_implementation | 复用 implementation thread，读取当前合同/测试矩阵、结构化索引和历史 compliance；对驱动私有 `device.rs`/`pci.rs` 作集中修复。首份响应依次暴露三个控制器误拒绝：既有文件 TODO、带当前 target change 的 `UNKNOWN` API、以及实现后已解除阻塞的 `PRESERVE_BLOCKED` 测试。三次纠错均在新模型结果产生前中止。 | unfinished 检查已限于新增文件；未知接口须精确绑定当前 target change；coverage 必须覆盖 `RETAIN/ADAPT`，可激活已实现的 `PRESERVE_BLOCKED`，禁止 `EXCLUDE`。继续静态重验首份响应；见 O7、O8、O10。 |
 | 18 | target_compliance | 等待；旧轮 4 份响应，真实发现 API 闭包、锁内 I/O/分配、IRQ 路由、重试和无关修改问题。 | findings 必须按 KNOWLEDGE/IMPLEMENTATION 精确回到最早受影响门禁。 |
 | 19 | artifact_preparation | 等待。 | 必须证明 artifact 含当前实现，不能只证明编译命令成功。 |
 | 20 | public_qemu_validation | 等待。 | 按固定 evidence ladder 运行并保存外部 oracle。 |
@@ -99,6 +99,15 @@ definition evidence、call-site evidence 与冻结 API 表完全一致时才可�
 生成模板应把 `status` 输出定义为当前 authoritative manifest，并把初始 manifest 仅作为 bootstrap
 provenance；query contract 保留初始 digest，source-closure knowledge revision 记录父子关系。无需新增阶段，
 也不应要求阶段 10 因正常源码闭包扩展而重跑。
+
+### O10：让实现解除阻塞的公开测试进入后续证据梯（已实施 / 待阶段 20 验证）
+
+阶段 16 在目标能力尚未实现时将 CPU-fill 与集成 QEMU 测试标为 `PRESERVE_BLOCKED` 是正确的；阶段 17
+实现对应 target change 后也正确生成了测试和 runner hook。旧门禁却要求 coverage 与 `RETAIN/ADAPT`
+集合完全相等，因而拒绝这两个测试，并会让它们在能力补齐后永久无法执行。现在阶段 17 要求所有
+`RETAIN/ADAPT` 必须覆盖，允许实际实现的 `PRESERVE_BLOCKED` 进入 coverage，同时继续禁止 `EXCLUDE`。
+阶段 20 应从已验收 implementation coverage 派生本轮可执行测试，而非再次只读取阶段 16 的静态
+disposition；到达该阶段时用真实 Prompt 和运行计划验证，不预建额外转换层。
 
 ## 已验证的本轮改进
 
