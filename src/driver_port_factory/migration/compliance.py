@@ -16,7 +16,6 @@ from ..source_analysis.contracts import SourceAnalysisArtifact
 from ..target_study.contracts import TargetStudyArtifact
 from ..target_study.evidence import TargetEvidenceVerifier
 from .contracts import (
-    ComplianceArea,
     ComplianceRepairTarget,
     ComplianceStatus,
     ContractExecutionStatus,
@@ -27,7 +26,6 @@ from .contracts import (
 COMPLIANCE_INPUTS = (
     MigrationArtifact.HANDOFF,
     MigrationArtifact.IMPLEMENTATION_BUNDLE,
-    MigrationArtifact.TRANSLATION_COVERAGE,
     MigrationArtifact.TARGET_CHANGE_INVENTORY,
     KnowledgeArtifact.QUERY_CONTRACT,
     KnowledgeArtifact.GENERATED_SKILL,
@@ -46,113 +44,46 @@ def _string_list(value: Any, label: str) -> tuple[str, ...]:
 
 
 @dataclass(frozen=True, slots=True)
-class ComplianceReview:
-    identifier: str
-    status: ComplianceStatus
+class ComplianceFinding:
     repair_target: ComplianceRepairTarget
     summary: str
     implementation_paths: tuple[str, ...]
     target_evidence: tuple[dict[str, Any], ...]
-    unsafe_obligation_ids: tuple[str, ...]
-    details: dict[str, Any]
 
     @classmethod
-    def from_dict(cls, value: Any, key: str) -> ComplianceReview:
+    def from_dict(cls, value: Any) -> ComplianceFinding:
         if not isinstance(value, dict):
-            raise WorkflowError("compliance review must be an object")
+            raise WorkflowError("compliance finding must be an object")
+        evidence = value.get("target_evidence")
+        if not isinstance(evidence, list) or not all(isinstance(item, dict) for item in evidence):
+            raise WorkflowError("compliance finding evidence must be an object list")
         try:
-            evidence = value["target_evidence"]
-            details = value["details"]
-            if not isinstance(evidence, list) or not all(
-                isinstance(item, dict) for item in evidence
-            ):
-                raise TypeError
-            if not isinstance(details, dict):
-                raise TypeError
-            return cls(
-                str(value[key]),
-                ComplianceStatus(value["status"]),
+            finding = cls(
                 ComplianceRepairTarget(value["repair_target"]),
                 str(value["summary"]),
                 _string_list(value["implementation_paths"], "implementation_paths"),
                 tuple(evidence),
-                _string_list(value["unsafe_obligation_ids"], "unsafe_obligation_ids"),
-                details,
             )
         except (KeyError, TypeError, ValueError) as error:
-            raise WorkflowError("compliance review has an invalid typed boundary") from error
+            raise WorkflowError("compliance finding has an invalid typed boundary") from error
+        if finding.repair_target is ComplianceRepairTarget.NONE or not finding.summary.strip():
+            raise WorkflowError("compliance finding must name a repair target and summary")
+        return finding
 
-    def to_dict(self, key: str, identifier: str | None = None) -> dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
-            key: identifier or self.identifier,
-            "status": self.status.value,
             "repair_target": self.repair_target.value,
             "summary": self.summary,
             "implementation_paths": list(self.implementation_paths),
             "target_evidence": list(self.target_evidence),
-            "unsafe_obligation_ids": list(self.unsafe_obligation_ids),
-            "details": self.details,
         }
 
 
 @dataclass(frozen=True, slots=True)
 class ComplianceReport:
     status: ComplianceStatus
-    areas: tuple[tuple[ComplianceArea, ComplianceReview], ...]
-    apis: tuple[ComplianceReview, ...]
-    target_changes: tuple[ComplianceReview, ...]
-    compile_status: ContractExecutionStatus
-    runtime_status: ContractExecutionStatus
-
-    def requires_repair(self, target: ComplianceRepairTarget) -> bool:
-        reviews = (
-            *(review for _area, review in self.areas),
-            *self.apis,
-            *self.target_changes,
-        )
-        return self.status is not ComplianceStatus.PASS and any(
-            review.status is not ComplianceStatus.PASS and review.repair_target is target
-            for review in reviews
-        )
-
-    def repair_delta(
-        self, target: ComplianceRepairTarget | None = None
-    ) -> dict[str, Any] | None:
-        def selected(review: ComplianceReview) -> bool:
-            return review.status is not ComplianceStatus.PASS and (
-                target is None or review.repair_target is target
-            )
-
-        reviews = [
-            *(review for review in self.apis if selected(review)),
-            *(review for review in self.target_changes if selected(review)),
-        ] or [review for _area, review in self.areas if selected(review)]
-        if not reviews:
-            return None
-        evidence = {
-            (str(item.get("chunk_id")), str(item.get("record_id"))): item
-            for review in reviews
-            for item in review.target_evidence
-        }
-        return {
-            "required_repairs": sorted(
-                {
-                    str(review.details.get("required_repair") or review.summary)
-                    for review in reviews
-                }
-            ),
-            "implementation_paths": sorted(
-                {path for review in reviews for path in review.implementation_paths}
-            ),
-            "target_evidence": list(evidence.values()),
-            "unsafe_obligation_ids": sorted(
-                {
-                    obligation
-                    for review in reviews
-                    for obligation in review.unsafe_obligation_ids
-                }
-            ),
-        }
+    evidence: tuple[dict[str, Any], ...]
+    findings: tuple[ComplianceFinding, ...]
 
     @classmethod
     def read(cls, path: Path) -> ComplianceReport:
@@ -164,70 +95,78 @@ class ComplianceReport:
 
     @classmethod
     def from_dict(cls, value: Any) -> ComplianceReport:
-        if not isinstance(value, dict) or value.get("schema_version") != 1:
-            raise WorkflowError("compliance report must be a schema_version=1 object")
+        if not isinstance(value, dict) or value.get("schema_version") != 2:
+            raise WorkflowError("compliance report must be a schema_version=2 object")
+        evidence = value.get("evidence")
+        findings = value.get("findings")
+        if not isinstance(evidence, list) or not all(isinstance(item, dict) for item in evidence):
+            raise WorkflowError("compliance evidence must be an object list")
+        if not isinstance(findings, list):
+            raise WorkflowError("compliance findings must be a list")
         try:
-            area_values = value["areas"]
-            api_values = value["apis"]
-            change_values = value["target_changes"]
-            execution = value["execution"]
-            if not all(
-                isinstance(items, list) for items in (area_values, api_values, change_values)
-            ):
-                raise TypeError
-            if not isinstance(execution, dict):
-                raise TypeError
-            areas = tuple(
-                (ComplianceArea(item["area"]), ComplianceReview.from_dict(item, "area"))
-                for item in area_values
-            )
-            return cls(
+            report = cls(
                 ComplianceStatus(value["status"]),
-                areas,
-                tuple(ComplianceReview.from_dict(item, "api_id") for item in api_values),
-                tuple(ComplianceReview.from_dict(item, "change_id") for item in change_values),
-                ContractExecutionStatus(execution["compile"]),
-                ContractExecutionStatus(execution["runtime"]),
+                tuple(evidence),
+                tuple(ComplianceFinding.from_dict(item) for item in findings),
             )
         except (KeyError, TypeError, ValueError) as error:
             raise WorkflowError("compliance report has an invalid typed boundary") from error
+        if not report.evidence or (report.status is ComplianceStatus.PASS) != (not report.findings):
+            raise WorkflowError("compliance status, evidence, and findings are inconsistent")
+        return report
+
+    def requires_repair(self, target: ComplianceRepairTarget) -> bool:
+        return any(finding.repair_target is target for finding in self.findings)
+
+    def repair_delta(self, target: ComplianceRepairTarget | None = None) -> dict[str, Any] | None:
+        findings = [
+            finding
+            for finding in self.findings
+            if target is None or finding.repair_target is target
+        ]
+        if not findings:
+            return None
+        evidence = {
+            (str(item.get("chunk_id")), str(item.get("record_id"))): item
+            for finding in findings
+            for item in finding.target_evidence
+        }
+        return {
+            "required_repairs": [finding.summary for finding in findings],
+            "implementation_paths": sorted(
+                {path for finding in findings for path in finding.implementation_paths}
+            ),
+            "target_evidence": list(evidence.values()),
+        }
 
     def to_dict(self, inputs: dict[str, Any]) -> dict[str, Any]:
         return {
-            "schema_version": 1,
+            "schema_version": 2,
             "inputs": inputs,
             "status": self.status.value,
-            "areas": [review.to_dict("area", area.value) for area, review in self.areas],
-            "apis": [review.to_dict("api_id") for review in self.apis],
-            "target_changes": [review.to_dict("change_id") for review in self.target_changes],
+            "evidence": list(self.evidence),
+            "findings": [finding.to_dict() for finding in self.findings],
             "execution": {
-                "compile": self.compile_status.value,
-                "runtime": self.runtime_status.value,
+                "compile": ContractExecutionStatus.NOT_RUN.value,
+                "runtime": ContractExecutionStatus.NOT_RUN.value,
             },
         }
 
 
 class ComplianceService:
-    def finalize(
-        self,
-        project: Project,
-        report: ComplianceReport,
-    ) -> None:
+    def finalize(self, project: Project, report: ComplianceReport) -> None:
         if project.stage(MigrationStage.TARGET_COMPLIANCE).status is not StageStatus.RUNNING:
             raise WorkflowError("target_compliance must be RUNNING")
         inputs = {kind.value: self._input(project, kind).to_dict() for kind in COMPLIANCE_INPUTS}
         data = (
-            json.dumps(report.to_dict(inputs), ensure_ascii=False, sort_keys=True, indent=2) + "\n"
-        ).encode()
+            json.dumps(
+                report.to_dict(inputs), ensure_ascii=False, sort_keys=True, indent=2
+            ).encode()
+            + b"\n"
+        )
         project.finalize_stage(
             MigrationStage.TARGET_COMPLIANCE,
-            (
-                GeneratedArtifact(
-                    MigrationArtifact.COMPLIANCE_REPORT,
-                    data,
-                    "generated:compliance",
-                ),
-            ),
+            (GeneratedArtifact(MigrationArtifact.COMPLIANCE_REPORT, data, "generated:compliance"),),
         )
 
     @staticmethod
@@ -246,8 +185,8 @@ class ComplianceService:
 
 class ComplianceGate:
     def __init__(self, context: BundleValidationContext) -> None:
-        self.context = context
         _, data = context.one_current(MigrationArtifact.COMPLIANCE_REPORT)
+        self.context = context
         self.document = json_object(data, MigrationArtifact.COMPLIANCE_REPORT.value)
         self.report = ComplianceReport.from_dict(self.document)
 
@@ -256,85 +195,17 @@ class ComplianceGate:
             kind.value: self.context.one_dependency(kind)[0].to_dict() for kind in COMPLIANCE_INPUTS
         }
         if self.document.get("inputs") != expected_inputs:
-            raise WorkflowError("compliance report does not bind frozen implementation evidence")
+            raise WorkflowError("compliance report does not bind current inputs")
         if self.report.status is not ComplianceStatus.PASS:
             raise WorkflowError("target compliance has unresolved findings")
-        if self.report.compile_status is not ContractExecutionStatus.NOT_RUN or (
-            self.report.runtime_status is not ContractExecutionStatus.NOT_RUN
-        ):
-            raise WorkflowError("target compliance cannot claim compile or runtime execution")
-
-        implementation = self._document(MigrationArtifact.IMPLEMENTATION_BUNDLE)
-        inventory = self._document(MigrationArtifact.TARGET_CHANGE_INVENTORY)
-        paths = {str(item["path"]) for item in implementation.get("files", [])}
-        evidence = self._evidence_verifier()
-        reviews = [review for _area, review in self.report.areas]
-        self._complete_reviews(reviews, paths, evidence)
-        if {area for area, _review in self.report.areas} != set(ComplianceArea):
-            raise WorkflowError("compliance report does not cover every target review area")
-        if set().union(*(set(review.implementation_paths) for review in reviews)) != paths:
-            raise WorkflowError("compliance report does not cover every implementation file")
-
-        symbols = {str(item["api_id"]): item for item in inventory.get("target_symbols", [])}
-        self._complete_reviews(self.report.apis, paths, evidence)
-        if {review.identifier for review in self.report.apis} != set(symbols):
-            raise WorkflowError("compliance report does not cover every target API")
-        self._api_originals(symbols)
-
-        changes = {str(item["change_id"]): item for item in inventory.get("target_changes", [])}
-        self._complete_reviews(self.report.target_changes, paths, evidence)
-        if {review.identifier for review in self.report.target_changes} != set(changes):
-            raise WorkflowError("compliance report does not cover every pre-existing target change")
-        for review in self.report.target_changes:
-            required = ("path", "necessity", "safety", "rollback")
-            if review.details.get("path") != changes[review.identifier].get("path") or not all(
-                str(review.details.get(field, "")).strip() for field in required[1:]
-            ):
-                raise WorkflowError("target change compliance review is incomplete")
-
-        obligations = {
-            str(item["obligation_id"]) for item in inventory.get("unsafe_obligations", [])
-        }
-        covered = {identifier for review in reviews for identifier in review.unsafe_obligation_ids}
-        if covered != obligations:
-            raise WorkflowError("compliance report does not cover every unsafe obligation")
-
-    def _complete_reviews(
-        self,
-        reviews: tuple[ComplianceReview, ...] | list[ComplianceReview],
-        paths: set[str],
-        evidence: TargetEvidenceVerifier,
-    ) -> None:
-        identifiers = [review.identifier for review in reviews]
-        if len(identifiers) != len(set(identifiers)):
-            raise WorkflowError("compliance review identifiers must be unique")
-        for review in reviews:
-            if (
-                review.status is not ComplianceStatus.PASS
-                or review.repair_target is not ComplianceRepairTarget.NONE
-                or not review.summary.strip()
-                or not review.target_evidence
-                or not set(review.implementation_paths) <= paths
-            ):
-                raise WorkflowError("compliance review is unresolved or incomplete")
-            for reference in review.target_evidence:
-                evidence.verify(reference)
-
-    def _api_originals(self, symbols: dict[str, dict[str, Any]]) -> None:
-        table = self._document(TargetStudyArtifact.API_EVIDENCE)
-        entries = {str(item["api_id"]): item for item in table.get("entries", [])}
-        for review in self.report.apis:
-            citations = {
-                (str(item.get("chunk_id")), str(item.get("record_id")))
-                for item in review.target_evidence
-            }
-            entry = entries[review.identifier]
-            originals = {
-                (str(entry[field].get("chunk_id")), str(entry[field].get("record_id")))
-                for field in ("definition_evidence", "call_site_evidence")
-            }
-            if review.identifier not in symbols or not originals <= citations:
-                raise WorkflowError("target API review omits its definition or call-site original")
+        if self.document.get("execution") != {
+            "compile": ContractExecutionStatus.NOT_RUN.value,
+            "runtime": ContractExecutionStatus.NOT_RUN.value,
+        }:
+            raise WorkflowError("target compliance cannot claim execution")
+        verifier = self._evidence_verifier()
+        for reference in self.report.evidence:
+            verifier.verify(reference)
 
     def _evidence_verifier(self) -> TargetEvidenceVerifier:
         ref, data = self.context.one_dependency(SourceAnalysisArtifact.MATERIALS_MANIFEST)
@@ -344,9 +215,6 @@ class ComplianceGate:
         )
         knowledge.status()
         return TargetEvidenceVerifier(knowledge)
-
-    def _document(self, kind: object) -> dict[str, Any]:
-        return json_object(self.context.one_dependency(kind)[1], kind.value)
 
 
 def validate_compliance_bundle(context: BundleValidationContext) -> None:

@@ -57,11 +57,6 @@ class CompletionAuditService:
             MigrationStage.DRIVER_IMPLEMENTATION,
             MigrationArtifact.IMPLEMENTATION_BUNDLE,
         )
-        translation = self._document(
-            project,
-            MigrationStage.DRIVER_IMPLEMENTATION,
-            MigrationArtifact.TRANSLATION_COVERAGE,
-        )
         changes = self._document(
             project,
             MigrationStage.DRIVER_IMPLEMENTATION,
@@ -80,10 +75,10 @@ class CompletionAuditService:
             project, MigrationStage.PUBLIC_REPAIR, MigrationArtifact.PUBLIC_REPAIR_REPORT
         )
 
-        runs = [*(public or {}).get("runs", []), *repair.get("runs", [])]
+        runs = (public or {}).get("runs", [])
         contract_results = _contract_results(contracts, runs)
         test_results = _test_results(tests, runs)
-        lineage = self._lineage(project, implementation, compliance, identity, public, repair)
+        lineage = self._lineage(project, implementation, compliance, identity, public)
         blind = self._blind_candidate(project)
         unresolved = [
             {"kind": "contract", "id": item["id"], "status": item["execution_status"]}
@@ -113,11 +108,16 @@ class CompletionAuditService:
             "contract_results": contract_results,
             "test_results": test_results,
             "source_and_translation_coverage": {
-                "translation_coverage": translation.get("coverage", []),
-                "implementation_files": [
-                    {key: item[key] for key in ("path", "role", "sha256")}
-                    for item in implementation["files"]
-                ],
+                "translation_coverage": _reference(
+                    project,
+                    MigrationStage.DRIVER_IMPLEMENTATION,
+                    MigrationArtifact.TRANSLATION_COVERAGE,
+                ),
+                "implementation": _reference(
+                    project,
+                    MigrationStage.DRIVER_IMPLEMENTATION,
+                    MigrationArtifact.IMPLEMENTATION_BUNDLE,
+                ),
             },
             "target_changes": changes.get("target_changes", []),
             "compliance": {
@@ -125,7 +125,8 @@ class CompletionAuditService:
                     project, MigrationStage.TARGET_COMPLIANCE, MigrationArtifact.COMPLIANCE_REPORT
                 ),
                 "status": compliance.get("status"),
-                "areas": compliance.get("areas", []),
+                "evidence": compliance.get("evidence", []),
+                "findings": compliance.get("findings", []),
             },
             "artifact_lineage": lineage,
             "public_runs": runs,
@@ -133,7 +134,11 @@ class CompletionAuditService:
             "unresolved": unresolved,
             "blind_candidate": blind,
             "scope_limits": {
-                "qemu_evidence": "QEMU_MODEL_ONLY",
+                "qemu_evidence": (
+                    "TARGET_DRIVER_ON_QEMU"
+                    if public is not None and public.get("integration_boundary") is None
+                    else "QEMU_MODEL_ONLY"
+                ),
                 "integration_boundary": (public or {}).get("integration_boundary"),
                 "real_hardware": KnowledgeEvidenceStatus.NOT_RUN.value,
                 "private_evaluation": (
@@ -171,11 +176,7 @@ class CompletionAuditService:
 
     @staticmethod
     def _optional_document(project: Project, stage: object, kind: object) -> dict[str, Any] | None:
-        refs = [
-            ref
-            for ref in project.current_artifact_refs(stage=stage)
-            if ref.kind == kind.value
-        ]
+        refs = [ref for ref in project.current_artifact_refs(stage=stage) if ref.kind == kind.value]
         if not refs:
             return None
         if len(refs) != 1:
@@ -192,21 +193,14 @@ class CompletionAuditService:
         compliance: dict[str, Any],
         identity: dict[str, Any],
         public: dict[str, Any] | None,
-        repair: dict[str, Any],
     ) -> dict[str, Any]:
         implementation_ref = project.artifact(
             MigrationStage.DRIVER_IMPLEMENTATION, MigrationArtifact.IMPLEMENTATION_BUNDLE
         )
-        repaired = repair.get("implementation")
-        effective = (
-            repaired
-            if isinstance(repaired, dict) and isinstance(repaired.get("document"), dict)
-            else {"digest": implementation_ref.digest, "document": implementation}
-        )
-        effective_digest = effective.get("digest")
+        effective_digest = implementation_ref.digest
         acquisition = load_repository_acquisition(project)
         worktree = (project.root / acquisition.target_worktree.path).resolve()
-        ArtifactPreparationService._implementation_matches(worktree, effective["document"])
+        ArtifactPreparationService._implementation_matches(worktree, implementation)
         compliance_digest = (
             compliance.get("inputs", {})
             .get(MigrationArtifact.IMPLEMENTATION_BUNDLE.value, {})
@@ -230,16 +224,20 @@ class CompletionAuditService:
         qemu_binding = None
         if public is not None:
             qemu_inputs = public.get("inputs", {})
-            qemu_binding = public.get("artifact_identity")
             if (
-                qemu_inputs.get(MigrationArtifact.IMPLEMENTATION_BUNDLE.value, {}).get("digest")
-                != effective_digest
-                or qemu_inputs.get(MigrationArtifact.RUNTIME_ARTIFACT.value, {}).get("digest")
+                qemu_inputs.get(MigrationArtifact.RUNTIME_ARTIFACT.value, {}).get("digest")
                 != runtime_digest
-                or qemu_binding.get("implementation_sha256") != effective_digest
-                or qemu_binding.get("artifact_sha256") != runtime_digest
+                or qemu_inputs.get(MigrationArtifact.ARTIFACT_IDENTITY.value, {}).get("digest")
+                != project.artifact(
+                    MigrationStage.ARTIFACT_PREPARATION,
+                    MigrationArtifact.ARTIFACT_IDENTITY,
+                ).digest
             ):
                 raise WorkflowError("completion audit found stale public QEMU lineage")
+            qemu_binding = {
+                "implementation_sha256": effective_digest,
+                "artifact_sha256": runtime_digest,
+            }
         return {
             "verified": True,
             "implementation_sha256": effective_digest,
@@ -463,9 +461,9 @@ def _failure_attribution(
         failures.append(
             {
                 "repair_outcome": repair.get("outcome"),
-                "attribution": repair.get("plan", {}).get("attribution"),
-                "failure_run_ids": repair.get("plan", {}).get("failure_run_ids", []),
-                "error": repair.get("error"),
+                "attribution": repair.get("attribution"),
+                "failure_run_ids": repair.get("failure_run_ids", []),
+                "summary": repair.get("summary"),
             }
         )
     return failures

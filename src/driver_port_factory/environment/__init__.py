@@ -4,7 +4,6 @@ from .models import (
     ArtifactMode,
     ExperimentPlan,
     ExperimentReadiness,
-    RouteKind,
 )
 from .planning import ExperimentPlanRegistrar
 
@@ -16,5 +15,4 @@ __all__ = [
     "ExperimentPlan",
     "ExperimentPlanRegistrar",
     "ExperimentReadiness",
-    "RouteKind",
 ]

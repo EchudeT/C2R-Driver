@@ -12,10 +12,10 @@ revision_selection
 ## Revision selection
 
 The read-only `revision_selection` Codex job proposes three repository URLs, release tags or full
-commits, a selection rule, and quoted compatibility citations. The controller imports the exact
-job occurrence, retrieves every citation itself, verifies the excerpt against the returned bytes,
-computes its digest and size, resolves each ref, and freezes the resulting full commits. Codex does
-not supply trusted hashes, retrieval status, or resolved revisions.
+commits, a selection rule, and compatibility citations. The controller imports the exact job
+occurrence, retrieves each cited document, computes its digest and size, resolves each ref, and
+freezes the resulting full commits. Codex does not supply trusted hashes, retrieval status, or
+resolved revisions.
 
 ```sh
 dpf codex run RUN revision_selection --objective "Select compatible maintained releases"
@@ -27,10 +27,11 @@ Floating branch names such as `main`, `master`, and `HEAD` are rejected. The out
 `revision_manifest`, `repository_plan`, and raw `revision_evidence_content` occurrences remain
 bound to the frozen migration envelope and exact Codex proposal.
 
-Each resolved evidence record binds a typed maintenance or cross-repository claim to exact
-requested refs and the commits resolved by the controller. Retrieved bytes, quoted excerpt, and
-ref-to-commit identity are `VERIFIED`; the semantic compatibility assessment remains `INFERRED`.
-The controller never promotes excerpt presence into verified compatibility.
+Each resolved evidence record binds a typed maintenance or cross-repository claim to the exact
+requested refs and commits resolved by the controller. Retrieved bytes and ref-to-commit identity
+are `VERIFIED`; the Codex claim and excerpt/summary remain `INFERRED`. The controller does not
+require the excerpt field to be a byte-for-byte substring and never promotes it into verified
+compatibility.
 
 ## Repository acquisition
 
@@ -50,8 +51,8 @@ satisfy an evidence facet.
 ## Evidence proposal boundary
 
 The `evidence_closure` Codex job runs read-only and returns only candidate locators and rationale.
-The prompt pack binds `evidence-closure-proposal.schema.json` to this stage automatically. The
-response must cover the source, target, QEMU, hardware, test, and tooling domains. It may use only
+Its response contract is stated directly in the editable prompt pack. The response must cover the
+source, target, QEMU, hardware, test, and tooling domains. It may use only
 the concrete facets needed by the frozen migration scope; duplicate facets are rejected.
 
 The controller imports a selected `codex_job_result` by exact digest and occurrence ordinal:

@@ -20,10 +20,6 @@ class ArtifactMode(StrEnum):
     SOURCE_BASELINE = "source-baseline"
 
 
-class RouteKind(StrEnum):
-    DIRECT_QEMU = "direct-qemu"
-
-
 class ExperimentReadiness(StrEnum):
     PASS = "PASS"
     FAIL = "FAIL"
@@ -41,7 +37,6 @@ class ExperimentPlan:
     milestone: ExperimentRouteMilestone
     purpose: str
     artifact_mode: ArtifactMode
-    route_kind: RouteKind
     device_identity: str
     topology: str
     command: tuple[str, ...]
@@ -58,7 +53,6 @@ class ExperimentPlan:
     def to_dict(self) -> dict[str, Any]:
         value = asdict(self)
         value["artifact_mode"] = self.artifact_mode.value
-        value["route_kind"] = self.route_kind.value
         value["milestone"] = self.milestone.value
         for field in ("executable_lock", "frozen_repositories"):
             if value[field] is None:
@@ -74,12 +68,11 @@ class ExperimentPlan:
             raise WorkflowError("experiment frozen evidence must be an object")
         try:
             return cls(
-                schema_version=2,
+                schema_version=3,
                 route_id=value["route_id"],
                 milestone=ExperimentRouteMilestone(value["milestone"]),
                 purpose=value["purpose"],
                 artifact_mode=ArtifactMode(value["artifact_mode"]),
-                route_kind=RouteKind(value["route_kind"]),
                 device_identity=value["device_identity"],
                 topology=value["topology"],
                 command=tuple(cls._string_list(value["command"], "command")),
@@ -106,7 +99,6 @@ class ExperimentPlan:
             "milestone",
             "purpose",
             "artifact_mode",
-            "route_kind",
             "device_identity",
             "topology",
             "command",
@@ -120,8 +112,8 @@ class ExperimentPlan:
         missing = sorted(required - value.keys())
         if missing:
             raise WorkflowError(f"experiment plan missing fields: {', '.join(missing)}")
-        if value["schema_version"] != 2:
-            raise WorkflowError("experiment plan schema_version must be 2")
+        if value["schema_version"] != 3:
+            raise WorkflowError("experiment plan schema_version must be 3")
         for name in (
             "route_id",
             "purpose",

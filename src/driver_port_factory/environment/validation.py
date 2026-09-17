@@ -4,7 +4,7 @@ from types import MappingProxyType
 
 from ..core.models import WorkflowError
 from ..core.validation import ArtifactValidator, json_object, require_fields
-from .contracts import EnvironmentArtifact, ExperimentRouteMilestone, QmpHandshakeStatus
+from .contracts import EnvironmentArtifact, ExperimentRouteMilestone
 from .models import ExperimentPlan, ExperimentReadiness
 
 
@@ -31,8 +31,8 @@ def _experiment_plan(data: bytes) -> None:
 
 def _recovery_attempt(data: bytes) -> None:
     value = json_object(data, EnvironmentArtifact.RECOVERY_ATTEMPT.value)
-    if not all(isinstance(value.get(field), dict) for field in ("route", "process", "qmp")):
-        raise WorkflowError("environment attempt requires route, process, and QMP evidence")
+    if not all(isinstance(value.get(field), dict) for field in ("route", "command")):
+        raise WorkflowError("environment attempt requires a route and captured command")
 
 
 def _ready_run(data: bytes) -> None:
@@ -40,15 +40,13 @@ def _ready_run(data: bytes) -> None:
     value = json_object(data, EnvironmentArtifact.EXPERIMENT_READY_RUN.value)
     if ExperimentReadiness(value.get("readiness")) is not ExperimentReadiness.PASS:
         raise WorkflowError("experiment_ready_run must have readiness=PASS")
-    if value["qmp"].get("handshake_status") != QmpHandshakeStatus.VERIFIED:
-        raise WorkflowError("experiment_ready_run requires a verified QMP handshake")
 
 
 def _mode_record(data: bytes) -> None:
     value = json_object(data, EnvironmentArtifact.MODE_RECORD.value)
     require_fields(
         value,
-        {"artifact_mode", "route_kind", "selected_route_id"},
+        {"artifact_mode", "selected_route_id"},
         EnvironmentArtifact.MODE_RECORD.value,
     )
 

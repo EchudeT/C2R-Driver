@@ -103,9 +103,7 @@ class StructuredBundleExtractor:
 
     @staticmethod
     def _finalize_semantics(project: Project, unit_results: list[UnitResult]) -> None:
-        ClosureFunctionPointerResolver.resolve(
-            [result.semantic_index for result in unit_results]
-        )
+        ClosureFunctionPointerResolver.resolve([result.semantic_index for result in unit_results])
         for result in unit_results:
             data = (
                 json.dumps(
@@ -235,10 +233,6 @@ class StructuredBundleExtractor:
                 (
                     SourceAnalysisArtifact.STRUCTURED_C_SEMANTIC_INDEX,
                     (result.semantic_path,),
-                ),
-                (
-                    SourceAnalysisArtifact.STRUCTURED_C_COMMAND_RECORDS,
-                    (result.commands_path,),
                 ),
             )
             for path in paths

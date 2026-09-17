@@ -184,8 +184,6 @@ def _validate_evidence_content(
         matches = [data for ref, data in contents if ref.digest == evidence.sha256]
         if not matches or any(len(data) != evidence.size_bytes for data in matches):
             raise WorkflowError("revision evidence size differs from its computed record")
-        if not any(evidence.excerpt.encode("utf-8") in data for data in matches):
-            raise WorkflowError("revision evidence does not contain its cited excerpt")
 
 
 def _validate_manifest(

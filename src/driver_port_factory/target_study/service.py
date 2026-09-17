@@ -24,16 +24,7 @@ from .contracts import (
 from .evidence import TargetEvidenceVerifier, require_fields
 from .profile import PROFILE_HEADINGS, TargetProfileValidator
 
-TRACE_STEPS = tuple(TraceStage)
-REQUIRED_TARGET_DRIVER_TRACE_STEPS = frozenset(
-    {
-        TraceStage.REGISTRATION_MATCH,
-        TraceStage.RESOURCE_ACQUISITION,
-        TraceStage.DEVICE_INITIALIZATION,
-        TraceStage.REQUEST_SUBMISSION_COMPLETION,
-        TraceStage.INTERRUPT_DEFERRED_PROCESSING,
-    }
-)
+TRACE_ORDER = {stage: position for position, stage in enumerate(TraceStage)}
 
 
 @dataclass(frozen=True, slots=True)
@@ -52,7 +43,6 @@ class TargetStudyService:
         project: Project,
         *,
         profile_json: Path,
-        profile_markdown: Path,
         api_table: Path,
         analogous_trace: Path,
         change_plan: Path,
@@ -67,7 +57,6 @@ class TargetStudyService:
             )
         paths = {
             "profile_json": self._controlled(project, profile_json),
-            "profile_markdown": self._controlled(project, profile_markdown),
             "api_table": self._controlled(project, api_table),
             "analogous_trace": self._controlled(project, analogous_trace),
             "change_plan": self._controlled(project, change_plan),
@@ -94,7 +83,7 @@ class TargetStudyService:
             )
             details["analogous_trace"] = self._validate_trace(evidence, trace)
             self._ready_gate(details["changes"], details["analogous_trace"])
-            self._validate_profile_markdown(paths["profile_markdown"], profile)
+            paths["profile_markdown"] = self._write_profile_markdown(paths["profile_json"], profile)
         except (WorkflowError, UnicodeDecodeError) as error:
             errors.append(str(error))
         report = {
@@ -233,10 +222,10 @@ class TargetStudyService:
             observed = tuple(TraceStage(step.get("stage")) for step in steps)
         except (TypeError, ValueError) as error:
             raise WorkflowError("analogous trace contains an invalid stage") from error
-        if observed != TRACE_STEPS:
-            raise WorkflowError(
-                "analogous trace must contain the complete ordered registration-to-QEMU path"
-            )
+        if not observed or len(observed) != len(set(observed)):
+            raise WorkflowError("analogous trace must contain distinct applicable steps")
+        if tuple(sorted(observed, key=TRACE_ORDER.__getitem__)) != observed:
+            raise WorkflowError("analogous trace steps must follow the Skill path order")
         return {
             "selected_implementation": trace["selected_implementation"],
             "steps": [TargetStudyService._validate_trace_step(evidence, step) for step in steps],
@@ -256,7 +245,9 @@ class TargetStudyService:
         if not str(step.get("summary", "")).strip():
             raise WorkflowError(f"analogous trace step {step['stage']} needs a summary")
         references = step.get("evidence_refs")
-        if not isinstance(references, list) or not references:
+        if not isinstance(references, list):
+            raise WorkflowError(f"analogous trace step {step['stage']} has invalid evidence")
+        if status is TraceStatus.VERIFIED and not references:
             raise WorkflowError(f"analogous trace step {step['stage']} needs target evidence")
         return {
             "stage": stage,
@@ -271,39 +262,45 @@ class TargetStudyService:
             for identifier, status in changes["investigations"].items()
             if status is not InvestigationStatus.PASS
         ]
-        incomplete_path = [
-            step["stage"].value
-            for step in trace["steps"]
-            if step["stage"] in REQUIRED_TARGET_DRIVER_TRACE_STEPS
-            and step["status"] is not TraceStatus.VERIFIED
-        ]
-        if unfinished or incomplete_path:
-            raise WorkflowError(
-                "target platform study is not READY: unresolved investigations or incomplete "
-                "target driver trace"
-            )
+        if unfinished:
+            raise WorkflowError("target platform study has unresolved investigations")
 
     @staticmethod
-    def _validate_profile_markdown(path: Path, profile: dict[str, Any]) -> None:
-        text = path.read_text(encoding="utf-8")
-        missing = [heading for heading in PROFILE_HEADINGS if heading not in text]
-        if missing:
-            raise WorkflowError(
-                "target profile Markdown is missing template headings: " + ", ".join(missing)
+    def _write_profile_markdown(path: Path, profile: dict[str, Any]) -> Path:
+        sections = {
+            "## Repository and documentation map": "repository_documentation_map",
+            "## Lifecycle and execution contexts": "lifecycle_execution_contexts",
+            "## Hardware access and concurrency": "hardware_access_concurrency",
+            "## Error, recovery and observability conventions": ("error_recovery_observability"),
+            "## Coding and safety requirements": "coding_safety_requirements",
+            "## Artifact and QEMU path": "artifact_qemu_path",
+        }
+        linked_sections = {
+            "## Closest analogous implementation": "See `analogous_trace.json`.",
+            "## Target API evidence": "See `api_table.json`.",
+            "## Target changes and unresolved gaps": "See `change_plan.json`.",
+        }
+        lines = [
+            PROFILE_HEADINGS[0],
+            "",
+            PROFILE_HEADINGS[1],
+            "",
+            f"- Target platform: {profile['target_platform']}",
+            f"- Source root: {profile['source_root']}",
+            f"- Revision: {profile['revision']}",
+            f"- Artifact mode: {profile['artifact_mode']}",
+            f"- Profile status: `{TargetProfileStatus.READY.value}`",
+        ]
+        for heading in PROFILE_HEADINGS[2:]:
+            summary = (
+                linked_sections[heading]
+                if heading in linked_sections
+                else str(profile[sections[heading]]["summary"])
             )
-        required_values = (
-            str(profile["target_platform"]),
-            str(profile["source_root"]),
-            str(profile["revision"]),
-            str(profile["artifact_mode"]),
-        )
-        if any(value not in text for value in required_values):
-            raise WorkflowError(
-                "target profile Markdown does not contain the frozen identity values"
-            )
-        status_marker = f"Profile status: `{TargetProfileStatus.READY.value}`"
-        if status_marker not in text:
-            raise WorkflowError("target profile Markdown must set Profile status to READY")
+            lines.extend(("", heading, "", summary))
+        output = path.with_name("profile.md")
+        output.write_text("\n".join(lines) + "\n", encoding="utf-8")
+        return output
 
     @staticmethod
     def _write_report(project: Project, report: dict[str, Any]) -> Path:

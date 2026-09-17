@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import StrEnum
-from types import MappingProxyType
 
 from ..core.models import WorkflowError
 
@@ -98,46 +97,33 @@ class MaterialRedistribution(StrEnum):
     UNKNOWN = "unknown"
 
 
-FacetType = SourceFacet | TargetFacet | QemuFacet | HardwareFacet | TestFacet | ToolingFacet
-
-
 @dataclass(frozen=True, slots=True)
 class EvidenceFacet:
     lane: EvidenceLane
-    name: FacetType
+    name: str
 
     def __post_init__(self) -> None:
-        expected = _FACET_TYPES.get(self.lane)
-        if expected is None or not isinstance(self.name, expected):
-            raise WorkflowError(f"evidence lane {self.lane.value} does not own facet {self.name!r}")
+        name = str(self.name)
+        if not name or any(character.isspace() for character in name):
+            raise WorkflowError("evidence facet name must be a non-empty token")
+        object.__setattr__(self, "name", name)
 
     def to_dict(self) -> dict[str, str]:
-        return {"lane": self.lane.value, "facet": self.name.value}
+        return {"lane": self.lane.value, "facet": self.name}
 
     @property
     def sort_key(self) -> tuple[str, str]:
-        return self.lane.value, self.name.value
-
-
-_FACET_TYPES = MappingProxyType(
-    {
-        EvidenceLane.SOURCE: SourceFacet,
-        EvidenceLane.TARGET: TargetFacet,
-        EvidenceLane.QEMU: QemuFacet,
-        EvidenceLane.HARDWARE: HardwareFacet,
-        EvidenceLane.TEST: TestFacet,
-        EvidenceLane.TOOLING: ToolingFacet,
-    }
-)
+        return self.lane.value, self.name
 
 
 def parse_facet(lane_value: object, facet_value: object) -> EvidenceFacet:
     try:
         lane = EvidenceLane(lane_value)
-        facet = _FACET_TYPES[lane](facet_value)
     except (TypeError, ValueError) as error:
         raise WorkflowError(f"invalid evidence facet: {lane_value!r}/{facet_value!r}") from error
-    return EvidenceFacet(lane, facet)
+    if not isinstance(facet_value, str):
+        raise WorkflowError(f"invalid evidence facet: {lane_value!r}/{facet_value!r}")
+    return EvidenceFacet(lane, facet_value)
 
 
 SOURCE_DRIVER_ENTRY = EvidenceFacet(EvidenceLane.SOURCE, SourceFacet.DRIVER_ENTRY)

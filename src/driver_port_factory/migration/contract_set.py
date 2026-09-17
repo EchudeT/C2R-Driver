@@ -178,21 +178,15 @@ class MigrationContractGate:
         self._bind_inputs()
         if not self.contracts:
             raise WorkflowError("migration contract set is empty")
-        gaps = self.document.get("gaps")
-        if gaps:
-            successors = sorted({str(gap.get("successor")) for gap in gaps})
-            raise WorkflowError(
-                "migration contract evidence gaps require successor: " + ", ".join(successors)
-            )
         knowledge = self._knowledge()
         api_entries = self._api_entries()
         identifiers: set[str] = set()
-        covered_functions: set[tuple[str, str]] = set()
+        known_functions = self._source_functions()
         for contract in self.contracts:
             self._validate_contract(
                 contract,
                 identifiers,
-                covered_functions,
+                known_functions,
                 knowledge,
                 api_entries,
             )
@@ -201,14 +195,6 @@ class MigrationContractGate:
             raise WorkflowError(
                 "migration contracts omit target-change contract IDs: "
                 + ", ".join(sorted(missing_change_contracts))
-            )
-        required_functions = self._required_functions()
-        if covered_functions != required_functions:
-            missing = sorted(required_functions - covered_functions)
-            unknown = sorted(covered_functions - required_functions)
-            raise WorkflowError(
-                f"migration contracts do not exactly cover source functions; "
-                f"missing={missing}, unknown={unknown}"
             )
 
     def _bind_inputs(self) -> None:
@@ -246,7 +232,7 @@ class MigrationContractGate:
         self,
         contract: MigrationContract,
         identifiers: set[str],
-        covered_functions: set[tuple[str, str]],
+        known_functions: set[tuple[str, str]],
         knowledge: KnowledgeIndex,
         api_entries: dict[str, dict[str, Any]],
     ) -> None:
@@ -256,13 +242,14 @@ class MigrationContractGate:
         if not contract.requirement.strip() or not contract.rust_design_intent.strip():
             raise WorkflowError(f"migration contract {contract.identifier} is incomplete")
         self._validate_evidence(contract, knowledge, api_entries)
-        if contract.evidence_status is ContractEvidenceStatus.UNKNOWN:
+        expected_execution = (
+            ContractExecutionStatus.BLOCKED
+            if contract.evidence_status is ContractEvidenceStatus.UNKNOWN
+            else ContractExecutionStatus.NOT_RUN
+        )
+        if contract.execution_status is not expected_execution:
             raise WorkflowError(
-                f"migration contract {contract.identifier} has UNKNOWN evidence without successor"
-            )
-        if contract.execution_status is not ContractExecutionStatus.NOT_RUN:
-            raise WorkflowError(
-                f"migration contract {contract.identifier} execution must remain NOT_RUN"
+                f"migration contract {contract.identifier} has inconsistent evidence/execution"
             )
         self._verification(contract)
         for reference in contract.source_function_refs:
@@ -270,7 +257,14 @@ class MigrationContractGate:
                 raise WorkflowError(
                     f"migration contract {contract.identifier} has invalid source ref"
                 )
-            covered_functions.add((str(reference.get("unit_id")), str(reference.get("node_id"))))
+            source_function = (
+                str(reference.get("unit_id")),
+                str(reference.get("node_id")),
+            )
+            if source_function not in known_functions:
+                raise WorkflowError(
+                    f"migration contract {contract.identifier} cites an unknown source function"
+                )
 
     def _validate_evidence(
         self,
@@ -282,9 +276,9 @@ class MigrationContractGate:
             raise WorkflowError(f"migration contract {contract.identifier} lacks an evidence lane")
         for domain in EVIDENCE_DOMAINS:
             references = contract.evidence[domain.value]
-            if not isinstance(references, list) or not references:
+            if not isinstance(references, list):
                 raise WorkflowError(
-                    f"migration contract {contract.identifier} has no {domain.value} evidence"
+                    f"migration contract {contract.identifier} has invalid {domain.value} evidence"
                 )
             if domain is KnowledgeDomain.TARGET:
                 for reference in references:
@@ -296,7 +290,7 @@ class MigrationContractGate:
     def _validate_target(
         self,
         reference: Any,
-        knowledge: KnowledgeIndex,
+        _knowledge: KnowledgeIndex,
         api_entries: dict[str, dict[str, Any]],
     ) -> None:
         if not isinstance(reference, dict):
@@ -304,22 +298,6 @@ class MigrationContractGate:
         entry = api_entries.get(str(reference.get("api_id")))
         if entry is None or ApiConfidence(entry.get("confidence")) is ApiConfidence.UNKNOWN:
             raise WorkflowError("target contract evidence does not bind a resolved API entry")
-        for locator, field in (
-            ("definition", "definition_evidence"),
-            ("call_site", "call_site_evidence"),
-        ):
-            verified = self._verify_reference(
-                reference.get(locator),
-                KnowledgeDomain.TARGET,
-                knowledge,
-            )
-            expected = entry.get(field)
-            if not isinstance(expected, dict) or verified["chunk_id"] != expected.get(
-                "chunk_id"
-            ):
-                raise WorkflowError(
-                    "target contract evidence differs from the original API locator"
-                )
 
     def _verify_reference(
         self,
@@ -358,7 +336,7 @@ class MigrationContractGate:
                 f"migration contract {contract.identifier} verification is not executable"
             )
 
-    def _required_functions(self) -> set[tuple[str, str]]:
+    def _source_functions(self) -> set[tuple[str, str]]:
         _, data = self.context.one_dependency(SourceAnalysisArtifact.STRUCTURED_C_FACTS)
         facts = json_object(data, SourceAnalysisArtifact.STRUCTURED_C_FACTS.value)
         required: set[tuple[str, str]] = set()

@@ -51,7 +51,7 @@ from .migration.contracts import ComplianceRepairTarget, MigrationArtifact, Migr
 from .migration.handoff import MigrationHandoff
 from .migration.implementation import DriverImplementationService, ImplementationResponse
 from .migration.public_qemu import PublicQemuPlan, PublicQemuService
-from .migration.public_repair import PublicRepairPlan, PublicRepairService
+from .migration.public_repair import PublicRepairDecision, PublicRepairService
 from .migration.test_matrix import TestSelectionMatrix, TestSelectionService
 from .source_analysis.clang_backend import AnalyzerFamily
 from .source_analysis.closure import SourceClosureService
@@ -548,7 +548,6 @@ class PortRunner:
             job,
             (
                 "profile_json",
-                "profile_markdown",
                 "api_table",
                 "analogous_trace",
                 "change_plan",
@@ -557,7 +556,6 @@ class PortRunner:
         result = TargetStudyService().validate(
             project,
             profile_json=parts["profile_json"],
-            profile_markdown=parts["profile_markdown"],
             api_table=parts["api_table"],
             analogous_trace=parts["analogous_trace"],
             change_plan=parts["change_plan"],
@@ -755,9 +753,11 @@ class PortRunner:
         path = project.artifacts.path_for_digest(latest.digest)
         try:
             result = json.loads(path.read_text(encoding="utf-8"))
-            report = ComplianceReport.from_dict(result["compliance_report"])
-        except (OSError, UnicodeDecodeError, json.JSONDecodeError, KeyError, TypeError) as error:
+        except (OSError, UnicodeDecodeError, json.JSONDecodeError) as error:
             raise WorkflowError("latest target compliance result is unreadable") from error
+        if not isinstance(result, dict) or result.get("schema_version") != 2:
+            return None
+        report = ComplianceReport.from_dict(result)
         delta = report.repair_delta(target)
         if delta is None:
             return None
@@ -796,7 +796,6 @@ class PortRunner:
                 (
                     (MigrationStage.HANDOFF, MigrationArtifact.HANDOFF),
                     (MigrationStage.DRIVER_IMPLEMENTATION, MigrationArtifact.IMPLEMENTATION_BUNDLE),
-                    (MigrationStage.DRIVER_IMPLEMENTATION, MigrationArtifact.TRANSLATION_COVERAGE),
                     (
                         MigrationStage.DRIVER_IMPLEMENTATION,
                         MigrationArtifact.TARGET_CHANGE_INVENTORY,
@@ -808,8 +807,6 @@ class PortRunner:
                     (TargetStudyStage.STUDY, TargetStudyArtifact.ANALOGOUS_DRIVER_TRACE),
                     (TargetStudyStage.STUDY, TargetStudyArtifact.CHANGE_PLAN),
                     (SourceAnalysisStage.SOURCE_CLOSURE, SourceAnalysisArtifact.MATERIALS_MANIFEST),
-                    (EnvironmentStage.RECOVERY, EnvironmentArtifact.MODE_RECORD),
-                    (EnvironmentStage.RECOVERY, EnvironmentArtifact.EXPERIMENT_ROUTE),
                 ),
                 extra=extra,
             ),
@@ -817,13 +814,7 @@ class PortRunner:
         )
 
     def _accept_compliance_result(self, project: Project, job: ArtifactOccurrence) -> None:
-        parts = self._write_response_parts(
-            project,
-            MigrationStage.TARGET_COMPLIANCE,
-            job,
-            ("compliance_report",),
-        )
-        report = ComplianceReport.read(parts["compliance_report"])
+        report = ComplianceReport.read(project.artifacts.path_for_digest(job.digest))
         if report.requires_repair(ComplianceRepairTarget.KNOWLEDGE):
             project.retry_from(
                 KnowledgeStage.KNOWLEDGE_BASE,
@@ -865,9 +856,7 @@ class PortRunner:
         )
 
     @staticmethod
-    def _accept_artifact_preparation_result(
-        project: Project, job: ArtifactOccurrence
-    ) -> None:
+    def _accept_artifact_preparation_result(project: Project, job: ArtifactOccurrence) -> None:
         try:
             result = ArtifactPreparationService().run(
                 project, project.artifacts.path_for_digest(job.digest)
@@ -883,9 +872,6 @@ class PortRunner:
         artifact = project.artifact(
             MigrationStage.ARTIFACT_PREPARATION, MigrationArtifact.RUNTIME_ARTIFACT
         )
-        identity = project.load_json_artifact(
-            MigrationStage.ARTIFACT_PREPARATION, MigrationArtifact.ARTIFACT_IDENTITY
-        )
         self._codex_gate(
             project,
             MigrationStage.PUBLIC_QEMU_VALIDATION,
@@ -895,11 +881,8 @@ class PortRunner:
                     (MigrationStage.HANDOFF, MigrationArtifact.HANDOFF),
                     (MigrationStage.CONTRACTS, MigrationArtifact.CONTRACTS),
                     (MigrationStage.TEST_ADAPTATION, MigrationArtifact.TEST_PORT_MATRIX),
-                    (MigrationStage.DRIVER_IMPLEMENTATION, MigrationArtifact.IMPLEMENTATION_BUNDLE),
-                    (MigrationStage.TARGET_COMPLIANCE, MigrationArtifact.COMPLIANCE_REPORT),
                     (MigrationStage.ARTIFACT_PREPARATION, MigrationArtifact.RUNTIME_ARTIFACT),
                     (MigrationStage.ARTIFACT_PREPARATION, MigrationArtifact.ARTIFACT_IDENTITY),
-                    (EnvironmentStage.RECOVERY, EnvironmentArtifact.EXPERIMENT_READY_RUN),
                     (EnvironmentStage.RECOVERY, EnvironmentArtifact.EXPERIMENT_ROUTE),
                     (KnowledgeStage.KNOWLEDGE_BASE, KnowledgeArtifact.QUERY_CONTRACT),
                     (SourceAnalysisStage.SOURCE_CLOSURE, SourceAnalysisArtifact.MATERIALS_MANIFEST),
@@ -909,10 +892,6 @@ class PortRunner:
                         project.artifacts.path_for_digest(artifact.digest)
                     ),
                     "runtime_artifact_sha256": artifact.digest,
-                    "implementation_sha256": identity["inputs"][
-                        MigrationArtifact.IMPLEMENTATION_BUNDLE.value
-                    ]["digest"],
-                    "packaged_test_sha256": identity["packaged_test_artifact"]["sha256"],
                 },
             ),
             self._accept_public_qemu_result,
@@ -937,32 +916,57 @@ class PortRunner:
         bundle = project.load_json_artifact(
             MigrationStage.DRIVER_IMPLEMENTATION, MigrationArtifact.IMPLEMENTATION_BUNDLE
         )
-        _, _, response = self._codex(
+        baseline = DriverImplementationService.baseline_context(project)
+        context = {
+            "failed_attempt": source_ref,
+            "failed_evidence": failure,
+            "implementation_files": [
+                {"path": item["path"], "role": item["role"]} for item in bundle["files"]
+            ],
+            "implementation_baseline": (
+                None
+                if baseline is None
+                else {
+                    "file_roles": baseline["file_roles"],
+                    "unchanged_collections": [
+                        "coverage",
+                        "target_changes",
+                        "target_symbols",
+                        "unsafe_obligations",
+                    ],
+                }
+            ),
+            "frozen_inputs": {
+                kind.value: self._artifact_context(project, stage, kind)
+                for stage, kind in (
+                    (MigrationStage.CONTRACTS, MigrationArtifact.CONTRACTS),
+                    (MigrationStage.TEST_ADAPTATION, MigrationArtifact.TEST_PORT_MATRIX),
+                    (
+                        MigrationStage.DRIVER_IMPLEMENTATION,
+                        MigrationArtifact.IMPLEMENTATION_BUNDLE,
+                    ),
+                    (MigrationStage.ARTIFACT_PREPARATION, MigrationArtifact.ARTIFACT_IDENTITY),
+                    (KnowledgeStage.KNOWLEDGE_BASE, KnowledgeArtifact.QUERY_CONTRACT),
+                    (TargetStudyStage.STUDY, TargetStudyArtifact.CHANGE_PLAN),
+                )
+            },
+        }
+
+        def accept(project: Project, job: ArtifactOccurrence) -> None:
+            try:
+                decision = PublicRepairDecision.read(project.artifacts.path_for_digest(job.digest))
+                service.apply(project, decision, failure)
+            except CodexOutputError:
+                raise
+            except WorkflowError as error:
+                raise CodexOutputError(f"public repair failed: {error}") from error
+
+        self._codex_gate(
             project,
             MigrationStage.PUBLIC_REPAIR,
-            {
-                "failed_attempt": source_ref,
-                "failed_evidence": failure,
-                "implementation_files": [
-                    {"path": item["path"], "role": item["role"]} for item in bundle["files"]
-                ],
-                "frozen_inputs": {
-                    kind.value: self._artifact_context(project, stage, kind)
-                    for stage, kind in (
-                        (MigrationStage.CONTRACTS, MigrationArtifact.CONTRACTS),
-                        (MigrationStage.TEST_ADAPTATION, MigrationArtifact.TEST_PORT_MATRIX),
-                        (
-                            MigrationStage.DRIVER_IMPLEMENTATION,
-                            MigrationArtifact.IMPLEMENTATION_BUNDLE,
-                        ),
-                        (MigrationStage.ARTIFACT_PREPARATION, MigrationArtifact.ARTIFACT_IDENTITY),
-                        (KnowledgeStage.KNOWLEDGE_BASE, KnowledgeArtifact.QUERY_CONTRACT),
-                        (TargetStudyStage.STUDY, TargetStudyArtifact.CHANGE_PLAN),
-                    )
-                },
-            },
+            context,
+            accept,
         )
-        service.run(project, PublicRepairPlan.read(response), source_ref, failure)
 
     @staticmethod
     def _completion_audit(project: Project) -> None:

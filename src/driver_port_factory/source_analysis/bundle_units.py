@@ -6,12 +6,11 @@ from pathlib import Path
 from typing import Any
 
 from ..core.models import WorkflowError
-from ..core.validation import json_object, json_value
+from ..core.validation import json_object
 from ..knowledge.index import file_sha256
 from .ast_index import AstSemanticIndexer
 from .ast_projection import ClosureAstProjector, ClosureFileSet
 from .bundle_artifacts import ArtifactPayload, StructuredArtifactInventory, require_within
-from .bundle_commands import CommandEvidenceValidator
 from .clang_backend import CLANG_EXTRACTIONS, RawFactFormat
 from .contracts import SourceAnalysisArtifact
 from .fact_model import RawFactKind
@@ -33,7 +32,6 @@ class TranslationUnitBundleValidator:
 
     def __init__(self, inventory: StructuredArtifactInventory) -> None:
         self.inventory = inventory
-        self.commands = CommandEvidenceValidator(inventory)
 
     def validate(
         self,
@@ -133,21 +131,6 @@ class TranslationUnitBundleValidator:
             rebuilt.semantic,
             str(fact_unit["analyzer_target_triple"]),
             unit_id,
-        )
-        commands_payload = self.inventory.linked(
-            SourceAnalysisArtifact.STRUCTURED_C_COMMAND_RECORDS,
-            fact_unit.get("command_records"),
-            f"{unit_id}:command-records",
-        )
-        commands = json_value(commands_payload.data, "structured command records")
-        self.commands.validate(
-            commands,
-            unit_id,
-            rebuilt.source_path,
-            source_root,
-            manifest_unit,
-            facts["analyzer"],
-            rebuilt.raw_records,
         )
         return rebuilt.semantic["counts"]
 

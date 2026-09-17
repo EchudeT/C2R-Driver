@@ -273,7 +273,7 @@ class MaterialRecord:
         value: dict[str, object] = {
             "id": self.identifier,
             "domain": self.facet.lane.value,
-            "facet": self.facet.name.value,
+            "facet": self.facet.name,
             "path": self.path,
             "source_url": self.source_url,
             "revision": self.revision,

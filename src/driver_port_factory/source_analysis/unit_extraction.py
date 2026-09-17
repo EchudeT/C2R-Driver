@@ -21,7 +21,6 @@ class UnitResult:
     semantic_index: dict[str, Any]
     raw_paths: tuple[Path, ...]
     semantic_path: Path
-    commands_path: Path
 
 
 class TranslationUnitExtractor:
@@ -87,10 +86,6 @@ class TranslationUnitExtractor:
                 "semantic_index": {
                     "path": str(semantic_path.relative_to(self.project.root)),
                 },
-                "command_records": {
-                    "path": str(extraction.command_records_path.relative_to(self.project.root)),
-                    "sha256": file_sha256(extraction.command_records_path),
-                },
                 "semantic_counts": semantic_index["counts"],
                 "analyzer_target_triple": extraction.target_triple,
                 "verified_target_abi": extraction.target_abi,
@@ -98,7 +93,6 @@ class TranslationUnitExtractor:
             semantic_index=semantic_index,
             raw_paths=extraction.raw_paths,
             semantic_path=semantic_path,
-            commands_path=extraction.command_records_path,
         )
 
     def _validate_unit(self, unit: Any) -> tuple[str, Path, Path, list[str]]:

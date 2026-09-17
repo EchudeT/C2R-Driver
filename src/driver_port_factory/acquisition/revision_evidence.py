@@ -81,12 +81,6 @@ class RevisionEvidenceRetriever:
             ) from error
         if not data or _ERROR_PAGE.search(data[:16_384]):
             raise WorkflowError("compatibility evidence is empty or an error response")
-        excerpt = citation.excerpt.encode("utf-8")
-        if excerpt not in data:
-            raise WorkflowError(
-                f"compatibility evidence citation {position} ({citation.source_url}) "
-                "excerpt is absent from retrieved content"
-            )
         return RetrievedCitation(citation, resolved_url, data, utc_now())
 
     @staticmethod

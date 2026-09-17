@@ -14,7 +14,6 @@ def command_validate(arguments: argparse.Namespace) -> None:
     result = TargetStudyService().validate(
         project,
         profile_json=Path(arguments.profile_json),
-        profile_markdown=Path(arguments.profile_markdown),
         api_table=Path(arguments.api_table),
         analogous_trace=Path(arguments.analogous_trace),
         change_plan=Path(arguments.change_plan),
@@ -42,7 +41,6 @@ def register_commands(commands: CommandRegistry) -> None:
     validate = subcommands.add_parser("validate")
     validate.add_argument("path")
     validate.add_argument("--profile-json", required=True)
-    validate.add_argument("--profile-markdown", required=True)
     validate.add_argument("--api-table", required=True)
     validate.add_argument("--analogous-trace", required=True)
     validate.add_argument("--change-plan", required=True)

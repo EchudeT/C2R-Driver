@@ -281,13 +281,11 @@ def _migration_rows(config: ProjectConfig) -> tuple[StageRow, ...]:
                 SourceAnalysisArtifact.STRUCTURED_C_ANALYSIS_REPORT,
                 SourceAnalysisArtifact.STRUCTURED_C_RAW_FACT,
                 SourceAnalysisArtifact.STRUCTURED_C_SEMANTIC_INDEX,
-                SourceAnalysisArtifact.STRUCTURED_C_COMMAND_RECORDS,
             ),
             (SourceAnalysisArtifact.STRUCTURED_C_ANALYSIS_ATTEMPT,),
             (
                 SourceAnalysisArtifact.STRUCTURED_C_RAW_FACT,
                 SourceAnalysisArtifact.STRUCTURED_C_SEMANTIC_INDEX,
-                SourceAnalysisArtifact.STRUCTURED_C_COMMAND_RECORDS,
             ),
         ),
         StageRow(

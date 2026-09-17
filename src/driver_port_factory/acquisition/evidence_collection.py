@@ -107,7 +107,7 @@ class EvidenceCollector:
             if not retrieval.materials:
                 raise WorkflowError(
                     f"controlled facet {proposal.facet.lane.value}/"
-                    f"{proposal.facet.name.value} retrieved no material"
+                    f"{proposal.facet.name} retrieved no material"
                 )
             return (
                 CoverageEntry.controlled(
@@ -118,7 +118,7 @@ class EvidenceCollector:
             )
         if retrieval.materials:
             raise WorkflowError(
-                f"facet {proposal.facet.lane.value}/{proposal.facet.name.value} was proposed "
+                f"facet {proposal.facet.lane.value}/{proposal.facet.name} was proposed "
                 "as a gap but controlled content was retrieved"
             )
         if proposal.gap is None:
@@ -129,7 +129,7 @@ class EvidenceCollector:
                 f"declared gap reason {proposal.gap.reason.value} does not match "
                 f"retrieval outcome {derived_reason.value}"
             )
-        gap_id = f"gap.{proposal.facet.lane.value}.{proposal.facet.name.value}"
+        gap_id = f"gap.{proposal.facet.lane.value}.{proposal.facet.name}"
         gap = EvidenceGap(
             gap_id,
             proposal.facet,

@@ -11,6 +11,9 @@
 - 恢复点：阶段 10 `knowledge_base`；阶段 1–9 使用已冻结的 PASS 产物。
 - 代码基线：`f086a64`。
 - 禁止把 source/model-only QEMU 结果报告成迁移驱动运行 PASS。
+- 该轮已停止，本次修正没有启动 Codex 阶段、构建或 QEMU。由于工作流已删除旧
+  `structured_c_command_records` 产物，该旧 workspace 的冻结阶段规格不再属于当前单一路径；
+  后续端到端结论必须来自一次新的完整运行。
 
 ## 逐阶段观察
 
@@ -21,10 +24,10 @@
 | 3 | driver_candidate_resolution | `ne2k-pci` 唯一解析到 PCI/RTL-8029 范围。 | 保持一次性身份门禁。 |
 | 4 | scope_confirmation | 总线、设备族与排除范围已确认。 | 不重复询问已冻结范围。 |
 | 5 | migration_envelope_freeze | 迁移语言、QEMU 和设备范围已冻结。 | 保持静态。 |
-| 6 | revision_selection | 4 份响应；前三次因 citation excerpt 不是远端原文的连续字节子串而退回。 | 已在 Prompt 明确 byte-for-byte contiguous substring；不新增框架。 |
+| 6 | revision_selection | 4 份响应；前三次因当时自造的“excerpt 必须是远端原文连续字节子串”而退回。 | 该条件已删除；程序只冻结真实抓取内容和 ref/commit，语义兼容性仍是 `INFERRED`。 |
 | 7 | repository_acquisition | Linux、Asterinas、QEMU 固定 revision 已获取并哈希。 | 静态 acquisition 符合 Skill。 |
 | 8 | evidence_closure | 1 次通过；25 个 facet 覆盖 source/target/QEMU/hardware/test/tooling。 | 输入和闭包充分。 |
-| 9 | environment_recovery | 2 份响应、1 次纠错；得到 direct-device-model 的 RISC-V QMP smoke。 | 仅是 model baseline；最终仍需证明当前驱动进入目标 artifact。 |
+| 9 | environment_recovery | 2 份响应、1 次纠错；得到 direct-device-model 的 RISC-V QMP smoke。 | 仅是该次历史运行的 model baseline；QMP 不是通用门禁，最终仍需证明当前驱动进入目标 artifact。 |
 | 10 | knowledge_base | 本轮恢复后 1 次通过；补入 Taskless、WithDevice、DmaPool/TSC 与目标编码规则等受影响 originals。只读 status/search/show 已正常工作。 | 旧轮 4 次重试主要来自本地 archive/UTF-8/Cargo/probe 基础设施，不应反馈给模型。 |
 | 11 | target_platform_study | 1 次通过；模型复用了旧 thread，依据更新后的 KB 重建五件套，结果为 `target_platform_study-b248cb62-ee47-483e-bf28-106d4af62371.result`。 | 门禁满足，但为少量 KNOWLEDGE findings 重读了旧 study、完整 compliance 和临时结构检查；见优化项 O1。 |
 | 12 | migration_handoff | 首次静态组装失败，错误为 `migration handoff does not bind every upstream artifact`；修复后从 `RUNNING` 恢复并 `PASS`。根因是生成端读取全部历史产物，而 bundle 门禁只比较各依赖阶段当前 attempt 的产物。 | 已改为只绑定 `current_artifact_refs`；未放宽 handoff 内容门禁。 |
@@ -35,7 +38,7 @@
 | 17 | driver_implementation | 复用 implementation thread，读取当前合同/测试矩阵、结构化索引和历史 compliance；对驱动私有 `device.rs`/`pci.rs` 作集中修复。首份响应依次暴露三个控制器误拒绝：既有文件 TODO、带当前 target change 的 `UNKNOWN` API、以及实现后已解除阻塞的 `PRESERVE_BLOCKED` 测试。三次纠错均在新模型结果产生前中止。合规回退后的首次新调用在 Prompt 审计中发现 delta 来源仍泄露完整旧结果路径，已在无响应时中止。 | unfinished 检查已限于新增文件；未知接口须精确绑定当前 target change；coverage 必须覆盖 `RETAIN/ADAPT`，可激活已实现的 `PRESERVE_BLOCKED`，禁止 `EXCLUDE`。repair delta 来源现只保留 digest/ordinal，不能诱导模型重开完整历史；见 O1、O7、O8、O10。 |
 | 18 | target_compliance | 新一轮 `VIOLATION` 确认三个真实实现缺陷并已回到阶段 17 修复。修复后的复查仍读取工厂校验器/测试并累计约 315 万 token，已在产出响应前停止。 | 合规只保留 Skill Phase 7；Phase 8 计划移到阶段 19；见 O11、O12。 |
 | 19 | artifact_preparation | 等待。 | 必须证明 artifact 含当前实现，不能只证明编译命令成功。 |
-| 20 | public_qemu_validation | 等待。 | 按固定 evidence ladder 运行并保存外部 oracle。 |
+| 20 | public_qemu_validation | 未运行。 | 之后须按 Skill evidence ladder 记录适用/不适用/阻塞项；执行命令必须由 harness 实际判定预声明 oracle，不能把单纯退出码当作 oracle。 |
 | 21 | public_repair | 等待。 | 仅对公开失败证据作一次有归因的最小修复。 |
 | 22 | completion_audit | 等待。 | 静态汇总各 contract/test 状态，不生成乐观总 PASS。 |
 
@@ -51,14 +54,14 @@
 
 ### O2：程序绑定 target evidence（高优先级）
 
-`migration_contracts` 应让模型选择 `api_id` 和契约语义，控制器再从已验收 API table 填入对应的
-`definition_evidence` / `call_site_evidence`。这样可保留模型判断，同时消除伪造 chunk ID、扩大行范围
-和 target lane 误配。当前 Prompt 的“精确复制”是短期修复。
+`migration_contracts` 只让模型选择 `api_id` 和契约语义，控制器再从已验收 API table 解析对应的
+原始 target evidence。这已消除伪造 chunk ID、扩大行范围和 target lane 误配，不再要求模型复制
+API 定义或证据。
 
-### O3：只给复合 Codex 输出增加 JSON Schema（中优先级）
+### O3：Prompt 只提供最小返回契约（已实施）
 
-为 target-study 五件套和 migration contracts 绑定现有领域结构的复合 schema，在模型返回边界阻止
-数组/对象形状错误。不要给静态阶段或所有内部对象增加新校验层。
+删除了为 Codex 复合输出编写的大型 JSON Schema。可频繁调整的 prompt pack 直接给出阶段顶层形状
+和必要嵌套字段；领域 importer 只保留实际执行所需的 typed boundary。
 
 ### O4：按 attempt 生命周期复用 thread（已实施）
 
@@ -101,22 +104,21 @@ definition evidence、call-site evidence 与冻结 API 表完全一致时才可�
 provenance；query contract 保留初始 digest，source-closure knowledge revision 记录父子关系。无需新增阶段，
 也不应要求阶段 10 因正常源码闭包扩展而重跑。
 
-### O10：让实现解除阻塞的公开测试进入后续证据梯（已实施 / 待阶段 20 验证）
+### O10：保留被阻塞公开测试的意图（已实施）
 
 阶段 16 在目标能力尚未实现时将 CPU-fill 与集成 QEMU 测试标为 `PRESERVE_BLOCKED` 是正确的；阶段 17
 实现对应 target change 后也正确生成了测试和 runner hook。旧门禁却要求 coverage 与 `RETAIN/ADAPT`
-集合完全相等，因而拒绝这两个测试，并会让它们在能力补齐后永久无法执行。现在阶段 17 要求所有
-`RETAIN/ADAPT` 必须覆盖，允许实际实现的 `PRESERVE_BLOCKED` 进入 coverage，同时继续禁止 `EXCLUDE`。
-阶段 20 应从已验收 implementation coverage 派生本轮可执行测试，而非再次只读取阶段 16 的静态
-disposition；到达该阶段时用真实 Prompt 和运行计划验证，不预建额外转换层。
+集合完全相等，因而拒绝这两个测试。现在阶段 17 要求所有 `RETAIN/ADAPT` 必须覆盖，允许实现保留
+`PRESERVE_BLOCKED` 意图，同时继续禁止 `EXCLUDE`。按 Skill，阻塞测试不计入后续 PASS；只有当新证据使
+阶段 16 将其重新分类为 `RETAIN/ADAPT` 时才进入公开 QEMU 证据梯，不增加转换层。
 
 ### O11：Codex 不读取工厂实现来猜输出协议（已实施）
 
 真实 event log 显示所有 Codex 阶段都曾读取 `driver-port-factory/src` 或临时测试；其中
 `driver_implementation` 有 419 条命令，`target_compliance` 有 222 条命令。主要原因是节点为猜测
 控制器字段和校验器而阅读工厂源码，而不是执行对应 Skill。通用 Prompt 现明确禁止重读已嵌入 Skill
-以及检查工厂源码/测试；阶段 18、19 的关键输出直接绑定小型 JSON Schema。模型只负责 Skill 要求的
-语义判断，控制器只负责结构化边界。
+以及检查工厂源码/测试；各 Codex 阶段的可编辑 prompt 只附最小返回契约。模型只负责 Skill 要求的
+语义判断，控制器负责路径、哈希、引用和结构化边界。
 
 ### O12：合规与产物准备分离，身份由程序生成（已实施）
 
@@ -129,8 +131,8 @@ disposition；到达该阶段时用真实 Prompt 和运行计划验证，不预�
 
 | 节点 | 已确认的冗余/偏离 | 收敛方式 |
 |---|---|---|
-| revision/evidence | 已有输出 Schema 仍读取工厂解析器和策略实现。 | 通用 Prompt 禁止读取工厂；只按 Schema 与 Skill 返回。 |
-| environment | 为猜 plan 字段读取内部 Schema/registrar。 | 后续直接绑定现有环境 plan Schema，不让模型读实现。 |
+| revision/evidence | 曾为猜输出读取工厂解析器和策略实现。 | 通用 Prompt 禁止读取工厂；阶段 objective 给出最小返回契约。 |
+| environment | 为猜 plan 字段读取内部 Schema/registrar。 | prompt 直接给出一个有界命令计划的必要字段，不限定 QMP 或产物模式。 |
 | knowledge | 静态下载、UTF-8/Cargo 故障曾反馈给模型诊断。 | 基础设施错误留在程序；Codex 只负责 target probe 语义。 |
 | target study/source closure | 为猜五件套/closure 字段读取 service 与测试。 | 以阶段输出契约提供结构，不让模型反查门禁。 |
 | contracts/tests/implementation | 多次读取 validator、enum 和测试 fixture。 | Prompt 只给阶段契约；枚举/哈希/changed paths 由程序处理。 |
@@ -143,3 +145,12 @@ disposition；到达该阶段时用真实 Prompt 和运行计划验证，不预�
 - KB 动态查询已解析阶段 13 扩展后的 manifest `290b2…`，状态为 `READY`；生成 Skill 中旧 manifest
   路径的措辞问题记录为 O9。
 - E2E 只运行一个控制器和一个当前 Codex job，没有并发重复翻译。
+
+## 本次静态修正（尚未经新 E2E 验证）
+
+- Codex 实现返回的 coverage 现只选择 source unit 和 structured fact ID，控制器从冻结 semantic
+  index 写入对应 source span。
+- public QEMU prompt 现明确要求 harness/checker 执行预声明 oracle；退出状态只是 harness 结果的
+  传递，不是单独 oracle。
+- 旧根目录和 prompt-pack 复合 Schema 已删除；本次没有修改临时 tests，也没有声称阶段 18–22
+  或新的端到端流程已通过。

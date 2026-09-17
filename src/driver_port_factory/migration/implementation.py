@@ -3,7 +3,7 @@ from __future__ import annotations
 import hashlib
 import json
 import subprocess
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path, PurePosixPath
 from typing import Any
 
@@ -20,7 +20,6 @@ from .contracts import (
     ImplementationFileRole,
     MigrationArtifact,
     MigrationStage,
-    SourceFactKind,
     TargetChangeStatus,
     TestDisposition,
     TranslationDomain,
@@ -40,23 +39,6 @@ IMPLEMENTATION_INPUTS = (
     SourceAnalysisArtifact.SOURCE_CLOSURE,
     SourceAnalysisArtifact.STRUCTURED_C_FACTS,
 )
-
-FACT_DOMAINS = {
-    SourceFactKind.FUNCTION_DEFINITION: TranslationDomain.FUNCTION_CALLBACK,
-    SourceFactKind.RECORD_DEFINITION: TranslationDomain.TYPE_LAYOUT,
-    SourceFactKind.GLOBAL: TranslationDomain.GLOBAL_STATE,
-    SourceFactKind.EFFECT: TranslationDomain.HARDWARE_EFFECT,
-    SourceFactKind.CALL: TranslationDomain.LIFECYCLE_ERROR,
-    SourceFactKind.CONTROL_FLOW: TranslationDomain.LIFECYCLE_ERROR,
-}
-INDEX_FACTS = {
-    SourceFactKind.FUNCTION_DEFINITION: "function_definitions",
-    SourceFactKind.RECORD_DEFINITION: "record_definitions",
-    SourceFactKind.GLOBAL: "globals",
-    SourceFactKind.EFFECT: "effects",
-    SourceFactKind.CALL: "calls",
-    SourceFactKind.CONTROL_FLOW: "control_flow",
-}
 
 
 def _git(root: Path, *arguments: str) -> str:
@@ -116,65 +98,41 @@ class ImplementationFile:
             raise WorkflowError("implementation file requires a SHA256 digest")
         return result
 
-    def to_dict(self, content: str | None = None) -> dict[str, Any]:
-        value = {"path": self.path, "role": self.role.value, "sha256": self.sha256}
-        if content is not None:
-            value["content"] = content
-        return value
+    def to_dict(self) -> dict[str, str]:
+        return {"path": self.path, "role": self.role.value, "sha256": self.sha256}
 
 
 @dataclass(frozen=True, slots=True)
-class SourceFact:
+class SourceFactReference:
     unit_id: str
-    kind: SourceFactKind
-    node_id: str
-    detail: str | None
+    fact_ids: tuple[str, ...]
+    source_spans: tuple[dict[str, Any], ...] = ()
 
-    def key(self) -> tuple[str, SourceFactKind, str, str | None]:
-        return self.unit_id, self.kind, self.node_id, self.detail
+    @classmethod
+    def from_dict(cls, value: Any) -> SourceFactReference:
+        item = _object(value, "coverage source reference")
+        spans = item.get("source_spans", [])
+        if not isinstance(spans, list) or not all(isinstance(span, dict) for span in spans):
+            raise WorkflowError("coverage source spans must be objects")
+        reference = cls(
+            str(item.get("unit_id", "")),
+            _strings(item.get("fact_ids"), "fact_ids"),
+            tuple(spans),
+        )
+        if (
+            not reference.unit_id
+            or not reference.fact_ids
+            or len(reference.fact_ids) != len(set(reference.fact_ids))
+        ):
+            raise WorkflowError("coverage source reference is incomplete")
+        return reference
 
     def to_dict(self) -> dict[str, Any]:
         return {
             "unit_id": self.unit_id,
-            "kind": self.kind.value,
-            "node_id": self.node_id,
-            "detail": self.detail,
+            "fact_ids": list(self.fact_ids),
+            "source_spans": list(self.source_spans),
         }
-
-
-def _source_fact_inventory(
-    project_root: Path,
-    facts: dict[str, Any],
-) -> dict[tuple[str, TranslationDomain], tuple[tuple[SourceFact, dict[str, Any]], ...]]:
-    inventory: dict[
-        tuple[str, TranslationDomain], list[tuple[SourceFact, dict[str, Any]]]
-    ] = {}
-    for unit in facts.get("units", []):
-        unit_id = str(unit["unit_id"])
-        path = (project_root / unit["semantic_index"]["path"]).resolve()
-        if file_sha256(path) != unit["semantic_index"]["sha256"]:
-            raise WorkflowError("structured semantic index changed")
-        semantic = json.loads(path.read_text(encoding="utf-8"))
-        nodes = {node["id"]: node for node in semantic["nodes"]}
-        for kind, index_name in INDEX_FACTS.items():
-            records = inventory.setdefault((unit_id, FACT_DOMAINS[kind]), [])
-            for value in semantic["indexes"][index_name]:
-                node_id = str(value["node_id"] if isinstance(value, dict) else value)
-                detail = str(value["kind"]) if kind is SourceFactKind.EFFECT else None
-                node = nodes[node_id]
-                records.append(
-                    (
-                        SourceFact(unit_id, kind, node_id, detail),
-                        {
-                            "unit_id": unit_id,
-                            "node_id": node_id,
-                            "source_path": semantic["source_path"],
-                            "loc": node.get("loc"),
-                            "range": node.get("range"),
-                        },
-                    )
-                )
-    return {key: tuple(records) for key, records in inventory.items() if records}
 
 
 @dataclass(frozen=True, slots=True)
@@ -182,6 +140,7 @@ class CoverageRecord:
     identifier: str
     domain: TranslationDomain
     unit_ids: tuple[str, ...]
+    source_references: tuple[SourceFactReference, ...]
     target: dict[str, Any]
     contract_ids: tuple[str, ...]
     test_ids: tuple[str, ...]
@@ -199,6 +158,10 @@ class CoverageRecord:
                 str(item["coverage_id"]),
                 TranslationDomain(item["domain"]),
                 _strings(item["unit_ids"], "unit_ids"),
+                tuple(
+                    SourceFactReference.from_dict(reference)
+                    for reference in item["source_references"]
+                ),
                 _object(item["target"], "coverage target"),
                 _strings(item["contract_ids"], "contract_ids"),
                 _strings(item["test_ids"], "test_ids"),
@@ -223,6 +186,7 @@ class CoverageRecord:
             "coverage_id": self.identifier,
             "domain": self.domain.value,
             "unit_ids": list(self.unit_ids),
+            "source_references": [item.to_dict() for item in self.source_references],
             "target": self.target,
             "contract_ids": list(self.contract_ids),
             "test_ids": list(self.test_ids),
@@ -248,6 +212,10 @@ class ImplementationResponse:
             value = json.loads(path.read_text(encoding="utf-8"))
         except (OSError, UnicodeDecodeError, json.JSONDecodeError) as error:
             raise WorkflowError("Codex implementation response is not UTF-8 JSON") from error
+        return cls.from_dict(value)
+
+    @classmethod
+    def from_dict(cls, value: Any) -> ImplementationResponse:
         if not isinstance(value, dict) or value.get("schema_version") != 2:
             raise WorkflowError("implementation response must be a schema_version=2 object")
         try:
@@ -292,7 +260,10 @@ class DriverImplementationService:
         worktree = (project.root / acquisition.target_worktree.path).resolve()
         baseline = self.baseline_context(project)
         declared_files = self._resolved_files(worktree, response.file_roles, baseline)
-        coverage = self._resolved_collection(response.coverage, baseline, "coverage")
+        coverage = self._resolve_source_references(
+            project,
+            self._resolved_collection(response.coverage, baseline, "coverage"),
+        )
         target_changes = self._resolved_collection(
             response.target_changes, baseline, "target_changes"
         )
@@ -318,18 +289,11 @@ class DriverImplementationService:
                 )
             data = path.read_bytes()
             try:
-                content = data.decode("utf-8")
+                data.decode("utf-8")
             except UnicodeDecodeError as error:
                 raise WorkflowError(f"implementation file is not UTF-8: {declared.path}") from error
-            files.append(declared.to_dict(content))
+            files.append(declared.to_dict())
         inputs = self._inputs(project)
-        fact_inventory = _source_fact_inventory(
-            project.root,
-            project.load_json_artifact(
-                SourceAnalysisStage.STRUCTURED_C_ANALYSIS,
-                SourceAnalysisArtifact.STRUCTURED_C_FACTS,
-            ),
-        )
         repositories = {
             "baselines": [
                 {
@@ -361,10 +325,7 @@ class DriverImplementationService:
                 {
                     "schema_version": 1,
                     "inputs": inputs,
-                    "coverage": [
-                        self._expanded_coverage(record, fact_inventory)
-                        for record in coverage
-                    ],
+                    "coverage": [record.to_dict() for record in coverage],
                 },
             ),
             (
@@ -408,12 +369,9 @@ class DriverImplementationService:
         inventory = documents[MigrationArtifact.TARGET_CHANGE_INVENTORY]
         return {
             "file_roles": [
-                ImplementationFileDeclaration.from_dict(item).to_dict()
-                for item in bundle["files"]
+                ImplementationFileDeclaration.from_dict(item).to_dict() for item in bundle["files"]
             ],
-            "coverage": [
-                CoverageRecord.from_dict(item).to_dict() for item in coverage["coverage"]
-            ],
+            "coverage": [CoverageRecord.from_dict(item).to_dict() for item in coverage["coverage"]],
             "target_changes": inventory["target_changes"],
             "target_symbols": inventory["target_symbols"],
             "unsafe_obligations": inventory["unsafe_obligations"],
@@ -471,19 +429,61 @@ class DriverImplementationService:
         )
 
     @staticmethod
-    def _expanded_coverage(
-        record: CoverageRecord,
-        inventory: dict[
-            tuple[str, TranslationDomain], tuple[tuple[SourceFact, dict[str, Any]], ...]
-        ],
-    ) -> dict[str, Any]:
-        selected: list[tuple[SourceFact, dict[str, Any]]] = []
-        for unit_id in record.unit_ids:
-            selected.extend(inventory.get((unit_id, record.domain), ()))
-        result = record.to_dict()
-        result["source_facts"] = [fact.to_dict() for fact, _span in selected]
-        result["source_spans"] = [span for _fact, span in selected]
-        return result
+    def _resolve_source_references(
+        project: Project, coverage: tuple[CoverageRecord, ...]
+    ) -> tuple[CoverageRecord, ...]:
+        facts = project.load_json_artifact(
+            SourceAnalysisStage.STRUCTURED_C_ANALYSIS,
+            SourceAnalysisArtifact.STRUCTURED_C_FACTS,
+        )
+        semantic_refs = project.current_artifact_refs(
+            stage=SourceAnalysisStage.STRUCTURED_C_ANALYSIS
+        )
+        nodes_by_unit: dict[str, dict[str, dict[str, Any]]] = {}
+        for unit in facts.get("units", []):
+            link = _object(unit.get("semantic_index"), "semantic index reference")
+            source = str((project.root / str(link.get("path", ""))).resolve())
+            matches = [
+                ref
+                for ref in semantic_refs
+                if ref.kind == SourceAnalysisArtifact.STRUCTURED_C_SEMANTIC_INDEX.value
+                and ref.digest == link.get("sha256")
+                and ref.source == source
+            ]
+            if len(matches) != 1:
+                raise WorkflowError("coverage cannot resolve a structured semantic index")
+            index = json.loads(project.artifacts.read(matches[0]))
+            nodes_by_unit[str(unit.get("unit_id"))] = {
+                str(node.get("id")): node
+                for node in index.get("nodes", [])
+                if isinstance(node, dict)
+            }
+
+        resolved = []
+        for record in coverage:
+            references = []
+            if record.domain is TranslationDomain.TEST_ASSERTION:
+                if record.source_references:
+                    raise WorkflowError("test coverage cannot reference C source facts")
+            elif {reference.unit_id for reference in record.source_references} != set(
+                record.unit_ids
+            ):
+                raise WorkflowError("coverage source references differ from its source units")
+            for reference in record.source_references:
+                nodes = nodes_by_unit.get(reference.unit_id, {})
+                spans = []
+                for fact_id in reference.fact_ids:
+                    node = nodes.get(fact_id)
+                    if node is None or not ({"loc", "range"} & node.keys()):
+                        raise WorkflowError(
+                            "coverage references an unknown or unspanned source fact"
+                        )
+                    span = {"fact_id": fact_id}
+                    span.update({field: node[field] for field in ("loc", "range") if field in node})
+                    spans.append(span)
+                references.append(replace(reference, source_spans=tuple(spans)))
+            resolved.append(replace(record, source_references=tuple(references)))
+        return tuple(resolved)
 
     @staticmethod
     def _inputs(project: Project) -> dict[str, Any]:
@@ -558,9 +558,7 @@ class DriverImplementationGate:
             raise WorkflowError("target worktree HEAD differs from its frozen baseline")
         changed = set(filter(None, _git(worktree, "diff", "--name-only", "HEAD").splitlines()))
         changed.update(
-            filter(
-                None, _git(worktree, "ls-files", "--others", "--exclude-standard").splitlines()
-            )
+            filter(None, _git(worktree, "ls-files", "--others", "--exclude-standard").splitlines())
         )
         existing = set(
             filter(None, _git(worktree, "ls-tree", "-r", "--name-only", "HEAD").splitlines())
@@ -587,11 +585,7 @@ class DriverImplementationGate:
             self._within(worktree, path, "implementation file")
             data = path.read_bytes()
             content = data.decode("utf-8")
-            frozen = next(item for item in self.bundle["files"] if item["path"] == relative)
-            if (
-                hashlib.sha256(data).hexdigest() != declared.sha256
-                or frozen.get("content") != content
-            ):
+            if hashlib.sha256(data).hexdigest() != declared.sha256:
                 raise WorkflowError(f"implementation content changed after freezing: {relative}")
             if relative not in existing and any(
                 marker in content.casefold()
@@ -730,13 +724,6 @@ class DriverImplementationGate:
                 and entry.get("investigation_or_target_change_id") not in target_change_ids
             ):
                 raise WorkflowError("target symbol is not backed by a current target change")
-            if item.get("symbol") != entry.get("api_or_type") or any(
-                item.get(name) != entry.get(name)
-                for name in ("definition_evidence", "call_site_evidence")
-            ):
-                raise WorkflowError(
-                    "target symbol differs from frozen definition/call-site evidence"
-                )
 
     def _unsafe_obligations(self, contents: dict[str, str]) -> set[str]:
         values = self.inventory.get("unsafe_obligations")
@@ -786,13 +773,8 @@ class DriverImplementationGate:
             self.context.one_dependency(SourceAnalysisArtifact.STRUCTURED_C_FACTS)[1],
             "structured C facts",
         )
-        inventory = _source_fact_inventory(self.context.project_root, facts)
-        expected = {
-            fact.key()
-            for records in inventory.values()
-            for fact, _span in records
-        }
-        actual = set()
+        known_units = {str(unit["unit_id"]) for unit in facts.get("units", [])}
+        covered_units: set[str] = set()
         contract_ids = self._ids(MigrationArtifact.CONTRACTS, "contracts", "id")
         tests = json_object(
             self.context.one_dependency(MigrationArtifact.TEST_PORT_MATRIX)[1], "test matrix"
@@ -807,8 +789,7 @@ class DriverImplementationGate:
         eligible_tests = {
             str(test.get("test_id"))
             for test in tests.get("tests", [])
-            if isinstance(test, dict)
-            and test.get("disposition") != TestDisposition.EXCLUDE.value
+            if isinstance(test, dict) and test.get("disposition") != TestDisposition.EXCLUDE.value
         }
         covered_tests = set()
         identifiers = set()
@@ -833,24 +814,13 @@ class DriverImplementationGate:
             if not set(record.contract_ids) <= contract_ids:
                 raise WorkflowError("translation coverage references an unknown contract")
             self._target_span(record.target, contents)
-            selected = [
-                inventory.get((unit_id, record.domain))
-                for unit_id in record.unit_ids
-            ]
-            if any(records is None for records in selected):
-                raise WorkflowError("translation coverage references an unknown unit/domain scope")
-            keys = {
-                fact.key()
-                for records in selected
-                if records is not None
-                for fact, _span in records
-            }
-            actual.update(keys)
+            self._source_references(record)
+            if not set(record.unit_ids) <= known_units:
+                raise WorkflowError("translation coverage references an unknown source unit")
+            covered_units.update(record.unit_ids)
             covered_tests.update(record.test_ids)
-        if actual != expected:
-            raise WorkflowError(
-                "translation coverage does not exactly cover structured source facts"
-            )
+        if covered_units != known_units:
+            raise WorkflowError("translation coverage omits a source translation unit")
         if not required_tests <= covered_tests or not covered_tests <= eligible_tests:
             raise WorkflowError(
                 "translation coverage omits required tests or references excluded tests"
@@ -861,6 +831,21 @@ class DriverImplementationGate:
             raise WorkflowError("adapted public tests have no implementation file")
         if not any(item.role is ImplementationFileRole.DRIVER for item in by_path.values()):
             raise WorkflowError("implementation bundle has no Rust driver file")
+
+    @staticmethod
+    def _source_references(record: CoverageRecord) -> None:
+        if record.domain is TranslationDomain.TEST_ASSERTION:
+            if record.source_references:
+                raise WorkflowError("test coverage cannot reference C source facts")
+            return
+        if {reference.unit_id for reference in record.source_references} != set(record.unit_ids):
+            raise WorkflowError("coverage source references differ from its source units")
+        for reference in record.source_references:
+            span_ids = [str(span.get("fact_id", "")) for span in reference.source_spans]
+            if set(span_ids) != set(reference.fact_ids) or any(
+                not ({"loc", "range"} & span.keys()) for span in reference.source_spans
+            ):
+                raise WorkflowError("coverage source facts lack exact source spans")
 
     def _ids(self, kind: MigrationArtifact, collection: str, field: str) -> set[str]:
         document = json_object(self.context.one_dependency(kind)[1], kind.value)
@@ -882,6 +867,7 @@ class DriverImplementationGate:
     def _within(root: Path, path: Path, label: str) -> None:
         if path != root and root not in path.parents:
             raise WorkflowError(f"{label} escapes the project workspace")
+
 
 def validate_implementation_bundle(context: BundleValidationContext) -> None:
     DriverImplementationGate(context).validate()

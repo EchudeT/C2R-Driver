@@ -30,7 +30,6 @@ class StructuredArtifactInventory:
         {
             SourceAnalysisArtifact.STRUCTURED_C_RAW_FACT.value,
             SourceAnalysisArtifact.STRUCTURED_C_SEMANTIC_INDEX.value,
-            SourceAnalysisArtifact.STRUCTURED_C_COMMAND_RECORDS.value,
         }
     )
 

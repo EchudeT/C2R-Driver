@@ -32,7 +32,7 @@ def policy_for(facet: EvidenceFacet) -> FacetOriginPolicy:
     qemu = frozenset({RepositoryRole.QEMU})
     match facet.lane:
         case EvidenceLane.SOURCE:
-            endorsements = frozenset() if facet.name is SourceFacet.DRIVER_ENTRY else source
+            endorsements = frozenset() if facet.name == SourceFacet.DRIVER_ENTRY else source
             return FacetOriginPolicy(source, endorsements, False)
         case EvidenceLane.TARGET:
             return FacetOriginPolicy(target, target, False)
@@ -43,7 +43,7 @@ def policy_for(facet: EvidenceFacet) -> FacetOriginPolicy:
         case EvidenceLane.TEST:
             roles = (
                 source
-                if facet.name is TestFacet.SOURCE_TESTS
+                if facet.name == TestFacet.SOURCE_TESTS
                 else frozenset({RepositoryRole.SOURCE, RepositoryRole.TARGET})
             )
             return FacetOriginPolicy(roles, roles, True)
@@ -59,7 +59,7 @@ def validate_locator_authority(facet: EvidenceFacet, locator: EvidenceLocator) -
         if locator.repository not in policy.git_roles:
             raise WorkflowError(
                 f"{locator.repository.value} repository cannot control "
-                f"{facet.lane.value}/{facet.name.value}"
+                f"{facet.lane.value}/{facet.name}"
             )
         return
     if isinstance(locator, ExternalReferenceLocator):
@@ -88,10 +88,10 @@ def _validate_external(
         if authority.repository not in policy.endorsement_roles:
             raise WorkflowError(
                 f"{authority.repository.value} repository endorsement cannot control "
-                f"{facet.lane.value}/{facet.name.value}"
+                f"{facet.lane.value}/{facet.name}"
             )
         return
     if not policy.corroborated_external:
         raise WorkflowError(
-            f"corroborated external evidence cannot control {facet.lane.value}/{facet.name.value}"
+            f"corroborated external evidence cannot control {facet.lane.value}/{facet.name}"
         )

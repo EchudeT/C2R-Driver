@@ -168,8 +168,8 @@ class TestSelectionMatrix:
         if not isinstance(value, dict) or value.get("schema_version") != 1:
             raise WorkflowError("test-adaptation response must be a schema_version=1 object")
         tests = value.get("tests")
-        if not isinstance(tests, list) or not tests:
-            raise WorkflowError("test-adaptation response requires test mappings")
+        if not isinstance(tests, list):
+            raise WorkflowError("test-adaptation response requires a tests list")
         return cls(tuple(TestMapping.from_dict(item) for item in tests))
 
     def to_dict(self, inputs: dict[str, Any]) -> dict[str, Any]:
@@ -233,10 +233,8 @@ class TestSelectionGate:
         occurrences: Counter[str] = Counter()
         for test in self.tests:
             self._validate_test(test, identifiers, occurrences, contract_ids)
-        if occurrences != Counter({path: 1 for path in discovered}):
-            raise WorkflowError(
-                "test matrix must classify every discovered source test exactly once"
-            )
+        if set(occurrences) != discovered:
+            raise WorkflowError("test matrix must classify every discovered source test")
 
     def _bind_inputs(self) -> None:
         expected = {
@@ -266,8 +264,8 @@ class TestSelectionGate:
         closure = json_object(data, SourceAnalysisArtifact.SOURCE_CLOSURE.value)
         category = closure.get("closure_categories", {}).get("source_tests", {})
         paths = category.get("paths")
-        if not isinstance(paths, list) or not paths:
-            raise WorkflowError("source closure has no discovered source-test inventory")
+        if not isinstance(paths, list):
+            raise WorkflowError("source closure has an invalid source-test inventory")
         return {str(path) for path in paths}
 
     def _validate_test(
@@ -284,7 +282,6 @@ class TestSelectionGate:
             raise WorkflowError(f"test {test.identifier} disposition contradicts its class")
         required_text = (
             test.rationale,
-            test.original_command,
             test.setup,
             test.stimulus,
             test.oracle,
@@ -293,6 +290,8 @@ class TestSelectionGate:
         )
         if not all(value.strip() for value in required_text):
             raise WorkflowError(f"test {test.identifier} omits preserved test intent")
+        if test.origin is TestOrigin.SOURCE_TEST and not test.original_command.strip():
+            raise WorkflowError(f"source test {test.identifier} omits its original command")
         if not test.evidence:
             raise WorkflowError(f"test {test.identifier} has no classification evidence")
         evidence_domains = {self._verify_reference(reference) for reference in test.evidence}

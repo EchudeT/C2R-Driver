@@ -85,4 +85,4 @@ class EvidenceRetriever:
 def material_identifier(facet: EvidenceFacet, locator: EvidenceLocator) -> str:
     canonical = canonical_json(locator.to_dict()).encode("utf-8")
     suffix = hashlib.sha256(canonical).hexdigest()[:16]
-    return f"{facet.lane.value}.{facet.name.value}.{suffix}"
+    return f"{facet.lane.value}.{facet.name}.{suffix}"

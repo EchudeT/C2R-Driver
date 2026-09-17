@@ -4,7 +4,7 @@ import hashlib
 import json
 import os
 import shutil
-from dataclasses import asdict, dataclass
+from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
 from typing import Any
@@ -127,7 +127,6 @@ class AnalyzerIdentity:
 class UnitExtraction:
     raw_records: dict[RawFactKind, dict[str, Any]]
     raw_paths: tuple[Path, ...]
-    command_records_path: Path
     typed_ast: dict[str, Any]
     target_triple: str
     target_abi: dict[str, object]
@@ -185,9 +184,7 @@ class ClangAnalysisBackend:
         )
         if observed_target != observed_abi["target_triple"]:
             raise WorkflowError("analyzer target probes disagree")
-        if AbiCompatibility.from_record(observed_abi) != AbiCompatibility.from_record(
-            expected_abi
-        ):
+        if AbiCompatibility.from_record(observed_abi) != AbiCompatibility.from_record(expected_abi):
             raise WorkflowError("analyzer target ABI differs from frozen source compiler")
 
         raw_dir = unit_dir / "raw"
@@ -200,8 +197,6 @@ class ClangAnalysisBackend:
         )
         raw_records: dict[RawFactKind, dict[str, Any]] = {}
         raw_paths: list[Path] = []
-        command_records: list[dict[str, Any]] = []
-        commands_path = unit_dir / "commands.json"
         typed_ast: dict[str, Any] | None = None
 
         for spec in CLANG_EXTRACTIONS:
@@ -215,22 +210,6 @@ class ClangAnalysisBackend:
                 spec.stream,
                 raw_path if spec.stream is OutputStream.COMBINED else None,
             )
-            command_records.append(
-                {
-                    "schema_version": 1,
-                    "unit_id": unit_id,
-                    "source_path": str(source_path.resolve()),
-                    "fact_kind": spec.kind,
-                    "capture_format": spec.format,
-                    "output_stream": spec.stream,
-                    "output_sha256": capture_sha256,
-                    "output_size": capture_size,
-                    "analyzer_sha256": self.identity.sha256,
-                    "target_triple": observed_target,
-                    **asdict(result),
-                }
-            )
-            commands_path.write_bytes(self._json_bytes(command_records))
             if spec.require_output and capture_size == 0:
                 raise WorkflowError(f"{spec.kind.value} extraction was empty")
             if spec.kind is RawFactKind.TYPED_AST:
@@ -262,7 +241,6 @@ class ClangAnalysisBackend:
         return UnitExtraction(
             raw_records=raw_records,
             raw_paths=tuple(raw_paths),
-            command_records_path=commands_path,
             typed_ast=typed_ast,
             target_triple=observed_target,
             target_abi=observed_abi,

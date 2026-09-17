@@ -19,7 +19,6 @@ class SourceAnalysisArtifact(StrEnum):
     STRUCTURED_C_ANALYSIS_ATTEMPT = "structured_c_analysis_attempt"
     STRUCTURED_C_RAW_FACT = "structured_c_raw_fact"
     STRUCTURED_C_SEMANTIC_INDEX = "structured_c_semantic_index"
-    STRUCTURED_C_COMMAND_RECORDS = "structured_c_command_records"
 
 
 class SourceAnalysisEvent(StrEnum):

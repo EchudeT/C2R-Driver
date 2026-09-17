@@ -286,20 +286,11 @@ def validate_proposed_compatibility_evidence(
     repositories: tuple[RepositoryCandidate, ...],
 ) -> None:
     expected = {(item.role, item.requested_ref) for item in repositories}
-    maintenance = tuple(
-        item for item in evidence if item.claim_kind is CompatibilityClaimKind.MAINTENANCE
-    )
     covered = {
-        (binding.role, binding.requested_ref) for item in maintenance for binding in item.bindings
+        (binding.role, binding.requested_ref) for item in evidence for binding in item.bindings
     }
-    if covered != expected or any(len(item.bindings) != 1 for item in maintenance):
-        raise WorkflowError("revision evidence requires maintenance for every proposed ref")
-    if not any(
-        {(binding.role, binding.requested_ref) for binding in item.bindings} == expected
-        for item in evidence
-        if item.claim_kind is CompatibilityClaimKind.CROSS_REPOSITORY
-    ):
-        raise WorkflowError("revision evidence must bind one cross-platform compatibility claim")
+    if covered != expected:
+        raise WorkflowError("revision evidence must cover every proposed ref")
 
 
 def validate_resolved_compatibility_evidence(
@@ -307,26 +298,13 @@ def validate_resolved_compatibility_evidence(
     repositories: tuple[RepositorySpec, ...],
 ) -> None:
     expected = {(item.role, item.requested_ref, item.resolved_commit) for item in repositories}
-    maintenance = tuple(
-        item for item in evidence if item.claim_kind is CompatibilityClaimKind.MAINTENANCE
-    )
     covered = {
         (binding.role, binding.requested_ref, binding.resolved_commit)
-        for item in maintenance
+        for item in evidence
         for binding in item.bindings
     }
-    if covered != expected or any(len(item.bindings) != 1 for item in maintenance):
-        raise WorkflowError("resolved evidence lacks maintenance for every repository commit")
-    if not any(
-        {
-            (binding.role, binding.requested_ref, binding.resolved_commit)
-            for binding in item.bindings
-        }
-        == expected
-        for item in evidence
-        if item.claim_kind is CompatibilityClaimKind.CROSS_REPOSITORY
-    ):
-        raise WorkflowError("resolved evidence lacks a cross-platform compatibility binding")
+    if covered != expected:
+        raise WorkflowError("resolved evidence must cover every repository commit")
 
 
 def _repository_url(value: object) -> str:

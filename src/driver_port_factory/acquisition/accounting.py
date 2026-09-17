@@ -30,7 +30,7 @@ class RetrievalAttempt:
     def planned_identifier(facet: EvidenceFacet, ordinal: int) -> str:
         if ordinal <= 0:
             raise WorkflowError("retrieval attempt ordinal must be positive")
-        return f"{facet.lane.value}.{facet.name.value}.attempt.{ordinal}"
+        return f"{facet.lane.value}.{facet.name}.attempt.{ordinal}"
 
     @classmethod
     def from_dict(cls, value: object) -> RetrievalAttempt:

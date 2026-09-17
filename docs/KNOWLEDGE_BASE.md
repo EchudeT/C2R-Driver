@@ -12,8 +12,8 @@ the frozen source commit. Candidate construction never overwrites the index of a
 
 ## Readiness and target-quality gate
 
-The probe plan follows `schemas/knowledge-probe-plan.schema.json`. It must contain source-entry,
-QEMU-model and hardware-or-gap probes plus target probes for registration/lifecycle, resources,
+The Codex response is one probe-plan object with a `probes` array. It must contain source-entry,
+QEMU-model and hardware-or-gap probes plus applicable target probes for registration/lifecycle, resources,
 interrupts, concurrency, ownership/errors, Rust safety, analogous implementation, packaging, and
 the QEMU runner.
 
