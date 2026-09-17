@@ -184,19 +184,19 @@ class PortRunnerTests(unittest.TestCase):
         self.assertEqual(codex.call_args.kwargs["thread_id"], "same-thread")
         self.assertEqual(codex.call_args.kwargs["follow_up"], "invalid proposal")
 
-    def test_retried_stage_resumes_history_with_complete_job(self) -> None:
+    def test_retried_stage_starts_a_fresh_thread(self) -> None:
         runner = PortRunner(options(Path("/unused")))
-        result = SimpleNamespace(thread_id="existing-thread")
+        result = SimpleNamespace(thread_id="fresh-thread")
 
         with (
-            patch.object(runner, "_latest_thread_id", return_value="existing-thread"),
+            patch.object(runner, "_latest_thread_id", return_value=None),
             patch.object(runner, "_latest_job_occurrence", return_value=None),
             patch.object(runner, "_codex", return_value=(result, None, Path("response"))) as codex,
             patch.object(runner, "_job_occurrence", return_value=object()),
         ):
             runner._codex_gate(object(), KnowledgeStage.KNOWLEDGE_BASE, {}, lambda *_: None)
 
-        self.assertEqual(codex.call_args.kwargs["thread_id"], "existing-thread")
+        self.assertIsNone(codex.call_args.kwargs["thread_id"])
         self.assertIsNone(codex.call_args.kwargs["follow_up"])
 
     def test_target_study_receives_knowledge_repair_finding(self) -> None:

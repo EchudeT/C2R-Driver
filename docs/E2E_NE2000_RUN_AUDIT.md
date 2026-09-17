@@ -33,7 +33,7 @@
 | 15 | migration_contracts | 新响应生成后曾被控制器误退回；修复 current-attempt 依赖绑定后直接重验该响应并 `PASS`，没有再次调用模型。 | 内容本身一次可用；finalizer 已同步修正阶段 16/17 的同类代码。 |
 | 16 | test_adaptation | 1 次响应、一次 `PASS`；先检查 KB status，再检索并打开 source/target/test originals，完成公开测试分类和适配矩阵。 | 预先提供 source-test inventory 可减少发现型搜索，但分类、原文核对和适配判断继续由 Codex 完成；见 O6。 |
 | 17 | driver_implementation | 复用 implementation thread，读取当前合同/测试矩阵、结构化索引和历史 compliance；对驱动私有 `device.rs`/`pci.rs` 作集中修复。首份响应依次暴露三个控制器误拒绝：既有文件 TODO、带当前 target change 的 `UNKNOWN` API、以及实现后已解除阻塞的 `PRESERVE_BLOCKED` 测试。三次纠错均在新模型结果产生前中止。 | unfinished 检查已限于新增文件；未知接口须精确绑定当前 target change；coverage 必须覆盖 `RETAIN/ADAPT`，可激活已实现的 `PRESERVE_BLOCKED`，禁止 `EXCLUDE`。继续静态重验首份响应；见 O7、O8、O10。 |
-| 18 | target_compliance | 等待；旧轮 4 份响应，真实发现 API 闭包、锁内 I/O/分配、IRQ 路由、重试和无关修改问题。 | findings 必须按 KNOWLEDGE/IMPLEMENTATION 精确回到最早受影响门禁。 |
+| 18 | target_compliance | 新一轮 1 次响应，`VIOLATION`；复核确认三个真实实现缺陷：普通 controller lease 竞争消耗硬件失败预算、停止成功前提前置 `quiesced`、非抢占 Taskless 中忙等 10ms。合规节点只读 KB/目标原文且未编辑或执行，但旧 thread 累计上下文导致本轮约 400 万输入 token。 | findings 已精确回到阶段 17；同 attempt 纠错继续复用 thread，跨门禁回退开启新 thread，并只携带非 PASS repair delta；见 O1、O4。 |
 | 19 | artifact_preparation | 等待。 | 必须证明 artifact 含当前实现，不能只证明编译命令成功。 |
 | 20 | public_qemu_validation | 等待。 | 按固定 evidence ladder 运行并保存外部 oracle。 |
 | 21 | public_repair | 等待。 | 仅对公开失败证据作一次有归因的最小修复。 |
@@ -43,10 +43,10 @@
 
 ### O1：生成最小 repair delta（高优先级）
 
-当前控制器把完整 compliance 响应路径交给知识和 target-study 节点。模型随后重读旧 study、完整
-compliance 和大量无关历史。控制器应静态提取：修复目标、finding ID、受影响 API/change ID、
-implementation paths、目标 evidence refs 和必须补齐的符号，形成一个小型不可变 repair delta。
-原 thread 只接收该 delta 与当前已验收产物，避免再次发现相同上下文。
+当前控制器曾把完整 compliance 响应路径交给知识、target-study 和 implementation 节点，模型随后会
+重读完整报告和大量无关历史。现已由 `ComplianceReport` 静态提取非 PASS 的 area/API/change review，
+按 `KNOWLEDGE` 或 `IMPLEMENTATION` 精确筛选，并只传来源 occurrence 与不可变 repair delta；不再把
+完整结果路径暴露给下游模型。
 
 ### O2：程序绑定 target evidence（高优先级）
 
@@ -59,11 +59,11 @@ implementation paths、目标 evidence refs 和必须补齐的符号，形成一
 为 target-study 五件套和 migration contracts 绑定现有领域结构的复合 schema，在模型返回边界阻止
 数组/对象形状错误。不要给静态阶段或所有内部对象增加新校验层。
 
-### O4：按有效上下文而非无限历史复用 thread（待量化）
+### O4：按 attempt 生命周期复用 thread（已实施）
 
-同阶段纠错和短修复应复用 thread；当阶段已经通过、随后因远端 finding 被重新打开且历史发生多次
-compaction 时，应比较“缓存复用成本”和“当前验收产物 + repair delta 的新 thread 成本”。本轮完成后
-用 event log 的 cached/input/output token 和工具调用数决定阈值，不先硬编码轮数。
+同一 attempt 内的输出格式或门禁纠错继续复用 thread；阶段已通过后被下游 finding 回退会产生新的
+attempt，该 attempt 只接收当前验收产物与 repair delta，并开启新 thread。控制器现在只从
+`current_artifact_refs` 读取 event log，不再用无限历史和硬编码轮数猜测是否复用。
 
 ### O5：依赖绑定只认当前 attempt（已实施）
 

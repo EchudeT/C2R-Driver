@@ -302,7 +302,7 @@ class PortRunner:
     def _latest_thread_id(project: Project, stage: StageKey) -> str | None:
         logs = [
             ref
-            for ref in project.artifact_refs(
+            for ref in project.current_artifact_refs(
                 stage=stage,
                 direction=ArtifactDirection.OUTPUT,
             )
@@ -500,7 +500,7 @@ class PortRunner:
                 AcquisitionArtifact.EVIDENCE_GAP_REGISTER,
             )
         }
-        repair = self._latest_compliance_result(project)
+        repair = self._latest_compliance_result(project, ComplianceRepairTarget.KNOWLEDGE)
         if repair is not None:
             context["compliance_recheck"] = repair
         self._codex_gate(
@@ -530,7 +530,7 @@ class PortRunner:
                 project, KnowledgeStage.KNOWLEDGE_BASE, KnowledgeArtifact.QUERY_CONTRACT
             ),
         }
-        repair = self._latest_compliance_result(project)
+        repair = self._latest_compliance_result(project, ComplianceRepairTarget.KNOWLEDGE)
         if repair is not None:
             context["compliance_recheck"] = repair
         self._codex_gate(
@@ -698,7 +698,7 @@ class PortRunner:
                 for unit in facts["units"]
             ]
         }
-        repair = self._latest_compliance_result(project)
+        repair = self._latest_compliance_result(project, ComplianceRepairTarget.IMPLEMENTATION)
         if repair is not None:
             extra["compliance_repair"] = repair
         self._codex_gate(
@@ -728,7 +728,10 @@ class PortRunner:
         )
 
     @staticmethod
-    def _latest_compliance_result(project: Project) -> dict[str, object] | None:
+    def _latest_compliance_result(
+        project: Project,
+        target: ComplianceRepairTarget | None = None,
+    ) -> dict[str, object] | None:
         findings = [
             ref
             for ref in project.artifact_refs(stage=MigrationStage.TARGET_COMPLIANCE)
@@ -737,12 +740,20 @@ class PortRunner:
         if not findings:
             return None
         latest = max(findings, key=lambda ref: ref.ordinal)
+        path = project.artifacts.path_for_digest(latest.digest)
+        try:
+            result = json.loads(path.read_text(encoding="utf-8"))
+            report = ComplianceReport.from_dict(result["compliance_report"])
+        except (OSError, UnicodeDecodeError, json.JSONDecodeError, KeyError, TypeError) as error:
+            raise WorkflowError("latest target compliance result is unreadable") from error
+        delta = report.repair_delta(target)
+        if delta is None:
+            return None
         return {
+            "schema_version": 1,
             "source_stage": MigrationStage.TARGET_COMPLIANCE.value,
-            "result": {
-                **latest.to_dict(),
-                "path": str(project.artifacts.path_for_digest(latest.digest)),
-            },
+            "source_result": latest.to_dict(),
+            "findings": delta,
         }
 
     @staticmethod

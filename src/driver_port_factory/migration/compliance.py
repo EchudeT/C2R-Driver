@@ -116,6 +116,31 @@ class ComplianceReport:
             for review in reviews
         )
 
+    def repair_delta(
+        self, target: ComplianceRepairTarget | None = None
+    ) -> dict[str, Any] | None:
+        def selected(review: ComplianceReview) -> bool:
+            return review.status is not ComplianceStatus.PASS and (
+                target is None or review.repair_target is target
+            )
+
+        areas = [
+            review.to_dict("area", area.value)
+            for area, review in self.areas
+            if selected(review)
+        ]
+        apis = [review.to_dict("api_id") for review in self.apis if selected(review)]
+        target_changes = [
+            review.to_dict("change_id") for review in self.target_changes if selected(review)
+        ]
+        if not areas and not apis and not target_changes:
+            return None
+        return {
+            "areas": areas,
+            "apis": apis,
+            "target_changes": target_changes,
+        }
+
     @classmethod
     def read(cls, path: Path) -> ComplianceReport:
         try:
