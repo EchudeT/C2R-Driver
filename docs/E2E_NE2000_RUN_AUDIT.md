@@ -32,7 +32,7 @@
 | 14 | structured_c_analysis | 固定 Clang/LLVM 后端一次 `PASS`；处理 `ne2k-pci-front-end` 与 `8390-shared-core` 两个单元，生成 285336 字节结构化事实，无 Codex 调用。 | 符合 Skill 的 typed AST/CFG/layout/effect 路径，保持静态。 |
 | 15 | migration_contracts | 新响应生成后曾被控制器误退回；修复 current-attempt 依赖绑定后直接重验该响应并 `PASS`，没有再次调用模型。 | 内容本身一次可用；finalizer 已同步修正阶段 16/17 的同类代码。 |
 | 16 | test_adaptation | 1 次响应、一次 `PASS`；先检查 KB status，再检索并打开 source/target/test originals，完成公开测试分类和适配矩阵。 | 预先提供 source-test inventory 可减少发现型搜索，但分类、原文核对和适配判断继续由 Codex 完成；见 O6。 |
-| 17 | driver_implementation | 复用 implementation thread，读取当前合同/测试矩阵、结构化索引和历史 compliance；对驱动私有 `device.rs`/`pci.rs` 作集中修复。首份响应被全文件 `todo` 扫描误退回，目标既有文件中的上游 TODO 被错误视为本次未完成代码。 | 停止会诱发无关注释改写的纠错；unfinished 检查只保留给新增迁移文件，既有目标文件交由 diff 范围、compliance 和构建审查；见 O7。 |
+| 17 | driver_implementation | 复用 implementation thread，读取当前合同/测试矩阵、结构化索引和历史 compliance；对驱动私有 `device.rs`/`pci.rs` 作集中修复。首份响应先被全文件 `todo` 扫描误退回；重验后又因控制器禁止所有 `UNKNOWN` API 而误退回。四个相关 API 均精确复制冻结 API 表，并分别绑定当前 target-change inventory 中的变更 ID。第二次纠错已在模型返回前中止。 | unfinished 检查已限于新增文件；`UNKNOWN` 仅在精确绑定当前 target change 时进入阶段 18 审查，未绑定的未知接口继续拒绝。修复后直接重验首份响应，不重新翻译；见 O7、O8。 |
 | 18 | target_compliance | 等待；旧轮 4 份响应，真实发现 API 闭包、锁内 I/O/分配、IRQ 路由、重试和无关修改问题。 | findings 必须按 KNOWLEDGE/IMPLEMENTATION 精确回到最早受影响门禁。 |
 | 19 | artifact_preparation | 等待。 | 必须证明 artifact 含当前实现，不能只证明编译命令成功。 |
 | 20 | public_qemu_validation | 等待。 | 按固定 evidence ladder 运行并保存外部 oracle。 |
@@ -81,6 +81,15 @@ driver implementation 四处路径，避免下游对同一缺陷重复发起 Cod
 既有目标文件可能合法包含上游 TODO。对整文件做字符串扫描会迫使模型改写无关注释，随后又被
 target compliance 退回。现在只对新增 driver/public-test 文件保留该检查；既有文件由变更清单、目标
 compliance 和实际构建覆盖。
+
+### O8：区分未知接口与已冻结目标变更（已实施）
+
+阶段 11 会把目标基线尚不存在、但有 bounded target-change record 的拟新增接口标为 `UNKNOWN`；这是
+Skill 规定的合法中间状态，不等于无证据猜测。阶段 17 原门禁一概拒绝 `UNKNOWN`，导致模型被要求删除
+实现迁移合同所必需的接口声明。现在已有目标接口仍必须为 `VERIFIED/INFERRED`；`UNKNOWN` 只有在
+`investigation_or_target_change_id` 精确出现在本次 implementation target-change inventory 中，且 symbol、
+definition evidence、call-site evidence 与冻结 API 表完全一致时才可通过。实际实现及 target change 的正确性
+继续由阶段 18 compliance、构建和运行证据验证，不在阶段 17 提前宣称 `VERIFIED`。
 
 ## 已验证的本轮改进
 

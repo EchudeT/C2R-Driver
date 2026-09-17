@@ -582,14 +582,24 @@ class DriverImplementationGate:
             for item in table.get("entries", [])
             if isinstance(item, dict)
         }
+        target_change_ids = {
+            str(item.get("change_id"))
+            for item in self.inventory.get("target_changes", [])
+            if isinstance(item, dict)
+        }
         symbols = self.inventory.get("target_symbols")
         if not isinstance(symbols, list) or not symbols:
             raise WorkflowError("implementation requires declared target symbols")
         for symbol in symbols:
             item = _object(symbol, "target symbol")
             entry = entries.get(str(item.get("api_id")))
-            if entry is None or ApiConfidence(entry.get("confidence")) is ApiConfidence.UNKNOWN:
+            if entry is None:
                 raise WorkflowError("target symbol is not backed by a resolved API entry")
+            if (
+                ApiConfidence(entry.get("confidence")) is ApiConfidence.UNKNOWN
+                and entry.get("investigation_or_target_change_id") not in target_change_ids
+            ):
+                raise WorkflowError("target symbol is not backed by a current target change")
             if item.get("symbol") != entry.get("api_or_type") or any(
                 item.get(name) != entry.get(name)
                 for name in ("definition_evidence", "call_site_evidence")
