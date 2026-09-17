@@ -24,6 +24,7 @@ class _LedgerProjection:
             RunEvent.CREATED.value: self._run_created,
             StageEvent.READY.value: self._ready,
             StageEvent.STARTED.value: self._running,
+            StageEvent.RETRIED.value: self._retried,
             StageEvent.RESUMED_AFTER_USER.value: self._running,
             StageEvent.WAITING_FOR_USER.value: self._waiting,
             StageEvent.COMPLETED.value: self._completed,
@@ -53,6 +54,26 @@ class _LedgerProjection:
 
     def _waiting(self, payload: dict[str, Any]) -> None:
         self.status[self._stage(payload)] = StageStatus.WAITING_FOR_USER
+
+    def _retried(self, payload: dict[str, Any]) -> None:
+        try:
+            status = StageStatus(payload.get("status"))
+        except (TypeError, ValueError) as error:
+            raise WorkflowError("stage retry event has invalid status") from error
+        if status not in {StageStatus.READY, StageStatus.PENDING}:
+            raise WorkflowError("stage retry event has invalid status")
+        trigger = payload.get("trigger")
+        if not isinstance(trigger, str):
+            raise WorkflowError("stage retry event has no trigger")
+        self.workflow.parse_stage(trigger)
+        boundaries = payload.get("artifact_boundaries")
+        if not isinstance(boundaries, dict) or set(boundaries) != {
+            direction.value for direction in ArtifactDirection
+        }:
+            raise WorkflowError("stage retry event has invalid artifact boundaries")
+        if any(not isinstance(value, int) or value < 0 for value in boundaries.values()):
+            raise WorkflowError("stage retry event has invalid artifact boundaries")
+        self.status[self._stage(payload)] = status
 
     def _completed(self, payload: dict[str, Any]) -> None:
         try:

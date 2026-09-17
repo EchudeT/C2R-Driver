@@ -488,8 +488,8 @@ class DriverImplementationGate:
         modified = {path for path in by_path if path in existing}
         if set(records) != modified:
             raise WorkflowError("target change inventory differs from modified pre-existing files")
-        if plan.get("required_change_level") == ChangeLevel.DRIVER_OWNED.value and modified:
-            raise WorkflowError("driver-owned plan cannot modify pre-existing target files")
+        required_level = self._required_change_level(plan)
+        self._validate_change_level(required_level, records, modified)
         owned = tuple(PurePosixPath(path) for path in plan.get("driver_owned_paths", []))
         for path, declared in by_path.items():
             if path not in existing:
@@ -522,6 +522,26 @@ class DriverImplementationGate:
                 raise WorkflowError("target change inventory has an invalid status") from error
             if status is TargetChangeStatus.BLOCKED:
                 raise WorkflowError("blocked target change cannot finalize implementation")
+
+    @staticmethod
+    def _required_change_level(plan: dict[str, Any]) -> ChangeLevel:
+        try:
+            return ChangeLevel(plan.get("required_change_level"))
+        except (TypeError, ValueError) as error:
+            raise WorkflowError(
+                "target change plan has an invalid required change level"
+            ) from error
+
+    @staticmethod
+    def _validate_change_level(
+        required: ChangeLevel,
+        records: dict[str, Any],
+        modified: set[str],
+    ) -> None:
+        if required is ChangeLevel.DRIVER_OWNED and modified:
+            raise WorkflowError("driver-owned plan cannot modify pre-existing target files")
+        if required is not ChangeLevel.DRIVER_OWNED and not records:
+            raise WorkflowError("target change plan requires a pre-existing target change")
 
     def _target_symbols(self) -> None:
         table = json_object(

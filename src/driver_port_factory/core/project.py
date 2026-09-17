@@ -119,14 +119,14 @@ class Project:
         dependency_artifacts = tuple(
             (ref, self.artifacts.read(ref))
             for dependency in self.workflow.spec(stage).dependencies
-            for ref in self._persistence.artifact_refs(
+            for ref in self._persistence.current_artifact_refs(
                 stage=dependency,
                 direction=ArtifactDirection.OUTPUT,
             )
         )
         current_stage_artifacts = tuple(
             (ref, self.artifacts.read(ref))
-            for ref in self._persistence.artifact_refs(
+            for ref in self._persistence.current_artifact_refs(
                 stage=stage,
                 direction=ArtifactDirection.OUTPUT,
             )
@@ -157,6 +157,14 @@ class Project:
     def start(self, stage: StageKey) -> None:
         self._persistence.start_stage(stage, self.config.actor_role)
 
+    def retry_from(self, stage: StageKey, *, trigger: StageKey, reason: str) -> None:
+        self._persistence.retry_from(
+            stage,
+            trigger=trigger,
+            actor_role=self.config.actor_role,
+            reason=reason,
+        )
+
     def complete(
         self, stage: StageKey, outcome: StageStatus, *, message: str | None = None
     ) -> None:
@@ -177,6 +185,14 @@ class Project:
         direction: ArtifactDirection | None = None,
     ) -> list[ArtifactRef]:
         return self._persistence.artifact_refs(stage=stage, direction=direction)
+
+    def current_artifact_refs(
+        self,
+        *,
+        stage: StageKey,
+        direction: ArtifactDirection | None = None,
+    ) -> list[ArtifactRef]:
+        return self._persistence.current_artifact_refs(stage=stage, direction=direction)
 
     def wait_for_user(self, stage: StageKey, *, question: str) -> None:
         self._persistence.wait_for_user(stage, question=question)
@@ -236,7 +252,10 @@ class Project:
     ) -> ArtifactRef:
         refs = [
             ref
-            for ref in self._persistence.artifact_refs(stage=stage, direction=direction)
+            for ref in self._persistence.current_artifact_refs(
+                stage=stage,
+                direction=direction,
+            )
             if ref.kind == kind.value
         ]
         if len(refs) != 1:

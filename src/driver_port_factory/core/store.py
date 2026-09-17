@@ -7,7 +7,12 @@ from contextlib import contextmanager
 from pathlib import Path
 from typing import Any
 
-from .artifact_persistence import load_occurrences, persist_occurrences
+from .artifact_persistence import (
+    load_current_occurrences,
+    load_occurrences,
+    next_ordinal,
+    persist_occurrences,
+)
 from .contracts import EventKey, StageKey
 from .events import ArtifactEvent, RunEvent, StageEvent
 from .integrity import validate_state_projection
@@ -140,6 +145,58 @@ class _RunPersistence:
                 {"stage": name.value, "actor_role": actor_role.value},
             )
 
+    def retry_from(
+        self,
+        name: StageKey,
+        *,
+        trigger: StageKey,
+        actor_role: ActorRole,
+        reason: str,
+    ) -> None:
+        configured_role = self.config.actor_role
+        if not reason.strip():
+            raise WorkflowError("stage retry requires a reason")
+        with self._connect() as connection:
+            target = self._stages.transition_row(connection, name, StageStatus.PASS)
+            source = self._stages.transition_row(connection, trigger, StageStatus.RUNNING)
+            if target["position"] >= source["position"]:
+                raise WorkflowError("stage retry target must precede its trigger")
+            allowed = self._stages.allowed_roles(target, name)
+            if actor_role not in allowed or actor_role is not configured_role:
+                raise WorkflowError(f"role {actor_role.value} may not retry {name.value}")
+
+            affected = connection.execute(
+                "SELECT name, position FROM stages WHERE position >= ? ORDER BY position",
+                (target["position"],),
+            ).fetchall()
+            for row in affected:
+                stage = self.workflow.parse_stage(row["name"])
+                status = StageStatus.READY if stage is name else StageStatus.PENDING
+                boundaries = {
+                    direction.value: next_ordinal(connection, stage.value, direction)
+                    for direction in ArtifactDirection
+                }
+                connection.execute(
+                    """
+                    UPDATE stages
+                    SET status = ?, started_at = NULL, completed_at = NULL, message = NULL
+                    WHERE name = ?
+                    """,
+                    (status.value, stage.value),
+                )
+                append_event(
+                    connection,
+                    StageEvent.RETRIED,
+                    {
+                        "stage": stage.value,
+                        "status": status.value,
+                        "trigger": trigger.value,
+                        "actor_role": actor_role.value,
+                        "reason": reason,
+                        "artifact_boundaries": boundaries,
+                    },
+                )
+
     def wait_for_user(self, name: StageKey, *, question: str) -> None:
         with self._connect() as connection:
             self._stages.transition_row(connection, name, StageStatus.RUNNING)
@@ -207,7 +264,7 @@ class _RunPersistence:
         contract.validate_final_bundle(ref.kind for ref in artifacts)
         with self._connect() as connection:
             self._stages.transition_row(connection, name, StageStatus.RUNNING)
-            existing = load_occurrences(
+            existing = load_current_occurrences(
                 connection,
                 stage_name=name.value,
                 direction=ArtifactDirection.OUTPUT,
@@ -251,6 +308,19 @@ class _RunPersistence:
             return load_occurrences(
                 connection,
                 stage_name=stage.value if stage is not None else None,
+                direction=direction,
+            )
+
+    def current_artifact_refs(
+        self,
+        *,
+        stage: StageKey,
+        direction: ArtifactDirection | None = None,
+    ) -> list[ArtifactRef]:
+        with self._connect() as connection:
+            return load_current_occurrences(
+                connection,
+                stage_name=stage.value,
                 direction=direction,
             )
 

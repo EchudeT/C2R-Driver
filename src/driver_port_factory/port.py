@@ -47,7 +47,7 @@ from .migration.artifact_preparation import ArtifactPreparationPlan, ArtifactPre
 from .migration.completion_audit import CompletionAuditService
 from .migration.compliance import ComplianceReport, ComplianceService
 from .migration.contract_set import MigrationContractService, MigrationContractSet
-from .migration.contracts import MigrationArtifact, MigrationStage
+from .migration.contracts import ComplianceRepairTarget, MigrationArtifact, MigrationStage
 from .migration.handoff import MigrationHandoff
 from .migration.implementation import DriverImplementationService, ImplementationResponse
 from .migration.public_qemu import PublicQemuPlan, PublicQemuService
@@ -256,7 +256,10 @@ class PortRunner:
     ) -> ArtifactOccurrence:
         matches = [
             ref
-            for ref in project.artifact_refs(stage=stage, direction=ArtifactDirection.OUTPUT)
+            for ref in project.current_artifact_refs(
+                stage=stage,
+                direction=ArtifactDirection.OUTPUT,
+            )
             if ref.kind == CodexArtifact.JOB_RESULT.value and ref.source == str(response_path)
         ]
         if len(matches) != 1 or matches[0].ordinal is None:
@@ -267,7 +270,10 @@ class PortRunner:
     def _latest_job_occurrence(project: Project, stage: StageKey) -> ArtifactOccurrence | None:
         matches = [
             ref
-            for ref in project.artifact_refs(stage=stage, direction=ArtifactDirection.OUTPUT)
+            for ref in project.current_artifact_refs(
+                stage=stage,
+                direction=ArtifactDirection.OUTPUT,
+            )
             if ref.kind == CodexArtifact.JOB_RESULT.value and ref.ordinal is not None
         ]
         if not matches:
@@ -279,7 +285,10 @@ class PortRunner:
     def _latest_thread_id(project: Project, stage: StageKey) -> str | None:
         logs = [
             ref
-            for ref in project.artifact_refs(stage=stage, direction=ArtifactDirection.OUTPUT)
+            for ref in project.current_artifact_refs(
+                stage=stage,
+                direction=ArtifactDirection.OUTPUT,
+            )
             if ref.kind == CodexArtifact.EVENT_LOG.value and ref.ordinal is not None
         ]
         if not logs:
@@ -339,7 +348,10 @@ class PortRunner:
     ) -> dict[str, Path]:
         matches = [
             ref
-            for ref in project.artifact_refs(stage=stage, direction=ArtifactDirection.OUTPUT)
+            for ref in project.current_artifact_refs(
+                stage=stage,
+                direction=ArtifactDirection.OUTPUT,
+            )
             if ref.kind == CodexArtifact.JOB_RESULT.value
             and ref.digest == job.digest
             and ref.ordinal == job.ordinal
@@ -645,6 +657,19 @@ class PortRunner:
         facts = project.load_json_artifact(
             SourceAnalysisStage.STRUCTURED_C_ANALYSIS, SourceAnalysisArtifact.STRUCTURED_C_FACTS
         )
+        extra: dict[str, object] = {
+            "semantic_indexes": [
+                {
+                    "unit_id": unit["unit_id"],
+                    "path": str((project.root / unit["semantic_index"]["path"]).resolve()),
+                    "sha256": unit["semantic_index"]["sha256"],
+                }
+                for unit in facts["units"]
+            ]
+        }
+        repair = self._implementation_repair_context(project)
+        if repair is not None:
+            extra["compliance_repair"] = repair
         self._codex_gate(
             project,
             MigrationStage.DRIVER_IMPLEMENTATION,
@@ -666,19 +691,33 @@ class PortRunner:
                         SourceAnalysisArtifact.STRUCTURED_C_FACTS,
                     ),
                 ),
-                extra={
-                    "semantic_indexes": [
-                        {
-                            "unit_id": unit["unit_id"],
-                            "path": str((project.root / unit["semantic_index"]["path"]).resolve()),
-                            "sha256": unit["semantic_index"]["sha256"],
-                        }
-                        for unit in facts["units"]
-                    ]
-                },
+                extra=extra,
             ),
             self._accept_implementation_result,
         )
+
+    @staticmethod
+    def _implementation_repair_context(project: Project) -> dict[str, object] | None:
+        previous = [
+            ref
+            for ref in project.artifact_refs(stage=MigrationStage.DRIVER_IMPLEMENTATION)
+            if ref.kind == MigrationArtifact.IMPLEMENTATION_BUNDLE.value
+        ]
+        findings = [
+            ref
+            for ref in project.artifact_refs(stage=MigrationStage.TARGET_COMPLIANCE)
+            if ref.kind == CodexArtifact.JOB_RESULT.value and ref.ordinal is not None
+        ]
+        if not previous or not findings:
+            return None
+        latest = max(findings, key=lambda ref: ref.ordinal)
+        return {
+            "source_stage": MigrationStage.TARGET_COMPLIANCE.value,
+            "result": {
+                **latest.to_dict(),
+                "path": str(project.artifacts.path_for_digest(latest.digest)),
+            },
+        }
 
     @staticmethod
     def _accept_implementation_result(project: Project, job: ArtifactOccurrence) -> None:
@@ -722,10 +761,21 @@ class PortRunner:
             job,
             ("compliance_report", "artifact_preparation_plan"),
         )
+        report = ComplianceReport.read(parts["compliance_report"])
+        if report.requires_repair(ComplianceRepairTarget.IMPLEMENTATION):
+            project.retry_from(
+                MigrationStage.DRIVER_IMPLEMENTATION,
+                trigger=MigrationStage.TARGET_COMPLIANCE,
+                reason=(
+                    "target compliance requested implementation repair from "
+                    f"job {job.digest}:{job.ordinal}"
+                ),
+            )
+            return
         plan, _ = ArtifactPreparationPlan.read(parts["artifact_preparation_plan"])
         ComplianceService().finalize(
             project,
-            ComplianceReport.read(parts["compliance_report"]),
+            report,
             plan,
         )
 

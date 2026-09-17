@@ -55,3 +55,7 @@ observation -> classification -> evidence query -> hypothesis
 ```
 
 每轮拥有固定预算并产生新的不可覆盖 run。只有公开阶段允许修复。私有结果反馈后的修复必须创建 `POST_FEEDBACK` 实验，不能覆盖 first-attempt 结果。
+
+目标合规若报告未解决的 `IMPLEMENTATION` finding，`PortRunner` 按最小受影响门禁回到
+`driver_implementation`，并把该合规结果交给同一可写阶段修复；实现及后续阶段以新的 attempt
+边界重新执行，旧 Prompt、结果和成功 bundle 仍保留在 CAS、occurrence 与 ledger 中供审计。

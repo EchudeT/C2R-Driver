@@ -205,6 +205,45 @@ class WorkflowTests(unittest.TestCase):
             with self.assertRaisesRegex(WorkflowError, "PASS"):
                 project.complete(IntakeStage.REQUEST, StageStatus.PASS)
 
+    def test_retry_preserves_replaced_attempt_and_selects_current_bundle(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            project = initialize_project(Path(temporary) / "run", config())
+            first = self._request_artifact()
+            project.start(IntakeStage.REQUEST)
+            project.finalize_stage(IntakeStage.REQUEST, (first,))
+            project.start(IntakeStage.CANDIDATE_RESOLUTION)
+
+            project.retry_from(
+                IntakeStage.REQUEST,
+                trigger=IntakeStage.CANDIDATE_RESOLUTION,
+                reason="later gate invalidated the request attempt",
+            )
+
+            self.assertEqual(project.stage(IntakeStage.REQUEST).status, StageStatus.READY)
+            self.assertEqual(
+                project.stage(IntakeStage.CANDIDATE_RESOLUTION).status,
+                StageStatus.PENDING,
+            )
+            self.assertEqual(len(project.artifact_refs(stage=IntakeStage.REQUEST)), 1)
+            self.assertEqual(project.current_artifact_refs(stage=IntakeStage.REQUEST), [])
+
+            second = GeneratedArtifact(
+                IntakeArtifact.REQUEST_RECORD,
+                first.data.replace(b'"raw_request":"port"', b'"raw_request":"retry"'),
+                "test:request-retry",
+            )
+            project.start(IntakeStage.REQUEST)
+            project.finalize_stage(IntakeStage.REQUEST, (second,))
+
+            self.assertEqual(len(project.artifact_refs(stage=IntakeStage.REQUEST)), 2)
+            self.assertEqual(
+                project.artifact(IntakeStage.REQUEST, IntakeArtifact.REQUEST_RECORD).source,
+                "test:request-retry",
+            )
+            reopened = open_project(project.root)
+            self.assertTrue(reopened.verify_event_chain())
+            self.assertEqual(reopened.stage(IntakeStage.REQUEST).status, StageStatus.PASS)
+
     def test_wrong_domain_output_is_rejected_by_stage_contract(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             project = initialize_project(Path(temporary) / "run", config())

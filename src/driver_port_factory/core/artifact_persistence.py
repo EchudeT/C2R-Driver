@@ -1,8 +1,10 @@
 from __future__ import annotations
 
+import json
 import sqlite3
 from collections.abc import Iterable
 
+from .events import StageEvent
 from .models import ArtifactContent, ArtifactDirection, ArtifactRef, WorkflowError, utc_now
 
 
@@ -113,4 +115,50 @@ def load_occurrences(
             row["ordinal"],
         )
         for row in rows
+    ]
+
+
+def load_current_occurrences(
+    connection: sqlite3.Connection,
+    *,
+    stage_name: str,
+    direction: ArtifactDirection | None = None,
+) -> list[ArtifactRef]:
+    """Load only occurrences produced by the stage's current audited attempt."""
+
+    boundaries = {value: 0 for value in ArtifactDirection}
+    rows = connection.execute(
+        "SELECT payload FROM events WHERE event_type = ? ORDER BY sequence",
+        (StageEvent.RETRIED.value,),
+    ).fetchall()
+    for row in rows:
+        try:
+            payload = json.loads(row["payload"])
+        except (TypeError, json.JSONDecodeError) as error:
+            raise WorkflowError("stage retry event has invalid payload JSON") from error
+        if not isinstance(payload, dict) or payload.get("stage") != stage_name:
+            continue
+        values = payload.get("artifact_boundaries")
+        if not isinstance(values, dict):
+            raise WorkflowError("stage retry event has invalid artifact boundaries")
+        try:
+            boundaries = {
+                value: int(values[value.value])
+                for value in ArtifactDirection
+            }
+        except (KeyError, TypeError, ValueError) as error:
+            raise WorkflowError("stage retry event has invalid artifact boundaries") from error
+        if any(value < 0 for value in boundaries.values()):
+            raise WorkflowError("stage retry event has invalid artifact boundaries")
+
+    directions = (direction,) if direction is not None else tuple(ArtifactDirection)
+    return [
+        ref
+        for selected in directions
+        for ref in load_occurrences(
+            connection,
+            stage_name=stage_name,
+            direction=selected,
+        )
+        if ref.ordinal is not None and ref.ordinal >= boundaries[selected]
     ]

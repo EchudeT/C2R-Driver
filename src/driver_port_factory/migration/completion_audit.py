@@ -171,7 +171,11 @@ class CompletionAuditService:
 
     @staticmethod
     def _optional_document(project: Project, stage: object, kind: object) -> dict[str, Any] | None:
-        refs = [ref for ref in project.artifact_refs(stage=stage) if ref.kind == kind.value]
+        refs = [
+            ref
+            for ref in project.current_artifact_refs(stage=stage)
+            if ref.kind == kind.value
+        ]
         if not refs:
             return None
         if len(refs) != 1:

@@ -4,7 +4,7 @@ import json
 import sqlite3
 from typing import Any
 
-from .artifact_persistence import load_occurrences
+from .artifact_persistence import load_current_occurrences
 from .contracts import StageKey
 from .events import StageEvent
 from .ledger import append_event
@@ -148,7 +148,7 @@ class _StagePersistence:
     def _validate_pass_outputs(self, connection: sqlite3.Connection, view: StageView) -> None:
         if view.status is not StageStatus.PASS:
             return
-        refs = load_occurrences(
+        refs = load_current_occurrences(
             connection,
             stage_name=view.name.value,
             direction=ArtifactDirection.OUTPUT,

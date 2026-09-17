@@ -582,7 +582,7 @@ class PublicRepairService:
     def _latest(project: Project, stage: MigrationStage):
         refs = [
             ref
-            for ref in project.artifact_refs(stage=stage)
+            for ref in project.current_artifact_refs(stage=stage)
             if ref.kind
             in {
                 MigrationArtifact.PUBLIC_QEMU_ATTEMPT.value,
@@ -598,7 +598,7 @@ class PublicRepairService:
     def _optional_latest(cls, project: Project, stage: MigrationStage):
         refs = [
             ref
-            for ref in project.artifact_refs(stage=stage)
+            for ref in project.current_artifact_refs(stage=stage)
             if ref.kind == MigrationArtifact.PUBLIC_REPAIR_ATTEMPT.value
         ]
         if not refs:

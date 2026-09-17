@@ -105,6 +105,17 @@ class ComplianceReport:
     compile_status: ContractExecutionStatus
     runtime_status: ContractExecutionStatus
 
+    def requires_repair(self, target: ComplianceRepairTarget) -> bool:
+        reviews = (
+            *(review for _area, review in self.areas),
+            *self.apis,
+            *self.target_changes,
+        )
+        return self.status is not ComplianceStatus.PASS and any(
+            review.status is not ComplianceStatus.PASS and review.repair_target is target
+            for review in reviews
+        )
+
     @classmethod
     def read(cls, path: Path) -> ComplianceReport:
         try:
@@ -201,7 +212,7 @@ class ComplianceService:
         matches = [
             reference
             for stage in dependencies
-            for reference in project.artifact_refs(stage=stage)
+            for reference in project.current_artifact_refs(stage=stage)
             if reference.kind == kind.value
         ]
         if len(matches) != 1:

@@ -464,7 +464,7 @@ class ArtifactPreparationService:
         matches = [
             reference
             for stage in dependencies
-            for reference in project.artifact_refs(stage=stage)
+            for reference in project.current_artifact_refs(stage=stage)
             if reference.kind == kind.value
         ]
         if len(matches) != 1:
