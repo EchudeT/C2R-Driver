@@ -32,7 +32,7 @@
 | 14 | structured_c_analysis | 固定 Clang/LLVM 后端一次 `PASS`；处理 `ne2k-pci-front-end` 与 `8390-shared-core` 两个单元，生成 285336 字节结构化事实，无 Codex 调用。 | 符合 Skill 的 typed AST/CFG/layout/effect 路径，保持静态。 |
 | 15 | migration_contracts | 新响应生成后曾被控制器误退回；修复 current-attempt 依赖绑定后直接重验该响应并 `PASS`，没有再次调用模型。 | 内容本身一次可用；finalizer 已同步修正阶段 16/17 的同类代码。 |
 | 16 | test_adaptation | 1 次响应、一次 `PASS`；先检查 KB status，再检索并打开 source/target/test originals，完成公开测试分类和适配矩阵。 | 预先提供 source-test inventory 可减少发现型搜索，但分类、原文核对和适配判断继续由 Codex 完成；见 O6。 |
-| 17 | driver_implementation | 复用 implementation thread，读取当前合同/测试矩阵、结构化索引和历史 compliance；对驱动私有 `device.rs`/`pci.rs` 作集中修复。首份响应依次暴露三个控制器误拒绝：既有文件 TODO、带当前 target change 的 `UNKNOWN` API、以及实现后已解除阻塞的 `PRESERVE_BLOCKED` 测试。三次纠错均在新模型结果产生前中止。 | unfinished 检查已限于新增文件；未知接口须精确绑定当前 target change；coverage 必须覆盖 `RETAIN/ADAPT`，可激活已实现的 `PRESERVE_BLOCKED`，禁止 `EXCLUDE`。继续静态重验首份响应；见 O7、O8、O10。 |
+| 17 | driver_implementation | 复用 implementation thread，读取当前合同/测试矩阵、结构化索引和历史 compliance；对驱动私有 `device.rs`/`pci.rs` 作集中修复。首份响应依次暴露三个控制器误拒绝：既有文件 TODO、带当前 target change 的 `UNKNOWN` API、以及实现后已解除阻塞的 `PRESERVE_BLOCKED` 测试。三次纠错均在新模型结果产生前中止。合规回退后的首次新调用在 Prompt 审计中发现 delta 来源仍泄露完整旧结果路径，已在无响应时中止。 | unfinished 检查已限于新增文件；未知接口须精确绑定当前 target change；coverage 必须覆盖 `RETAIN/ADAPT`，可激活已实现的 `PRESERVE_BLOCKED`，禁止 `EXCLUDE`。repair delta 来源现只保留 digest/ordinal，不能诱导模型重开完整历史；见 O1、O7、O8、O10。 |
 | 18 | target_compliance | 新一轮 1 次响应，`VIOLATION`；复核确认三个真实实现缺陷：普通 controller lease 竞争消耗硬件失败预算、停止成功前提前置 `quiesced`、非抢占 Taskless 中忙等 10ms。合规节点只读 KB/目标原文且未编辑或执行，但旧 thread 累计上下文导致本轮约 400 万输入 token。 | findings 已精确回到阶段 17；同 attempt 纠错继续复用 thread，跨门禁回退开启新 thread，并只携带非 PASS repair delta；见 O1、O4。 |
 | 19 | artifact_preparation | 等待。 | 必须证明 artifact 含当前实现，不能只证明编译命令成功。 |
 | 20 | public_qemu_validation | 等待。 | 按固定 evidence ladder 运行并保存外部 oracle。 |
@@ -45,8 +45,9 @@
 
 当前控制器曾把完整 compliance 响应路径交给知识、target-study 和 implementation 节点，模型随后会
 重读完整报告和大量无关历史。现已由 `ComplianceReport` 静态提取非 PASS 的 area/API/change review，
-按 `KNOWLEDGE` 或 `IMPLEMENTATION` 精确筛选，并只传来源 occurrence 与不可变 repair delta；不再把
-完整结果路径暴露给下游模型。
+按 `KNOWLEDGE` 或 `IMPLEMENTATION` 精确筛选，并只传来源 digest/ordinal 与不可变 repair delta；不再把
+完整结果路径暴露给下游模型。首次恢复调用通过 Prompt 审计发现 occurrence 的 `source` 字段仍含路径，
+该调用在模型响应前中止并移除此字段。
 
 ### O2：程序绑定 target evidence（高优先级）
 

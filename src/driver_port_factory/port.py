@@ -752,7 +752,10 @@ class PortRunner:
         return {
             "schema_version": 1,
             "source_stage": MigrationStage.TARGET_COMPLIANCE.value,
-            "source_result": latest.to_dict(),
+            "source_result": {
+                "digest": latest.digest,
+                "ordinal": latest.ordinal,
+            },
             "findings": delta,
         }
 
