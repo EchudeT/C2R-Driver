@@ -33,6 +33,8 @@ class Project:
         root: Path,
         workflow: WorkflowDefinition,
         validators: ValidationRegistry,
+        *,
+        read_only: bool = False,
     ) -> None:
         self.root = root.resolve()
         self.control = self.root / self.CONTROL_DIR
@@ -42,7 +44,11 @@ class Project:
             raise WorkflowError(f"not a Driver Port Factory project: {self.root}")
         self.workflow = workflow
         self.validators = validators
-        self._persistence = _RunPersistence(self.database_path, workflow)
+        self._persistence = _RunPersistence(
+            self.database_path,
+            workflow,
+            read_only=read_only,
+        )
         self.artifacts = ArtifactStore(self.control / "cas")
 
     @classmethod

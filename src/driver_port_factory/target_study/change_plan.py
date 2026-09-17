@@ -94,6 +94,16 @@ class TargetChangePlanValidator:
 
     def _validate_change(self, value: Any) -> str:
         change = require_fields(value, self.CHANGE_FIELDS, "pre-existing target change")
+        contract_ids = change["driver_contract_ids"]
+        if (
+            not isinstance(contract_ids, list)
+            or not contract_ids
+            or any(
+                not isinstance(identifier, str) or not identifier.strip()
+                for identifier in contract_ids
+            )
+        ):
+            raise WorkflowError("pre-existing target change requires planned driver contract IDs")
         try:
             selected_level = ChangeLevel(change["selected_change_level"])
         except (TypeError, ValueError) as error:

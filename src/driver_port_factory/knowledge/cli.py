@@ -11,6 +11,11 @@ from .contracts import KnowledgeDomain
 from .index import KnowledgeIndex
 
 
+def _query_index(arguments: argparse.Namespace) -> KnowledgeIndex:
+    project = open_project(Path(arguments.path), read_only=True)
+    return KnowledgeIndex.for_project(project)
+
+
 def command_bootstrap(arguments: argparse.Namespace) -> None:
     project = open_project(Path(arguments.path))
     result = KnowledgeBootstrapper().bootstrap(project, probe_plan_path=Path(arguments.probe_plan))
@@ -44,7 +49,7 @@ def command_rebuild(arguments: argparse.Namespace) -> None:
 def command_status(arguments: argparse.Namespace) -> None:
     print(
         json.dumps(
-            KnowledgeIndex.for_project(open_project(Path(arguments.path))).status(),
+            _query_index(arguments).status(),
             ensure_ascii=False,
             sort_keys=True,
             indent=2,
@@ -55,9 +60,7 @@ def command_status(arguments: argparse.Namespace) -> None:
 def command_inventory(arguments: argparse.Namespace) -> None:
     print(
         json.dumps(
-            KnowledgeIndex.for_project(open_project(Path(arguments.path))).inventory(
-                domain=arguments.domain
-            ),
+            _query_index(arguments).inventory(domain=arguments.domain),
             ensure_ascii=False,
             sort_keys=True,
             indent=2,
@@ -68,7 +71,7 @@ def command_inventory(arguments: argparse.Namespace) -> None:
 def command_search(arguments: argparse.Namespace) -> None:
     print(
         json.dumps(
-            KnowledgeIndex.for_project(open_project(Path(arguments.path))).search(
+            _query_index(arguments).search(
                 arguments.query,
                 domain=arguments.domain,
                 record_id=arguments.record_id,
@@ -85,7 +88,7 @@ def command_search(arguments: argparse.Namespace) -> None:
 def command_show(arguments: argparse.Namespace) -> None:
     print(
         json.dumps(
-            KnowledgeIndex.for_project(open_project(Path(arguments.path))).show(arguments.chunk_id),
+            _query_index(arguments).show(arguments.chunk_id),
             ensure_ascii=False,
             sort_keys=True,
             indent=2,

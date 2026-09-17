@@ -34,8 +34,6 @@ class ProjectKnowledgeSkillGenerator:
             raise WorkflowError("generated project KB Skill still contains template placeholders")
         output = project.root / "skills" / skill_name / "SKILL.md"
         output.parent.mkdir(parents=True, exist_ok=True)
-        if output.exists():
-            raise WorkflowError(f"refusing to overwrite generated KB Skill: {output}")
         output.write_text(rendered, encoding="utf-8")
         contract = {
             "schema_version": 1,

@@ -108,7 +108,7 @@ def initialize_project(root: Path, config: ProjectConfig) -> Project:
     )
 
 
-def open_project(root: Path) -> Project:
+def open_project(root: Path, *, read_only: bool = False) -> Project:
     resolved = root.resolve()
     config_path = resolved / Project.CONTROL_DIR / "project.json"
     try:
@@ -118,6 +118,11 @@ def open_project(root: Path) -> Project:
     if not isinstance(value, dict):
         raise WorkflowError("project configuration must be a JSON object")
     config = ProjectConfig.from_dict(value)
-    project = Project(resolved, workflow_for(config), ARTIFACT_VALIDATORS)
+    project = Project(
+        resolved,
+        workflow_for(config),
+        ARTIFACT_VALIDATORS,
+        read_only=read_only,
+    )
     project.verify_integrity()
     return project

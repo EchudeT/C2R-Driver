@@ -196,6 +196,12 @@ class MigrationContractGate:
                 knowledge,
                 api_entries,
             )
+        missing_change_contracts = self._change_contract_ids() - identifiers
+        if missing_change_contracts:
+            raise WorkflowError(
+                "migration contracts omit target-change contract IDs: "
+                + ", ".join(sorted(missing_change_contracts))
+            )
         required_functions = self._required_functions()
         if covered_functions != required_functions:
             missing = sorted(required_functions - covered_functions)
@@ -226,6 +232,15 @@ class MigrationContractGate:
         if not isinstance(entries, list):
             raise WorkflowError("target API evidence has no entries")
         return {str(entry.get("api_id")): entry for entry in entries if isinstance(entry, dict)}
+
+    def _change_contract_ids(self) -> set[str]:
+        _, data = self.context.one_dependency(TargetStudyArtifact.CHANGE_PLAN)
+        plan = json_object(data, TargetStudyArtifact.CHANGE_PLAN.value)
+        return {
+            str(identifier)
+            for change in plan.get("proposed_preexisting_changes", [])
+            for identifier in change["driver_contract_ids"]
+        }
 
     def _validate_contract(
         self,

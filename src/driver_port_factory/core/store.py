@@ -35,11 +35,18 @@ from .workflow import WorkflowDefinition
 class _RunPersistence:
     """Internal transactional persistence; successful stage commits enter via Project only."""
 
-    def __init__(self, path: Path, workflow: WorkflowDefinition) -> None:
+    def __init__(
+        self,
+        path: Path,
+        workflow: WorkflowDefinition,
+        *,
+        read_only: bool = False,
+    ) -> None:
         self.path = path.resolve()
         if not self.path.exists():
             raise WorkflowError(f"run database does not exist: {self.path}")
         self.workflow = workflow
+        self.read_only = read_only
         self._stages = _StagePersistence(workflow)
         with self._connect() as connection:
             validate_schema(connection)
@@ -71,14 +78,21 @@ class _RunPersistence:
 
     @contextmanager
     def _connect(self) -> Iterator[sqlite3.Connection]:
-        connection = sqlite3.connect(self.path)
+        # Codex queries run after the controller closes its transaction. Immutable mode
+        # keeps those readers from creating WAL/SHM sidecars outside their writable sandbox.
+        connection = sqlite3.connect(
+            f"{self.path.as_uri()}?mode=ro&immutable=1" if self.read_only else self.path,
+            uri=self.read_only,
+        )
         connection.row_factory = sqlite3.Row
         connection.execute("PRAGMA foreign_keys=ON")
         try:
             yield connection
-            connection.commit()
+            if not self.read_only:
+                connection.commit()
         except Exception:
-            connection.rollback()
+            if not self.read_only:
+                connection.rollback()
             raise
         finally:
             connection.close()
