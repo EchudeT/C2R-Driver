@@ -44,7 +44,7 @@ def policy_for(facet: EvidenceFacet) -> FacetOriginPolicy:
             roles = (
                 source
                 if facet.name == TestFacet.SOURCE_TESTS
-                else frozenset({RepositoryRole.SOURCE, RepositoryRole.TARGET})
+                else frozenset(RepositoryRole)
             )
             return FacetOriginPolicy(roles, roles, True)
         case EvidenceLane.TOOLING:

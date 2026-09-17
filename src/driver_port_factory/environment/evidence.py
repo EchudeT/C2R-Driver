@@ -23,17 +23,26 @@ def workspace_path(project: Project, relative: str) -> Path:
     return path
 
 
-def file_identity(project: Project, relative: str) -> dict[str, Any]:
-    path = workspace_path(project, relative)
+def evidence_path(project: Project, recorded_path: str) -> Path:
+    candidate = Path(recorded_path)
+    return (
+        candidate.resolve()
+        if candidate.is_absolute()
+        else workspace_path(project, recorded_path)
+    )
+
+
+def file_identity(project: Project, recorded_path: str) -> dict[str, Any]:
+    path = evidence_path(project, recorded_path)
     if path.is_file():
         return {
-            "path": relative,
+            "path": recorded_path,
             "kind": WorkspaceEntryKind.FILE,
             "sha256": hashlib.sha256(path.read_bytes()).hexdigest(),
             "size": path.stat().st_size,
         }
     return {
-        "path": relative,
+        "path": recorded_path,
         "kind": WorkspaceEntryKind.DIRECTORY,
         "sha256": None,
         "size": None,

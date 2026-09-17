@@ -237,7 +237,14 @@ class RevisionProposalImporter:
             occurrence=ArtifactOccurrence(job_digest, job_ordinal),
         )
         try:
-            proposal = RevisionSelectionProposal.from_dict(json.loads(project.artifacts.read(job)))
+            raw = json.loads(project.artifacts.read(job))
+            if isinstance(raw, dict) and {
+                "migration_envelope_sha256",
+                "compatibility_evidence",
+            } <= set(raw):
+                proposal = RevisionSelectionProposal.from_dict(raw)
+            else:
+                proposal = normalize_codex_revision_selection(project, raw)
         except (UnicodeDecodeError, json.JSONDecodeError, WorkflowError) as error:
             raise CodexOutputError(f"invalid Codex revision proposal: {error}") from error
         envelope_ref = project.artifact(
@@ -266,6 +273,58 @@ class RevisionProposalImporter:
         return ArtifactOccurrence(imported.digest, ordinal(imported.ordinal))
 
 
+def normalize_codex_revision_selection(
+    project: Project, value: object
+) -> RevisionSelectionProposal:
+    """Add controller-owned provenance to Codex's three unavoidable choices."""
+
+    candidate = exact_object(
+        value,
+        required={"repositories"},
+        label="Codex revision selection",
+    )
+    rows = candidate["repositories"]
+    if not isinstance(rows, list):
+        raise WorkflowError("Codex revision selection repositories must be a list")
+    expected_platform = {
+        RepositoryRole.SOURCE: project.config.source_platform,
+        RepositoryRole.TARGET: project.config.target_platform,
+        RepositoryRole.QEMU: "qemu",
+    }
+    repositories = []
+    for row in rows:
+        selected = exact_object(
+            row,
+            required={"role", "url", "ref"},
+            label="Codex repository selection",
+        )
+        try:
+            role = RepositoryRole(selected["role"])
+        except (TypeError, ValueError) as error:
+            raise WorkflowError("repository role must be source, target, or qemu") from error
+        repositories.append(
+            RepositoryCandidate(
+                role,
+                expected_platform[role],
+                _repository_url(selected["url"]),
+                nonempty(selected["ref"], "selected repository ref"),
+                "exact revision selected by Codex for the confirmed migration scope",
+            )
+        )
+    if Counter(item.role for item in repositories) != Counter(
+        {role: 1 for role in RepositoryRole}
+    ):
+        raise WorkflowError("select exactly one source, target, and qemu repository")
+    envelope = project.artifact(
+        IntakeStage.ENVELOPE_FREEZE, IntakeArtifact.MIGRATION_ENVELOPE
+    )
+    return RevisionSelectionProposal(
+        envelope.digest,
+        tuple(sorted(repositories, key=lambda item: item.role.sequence)),
+        (),
+    )
+
+
 def load_revision_proposal(
     project: Project, occurrence: ArtifactOccurrence
 ) -> RevisionProposalEnvelope:
@@ -285,6 +344,8 @@ def validate_proposed_compatibility_evidence(
     evidence: tuple[CompatibilityCitation, ...],
     repositories: tuple[RepositoryCandidate, ...],
 ) -> None:
+    if not evidence:
+        return
     expected = {(item.role, item.requested_ref) for item in repositories}
     covered = {
         (binding.role, binding.requested_ref) for item in evidence for binding in item.bindings
@@ -297,6 +358,8 @@ def validate_resolved_compatibility_evidence(
     evidence: tuple[CompatibilityEvidence, ...],
     repositories: tuple[RepositorySpec, ...],
 ) -> None:
+    if not evidence:
+        return
     expected = {(item.role, item.requested_ref, item.resolved_commit) for item in repositories}
     covered = {
         (binding.role, binding.requested_ref, binding.resolved_commit)

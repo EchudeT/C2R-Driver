@@ -20,6 +20,7 @@ from driver_port_factory.core.project import Project
 from driver_port_factory.environment.contracts import EnvironmentArtifact, EnvironmentStage
 from driver_port_factory.environment.execution import ExperimentExecutor
 from driver_port_factory.environment.inventory import EnvironmentInspector
+from driver_port_factory.environment.models import ExperimentPlan
 from driver_port_factory.environment.planning import ExperimentPlanRegistrar
 from driver_port_factory.intake.service import IntakeService
 from tests.acquisition_support import close_evidence, repository, select_revisions
@@ -135,6 +136,30 @@ def write_plan(root: Path, route_id: str, executable: Path) -> Path:
 
 
 class EnvironmentRecoveryTests(unittest.TestCase):
+    def test_semantic_evidence_is_preserved_without_shape_checks(self) -> None:
+        value = {
+            "schema_version": 3,
+            "route_id": "direct-ne2k-pci-qmp-smoke",
+            "milestone": "EXPERIMENT_READY",
+            "purpose": {"claim": "instantiate the QEMU device model"},
+            "artifact_mode": "direct-device-model",
+            "device_identity": {"qemu_device": "ne2k_pci", "pci_id": "10ec:8029"},
+            "topology": {"machine": "virt", "architecture": "riscv64"},
+            "command": ["qemu-system-riscv64", "-machine", "virt"],
+            "cwd": ".",
+            "environment": {},
+            "timeout_seconds": 10,
+            "accepted_exit_codes": [0],
+            "runner_evidence_paths": ["."],
+            "relevance_evidence": {"observation": "query-pci found the device"},
+        }
+
+        plan = ExperimentPlan.from_dict(value)
+
+        self.assertEqual(plan.device_identity, value["device_identity"])
+        self.assertEqual(plan.topology, value["topology"])
+        self.assertEqual(plan.relevance_evidence, value["relevance_evidence"])
+
     def test_marker_only_attempt_fails_before_real_qmp_attempt_passes(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             project = acquired_project(Path(temporary))

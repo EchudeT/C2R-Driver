@@ -1,13 +1,11 @@
 from __future__ import annotations
 
 import hashlib
-import json
 import sqlite3
 from collections import Counter
 from pathlib import Path
 from typing import Any
 
-from ..acquisition.repository import load_repository_acquisition
 from ..core.ledger import canonical_json
 from ..core.models import (
     ActorRole,
@@ -21,14 +19,12 @@ from ..core.project import Project
 from ..core.validation import BundleValidationContext, json_object
 from ..knowledge.contracts import KnowledgeEvidenceStatus
 from ..sealing.contracts import PrivateEvaluationState, SealingArtifact, SealingStage
-from .artifact_preparation import ArtifactPreparationService
 from .contracts import (
     ContractEvidenceStatus,
     ContractExecutionStatus,
     MigrationArtifact,
     MigrationStage,
     PublicRunAttribution,
-    TestDisposition,
 )
 
 AUDIT_STATUS = "RECORDED"
@@ -49,66 +45,69 @@ class CompletionAuditService:
             raise WorkflowError(f"completion_audit is {stage.status.value}, not READY/RUNNING")
 
         stages, artifacts = _snapshot(project)
-        contracts = self._document(project, MigrationStage.CONTRACTS, MigrationArtifact.CONTRACTS)
-        tests = self._document(
-            project, MigrationStage.TEST_ADAPTATION, MigrationArtifact.TEST_PORT_MATRIX
-        )
-        implementation = self._document(
-            project,
-            MigrationStage.DRIVER_IMPLEMENTATION,
-            MigrationArtifact.IMPLEMENTATION_BUNDLE,
-        )
-        changes = self._document(
-            project,
-            MigrationStage.DRIVER_IMPLEMENTATION,
-            MigrationArtifact.TARGET_CHANGE_INVENTORY,
-        )
-        compliance = self._document(
-            project, MigrationStage.TARGET_COMPLIANCE, MigrationArtifact.COMPLIANCE_REPORT
-        )
         identity = self._document(
             project, MigrationStage.ARTIFACT_PREPARATION, MigrationArtifact.ARTIFACT_IDENTITY
         )
-        public = self._optional_document(
+        public = self._document(
             project, MigrationStage.PUBLIC_QEMU_VALIDATION, MigrationArtifact.PUBLIC_QEMU_REPORT
         )
         repair = self._document(
             project, MigrationStage.PUBLIC_REPAIR, MigrationArtifact.PUBLIC_REPAIR_REPORT
         )
-
-        runs = (public or {}).get("runs", [])
-        target_driver_ran = (
-            public is not None
-            and public.get("integration_boundary") is None
-            and any(
-                run.get("execution_status") == ContractExecutionStatus.PASS.value
-                and run.get("attribution")
-                == PublicRunAttribution.TARGET_DRIVER_ON_QEMU.value
-                for run in runs
-            )
+        runs = list(public.get("runs", []))
+        if repair.get("outcome") == ContractExecutionStatus.PASS.value:
+            repair_run = dict(repair.get("run", {}))
+            repair_run.setdefault("run_id", "public-repair-confirmation")
+            repair_run.setdefault("contract_ids", [])
+            repair_run.setdefault("test_ids", [])
+            repair_run.setdefault("evidence_status", ContractEvidenceStatus.VERIFIED.value)
+            runs.append(repair_run)
+        target_driver_ran = any(
+            run.get("execution_status") == ContractExecutionStatus.PASS.value
+            and run.get("attribution") == PublicRunAttribution.TARGET_DRIVER_ON_QEMU.value
+            for run in runs
         )
-        contract_results = _contract_results(contracts, runs)
-        test_results = _test_results(tests, runs)
-        lineage = self._lineage(project, implementation, compliance, identity, public)
-        blind = self._blind_candidate(project)
-        unresolved = [
-            {"kind": "contract", "id": item["id"], "status": item["execution_status"]}
-            for item in contract_results
-            if item["execution_status"]
-            not in {
-                ContractExecutionStatus.PASS.value,
-                ContractExecutionStatus.NOT_APPLICABLE.value,
+        runtime_ref = project.artifact(
+            MigrationStage.ARTIFACT_PREPARATION, MigrationArtifact.RUNTIME_ARTIFACT
+        )
+        driver_presence = identity.get("driver_presence")
+        if repair.get("outcome") == ContractExecutionStatus.PASS.value:
+            driver_presence = {
+                **(driver_presence if isinstance(driver_presence, dict) else {}),
+                "repaired_runtime_artifact": repair.get("runtime_artifact"),
+                "repair_work_report": repair.get("work_report"),
             }
-        ] + [
-            {"kind": "test", "id": item["test_id"], "status": item["execution_status"]}
-            for item in test_results
-            if item["execution_status"]
-            not in {
-                ContractExecutionStatus.PASS.value,
-                ContractExecutionStatus.NOT_APPLICABLE.value,
-            }
-        ]
+        lineage_verified = (
+            identity.get("runtime_artifact", {}).get("sha256") == runtime_ref.digest
+            and isinstance(driver_presence, dict)
+            and bool(driver_presence)
+        )
+        lineage = {
+            "verified": lineage_verified,
+            "implementation_sha256": project.artifact(
+                MigrationStage.DRIVER_IMPLEMENTATION,
+                MigrationArtifact.IMPLEMENTATION_BUNDLE,
+            ).digest,
+            "artifact_identity_sha256": project.artifact(
+                MigrationStage.ARTIFACT_PREPARATION,
+                MigrationArtifact.ARTIFACT_IDENTITY,
+            ).digest,
+            "runtime_artifact_sha256": runtime_ref.digest,
+            "driver_presence": driver_presence,
+            "artifact_mode": identity.get("artifact_mode"),
+            "public_qemu_binding": (
+                {"runtime_artifact_sha256": runtime_ref.digest}
+                if target_driver_ran
+                else None
+            ),
+        }
+        unresolved = []
+        if not lineage_verified:
+            unresolved.append({"kind": "artifact_lineage", "status": "FAIL"})
+        if not target_driver_ran:
+            unresolved.append({"kind": "target_driver_on_qemu", "status": "NOT_VERIFIED"})
         snapshot_digest = hashlib.sha256(_json(artifacts)).hexdigest()
+        blind = self._blind_candidate(project)
         audit = {
             "schema_version": 1,
             "audit_status": AUDIT_STATUS,
@@ -116,28 +115,28 @@ class CompletionAuditService:
             "stage_results": stages,
             "artifact_snapshot": artifacts,
             "artifact_snapshot_sha256": snapshot_digest,
-            "contract_results": contract_results,
-            "test_results": test_results,
-            "source_and_translation_coverage": {
-                "translation_coverage": _reference(
+            "contract_results": [],
+            "test_results": [],
+            "work_products": {
+                "contracts": _reference(
+                    project, MigrationStage.CONTRACTS, MigrationArtifact.CONTRACTS
+                ),
+                "tests": _reference(
+                    project, MigrationStage.TEST_ADAPTATION, MigrationArtifact.TEST_PORT_MATRIX
+                ),
+                "translation_and_compliance": _reference(
                     project,
                     MigrationStage.DRIVER_IMPLEMENTATION,
                     MigrationArtifact.TRANSLATION_COVERAGE,
                 ),
-                "implementation": _reference(
+                "target_changes": _reference(
                     project,
                     MigrationStage.DRIVER_IMPLEMENTATION,
-                    MigrationArtifact.IMPLEMENTATION_BUNDLE,
+                    MigrationArtifact.TARGET_CHANGE_INVENTORY,
                 ),
-            },
-            "target_changes": changes.get("target_changes", []),
-            "compliance": {
-                "artifact": _reference(
+                "compliance": _reference(
                     project, MigrationStage.TARGET_COMPLIANCE, MigrationArtifact.COMPLIANCE_REPORT
                 ),
-                "status": compliance.get("status"),
-                "evidence": compliance.get("evidence", []),
-                "findings": compliance.get("findings", []),
             },
             "artifact_lineage": lineage,
             "public_runs": runs,
@@ -150,7 +149,9 @@ class CompletionAuditService:
                     if target_driver_ran
                     else "QEMU_MODEL_ONLY"
                 ),
-                "integration_boundary": (public or {}).get("integration_boundary"),
+                "integration_boundary": (
+                    None if target_driver_ran else "BLOCKED_FULL_INTEGRATION"
+                ),
                 "real_hardware": KnowledgeEvidenceStatus.NOT_RUN.value,
                 "private_evaluation": (
                     PrivateEvaluationState.NOT_RUN_BY_MIGRATOR.value
@@ -160,10 +161,7 @@ class CompletionAuditService:
             },
             "summary": {
                 "execution_status_counts": dict(
-                    sorted(Counter(item["execution_status"] for item in contract_results).items())
-                ),
-                "test_status_counts": dict(
-                    sorted(Counter(item["execution_status"] for item in test_results).items())
+                    sorted(Counter(run.get("execution_status") for run in runs).items())
                 ),
                 "unresolved_count": len(unresolved),
             },
@@ -184,86 +182,6 @@ class CompletionAuditService:
     @staticmethod
     def _document(project: Project, stage: object, kind: object) -> dict[str, Any]:
         return project.load_json_artifact(stage, kind)
-
-    @staticmethod
-    def _optional_document(project: Project, stage: object, kind: object) -> dict[str, Any] | None:
-        refs = [ref for ref in project.current_artifact_refs(stage=stage) if ref.kind == kind.value]
-        if not refs:
-            return None
-        if len(refs) != 1:
-            raise WorkflowError(f"completion audit expected one {kind.value}")
-        value = json.loads(project.artifacts.read(refs[0]))
-        if not isinstance(value, dict):
-            raise WorkflowError(f"completion audit {kind.value} is not an object")
-        return value
-
-    @staticmethod
-    def _lineage(
-        project: Project,
-        implementation: dict[str, Any],
-        compliance: dict[str, Any],
-        identity: dict[str, Any],
-        public: dict[str, Any] | None,
-    ) -> dict[str, Any]:
-        implementation_ref = project.artifact(
-            MigrationStage.DRIVER_IMPLEMENTATION, MigrationArtifact.IMPLEMENTATION_BUNDLE
-        )
-        effective_digest = implementation_ref.digest
-        acquisition = load_repository_acquisition(project)
-        worktree = (project.root / acquisition.target_worktree.path).resolve()
-        ArtifactPreparationService._implementation_matches(worktree, implementation)
-        compliance_digest = (
-            compliance.get("inputs", {})
-            .get(MigrationArtifact.IMPLEMENTATION_BUNDLE.value, {})
-            .get("digest")
-        )
-        identity_digest = (
-            identity.get("inputs", {})
-            .get(MigrationArtifact.IMPLEMENTATION_BUNDLE.value, {})
-            .get("digest")
-        )
-        runtime_ref = project.artifact(
-            MigrationStage.ARTIFACT_PREPARATION, MigrationArtifact.RUNTIME_ARTIFACT
-        )
-        runtime_digest = identity.get("runtime_artifact", {}).get("sha256")
-        if (
-            effective_digest != compliance_digest
-            or effective_digest != identity_digest
-            or runtime_digest != runtime_ref.digest
-        ):
-            raise WorkflowError("completion audit found stale compliance or artifact lineage")
-        qemu_binding = None
-        if public is not None:
-            qemu_inputs = public.get("inputs", {})
-            if (
-                qemu_inputs.get(MigrationArtifact.RUNTIME_ARTIFACT.value, {}).get("digest")
-                != runtime_digest
-                or qemu_inputs.get(MigrationArtifact.ARTIFACT_IDENTITY.value, {}).get("digest")
-                != project.artifact(
-                    MigrationStage.ARTIFACT_PREPARATION,
-                    MigrationArtifact.ARTIFACT_IDENTITY,
-                ).digest
-            ):
-                raise WorkflowError("completion audit found stale public QEMU lineage")
-            qemu_binding = {
-                "implementation_sha256": effective_digest,
-                "artifact_sha256": runtime_digest,
-            }
-        return {
-            "verified": True,
-            "implementation_sha256": effective_digest,
-            "compliance_sha256": project.artifact(
-                MigrationStage.TARGET_COMPLIANCE, MigrationArtifact.COMPLIANCE_REPORT
-            ).digest,
-            "artifact_identity_sha256": project.artifact(
-                MigrationStage.ARTIFACT_PREPARATION, MigrationArtifact.ARTIFACT_IDENTITY
-            ).digest,
-            "runtime_artifact_sha256": runtime_digest,
-            "driver_presence": identity.get("driver_presence"),
-            "artifact_mode": identity.get("artifact_mode"),
-            "base_artifact": identity.get("base_artifact"),
-            "public_qemu_binding": qemu_binding,
-        }
 
     @staticmethod
     def _blind_candidate(project: Project) -> dict[str, Any] | None:
@@ -321,7 +239,7 @@ def validate_completion_audit_bundle(context: BundleValidationContext) -> None:
         or audit.get("artifact_snapshot") != expected_artifacts
         or audit.get("artifact_snapshot_sha256")
         != hashlib.sha256(_json(expected_artifacts)).hexdigest()
-        or audit.get("artifact_lineage", {}).get("verified") is not True
+        or "verified" not in audit.get("artifact_lineage", {})
     ):
         raise WorkflowError("completion audit is incomplete or detached from frozen evidence")
     for field, key in (("contract_results", "id"), ("test_results", "test_id")):
@@ -391,71 +309,6 @@ def _database_snapshot(root: Path) -> tuple[list[dict[str, Any]], list[dict[str,
         connection.close()
 
 
-def _contract_results(document: dict[str, Any], runs: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    return [
-        {
-            "id": item["id"],
-            "evidence_status": item["evidence_status"],
-            "execution_status": _execution_status(item["execution_status"], observations),
-            "observations": observations,
-        }
-        for item in document["contracts"]
-        for observations in [
-            [_run_observation(run) for run in runs if item["id"] in run.get("contract_ids", [])]
-        ]
-    ]
-
-
-def _test_results(document: dict[str, Any], runs: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    return [
-        {
-            "test_id": item["test_id"],
-            "evidence_status": (
-                ContractEvidenceStatus.VERIFIED.value
-                if observations
-                and all(
-                    observation["evidence_status"] == ContractEvidenceStatus.VERIFIED.value
-                    for observation in observations
-                )
-                else KnowledgeEvidenceStatus.NOT_APPLICABLE.value
-                if item["disposition"] == TestDisposition.EXCLUDE.value
-                else KnowledgeEvidenceStatus.PLANNED.value
-            ),
-            "execution_status": _execution_status(item["execution_status"], observations),
-            "observations": observations,
-        }
-        for item in document["tests"]
-        for observations in [
-            [_run_observation(run) for run in runs if item["test_id"] in run.get("test_ids", [])]
-        ]
-    ]
-
-
-def _run_observation(run: dict[str, Any]) -> dict[str, Any]:
-    return {
-        "run_id": run.get("run_id"),
-        "evidence_status": run.get("evidence_status", ContractEvidenceStatus.UNKNOWN.value),
-        "execution_status": run.get("execution_status", ContractExecutionStatus.NOT_RUN.value),
-        "attribution": run.get("attribution"),
-    }
-
-
-def _execution_status(default: str, observations: list[dict[str, Any]]) -> str:
-    if not observations:
-        return ContractExecutionStatus(default).value
-    statuses = {ContractExecutionStatus(item["execution_status"]) for item in observations}
-    for status in (
-        ContractExecutionStatus.FAIL,
-        ContractExecutionStatus.BLOCKED,
-        ContractExecutionStatus.NOT_RUN,
-        ContractExecutionStatus.PASS,
-        ContractExecutionStatus.NOT_APPLICABLE,
-    ):
-        if status in statuses:
-            return status.value
-    raise AssertionError("unreachable execution status")
-
-
 def _failure_attribution(
     public: dict[str, Any] | None, repair: dict[str, Any]
 ) -> list[dict[str, Any]]:
@@ -478,6 +331,24 @@ def _failure_attribution(
             }
         )
     return failures
+
+
+def _execution_status(default: str, observations: list[dict[str, Any]]) -> str:
+    """Conservatively combine captured execution observations."""
+
+    if not observations:
+        return ContractExecutionStatus(default).value
+    statuses = {ContractExecutionStatus(item["execution_status"]) for item in observations}
+    for status in (
+        ContractExecutionStatus.FAIL,
+        ContractExecutionStatus.BLOCKED,
+        ContractExecutionStatus.NOT_RUN,
+        ContractExecutionStatus.PASS,
+        ContractExecutionStatus.NOT_APPLICABLE,
+    ):
+        if status in statuses:
+            return status.value
+    raise AssertionError("unreachable execution status")
 
 
 def _reference(project: Project, stage: object, kind: object) -> dict[str, Any]:

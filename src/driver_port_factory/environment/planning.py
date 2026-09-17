@@ -8,7 +8,7 @@ from ..core.models import ActorRole, ArtifactDirection, FileArtifact, StageStatu
 from ..core.project import Project
 from .contracts import EnvironmentArtifact, EnvironmentStage
 from .documents import json_bytes, plan_path
-from .evidence import executable_identity, frozen_repository_snapshot, workspace_path
+from .evidence import evidence_path, executable_identity, frozen_repository_snapshot, workspace_path
 from .models import ExperimentPlan
 
 
@@ -30,7 +30,7 @@ class ExperimentPlanRegistrar:
         cwd = workspace_path(project, plan.cwd)
         if not cwd.is_dir():
             raise WorkflowError(f"experiment cwd does not exist: {cwd}")
-        if any(not workspace_path(project, path).exists() for path in plan.runner_evidence_paths):
+        if any(not evidence_path(project, path).exists() for path in plan.runner_evidence_paths):
             raise WorkflowError("runner evidence path does not exist")
         executable = executable_identity(plan.command[0], cwd)
         if executable["resolved"] is None:

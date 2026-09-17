@@ -11,6 +11,7 @@ from .facets import (
     EvidenceFacet,
     EvidenceLane,
     FacetDisposition,
+    GapReason,
     RetrievalOutcome,
 )
 from .locators import EvidenceLocator
@@ -83,16 +84,26 @@ def _validate_coverage_references(
             gap_attempts = tuple(attempts[item] for item in gap.retrieval_attempt_ids)
             if any(attempt.facet != facet for attempt in gap_attempts):
                 raise WorkflowError("evidence gap references a mismatched retrieval attempt")
-            if gap.reason is not reason_for_attempts(gap_attempts):
+            failed_attempts = tuple(
+                attempt
+                for attempt in gap_attempts
+                if attempt.outcome is not RetrievalOutcome.RETRIEVED
+            )
+            expected_reason = (
+                reason_for_attempts(failed_attempts)
+                if failed_attempts
+                else GapReason.UNAVAILABLE_PUBLIC_EVIDENCE
+            )
+            if gap.reason is not expected_reason:
                 raise WorkflowError("evidence gap reason differs from retrieval outcomes")
             referenced_attempt_ids.update(gap.retrieval_attempt_ids)
             gap_ids.add(gap.identifier)
-        failed_attempt_ids = {
+        planned_attempt_ids = {
             item.identifier
             for item in ordered_attempts
-            if item.facet == facet and item.outcome is not RetrievalOutcome.RETRIEVED
+            if item.facet == facet
         }
-        if referenced_attempt_ids != failed_attempt_ids:
+        if referenced_attempt_ids != planned_attempt_ids:
             raise WorkflowError("evidence gap does not account for every planned retrieval")
     return controlled_ids, gap_ids
 

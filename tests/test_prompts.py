@@ -150,18 +150,10 @@ class SkillPromptTests(unittest.TestCase):
                     missing.append(f"{role.value}:{stage.name.value}")
             self.assertEqual(missing, [])
 
-    def test_default_pack_binds_structured_stage_schemas(self) -> None:
+    def test_semantic_stages_do_not_require_ai_to_fill_control_schemas(self) -> None:
         prompt_pack = load_prompt_pack(None, WORKFLOW_STAGE_CATALOG)
-        expected = {
-            "revision_selection": "revision-selection-proposal.schema.json",
-            "evidence_closure": "evidence-closure-proposal.schema.json",
-        }
-        actual = {
-            stage: specification.output_schema.relative_path
-            for stage, specification in prompt_pack.stages.items()
-            if specification.output_schema is not None
-        }
-        self.assertEqual(actual, expected)
+        self.assertIsNone(prompt_pack.stages["revision_selection"].output_schema)
+        self.assertIsNone(prompt_pack.stages["evidence_closure"].output_schema)
 
     def test_legacy_stage_document_list_is_rejected(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:

@@ -221,13 +221,13 @@ def set_external_proposal(
         (
             item
             for item in proposal["facets"]
-            if (item["lane"], item["facet"]) == (facet.lane.value, facet.name.value)
+            if (item["lane"], item["facet"]) == (facet.lane.value, facet.name)
         ),
         None,
     )
     if item is None:
         template = next(item for item in proposal["facets"] if item["lane"] == facet.lane.value)
-        item = {**template, "facet": facet.name.value}
+        item = {**template, "facet": facet.name}
         proposal["facets"].append(item)
     item["disposition"] = disposition.value
     item["locators"] = [
@@ -393,7 +393,7 @@ class AcquisitionTests(unittest.TestCase):
             self.assertTrue(managed.is_symlink())
             self.assertEqual(marker.read_text(encoding="utf-8"), "outside\n")
 
-    def test_cross_claim_cannot_replace_per_revision_maintenance_evidence(self) -> None:
+    def test_cross_claim_kind_is_derived_from_bindings(self) -> None:
         repositories = [
             {
                 "role": role.value,
@@ -413,7 +413,6 @@ class AcquisitionTests(unittest.TestCase):
                     "source_url": "https://example.invalid/compatibility",
                     "claim": "generic compatibility statement",
                     "excerpt": "generic compatibility statement",
-                    "claim_kind": CompatibilityClaimKind.CROSS_REPOSITORY.value,
                     "bindings": [
                         {"role": item["role"], "requested_ref": item["requested_ref"]}
                         for item in repositories
@@ -421,8 +420,11 @@ class AcquisitionTests(unittest.TestCase):
                 }
             ],
         }
-        with self.assertRaisesRegex(WorkflowError, "maintenance for every proposed ref"):
-            RevisionSelectionProposal.from_dict(proposal)
+        parsed = RevisionSelectionProposal.from_dict(proposal)
+        self.assertEqual(
+            parsed.compatibility_evidence[0].claim_kind,
+            CompatibilityClaimKind.CROSS_REPOSITORY,
+        )
 
     def test_source_repository_cannot_close_a_target_facet(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
@@ -454,7 +456,7 @@ class AcquisitionTests(unittest.TestCase):
             with self.assertRaisesRegex(WorkflowError, "declared gap reason"):
                 EvidenceClosureFinalizer().finalize(project, proposal=imported.occurrence)
 
-    def test_revision_citation_excerpt_must_exist_in_retrieved_content(self) -> None:
+    def test_revision_citation_excerpt_may_summarize_retrieved_content(self) -> None:
         with compatibility_evidence_server(b"actual compatibility statement\n") as source_url:
             citation = CompatibilityCitation(
                 source_url,
@@ -464,11 +466,9 @@ class AcquisitionTests(unittest.TestCase):
                 tuple(ProposedRevisionBinding(role, "v1.0.0") for role in RepositoryRole),
                 4096,
             )
-            with self.assertRaisesRegex(
-                WorkflowError,
-                rf"citation 1 \({source_url}\) excerpt is absent",
-            ):
-                RevisionEvidenceRetriever().retrieve((citation,))
+            retrieved = RevisionEvidenceRetriever().retrieve((citation,))
+            self.assertEqual(retrieved[0].citation.excerpt, "missing quoted statement")
+            self.assertEqual(retrieved[0].data, b"actual compatibility statement\n")
 
     def test_revision_evidence_preflight_precedes_remote_resolution(self) -> None:
         project = Mock()
@@ -575,7 +575,7 @@ class AcquisitionTests(unittest.TestCase):
                 item
                 for item in coverage["facets"]
                 if (item["lane"], item["facet"])
-                == (SOURCE_DRIVER_ENTRY.lane.value, SOURCE_DRIVER_ENTRY.name.value)
+                == (SOURCE_DRIVER_ENTRY.lane.value, SOURCE_DRIVER_ENTRY.name)
             )
             self.assertEqual(source["disposition"], "CONTROLLED")
             manifest_ref = project.artifact(
@@ -751,7 +751,7 @@ class AcquisitionTests(unittest.TestCase):
                     )
                 ).splitlines()
             ]
-            external = next(item for item in materials if item["facet"] == facet.name.value)
+            external = next(item for item in materials if item["facet"] == facet.name)
             self.assertTrue(external["path"].startswith(".dpf/cas/objects/sha256/"))
             self.assertFalse((project.root / ".dpf" / "evidence").exists())
             content_ref = external["origin"]["response"]["content_ref"]
@@ -828,7 +828,7 @@ class AcquisitionTests(unittest.TestCase):
             attempt = next(
                 item
                 for item in ledger["attempts"]
-                if (item["lane"], item["facet"]) == (facet.lane.value, facet.name.value)
+                if (item["lane"], item["facet"]) == (facet.lane.value, facet.name)
             )
             self.assertEqual(attempt["outcome"], "CONFLICT")
             self.assertEqual(len(attempt["content_refs"]), 2)
@@ -872,13 +872,13 @@ class AcquisitionTests(unittest.TestCase):
             records = [
                 json.loads(line) for line in project.artifacts.read(manifest_ref).splitlines()
             ]
-            external = next(record for record in records if record["facet"] == facet.name.value)
+            external = next(record for record in records if record["facet"] == facet.name)
             primary_ref = external["origin"]["response"]["content_ref"]
             corroboration_ref = external["origin"]["corroboration"][0]["content_ref"]
 
             tampered = json.loads(json.dumps(records))
             tampered_external = next(
-                record for record in tampered if record["facet"] == facet.name.value
+                record for record in tampered if record["facet"] == facet.name
             )
             tampered_external["origin"]["response"]["content_ref"]["ordinal"] += 1000
             tampered_data = b"".join(
@@ -894,7 +894,7 @@ class AcquisitionTests(unittest.TestCase):
 
             swapped = json.loads(json.dumps(records))
             swapped_external = next(
-                record for record in swapped if record["facet"] == facet.name.value
+                record for record in swapped if record["facet"] == facet.name
             )
             swapped_external["origin"]["response"]["content_ref"] = corroboration_ref
             swapped_external["origin"]["corroboration"][0]["content_ref"] = primary_ref

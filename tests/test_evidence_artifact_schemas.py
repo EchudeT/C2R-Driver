@@ -61,9 +61,8 @@ class EvidenceArtifactSchemaTests(unittest.TestCase):
 
 
 def schema_validators() -> dict[AcquisitionArtifact, Draft202012Validator]:
-    prompt_schema = default_prompt_pack_path() / "evidence-closure-proposal.schema.json"
     schema_root = default_prompt_pack_path().parent.parent / "schemas" / "acquisition"
-    paths = (*schema_root.glob("*.json"), prompt_schema)
+    paths = tuple(schema_root.glob("*.json"))
     documents = [json.loads(path.read_text(encoding="utf-8")) for path in paths]
     registry: Registry = Registry()
     for document in documents:

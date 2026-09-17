@@ -25,6 +25,7 @@ from .evidence import TargetEvidenceVerifier, require_fields
 from .profile import PROFILE_HEADINGS, TargetProfileValidator
 
 TRACE_ORDER = {stage: position for position, stage in enumerate(TraceStage)}
+TRACE_STEPS = tuple(stage.value for stage in TraceStage)
 
 
 @dataclass(frozen=True, slots=True)

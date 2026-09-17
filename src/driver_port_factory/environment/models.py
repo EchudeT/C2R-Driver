@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import hashlib
+import json
 from dataclasses import asdict, dataclass
 from enum import StrEnum
 from typing import Any
@@ -35,18 +37,18 @@ class ExperimentPlan:
     schema_version: int
     route_id: str
     milestone: ExperimentRouteMilestone
-    purpose: str
+    purpose: Any
     artifact_mode: ArtifactMode
-    device_identity: str
-    topology: str
+    device_identity: Any
+    topology: Any
     command: tuple[str, ...]
     cwd: str
     environment: dict[str, str]
     timeout_seconds: int
     accepted_exit_codes: tuple[int, ...]
     runner_evidence_paths: tuple[str, ...]
-    relevance_evidence: str
-    driver_insertion_or_packaging_path: str | None = None
+    relevance_evidence: Any
+    driver_insertion_or_packaging_path: Any | None = None
     executable_lock: dict[str, Any] | None = None
     frozen_repositories: dict[str, Any] | None = None
 
@@ -69,21 +71,38 @@ class ExperimentPlan:
         try:
             return cls(
                 schema_version=3,
-                route_id=value["route_id"],
-                milestone=ExperimentRouteMilestone(value["milestone"]),
-                purpose=value["purpose"],
+                route_id=(
+                    value.get("route_id")
+                    or "route-"
+                    + hashlib.sha256(
+                        json.dumps(
+                            {
+                                "artifact_mode": value["artifact_mode"],
+                                "command": value["command"],
+                                "cwd": value["cwd"],
+                            },
+                            sort_keys=True,
+                        ).encode()
+                    ).hexdigest()[:16]
+                ),
+                milestone=ExperimentRouteMilestone.READY,
+                purpose=value.get("purpose"),
                 artifact_mode=ArtifactMode(value["artifact_mode"]),
-                device_identity=value["device_identity"],
-                topology=value["topology"],
+                device_identity=value.get("device_identity"),
+                topology=value.get("topology"),
                 command=tuple(cls._string_list(value["command"], "command")),
                 cwd=value["cwd"],
                 environment=cls._environment(value["environment"]),
                 timeout_seconds=cls._timeout(value["timeout_seconds"]),
                 accepted_exit_codes=tuple(cls._exit_codes(value["accepted_exit_codes"])),
                 runner_evidence_paths=tuple(
-                    cls._string_list(value["runner_evidence_paths"], "runner_evidence_paths")
+                    cls._string_list(
+                        value.get("runner_evidence_paths", []),
+                        "runner_evidence_paths",
+                        allow_empty=True,
+                    )
                 ),
-                relevance_evidence=value["relevance_evidence"],
+                relevance_evidence=value.get("relevance_evidence"),
                 driver_insertion_or_packaging_path=value.get("driver_insertion_or_packaging_path"),
                 executable_lock=dict(lock) if lock is not None else None,
                 frozen_repositories=(dict(repositories) if repositories is not None else None),
@@ -94,42 +113,25 @@ class ExperimentPlan:
     @staticmethod
     def _validate_envelope(value: dict[str, Any]) -> None:
         required = {
-            "schema_version",
-            "route_id",
-            "milestone",
-            "purpose",
             "artifact_mode",
-            "device_identity",
-            "topology",
             "command",
             "cwd",
             "environment",
             "timeout_seconds",
             "accepted_exit_codes",
-            "runner_evidence_paths",
-            "relevance_evidence",
         }
         missing = sorted(required - value.keys())
         if missing:
             raise WorkflowError(f"experiment plan missing fields: {', '.join(missing)}")
-        if value["schema_version"] != 3:
-            raise WorkflowError("experiment plan schema_version must be 3")
-        for name in (
-            "route_id",
-            "purpose",
-            "device_identity",
-            "topology",
-            "cwd",
-            "relevance_evidence",
-        ):
+        for name in ("cwd",):
             if not isinstance(value[name], str) or not value[name].strip():
                 raise WorkflowError(f"experiment plan {name} must be non-empty")
 
     @staticmethod
-    def _string_list(value: Any, field: str) -> list[str]:
+    def _string_list(value: Any, field: str, *, allow_empty: bool = False) -> list[str]:
         if (
             not isinstance(value, list)
-            or not value
+            or (not allow_empty and not value)
             or not all(isinstance(item, str) and item for item in value)
         ):
             raise WorkflowError(f"experiment plan {field} must be a non-empty string list")

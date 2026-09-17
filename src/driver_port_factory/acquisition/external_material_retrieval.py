@@ -81,7 +81,7 @@ class ExternalMaterialRetriever:
             max_bytes=locator.max_bytes,
         )
         raise RetrievalFailure(
-            RetrievalOutcome.CONFLICT,
-            "external reference exists and requires a hash-bound controlled download locator",
+            RetrievalOutcome.UNAVAILABLE_PUBLIC_EVIDENCE,
+            "external reference exists but lacks content binding and authority verification",
             (retrieved.response.content_ref,),
         )

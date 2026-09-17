@@ -3,6 +3,8 @@ from __future__ import annotations
 import hashlib
 import json
 import re
+import shlex
+import shutil
 import subprocess
 from dataclasses import dataclass
 from pathlib import Path
@@ -28,6 +30,7 @@ from .closure_coverage import ClosureCoverageValidator
 from .closure_model import ClosureContext, TranslationUnitSet
 from .closure_paths import checkout
 from .closure_units import TranslationUnitValidator
+from .compiler import CompilerFamily, compiler_adapter
 from .contracts import (
     SourceAnalysisArtifact,
     SourceAnalysisEvent,
@@ -45,8 +48,252 @@ class SourceClosureResult:
     errors: tuple[str, ...]
 
 
+@dataclass(frozen=True, slots=True)
+class NormalizedCompileCommand:
+    directory: Path
+    source_path: Path
+    compiler_path: Path
+    arguments: list[str]
+
+
+def _normalize_compile_command(
+    source_root: Path, raw: object
+) -> NormalizedCompileCommand:
+    if not isinstance(raw, dict):
+        raise WorkflowError("compile command must be an object")
+    directory = _inside_source_root(
+        source_root,
+        Path(str(raw.get("directory", source_root))),
+        source_root,
+        "compile command directory",
+    )
+    source_path = _inside_source_root(
+        source_root,
+        Path(str(raw.get("file", ""))),
+        directory,
+        "compile command source",
+    )
+    if not source_path.is_file():
+        raise WorkflowError("compile command source is not a file")
+    arguments = raw.get("arguments")
+    if arguments is None and isinstance(raw.get("command"), str):
+        arguments = shlex.split(raw["command"])
+    if not isinstance(arguments, list) or not all(
+        isinstance(argument, str) and argument for argument in arguments
+    ):
+        raise WorkflowError("compile command requires an argv list or command string")
+    compiler = _resolve_executable(arguments[0], directory)
+    if not compiler.is_file():
+        raise WorkflowError(f"source compiler is unavailable: {arguments[0]}")
+    return NormalizedCompileCommand(
+        directory,
+        source_path,
+        compiler,
+        [str(compiler), *arguments[1:]],
+    )
+
+
+def _inside_source_root(
+    source_root: Path,
+    value: Path,
+    relative_to: Path,
+    label: str,
+) -> Path:
+    resolved = (value if value.is_absolute() else relative_to / value).resolve()
+    if resolved != source_root and source_root not in resolved.parents:
+        raise WorkflowError(f"{label} is outside the frozen source tree")
+    return resolved
+
+
+def _resolve_executable(value: str, cwd: Path) -> Path:
+    candidate = Path(value)
+    if candidate.is_absolute():
+        return candidate.resolve()
+    if "/" in value:
+        return (cwd / candidate).resolve()
+    located = shutil.which(value)
+    return Path(located).resolve() if located else Path()
+
+
 class SourceClosureService:
     ROLES = (ActorRole.DEVELOPER, ActorRole.MIGRATION_OPERATOR)
+
+    def finalize_compilation_database(
+        self,
+        project: Project,
+        *,
+        compilation_database_path: Path,
+        work_report_path: Path,
+    ) -> SourceClosureResult:
+        """Derive mechanical closure records from standard ``compile_commands.json``."""
+
+        project.ensure_role(*self.ROLES)
+        self._enter_stage(project)
+        try:
+            raw_entries = json.loads(compilation_database_path.read_text(encoding="utf-8"))
+            if not isinstance(raw_entries, list) or not raw_entries:
+                raise WorkflowError("compile_commands.json must contain at least one command")
+            acquisition = load_repository_acquisition(project)
+            source = checkout(acquisition.checkouts, RepositoryRole.SOURCE)
+            source_root = (project.root / source.checkout_path).resolve()
+            database, units, source_files, compiler = self._derive_compile_inputs(
+                source_root, raw_entries
+            )
+            corpus_revision, corpus, added_ids = self._extend_knowledge(project, source_files)
+            attempt_dir = self._new_attempt_dir(
+                project,
+                hashlib.sha256(compilation_database_path.read_bytes()).hexdigest(),
+            )
+            database_path = attempt_dir / "compile_commands.json"
+            database_bytes = self._json_array_bytes(database)
+            database_path.write_bytes(database_bytes)
+            compile_manifest = {
+                "schema_version": 1,
+                "source_revision": source.resolved_commit,
+                "source_root": str(source_root),
+                "compiler": compiler,
+                "translation_units": units,
+                "compilation_database_sha256": hashlib.sha256(database_bytes).hexdigest(),
+            }
+            compile_manifest_path = attempt_dir / "compile-manifest.json"
+            compile_manifest_path.write_bytes(self._json_bytes(compile_manifest))
+            report_path = attempt_dir / "validation.json"
+            report_path.write_bytes(
+                self._json_bytes(
+                    {
+                        "schema_version": 1,
+                        "status": ValidationStatus.PASS,
+                        "work_report": {
+                            "path": str(work_report_path.relative_to(project.root)),
+                            "sha256": file_sha256(work_report_path),
+                        },
+                        "translation_unit_count": len(units),
+                        "controlled_file_count": len(source_files),
+                        "errors": [],
+                        "validated_at": utc_now(),
+                    }
+                )
+            )
+            project.finalize_stage(
+                SourceAnalysisStage.SOURCE_CLOSURE,
+                (
+                    FileArtifact(SourceAnalysisArtifact.SOURCE_CLOSURE, work_report_path),
+                    FileArtifact(SourceAnalysisArtifact.SOURCE_CLOSURE_REPORT, report_path),
+                    FileArtifact(SourceAnalysisArtifact.COMPILE_MANIFEST, compile_manifest_path),
+                    FileArtifact(SourceAnalysisArtifact.COMPILATION_DATABASE, database_path),
+                    GeneratedArtifact(
+                        SourceAnalysisArtifact.MATERIALS_MANIFEST,
+                        corpus.data,
+                        corpus.source,
+                    ),
+                    GeneratedArtifact(
+                        SourceAnalysisArtifact.KNOWLEDGE_REVISION,
+                        self._json_bytes(corpus_revision.to_dict()),
+                        f"generated:source-closure:{corpus.digest}",
+                    ),
+                ),
+            )
+            if added_ids:
+                project.record_event(
+                    SourceAnalysisEvent.CLOSURE_EXTENDED,
+                    {"added_ids": list(added_ids), "added_count": len(added_ids)},
+                )
+            return SourceClosureResult(
+                ValidationStatus.PASS, StageStatus.PASS, str(report_path), ()
+            )
+        except (OSError, UnicodeDecodeError, json.JSONDecodeError, WorkflowError) as error:
+            raise WorkflowError(f"source closure mechanical processing failed: {error}") from error
+
+    @staticmethod
+    def _derive_compile_inputs(
+        source_root: Path, raw_entries: list[Any]
+    ) -> tuple[
+        list[dict[str, Any]],
+        list[dict[str, Any]],
+        dict[str, Path],
+        dict[str, Any],
+    ]:
+        adapter = compiler_adapter(CompilerFamily.GCC_COMPATIBLE)
+        database: list[dict[str, Any]] = []
+        units: list[dict[str, Any]] = []
+        source_files: dict[str, Path] = {}
+        compiler_path: Path | None = None
+        target_triple: str | None = None
+        target_abi: dict[str, object] | None = None
+        for index, raw in enumerate(raw_entries, start=1):
+            entry = _normalize_compile_command(source_root, raw)
+            directory = entry.directory
+            source_path = entry.source_path
+            resolved_compiler = entry.compiler_path
+            if compiler_path is None:
+                compiler_path = resolved_compiler
+            elif compiler_path != resolved_compiler:
+                raise WorkflowError("compile commands must use one compiler executable")
+            normalized_arguments = entry.arguments
+            if not adapter.contains_source(normalized_arguments, directory, source_path):
+                raise WorkflowError("compile argv does not name its source file")
+            observed_triple = adapter.effective_target_triple(
+                normalized_arguments, directory, executable=resolved_compiler
+            )
+            observed_abi = adapter.abi_signature(
+                normalized_arguments, directory, executable=resolved_compiler
+            )
+            if target_triple is None:
+                target_triple, target_abi = observed_triple, observed_abi
+            elif target_triple != observed_triple or target_abi != observed_abi:
+                raise WorkflowError("compile commands do not share one target ABI")
+            dependencies = adapter.dependencies(
+                normalized_arguments, directory, source_root, source_path
+            )
+            relative_source = source_path.relative_to(source_root).as_posix()
+            dependency_records = [
+                {
+                    "path": dependency.relative_to(source_root).as_posix(),
+                    "sha256": file_sha256(dependency),
+                    "role": "compiler-discovered",
+                }
+                for dependency in sorted(dependencies)
+            ]
+            unit_id = (
+                f"tu-{index:03d}-"
+                f"{hashlib.sha256(relative_source.encode()).hexdigest()[:12]}"
+            )
+            units.append(
+                {
+                    "unit_id": unit_id,
+                    "source_path": relative_source,
+                    "sha256": file_sha256(source_path),
+                    "compile_directory": str(directory),
+                    "arguments": normalized_arguments,
+                    "dependencies": dependency_records,
+                }
+            )
+            database.append(
+                {
+                    "directory": str(directory),
+                    "file": str(source_path),
+                    "arguments": normalized_arguments,
+                }
+            )
+            source_files[relative_source] = source_path
+            source_files.update(
+                {
+                    dependency.relative_to(source_root).as_posix(): dependency
+                    for dependency in dependencies
+                }
+            )
+        assert compiler_path is not None and target_triple is not None and target_abi is not None
+        version = adapter.version(compiler_path)
+        compiler = {
+            "family": CompilerFamily.GCC_COMPATIBLE,
+            "resolved_path": str(compiler_path),
+            "sha256": file_sha256(compiler_path),
+            "version_output": version,
+            "version_output_sha256": hashlib.sha256(version.encode()).hexdigest(),
+            "verified_target_triple": target_triple,
+            "verified_target_abi": target_abi,
+        }
+        return database, units, source_files, compiler
 
     def validate(self, project: Project, *, closure_path: Path) -> SourceClosureResult:
         project.ensure_role(*self.ROLES)

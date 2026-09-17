@@ -4,23 +4,9 @@ from types import MappingProxyType
 
 from ..acquisition.material import parse_materials
 from ..core.models import WorkflowError
-from ..core.validation import ArtifactValidator, json_object, json_value
-from .contracts import SourceAnalysisArtifact, SourceClosureStatus, ValidationStatus
+from ..core.validation import ArtifactValidator, json_object, json_value, utf8_document
+from .contracts import SourceAnalysisArtifact, ValidationStatus
 from .corpus_revision import SourceCorpusRevision
-
-
-def _source_closure(data: bytes) -> None:
-    value = json_object(data, SourceAnalysisArtifact.SOURCE_CLOSURE.value)
-    if value.get("schema_version") != 1:
-        raise WorkflowError("source_closure must be schema_version=1")
-    if SourceClosureStatus(value.get("closure_status")) is not SourceClosureStatus.CLOSED:
-        raise WorkflowError("source_closure must be CLOSED")
-    if not isinstance(value.get("compiler"), dict):
-        raise WorkflowError("source_closure requires a compiler identity")
-    if not isinstance(value.get("translation_units"), list) or not value["translation_units"]:
-        raise WorkflowError("source_closure requires translation units")
-    if value.get("unresolved_dependencies") != []:
-        raise WorkflowError("source_closure cannot contain unresolved dependencies")
 
 
 def _closure_report(data: bytes) -> None:
@@ -74,7 +60,7 @@ def _knowledge_revision(data: bytes) -> None:
 
 VALIDATORS = MappingProxyType[SourceAnalysisArtifact, ArtifactValidator](
     {
-        SourceAnalysisArtifact.SOURCE_CLOSURE: _source_closure,
+        SourceAnalysisArtifact.SOURCE_CLOSURE: utf8_document,
         SourceAnalysisArtifact.SOURCE_CLOSURE_REPORT: _closure_report,
         SourceAnalysisArtifact.SOURCE_CLOSURE_VALIDATION_ATTEMPT: _closure_attempt,
         SourceAnalysisArtifact.COMPILE_MANIFEST: _compile_manifest,

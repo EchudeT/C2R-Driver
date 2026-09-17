@@ -47,21 +47,6 @@ def _render_prompt(
     )
 
 
-def _render_correction(
-    project: Project,
-    error: str,
-    prompt_pack_path: str | None,
-) -> str:
-    configured_pack = prompt_pack_path or project.config.prompt_pack
-    composer = SkillPromptComposer(
-        Path(project.config.skill_root or ""),
-        WORKFLOW_STAGE_CATALOG,
-        project.workflow.stage_values,
-        Path(configured_pack) if configured_pack else None,
-    )
-    return composer.render_correction(error)
-
-
 def _load_context(project: Project, path: str | None) -> dict[str, object] | None:
     if not path:
         return None
@@ -83,7 +68,6 @@ def run_codex_stage(
     model: str | None,
     prompt_pack_path: str | None = None,
     thread_id: str | None = None,
-    follow_up: str | None = None,
 ) -> tuple[CodexResult, RenderedPrompt, Path]:
     stage = project.stage(stage_key)
     if stage.owner is StageOwner.STATIC:
@@ -99,17 +83,13 @@ def run_codex_stage(
         context,
         prompt_pack_path,
     )
-    prompt = (
-        _render_correction(project, follow_up, prompt_pack_path)
-        if follow_up is not None
-        else rendered.text
-    )
+    prompt = rendered.text
     project.record_artifact(
         stage_key,
         GeneratedArtifact(
             CodexArtifact.PROMPT,
             prompt.encode("utf-8"),
-            f"generated:prompt:{rendered.digest}" if follow_up is None else "generated:follow-up",
+            f"generated:prompt:{rendered.digest}",
         ),
         direction=ArtifactDirection.INPUT,
     )

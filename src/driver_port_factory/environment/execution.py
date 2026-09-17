@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
+import shutil
 from dataclasses import asdict, dataclass
 from pathlib import Path
 
@@ -15,12 +17,12 @@ from ..core.models import (
     utc_now,
 )
 from ..core.project import Project
+from ..knowledge.index import file_sha256
 from .contracts import EnvironmentArtifact, EnvironmentStage, ExperimentRouteMilestone
 from .documents import json_artifact, json_bytes, plan_path
 from .evidence import (
     executable_identity,
     file_identity,
-    freeze_qemu_executable,
     frozen_repository_snapshot,
     workspace_path,
 )
@@ -39,6 +41,161 @@ class EnvironmentRunResult:
 class ExperimentExecutor:
     ROLES = (ActorRole.DEVELOPER, ActorRole.MIGRATION_OPERATOR)
 
+    def run_codex_harness(
+        self,
+        project: Project,
+        *,
+        script_path: Path,
+        work_report_path: Path,
+    ) -> EnvironmentRunResult:
+        """Rerun a Codex-authored smoke harness and record only mechanical evidence."""
+
+        project.ensure_role(*self.ROLES)
+        if project.stage(EnvironmentStage.RECOVERY).status is not StageStatus.RUNNING:
+            raise WorkflowError("environment_recovery is not RUNNING")
+        if not script_path.is_file():
+            raise WorkflowError("environment work did not create environment-smoke.sh")
+        if not work_report_path.is_file() or not work_report_path.read_text(
+            encoding="utf-8"
+        ).strip():
+            raise WorkflowError("environment work report is missing or blank")
+        strace = shutil.which("strace")
+        if strace is None:
+            raise WorkflowError("strace is required to prove that the smoke harness executed QEMU")
+
+        script_digest = file_sha256(script_path)
+        attempt_dir = project.control / "environment" / "codex-harness" / script_digest[:20]
+        attempt_dir.mkdir(parents=True, exist_ok=True)
+        trace_path = attempt_dir / "execve.log"
+        result = CommandRunner(attempt_dir / "command").run(
+            [
+                strace,
+                "-f",
+                "-qq",
+                "-e",
+                "trace=execve",
+                "-o",
+                str(trace_path),
+                "/bin/sh",
+                str(script_path),
+            ],
+            cwd=script_path.parent,
+            environment={
+                "DPF_PROJECT_ROOT": str(project.root),
+                "DPF_ENVIRONMENT_WORKDIR": str(script_path.parent),
+            },
+            timeout_seconds=3600,
+        )
+        executed = self._executed_programs(trace_path)
+        qemu_programs = [
+            path for path in executed if Path(path).name.startswith("qemu-system-")
+        ]
+        ready = (
+            result.launched
+            and result.launch_error is None
+            and not result.timed_out
+            and result.exit_code == 0
+            and bool(qemu_programs)
+        )
+        readiness = ExperimentReadiness.PASS if ready else ExperimentReadiness.FAIL
+        route_id = f"codex-harness-{script_digest[:16]}"
+        attempt = {
+            "schema_version": 3,
+            "route": {
+                "route_id": route_id,
+                "artifact_mode": "documented-in-work-report",
+                "script": str(script_path.relative_to(project.root)),
+            },
+            "command": asdict(result),
+            "script": {
+                "path": str(script_path.relative_to(project.root)),
+                "sha256": script_digest,
+            },
+            "work_report": {
+                "path": str(work_report_path.relative_to(project.root)),
+                "sha256": file_sha256(work_report_path),
+            },
+            "exec_trace": {
+                "path": str(trace_path.relative_to(project.root)),
+                "sha256": file_sha256(trace_path),
+                "executed_programs": executed,
+                "qemu_programs": qemu_programs,
+            },
+            "readiness": readiness.value,
+            "recorded_at": utc_now(),
+        }
+        attempt_path = attempt_dir / "attempt.json"
+        attempt_path.write_bytes(json_bytes(attempt))
+        project.record_artifact(
+            EnvironmentStage.RECOVERY,
+            FileArtifact(EnvironmentArtifact.RECOVERY_ATTEMPT, attempt_path),
+        )
+        if not ready:
+            return EnvironmentRunResult(
+                route_id,
+                readiness,
+                StageStatus.RUNNING,
+                str(attempt_path),
+                "smoke harness did not complete successfully with an observed QEMU exec",
+            )
+
+        inventory = project.load_json_artifact(
+            EnvironmentStage.RECOVERY,
+            EnvironmentArtifact.INVENTORY,
+            direction=ArtifactDirection.INPUT,
+        )
+        candidates = project.load_json_artifact(
+            EnvironmentStage.RECOVERY,
+            EnvironmentArtifact.MODE_CANDIDATES,
+            direction=ArtifactDirection.INPUT,
+        )
+        mode = {
+            "schema_version": 3,
+            "artifact_mode": "documented-in-work-report",
+            "selected_route_id": route_id,
+            "work_report": attempt["work_report"],
+        }
+        route = {
+            "schema_version": 3,
+            "milestone": ExperimentRouteMilestone.READY,
+            "route_id": route_id,
+            "artifact_mode": "documented-in-work-report",
+            "command": list(result.argv),
+            "attempt_sha256": hashlib.sha256(attempt_path.read_bytes()).hexdigest(),
+            "qemu_programs": qemu_programs,
+            "migrated_driver_runtime_ready": False,
+        }
+        project.finalize_stage(
+            EnvironmentStage.RECOVERY,
+            (
+                json_artifact(EnvironmentArtifact.INVENTORY, inventory),
+                json_artifact(EnvironmentArtifact.MODE_CANDIDATES, candidates),
+                json_artifact(EnvironmentArtifact.MODE_RECORD, mode),
+                FileArtifact(EnvironmentArtifact.EXPERIMENT_READY_RUN, attempt_path),
+                json_artifact(EnvironmentArtifact.EXPERIMENT_ROUTE, route),
+            ),
+        )
+        return EnvironmentRunResult(
+            route_id,
+            readiness,
+            StageStatus.PASS,
+            str(attempt_path),
+            "EXPERIMENT_READY proven by a captured QEMU exec",
+        )
+
+    @staticmethod
+    def _executed_programs(trace_path: Path) -> list[str]:
+        if not trace_path.is_file():
+            return []
+        pattern = re.compile(r'execve\("([^"]+)"')
+        return sorted(
+            {
+                match.group(1)
+                for line in trace_path.read_text(encoding="utf-8", errors="replace").splitlines()
+                if (match := pattern.search(line)) is not None
+            }
+        )
+
     def run(self, project: Project, route_id: str) -> EnvironmentRunResult:
         project.ensure_role(*self.ROLES)
         if project.stage(EnvironmentStage.RECOVERY).status is not StageStatus.RUNNING:
@@ -50,8 +207,6 @@ class ExperimentExecutor:
             raise WorkflowError(f"route {route_id} already ran; retries require a new route ID")
 
         cwd = workspace_path(project, plan.cwd)
-        if plan.artifact_mode is ArtifactMode.DIRECT_DEVICE_MODEL:
-            freeze_qemu_executable(project, plan.command[0], cwd)
         executable = executable_identity(plan.command[0], cwd)
         result = CommandRunner(
             project.control / "command-runs" / "environment" / plan.route_id

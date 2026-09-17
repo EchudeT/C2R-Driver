@@ -20,6 +20,7 @@ from .facets import (
     EvidenceLane,
     FacetDisposition,
     GapReason,
+    MaterialRedistribution,
     parse_facet,
 )
 from .job import (
@@ -33,9 +34,33 @@ from .job import (
 from .locators import (
     EvidenceLocator,
     ExternalReferenceLocator,
+    GitBlobLocator,
+    MaterialPolicy,
     parse_locator,
 )
-from .parsing import exact_object, schema_version
+from .parsing import exact_object, http_url, relative_path, schema_version
+from .repository_role import RepositoryRole
+
+_EXTERNAL_REFERENCE_MAX_BYTES = 16 * 1024 * 1024
+_STATIC_GIT_POLICY = MaterialPolicy(
+    "review-required",
+    MaterialRedistribution.UNKNOWN,
+    True,
+)
+
+CODEX_EVIDENCE_SELECTION_OBJECTIVE = (
+    "Choose only task-relevant evidence that requires semantic judgment. Return "
+    "{facets:[{lane,facet,rationale,repository_paths?:[{repository,path}],"
+    "external_urls?:[url],gap?:{impact,repair_trigger}}]}. lane is one of source, "
+    "target, qemu, hardware, test, or tooling; repository is one of source, target, "
+    "or qemu; facet is a short semantic name chosen from the evidence's actual "
+    "purpose, not a hidden enum. The controller adds source/driver_entry and owns "
+    "digests, disposition, locator kinds, revisions, hashes, provenance, byte limits, "
+    "material policy, and the actual gap reason. For controlled evidence, omit gap "
+    "and list existing frozen repository paths. For a gap, include gap plus at least "
+    "one candidate repository path or public URL actually checked. Cover target, "
+    "qemu, hardware, test, and tooling; add extra source facets only when needed."
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -46,7 +71,7 @@ class ProposalImport:
 
 @dataclass(frozen=True, slots=True)
 class GapDeclaration:
-    reason: GapReason
+    reason: GapReason | None
     impact: str
     repair_trigger: str
 
@@ -54,13 +79,16 @@ class GapDeclaration:
     def from_dict(cls, value: object) -> GapDeclaration:
         candidate = exact_object(
             value,
-            required={"reason", "impact", "repair_trigger"},
+            required={"impact", "repair_trigger"},
+            optional={"reason"},
             label="explicit evidence gap",
         )
-        try:
-            reason = GapReason(candidate["reason"])
-        except (TypeError, ValueError) as error:
-            raise WorkflowError("explicit evidence gap has an invalid typed reason") from error
+        reason = None
+        if "reason" in candidate:
+            try:
+                reason = GapReason(candidate["reason"])
+            except (TypeError, ValueError) as error:
+                raise WorkflowError("explicit evidence gap has an invalid typed reason") from error
         return cls(
             reason,
             nonempty(candidate["impact"], "gap impact"),
@@ -68,11 +96,13 @@ class GapDeclaration:
         )
 
     def to_dict(self) -> dict[str, str]:
-        return {
-            "reason": self.reason.value,
+        value = {
             "impact": self.impact,
             "repair_trigger": self.repair_trigger,
         }
+        if self.reason is not None:
+            value["reason"] = self.reason.value
+        return value
 
 
 @dataclass(frozen=True, slots=True)
@@ -190,6 +220,123 @@ class EvidenceDiscoveryProposal:
         }
 
 
+def normalize_codex_evidence_selection(
+    value: object,
+    *,
+    migration_envelope_sha256: str,
+    repository_manifest_sha256: str,
+    source_driver_path: str,
+) -> EvidenceDiscoveryProposal:
+    """Convert semantic Codex choices into the controller-owned proposal contract."""
+
+    candidate = exact_object(
+        value,
+        required={"facets"},
+        optional={"schema_version"},
+        label="Codex evidence selection",
+    )
+    if "schema_version" in candidate and candidate["schema_version"] != 1:
+        raise WorkflowError("Codex evidence selection schema_version must be 1")
+    raw_facets = candidate["facets"]
+    if not isinstance(raw_facets, list):
+        raise WorkflowError("Codex evidence selection facets must be a list")
+    facets = [_static_source_entry(source_driver_path)]
+    for raw_facet in raw_facets:
+        normalized = _normalize_codex_facet(raw_facet)
+        if normalized.facet == SOURCE_DRIVER_ENTRY:
+            continue
+        facets.append(normalized)
+    return EvidenceDiscoveryProposal.from_dict(
+        {
+            "schema_version": 1,
+            "migration_envelope_sha256": migration_envelope_sha256,
+            "repository_manifest_sha256": repository_manifest_sha256,
+            "facets": [facet.to_dict() for facet in facets],
+        }
+    )
+
+
+def _static_source_entry(source_driver_path: str) -> FacetProposal:
+    return FacetProposal(
+        SOURCE_DRIVER_ENTRY,
+        FacetDisposition.CONTROLLED,
+        "source driver entry frozen by the confirmed migration envelope",
+        (
+            GitBlobLocator(
+                RepositoryRole.SOURCE,
+                relative_path(source_driver_path, "frozen source driver path"),
+                _STATIC_GIT_POLICY,
+            ),
+        ),
+        None,
+    )
+
+
+def _normalize_codex_facet(value: object) -> FacetProposal:
+    candidate = exact_object(
+        value,
+        required={"lane", "facet", "rationale"},
+        optional={"repository_paths", "external_urls", "gap"},
+        label="Codex evidence facet",
+    )
+    facet = parse_facet(candidate["lane"], candidate["facet"])
+    repository_paths = candidate.get("repository_paths", [])
+    external_urls = candidate.get("external_urls", [])
+    if not isinstance(repository_paths, list):
+        raise WorkflowError("Codex evidence repository_paths must be a list")
+    if not isinstance(external_urls, list):
+        raise WorkflowError("Codex evidence external_urls must be a list")
+    locators: list[EvidenceLocator] = [
+        _static_git_locator(item) for item in repository_paths
+    ]
+    locators.extend(
+        ExternalReferenceLocator(
+            http_url(url, "Codex evidence external URL"),
+            _EXTERNAL_REFERENCE_MAX_BYTES,
+        )
+        for url in external_urls
+    )
+    gap = GapDeclaration.from_dict(candidate["gap"]) if "gap" in candidate else None
+    if gap is None:
+        if not locators:
+            raise WorkflowError("controlled Codex evidence facet requires repository_paths")
+        if external_urls:
+            raise WorkflowError("controlled Codex evidence must use frozen repository paths")
+        disposition = FacetDisposition.CONTROLLED
+    else:
+        if not locators:
+            raise WorkflowError(
+                "Codex evidence gap requires a repository path or external URL that was checked"
+            )
+        disposition = FacetDisposition.EXPLICIT_GAP
+    return FacetProposal(
+        facet,
+        disposition,
+        nonempty(candidate["rationale"], "Codex evidence facet rationale"),
+        tuple(locators),
+        gap,
+    )
+
+
+def _static_git_locator(value: object) -> GitBlobLocator:
+    candidate = exact_object(
+        value,
+        required={"repository", "path"},
+        label="Codex evidence repository path",
+    )
+    try:
+        repository = RepositoryRole(candidate["repository"])
+    except (TypeError, ValueError) as error:
+        raise WorkflowError(
+            "Codex evidence repository must be source, target, or qemu"
+        ) from error
+    return GitBlobLocator(
+        repository,
+        relative_path(candidate["path"], "Codex evidence repository path"),
+        _STATIC_GIT_POLICY,
+    )
+
+
 @dataclass(frozen=True, slots=True)
 class ProposalEnvelope:
     job_result: JobResultBinding
@@ -233,10 +380,6 @@ class EvidenceProposalImporter:
             kind=CodexArtifact.JOB_RESULT,
             occurrence=ArtifactOccurrence(job_digest, job_ordinal),
         )
-        try:
-            proposal = EvidenceDiscoveryProposal.from_dict(json.loads(project.artifacts.read(job)))
-        except (UnicodeDecodeError, json.JSONDecodeError, WorkflowError) as error:
-            raise CodexOutputError(f"invalid Codex evidence proposal: {error}") from error
         envelope_ref = project.artifact(
             IntakeStage.ENVELOPE_FREEZE, IntakeArtifact.MIGRATION_ENVELOPE
         )
@@ -244,6 +387,28 @@ class EvidenceProposalImporter:
             AcquisitionStage.REPOSITORY_ACQUISITION,
             AcquisitionArtifact.REPOSITORY_MANIFEST,
         )
+        try:
+            raw_proposal = json.loads(project.artifacts.read(job))
+            if isinstance(raw_proposal, dict) and {
+                "migration_envelope_sha256",
+                "repository_manifest_sha256",
+            } <= set(raw_proposal):
+                proposal = EvidenceDiscoveryProposal.from_dict(raw_proposal)
+            else:
+                envelope_document = project.load_json_artifact(
+                    IntakeStage.ENVELOPE_FREEZE,
+                    IntakeArtifact.MIGRATION_ENVELOPE,
+                )
+                proposal = normalize_codex_evidence_selection(
+                    raw_proposal,
+                    migration_envelope_sha256=envelope_ref.digest,
+                    repository_manifest_sha256=repository_ref.digest,
+                    source_driver_path=envelope_document[
+                        "source_driver_entry_or_repository_hint"
+                    ],
+                )
+        except (UnicodeDecodeError, json.JSONDecodeError, WorkflowError) as error:
+            raise CodexOutputError(f"invalid Codex evidence proposal: {error}") from error
         if proposal.migration_envelope_sha256 != envelope_ref.digest:
             raise CodexOutputError("evidence proposal migration envelope digest is stale")
         if proposal.repository_manifest_sha256 != repository_ref.digest:

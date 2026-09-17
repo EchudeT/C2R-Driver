@@ -8,7 +8,9 @@ from ..acquisition.repository import load_repository_acquisition
 from ..core.contracts import StageKey
 from ..core.models import WorkflowError
 from ..core.project import Project
+from ..environment.contracts import EnvironmentStage
 from ..migration.contracts import MigrationStage
+from ..source_analysis.contracts import SourceAnalysisStage
 from .contracts import CodexSandbox
 
 
@@ -25,12 +27,32 @@ class CodexExecutionPolicy:
         {AcquisitionStage.REVISION_SELECTION, AcquisitionStage.EVIDENCE_CLOSURE}
     )
     WRITABLE_STAGES = frozenset(
-        {MigrationStage.DRIVER_IMPLEMENTATION, MigrationStage.PUBLIC_REPAIR}
+        {
+            MigrationStage.DRIVER_IMPLEMENTATION,
+            MigrationStage.ARTIFACT_PREPARATION,
+            MigrationStage.PUBLIC_QEMU_VALIDATION,
+            MigrationStage.PUBLIC_REPAIR,
+        }
+    )
+    REPORT_WORKSPACE_STAGES = frozenset(
+        {EnvironmentStage.RECOVERY, SourceAnalysisStage.SOURCE_CLOSURE}
     )
 
     def grant(self, project: Project, stage: StageKey) -> CodexExecutionGrant:
         if stage in self.NETWORK_STAGES:
             return CodexExecutionGrant(project.root, CodexSandbox.UNRESTRICTED)
+        if stage in self.REPORT_WORKSPACE_STAGES:
+            execution_root = project.root / "work" / "stage-work" / stage.value
+            execution_root.mkdir(parents=True, exist_ok=True)
+            acquisition = load_repository_acquisition(project)
+            frozen = tuple(
+                self._project_path(
+                    project, record.checkout_path, f"{record.role.value} baseline"
+                )
+                for record in acquisition.checkouts
+            )
+            self._validate_writable_root(project, execution_root, frozen)
+            return CodexExecutionGrant(execution_root, CodexSandbox.WORKSPACE_WRITE)
         if stage not in self.WRITABLE_STAGES:
             return CodexExecutionGrant(project.root, CodexSandbox.READ_ONLY)
         acquisition = load_repository_acquisition(project)

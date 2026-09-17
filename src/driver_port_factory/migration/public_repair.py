@@ -1,88 +1,119 @@
 from __future__ import annotations
 
 import json
-from dataclasses import dataclass
+import subprocess
+from dataclasses import asdict
 from pathlib import Path
 from typing import Any
 
+from ..acquisition.repository import load_repository_acquisition
 from ..core.models import GeneratedArtifact, StageStatus, WorkflowError, utc_now
 from ..core.project import Project
 from ..core.validation import BundleValidationContext, json_object
-from .contracts import (
-    ContractExecutionStatus,
-    MigrationArtifact,
-    MigrationStage,
-    RepairAction,
-    RepairAttribution,
-)
-from .implementation import DriverImplementationService, ImplementationResponse
-
-
-@dataclass(frozen=True, slots=True)
-class PublicRepairDecision:
-    attribution: RepairAttribution
-    action: RepairAction
-    failure_run_ids: tuple[str, ...]
-    summary: str
-    evidence: tuple[dict[str, Any], ...]
-    implementation: ImplementationResponse | None
-
-    @classmethod
-    def read(cls, path: Path) -> PublicRepairDecision:
-        try:
-            value = json.loads(path.read_text(encoding="utf-8"))
-        except (OSError, UnicodeDecodeError, json.JSONDecodeError) as error:
-            raise WorkflowError("Codex public repair response is not UTF-8 JSON") from error
-        if not isinstance(value, dict) or value.get("schema_version") != 2:
-            raise WorkflowError("public repair response must be schema_version=2")
-        evidence = value.get("evidence")
-        run_ids = value.get("failure_run_ids")
-        if (
-            not isinstance(evidence, list)
-            or not all(isinstance(item, dict) for item in evidence)
-            or not isinstance(run_ids, list)
-            or not all(isinstance(item, str) and item for item in run_ids)
-        ):
-            raise WorkflowError("public repair evidence or run IDs are invalid")
-        try:
-            action = RepairAction(value["action"])
-            implementation = (
-                ImplementationResponse.from_dict(value["implementation"])
-                if value.get("implementation") is not None
-                else None
-            )
-            decision = cls(
-                RepairAttribution(value["attribution"]),
-                action,
-                tuple(run_ids),
-                str(value["summary"]),
-                tuple(evidence),
-                implementation,
-            )
-        except (KeyError, TypeError, ValueError) as error:
-            raise WorkflowError("public repair response has an invalid boundary") from error
-        if (
-            not decision.failure_run_ids
-            or not decision.summary.strip()
-            or not decision.evidence
-            or (decision.action is RepairAction.APPLY) != (decision.implementation is not None)
-            or (decision.action is RepairAction.APPLY and not decision.attribution.writable)
-        ):
-            raise WorkflowError("public repair response is incomplete")
-        return decision
+from ..knowledge.index import file_sha256
+from .contracts import ContractExecutionStatus, MigrationArtifact, MigrationStage
+from .public_qemu import run_public_harness
 
 
 class PublicRepairService:
     def prepare(self, project: Project) -> tuple[dict[str, Any], dict[str, Any]] | None:
-        public = project.stage(MigrationStage.PUBLIC_QEMU_VALIDATION)
-        if public.status is StageStatus.PASS:
+        ref = project.artifact(
+            MigrationStage.PUBLIC_QEMU_VALIDATION,
+            MigrationArtifact.PUBLIC_QEMU_REPORT,
+        )
+        report = json.loads(project.artifacts.read(ref))
+        if report.get("execution_status") == ContractExecutionStatus.PASS.value:
             return None
-        reference, failure = self._latest_attempt(project)
-        if public.status is StageStatus.RUNNING:
-            project.complete(MigrationStage.PUBLIC_QEMU_VALIDATION, StageStatus.FAIL)
-        elif public.status is not StageStatus.FAIL:
-            raise WorkflowError("public QEMU validation has no repairable result")
-        return reference.to_dict(), failure
+        return ref.to_dict(), report
+
+    def finalize_codex_repair(
+        self,
+        project: Project,
+        *,
+        work_report_path: Path,
+        failure: dict[str, Any],
+    ) -> None:
+        """Freeze Codex's edits and rerun its harness with mechanical QEMU proof."""
+
+        acquisition = load_repository_acquisition(project)
+        worktree = (project.root / acquisition.target_worktree.path).resolve()
+        script = worktree / ".dpf-output" / "public-qemu.sh"
+        runtime = worktree / ".dpf-output" / "runtime-artifact"
+        if not script.is_file() or not runtime.is_file() or runtime.stat().st_size == 0:
+            raise WorkflowError("public repair did not preserve its harness and runtime artifact")
+        run_key = f"{file_sha256(script)[:12]}-{file_sha256(runtime)[:12]}"
+        observed = run_public_harness(
+            attempt_dir=project.control / "public-repair" / run_key,
+            script_path=script,
+            worktree=worktree,
+            runtime_path=runtime,
+        )
+        passed = observed.passed
+        changed = self._changed_implementation_files(worktree)
+        report = {
+            "schema_version": 2,
+            "outcome": (
+                ContractExecutionStatus.PASS.value
+                if passed
+                else ContractExecutionStatus.FAIL.value
+            ),
+            "failure_run_ids": [
+                str(run.get("run_id"))
+                for run in failure.get("runs", [])
+                if run.get("execution_status") == ContractExecutionStatus.FAIL.value
+            ],
+            "run": {
+                "execution_status": (
+                    ContractExecutionStatus.PASS.value
+                    if passed
+                    else ContractExecutionStatus.FAIL.value
+                ),
+                "attribution": "TARGET_DRIVER_ON_QEMU" if passed else "INCONCLUSIVE",
+                "command": asdict(observed.command),
+                "script_sha256": file_sha256(script),
+                "exec_trace": {
+                    "path": str(observed.trace_path.relative_to(project.root)),
+                    "sha256": file_sha256(observed.trace_path),
+                    "executed_programs": list(observed.executed_programs),
+                    "qemu_execs": list(observed.qemu_execs),
+                    "runtime_bound": observed.runtime_bound,
+                },
+                "logs": list(observed.logs),
+            },
+            "runtime_artifact": {
+                "path": str(runtime.relative_to(project.root)),
+                "sha256": file_sha256(runtime),
+                "size": runtime.stat().st_size,
+            },
+            "implementation_files": changed,
+            "work_report": {
+                "path": str(work_report_path.relative_to(project.root)),
+                "sha256": file_sha256(work_report_path),
+            },
+            "recorded_at": utc_now(),
+        }
+        self._finalize(project, report)
+
+    @staticmethod
+    def _changed_implementation_files(worktree: Path) -> list[dict[str, Any]]:
+        def git(*arguments: str) -> list[str]:
+            result = subprocess.run(
+                ["git", "-C", str(worktree), *arguments],
+                check=False,
+                capture_output=True,
+                text=True,
+            )
+            if result.returncode:
+                raise WorkflowError(f"Git inspection failed: {result.stderr.strip()}")
+            return [line for line in result.stdout.splitlines() if line]
+
+        changed = set(git("diff", "--name-only", "HEAD"))
+        changed.update(git("ls-files", "--others", "--exclude-standard"))
+        return [
+            {"path": relative, "sha256": file_sha256(worktree / relative)}
+            for relative in sorted(changed)
+            if not relative.startswith(".dpf-output/") and (worktree / relative).is_file()
+        ]
 
     def finalize_not_applicable(self, project: Project) -> None:
         if project.stage(MigrationStage.PUBLIC_REPAIR).status is StageStatus.READY:
@@ -92,61 +123,10 @@ class PublicRepairService:
             {
                 "schema_version": 2,
                 "outcome": ContractExecutionStatus.NOT_APPLICABLE.value,
-                "reason": "The public QEMU evidence ladder has no failed run.",
+                "reason": "The public QEMU run passed without repair.",
                 "recorded_at": utc_now(),
             },
         )
-
-    def apply(
-        self,
-        project: Project,
-        decision: PublicRepairDecision,
-        failure: dict[str, Any],
-    ) -> None:
-        failed_ids = {
-            str(run["run_id"])
-            for run in failure.get("runs", [])
-            if run.get("execution_status") == ContractExecutionStatus.FAIL.value
-        }
-        if not set(decision.failure_run_ids) <= failed_ids:
-            raise WorkflowError("public repair is not bound to failed runs")
-        if decision.action is RepairAction.BLOCKED:
-            self._finalize(
-                project,
-                {
-                    "schema_version": 2,
-                    "outcome": ContractExecutionStatus.BLOCKED.value,
-                    "attribution": decision.attribution.value,
-                    "failure_run_ids": list(decision.failure_run_ids),
-                    "summary": decision.summary,
-                    "evidence": list(decision.evidence),
-                    "recorded_at": utc_now(),
-                },
-            )
-            return
-
-        project.retry_from(
-            MigrationStage.DRIVER_IMPLEMENTATION,
-            trigger=MigrationStage.PUBLIC_REPAIR,
-            reason=f"public QEMU repair: {decision.summary}",
-        )
-        project.start(MigrationStage.DRIVER_IMPLEMENTATION)
-        DriverImplementationService().finalize(project, decision.implementation)
-
-    @staticmethod
-    def _latest_attempt(project: Project):
-        refs = [
-            ref
-            for ref in project.artifact_refs(stage=MigrationStage.PUBLIC_QEMU_VALIDATION)
-            if ref.kind == MigrationArtifact.PUBLIC_QEMU_ATTEMPT.value and ref.ordinal is not None
-        ]
-        if not refs:
-            raise WorkflowError("public QEMU validation has no preserved attempt")
-        ref = max(refs, key=lambda item: item.ordinal)
-        value = json.loads(project.artifacts.read(ref))
-        if not isinstance(value, dict) or value.get("status") != StageStatus.FAIL.value:
-            raise WorkflowError("latest public QEMU attempt is not a failure")
-        return ref, value
 
     @staticmethod
     def _finalize(project: Project, report: dict[str, Any]) -> None:
@@ -171,4 +151,15 @@ def validate_public_repair_bundle(context: BundleValidationContext) -> None:
     )
     if report.get("schema_version") != 2:
         raise WorkflowError("public repair report has an invalid version")
-    ContractExecutionStatus(report.get("outcome"))
+    outcome = ContractExecutionStatus(report.get("outcome"))
+    if outcome is ContractExecutionStatus.PASS:
+        run = report.get("run")
+        trace = run.get("exec_trace") if isinstance(run, dict) else None
+        if (
+            not isinstance(trace, dict)
+            or not trace.get("qemu_execs")
+            or trace.get("runtime_bound") is not True
+            or not run.get("logs")
+            or run.get("attribution") != "TARGET_DRIVER_ON_QEMU"
+        ):
+            raise WorkflowError("a passing repair lacks observed QEMU/runtime/log evidence")

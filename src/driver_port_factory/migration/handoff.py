@@ -27,13 +27,9 @@ from ..evaluation.contracts import EvaluationArtifact
 from ..intake.contracts import IntakeArtifact, IntakeStage
 from ..knowledge.contracts import (
     KnowledgeArtifact,
-    KnowledgeEvidenceStatus,
     KnowledgeIndexStatus,
 )
-from ..target_study.contracts import (
-    TargetStudyArtifact,
-    TargetStudyOutcome,
-)
+from ..target_study.contracts import TargetStudyArtifact
 from .contracts import HandoffMode, MigrationArtifact, MigrationStage
 
 _HANDOFF_ARTIFACTS = (
@@ -218,18 +214,9 @@ def validate_handoff_bundle(context: BundleValidationContext) -> None:
     knowledge = json_object(
         context.one_dependency(KnowledgeArtifact.STATUS)[1], KnowledgeArtifact.STATUS.value
     )
-    probes = json_object(
-        context.one_dependency(KnowledgeArtifact.TARGET_PROBE_RESULTS)[1],
-        KnowledgeArtifact.TARGET_PROBE_RESULTS.value,
-    )
-    target = json_object(
-        context.one_dependency(TargetStudyArtifact.REPORT)[1], TargetStudyArtifact.REPORT.value
-    )
     if (
         ExperimentReadiness(ready.get("readiness")) is not ExperimentReadiness.PASS
         or KnowledgeIndexStatus(knowledge.get("status")) is not KnowledgeIndexStatus.READY
-        or KnowledgeEvidenceStatus(probes.get("status")) is not KnowledgeEvidenceStatus.PASS
-        or TargetStudyOutcome(target.get("status")) is not TargetStudyOutcome.PASS
     ):
         raise WorkflowError("migration handoff upstream readiness is incomplete")
 

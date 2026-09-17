@@ -8,17 +8,20 @@
     "nonempty": {"type": "string", "pattern": ".*\\S.*"},
     "facet_properties": {
       "lane": {"enum": ["source", "target", "qemu", "hardware", "test", "tooling"]},
-      "facet": {
-        "enum": [
-          "driver_entry", "dependency_closure", "framework_contracts", "build_configuration",
-          "extension_points", "driver_framework", "analogous_implementations",
-          "api_definitions_and_calls", "lifecycle", "artifact_runtime_path",
-          "coding_and_safety_rules", "test_conventions", "release_assets", "device_model",
-          "device_model_documentation", "observability_and_injection", "device_manual",
-          "register_state_machine", "bus_specification", "errata", "source_tests",
-          "test_framework_documentation", "toolchain_documentation",
-          "packaging_and_release_documentation", "runtime_documentation"
-        ]
+      "facet": {"type": "string", "pattern": "^\\S+$"}
+    },
+    "authority": {"type": "object"},
+    "locator": {"type": "object"},
+    "facet_plan": {
+      "type": "object",
+      "required": ["lane", "facet", "disposition", "rationale", "locators"],
+      "properties": {
+        "lane": {"$ref": "#/$defs/facet_properties/lane"},
+        "facet": {"$ref": "#/$defs/facet_properties/facet"},
+        "disposition": {"enum": ["CONTROLLED", "EXPLICIT_GAP"]},
+        "rationale": {"$ref": "#/$defs/nonempty"},
+        "locators": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/locator"}},
+        "gap": {"type": "object"}
       }
     },
     "content_ref": {
@@ -66,7 +69,7 @@
         "kind": {"const": "external_url"},
         "source_url": {"$ref": "#/$defs/nonempty"},
         "revision": {"$ref": "#/$defs/nonempty"},
-        "authority_basis": {"$ref": "urn:dpf:acquisition:evidence-discovery-proposal#/$defs/external_url/properties/authority"},
+        "authority_basis": {"$ref": "#/$defs/authority"},
         "authority": {"enum": ["primary", "corroborated"]},
         "response": {"$ref": "#/$defs/http_response"},
         "corroboration": {"type": "array", "items": {"$ref": "#/$defs/http_response"}}
@@ -140,8 +143,8 @@
         "id": {"$ref": "#/$defs/identifier"},
         "lane": {"$ref": "#/$defs/facet_properties/lane"},
         "facet": {"$ref": "#/$defs/facet_properties/facet"},
-        "locator": {"$ref": "urn:dpf:acquisition:evidence-discovery-proposal#/$defs/locator"},
-        "outcome": {"enum": ["RETRIEVED", "NOT_FOUND", "ACCESS_RESTRICTED", "LICENSE_UNCERTAIN", "CONFLICT", "FAILED"]},
+        "locator": {"$ref": "#/$defs/locator"},
+        "outcome": {"enum": ["RETRIEVED", "NOT_FOUND", "ACCESS_RESTRICTED", "LICENSE_UNCERTAIN", "CONFLICT", "UNAVAILABLE_PUBLIC_EVIDENCE", "FAILED"]},
         "detail": {"$ref": "#/$defs/nonempty"},
         "material_ids": {"type": "array", "items": {"$ref": "#/$defs/identifier"}},
         "content_refs": {"type": "array", "items": {"$ref": "#/$defs/content_ref"}},
@@ -162,7 +165,7 @@
         "facets": {
           "type": "array",
           "minItems": 6,
-          "items": {"$ref": "urn:dpf:acquisition:evidence-discovery-proposal#/$defs/facet"}
+          "items": {"$ref": "#/$defs/facet_plan"}
         }
       }
     },

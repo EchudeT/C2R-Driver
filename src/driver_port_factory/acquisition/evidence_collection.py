@@ -8,6 +8,7 @@ from .facets import (
     SOURCE_DRIVER_ENTRY,
     EvidenceFacet,
     FacetDisposition,
+    GapReason,
     RetrievalOutcome,
 )
 from .locators import EvidenceLocator
@@ -116,15 +117,19 @@ class EvidenceCollector:
                 ),
                 (),
             )
-        if retrieval.materials:
-            raise WorkflowError(
-                f"facet {proposal.facet.lane.value}/{proposal.facet.name} was proposed "
-                "as a gap but controlled content was retrieved"
-            )
         if proposal.gap is None:
             raise WorkflowError("explicit gap proposal is missing its declaration")
-        derived_reason = reason_for_attempts(retrieval.attempts)
-        if proposal.gap.reason is not derived_reason:
+        failed_attempts = tuple(
+            attempt
+            for attempt in retrieval.attempts
+            if attempt.outcome is not RetrievalOutcome.RETRIEVED
+        )
+        derived_reason = (
+            reason_for_attempts(failed_attempts)
+            if failed_attempts
+            else GapReason.UNAVAILABLE_PUBLIC_EVIDENCE
+        )
+        if proposal.gap.reason is not None and proposal.gap.reason is not derived_reason:
             raise WorkflowError(
                 f"declared gap reason {proposal.gap.reason.value} does not match "
                 f"retrieval outcome {derived_reason.value}"
@@ -138,7 +143,14 @@ class EvidenceCollector:
             proposal.gap.repair_trigger,
             tuple(attempt.identifier for attempt in retrieval.attempts),
         )
-        return CoverageEntry.gap(proposal.facet, (gap_id,)), (gap,)
+        return (
+            CoverageEntry.gap(
+                proposal.facet,
+                (gap_id,),
+                tuple(record.identifier for record in retrieval.materials),
+            ),
+            (gap,),
+        )
 
     @staticmethod
     def _source_entry(

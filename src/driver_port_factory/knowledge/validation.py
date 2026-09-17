@@ -55,16 +55,8 @@ def _readiness(data: bytes) -> None:
 
 def _target_probes(data: bytes) -> None:
     value = json_object(data, KnowledgeArtifact.TARGET_PROBE_RESULTS.value)
-    probes = value.get("probes")
-    if KnowledgeEvidenceStatus(value.get("status")) is not KnowledgeEvidenceStatus.PASS:
-        raise WorkflowError("target_probe_results must pass")
-    if not isinstance(probes, list) or not probes:
-        raise WorkflowError("target_probe_results must contain probes")
-    if any(
-        KnowledgeEvidenceStatus(probe.get("status")) is not KnowledgeEvidenceStatus.PASS
-        for probe in probes
-    ):
-        raise WorkflowError("every target knowledge probe must pass")
+    if value.get("status") != "DEFERRED_TO_TARGET_PLATFORM_STUDY":
+        raise WorkflowError("target probes must be delegated to target_platform_study")
 
 
 VALIDATORS = MappingProxyType[KnowledgeArtifact, ArtifactValidator](

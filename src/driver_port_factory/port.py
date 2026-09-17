@@ -11,20 +11,25 @@ from pathlib import Path
 from .acquisition.closure import EvidenceClosureFinalizer
 from .acquisition.contracts import AcquisitionArtifact, AcquisitionStage
 from .acquisition.job import ArtifactOccurrence
-from .acquisition.proposal import EvidenceProposalImporter
+from .acquisition.proposal import (
+    CODEX_EVIDENCE_SELECTION_OBJECTIVE,
+    EvidenceProposalImporter,
+)
 from .acquisition.repository import RepositoryAcquirer, load_repository_acquisition
 from .acquisition.repository_role import RepositoryRole
 from .acquisition.revision_proposal import RevisionProposalImporter
 from .acquisition.revision_selection import RevisionSelector
 from .cli_support import CommandRegistry, command_registry
 from .codex.cli import run_codex_stage
-from .codex.contracts import CodexArtifact, CodexBackend, CodexExecEventType, CodexOutputError
+from .codex.contracts import CodexArtifact, CodexBackend, CodexOutputError
 from .composition import initialize_project, open_project
 from .core.contracts import ArtifactKey, StageKey
 from .core.models import (
     ActorRole,
     ArtifactDirection,
     EvaluationMode,
+    FileArtifact,
+    GeneratedArtifact,
     ProjectConfig,
     StageStatus,
     WorkflowError,
@@ -34,33 +39,22 @@ from .environment.contracts import EnvironmentArtifact, EnvironmentStage
 from .environment.execution import ExperimentExecutor
 from .environment.inventory import EnvironmentInspector
 from .environment.models import ExperimentReadiness
-from .environment.planning import ExperimentPlanRegistrar
 from .intake.contracts import IntakeArtifact, IntakeStage
 from .intake.service import IntakeService
 from .knowledge.bootstrap import KnowledgeBootstrapper
-from .knowledge.contracts import (
-    KnowledgeArtifact,
-    KnowledgeEvidenceStatus,
-    KnowledgeStage,
-)
+from .knowledge.contracts import KnowledgeArtifact, KnowledgeStage
 from .migration.artifact_preparation import ArtifactPreparationService
 from .migration.completion_audit import CompletionAuditService
-from .migration.compliance import ComplianceReport, ComplianceService
-from .migration.contract_set import MigrationContractService, MigrationContractSet
-from .migration.contracts import ComplianceRepairTarget, MigrationArtifact, MigrationStage
+from .migration.contracts import MigrationArtifact, MigrationStage
 from .migration.handoff import MigrationHandoff
-from .migration.implementation import DriverImplementationService, ImplementationResponse
-from .migration.public_qemu import PublicQemuPlan, PublicQemuService
-from .migration.public_repair import PublicRepairDecision, PublicRepairService
-from .migration.test_matrix import TestSelectionMatrix, TestSelectionService
+from .migration.implementation import DriverImplementationService
+from .migration.public_qemu import PublicQemuService
+from .migration.public_repair import PublicRepairService
 from .source_analysis.clang_backend import AnalyzerFamily
 from .source_analysis.closure import SourceClosureService
 from .source_analysis.contracts import SourceAnalysisArtifact, SourceAnalysisStage
 from .source_analysis.structured import StructuredCAnalysisService
 from .target_study.contracts import TargetStudyArtifact, TargetStudyStage
-from .target_study.service import TargetStudyService
-
-CODEX_GATE_CORRECTION_ATTEMPTS = 3
 
 
 @dataclass(frozen=True, slots=True)
@@ -223,18 +217,16 @@ class PortRunner:
         stage: StageKey,
         context: dict[str, object],
         *,
-        thread_id: str | None = None,
-        follow_up: str | None = None,
+        objective: str | None = None,
     ):
         return run_codex_stage(
             project,
             stage,
+            objective=objective,
             context=context,
             backend=self.options.backend,
             codex_bin=self.options.codex_bin,
             model=self.options.model,
-            thread_id=thread_id,
-            follow_up=follow_up,
         )
 
     @staticmethod
@@ -299,67 +291,34 @@ class PortRunner:
         latest = max(matches, key=lambda ref: ref.ordinal)
         return ArtifactOccurrence(latest.digest, latest.ordinal)
 
-    @staticmethod
-    def _latest_thread_id(project: Project, stage: StageKey) -> str | None:
-        logs = [
-            ref
-            for ref in project.current_artifact_refs(
-                stage=stage,
-                direction=ArtifactDirection.OUTPUT,
-            )
-            if ref.kind == CodexArtifact.EVENT_LOG.value and ref.ordinal is not None
-        ]
-        if not logs:
-            return None
-        latest = max(logs, key=lambda ref: ref.ordinal)
-        for line in project.artifacts.read(latest).decode("utf-8").splitlines():
-            event = json.loads(line)
-            if event.get("type") == CodexExecEventType.THREAD_STARTED.value:
-                thread_id = event.get("thread_id")
-                return thread_id if isinstance(thread_id, str) else None
-        return None
-
     def _codex_gate(
         self,
         project: Project,
         stage: StageKey,
         context: dict[str, object],
         accept: Callable[[Project, ArtifactOccurrence], None],
+        *,
+        objective: str | None = None,
     ) -> bool:
-        thread_id = self._latest_thread_id(project, stage)
-        follow_up = None
         pending = self._latest_job_occurrence(project, stage)
         if pending is not None:
-            try:
-                accept(project, pending)
-                return True
-            except CodexOutputError as error:
-                follow_up = str(error)
-        for _ in range(CODEX_GATE_CORRECTION_ATTEMPTS):
-            result, _, response = self._codex(
-                project,
-                stage,
-                context,
-                thread_id=thread_id,
-                follow_up=follow_up,
-            )
-            try:
-                accept(project, self._job_occurrence(project, stage, response))
-                return True
-            except CodexOutputError as error:
-                if not result.thread_id:
-                    raise
-                thread_id = result.thread_id
-                follow_up = str(error)
-        return False
+            accept(project, pending)
+            return True
+        _, _, response = self._codex(
+            project,
+            stage,
+            context,
+            objective=objective,
+        )
+        accept(project, self._job_occurrence(project, stage, response))
+        return True
 
     @staticmethod
-    def _write_response_parts(
+    def _materialize_codex_report(
         project: Project,
         stage: StageKey,
         job: ArtifactOccurrence,
-        names: tuple[str, ...],
-    ) -> dict[str, Path]:
+    ) -> Path:
         matches = [
             ref
             for ref in project.current_artifact_refs(
@@ -372,38 +331,26 @@ class PortRunner:
         ]
         if len(matches) != 1:
             raise WorkflowError("Codex result occurrence was not persisted uniquely")
-        path = project.artifacts.path_for_digest(job.digest)
+        data = project.artifacts.read(matches[0])
         try:
-            value = json.loads(path.read_text(encoding="utf-8"))
-        except (OSError, UnicodeDecodeError, json.JSONDecodeError) as error:
-            raise CodexOutputError("Codex stage response must be UTF-8 JSON") from error
-        if not isinstance(value, dict):
-            raise CodexOutputError("Codex stage response must be a JSON object")
-        if set(value) != set(names):
-            raise CodexOutputError(f"Codex stage response has the wrong {stage.value} documents")
-        output = project.control / "generated" / stage.value / Path(matches[0].source).stem
-        parts: dict[str, Path] = {}
-        for name in names:
-            document = value[name]
-            suffix = ".md" if isinstance(document, str) else ".json"
-            target = output / f"{name}{suffix}"
-            data = (
-                document if isinstance(document, str) else json.dumps(document, indent=2) + "\n"
-            ).encode("utf-8")
-            if target.exists() and target.read_bytes() != data:
-                raise CodexOutputError("materialized Codex response differs from immutable result")
-            parts[name] = target
-        output.mkdir(parents=True, exist_ok=True)
-        for name, target in parts.items():
-            if not target.exists():
-                document = value[name]
-                target.write_text(
-                    document
-                    if isinstance(document, str)
-                    else json.dumps(document, indent=2) + "\n",
-                    encoding="utf-8",
-                )
-        return parts
+            text = data.decode("utf-8")
+        except UnicodeDecodeError as error:
+            raise WorkflowError("Codex work report is not UTF-8") from error
+        if not text.strip():
+            raise WorkflowError("Codex work report is blank")
+        output = (
+            project.root
+            / "work"
+            / "stage-reports"
+            / stage.value
+            / f"{job.ordinal:04d}-{job.digest[:16]}.md"
+        )
+        output.parent.mkdir(parents=True, exist_ok=True)
+        if output.exists() and output.read_bytes() != data:
+            raise WorkflowError("materialized Codex work report changed")
+        if not output.exists():
+            output.write_bytes(data)
+        return output
 
     def _intake(self, project: Project) -> None:
         IntakeService().analyze(
@@ -426,6 +373,13 @@ class PortRunner:
             AcquisitionStage.REVISION_SELECTION,
             {"migration_envelope": envelope},
             self._accept_revision_result,
+            objective=(
+                "Select exact maintained source, target, and QEMU repositories and immutable "
+                "revisions for the confirmed driver. Return only "
+                "{repositories:[{role,url,ref}]} with one source, one target, and one qemu row. "
+                "The controller derives platforms, envelope bindings, selection metadata, Git "
+                "resolution evidence, and all hashes; do not copy those fields into the reply."
+            ),
         )
 
     @staticmethod
@@ -460,19 +414,15 @@ class PortRunner:
             AcquisitionStage.EVIDENCE_CLOSURE,
             inputs,
             self._accept_evidence_result,
+            objective=CODEX_EVIDENCE_SELECTION_OBJECTIVE,
         )
 
     @staticmethod
     def _accept_evidence_result(project: Project, job: ArtifactOccurrence) -> None:
-        try:
-            imported = EvidenceProposalImporter().import_job_result(
-                project, job_digest=job.digest, job_ordinal=job.ordinal
-            )
-            EvidenceClosureFinalizer().finalize(project, proposal=imported.occurrence)
-        except CodexOutputError:
-            raise
-        except WorkflowError as error:
-            raise CodexOutputError(f"evidence proposal failed: {error}") from error
+        imported = EvidenceProposalImporter().import_job_result(
+            project, job_digest=job.digest, job_ordinal=job.ordinal
+        )
+        EvidenceClosureFinalizer().finalize(project, proposal=imported.occurrence)
 
     def _environment(self, project: Project) -> None:
         if project.stage(EnvironmentStage.RECOVERY).status is StageStatus.READY:
@@ -490,44 +440,36 @@ class PortRunner:
                 for kind in (EnvironmentArtifact.INVENTORY, EnvironmentArtifact.MODE_CANDIDATES)
             },
             self._accept_environment_result,
+            objective=(
+                "Complete the embedded Skill's environment-recovery phase with the terminal. "
+                "Inspect the frozen repositories and supplied inventory, choose the least-cost "
+                "relevant route, and actually run it. Leave a self-contained repeatable smoke "
+                "harness named environment-smoke.sh in the current writable directory. Return "
+                "one Markdown work report describing the selected artifact mode, commands, "
+                "observations, failed alternatives, and remaining runtime boundary. There is no "
+                "response schema; the controller only reruns the script and records real exec, "
+                "exit-code, output, and hash evidence."
+            ),
         )
 
-    @staticmethod
-    def _accept_environment_result(project: Project, job: ArtifactOccurrence) -> None:
-        try:
-            response = project.artifacts.path_for_digest(job.digest)
-            plan = ExperimentPlanRegistrar().register(project, response)
-        except WorkflowError as error:
-            raise CodexOutputError(f"environment route failed: {error}") from error
-        result = ExperimentExecutor().run(project, plan.route_id)
+    def _accept_environment_result(self, project: Project, job: ArtifactOccurrence) -> None:
+        report = self._materialize_codex_report(project, EnvironmentStage.RECOVERY, job)
+        result = ExperimentExecutor().run_codex_harness(
+            project,
+            script_path=(
+                project.root
+                / "work"
+                / "stage-work"
+                / EnvironmentStage.RECOVERY.value
+                / "environment-smoke.sh"
+            ),
+            work_report_path=report,
+        )
         if result.readiness is ExperimentReadiness.FAIL:
-            raise CodexOutputError(f"{result.message}; attempt: {result.attempt_path}")
+            raise WorkflowError(f"{result.message}; attempt: {result.attempt_path}")
 
     def _knowledge(self, project: Project) -> None:
-        context = {
-            kind.value: self._artifact_context(project, AcquisitionStage.EVIDENCE_CLOSURE, kind)
-            for kind in (
-                AcquisitionArtifact.MATERIALS_MANIFEST,
-                AcquisitionArtifact.EVIDENCE_GAP_REGISTER,
-            )
-        }
-        repair = self._latest_compliance_result(project, ComplianceRepairTarget.KNOWLEDGE)
-        if repair is not None:
-            context["compliance_recheck"] = repair
-        self._codex_gate(
-            project,
-            KnowledgeStage.KNOWLEDGE_BASE,
-            context,
-            self._accept_knowledge_result,
-        )
-
-    @staticmethod
-    def _accept_knowledge_result(project: Project, job: ArtifactOccurrence) -> None:
-        result = KnowledgeBootstrapper().bootstrap(
-            project, probe_plan_path=project.artifacts.path_for_digest(job.digest)
-        )
-        if result.readiness is KnowledgeEvidenceStatus.FAIL:
-            raise CodexOutputError("knowledge probes failed: " + "; ".join(result.errors))
+        KnowledgeBootstrapper().build_infrastructure(project)
 
     def _target_study(self, project: Project) -> None:
         acquisition = load_repository_acquisition(project)
@@ -540,38 +482,40 @@ class PortRunner:
             "knowledge": self._artifact_context(
                 project, KnowledgeStage.KNOWLEDGE_BASE, KnowledgeArtifact.QUERY_CONTRACT
             ),
+            "knowledge_skill": self._artifact_context(
+                project, KnowledgeStage.KNOWLEDGE_BASE, KnowledgeArtifact.GENERATED_SKILL
+            ),
         }
-        repair = self._latest_compliance_result(project, ComplianceRepairTarget.KNOWLEDGE)
-        if repair is not None:
-            context["compliance_recheck"] = repair
         self._codex_gate(
             project,
             TargetStudyStage.STUDY,
             context,
             self._accept_target_study_result,
+            objective=(
+                "Complete the embedded Skill's target-platform study using the terminal, the "
+                "generated knowledge-base Skill, and pinned target originals. Return one "
+                "complete Markdown work report covering the profile, target APIs, analogous "
+                "path, knowledge-quality probes, gaps, and minimum target-change boundary. "
+                "Use natural structure; there is no response schema."
+            ),
         )
 
     def _accept_target_study_result(self, project: Project, job: ArtifactOccurrence) -> None:
-        parts = self._write_response_parts(
-            project,
+        report = self._materialize_codex_report(project, TargetStudyStage.STUDY, job)
+        project.finalize_stage(
             TargetStudyStage.STUDY,
-            job,
-            (
-                "profile_json",
-                "api_table",
-                "analogous_trace",
-                "change_plan",
+            tuple(
+                FileArtifact(kind, report)
+                for kind in (
+                    TargetStudyArtifact.PROFILE,
+                    TargetStudyArtifact.STRUCTURED_PROFILE,
+                    TargetStudyArtifact.API_EVIDENCE,
+                    TargetStudyArtifact.ANALOGOUS_DRIVER_TRACE,
+                    TargetStudyArtifact.CHANGE_PLAN,
+                    TargetStudyArtifact.REPORT,
+                )
             ),
         )
-        result = TargetStudyService().validate(
-            project,
-            profile_json=parts["profile_json"],
-            api_table=parts["api_table"],
-            analogous_trace=parts["analogous_trace"],
-            change_plan=parts["change_plan"],
-        )
-        if result.errors:
-            raise CodexOutputError("target study failed: " + "; ".join(result.errors))
 
     @staticmethod
     def _handoff(project: Project) -> None:
@@ -614,15 +558,31 @@ class PortRunner:
                 ),
             },
             self._accept_source_closure_result,
+            objective=(
+                "Complete the embedded Skill's source-closure phase using the terminal and "
+                "frozen source tree. In the current writable directory, create a standard "
+                "compile_commands.json containing the behaviorally required C translation "
+                "units with commands that actually preprocess successfully. Return one "
+                "Markdown work report explaining the selected closure, configurations, "
+                "branches, callbacks, tests, framework dependencies, and any real blocker. "
+                "There is no custom response schema; hashes and dependencies are derived by "
+                "the controller."
+            ),
         )
 
-    @staticmethod
-    def _accept_source_closure_result(project: Project, job: ArtifactOccurrence) -> None:
-        result = SourceClosureService().validate(
-            project, closure_path=project.artifacts.path_for_digest(job.digest)
+    def _accept_source_closure_result(
+        self, project: Project, job: ArtifactOccurrence
+    ) -> None:
+        report = self._materialize_codex_report(
+            project, SourceAnalysisStage.SOURCE_CLOSURE, job
         )
-        if result.errors:
-            raise CodexOutputError("source closure failed: " + "; ".join(result.errors))
+        SourceClosureService().finalize_compilation_database(
+            project,
+            compilation_database_path=(
+                project.root / "work" / "stage-work" / "source_closure" / "compile_commands.json"
+            ),
+            work_report_path=report,
+        )
 
     def _structured_c(self, project: Project) -> None:
         StructuredCAnalysisService().analyze(
@@ -653,19 +613,20 @@ class PortRunner:
                 ),
             ),
             self._accept_contracts_result,
+            objective=(
+                "Complete the embedded Skill's migration-contract phase from the supplied "
+                "original evidence and structured C facts. Return one Markdown work report "
+                "with the contracts, evidence/inference distinctions, verification plans, and "
+                "real gaps. Use natural structure; there is no response schema."
+            ),
         )
 
-    @staticmethod
-    def _accept_contracts_result(project: Project, job: ArtifactOccurrence) -> None:
-        try:
-            MigrationContractService().finalize(
-                project,
-                MigrationContractSet.read(project.artifacts.path_for_digest(job.digest)),
-            )
-        except CodexOutputError:
-            raise
-        except WorkflowError as error:
-            raise CodexOutputError(f"migration contracts failed: {error}") from error
+    def _accept_contracts_result(self, project: Project, job: ArtifactOccurrence) -> None:
+        report = self._materialize_codex_report(project, MigrationStage.CONTRACTS, job)
+        project.finalize_stage(
+            MigrationStage.CONTRACTS,
+            (FileArtifact(MigrationArtifact.CONTRACTS, report),),
+        )
 
     def _test_adaptation(self, project: Project) -> None:
         self._codex_gate(
@@ -684,19 +645,23 @@ class PortRunner:
                 ),
             ),
             self._accept_test_adaptation_result,
+            objective=(
+                "Complete the embedded Skill's public source-test triage and adaptation plan. "
+                "Read the source tests and prior work products with the terminal, then return "
+                "one Markdown work report covering every discovered test, retained intent, "
+                "oracles, exclusions, gaps, and provenance. Use natural structure; there is no "
+                "response schema."
+            ),
         )
 
-    @staticmethod
-    def _accept_test_adaptation_result(project: Project, job: ArtifactOccurrence) -> None:
-        try:
-            TestSelectionService().finalize(
-                project,
-                TestSelectionMatrix.read(project.artifacts.path_for_digest(job.digest)),
-            )
-        except CodexOutputError:
-            raise
-        except WorkflowError as error:
-            raise CodexOutputError(f"test adaptation failed: {error}") from error
+    def _accept_test_adaptation_result(
+        self, project: Project, job: ArtifactOccurrence
+    ) -> None:
+        report = self._materialize_codex_report(project, MigrationStage.TEST_ADAPTATION, job)
+        project.finalize_stage(
+            MigrationStage.TEST_ADAPTATION,
+            (FileArtifact(MigrationArtifact.TEST_PORT_MATRIX, report),),
+        )
 
     def _implementation(self, project: Project) -> None:
         facts = project.load_json_artifact(
@@ -712,20 +677,6 @@ class PortRunner:
                 for unit in facts["units"]
             ]
         }
-        repair = self._latest_compliance_result(project, ComplianceRepairTarget.IMPLEMENTATION)
-        if repair is not None:
-            extra["compliance_repair"] = repair
-            baseline = DriverImplementationService.baseline_context(project)
-            if baseline is not None:
-                extra["implementation_baseline"] = {
-                    "file_roles": baseline["file_roles"],
-                    "unchanged_collections": [
-                        "coverage",
-                        "target_changes",
-                        "target_symbols",
-                        "unsafe_obligations",
-                    ],
-                }
         self._codex_gate(
             project,
             MigrationStage.DRIVER_IMPLEMENTATION,
@@ -750,113 +701,42 @@ class PortRunner:
                 extra=extra,
             ),
             self._accept_implementation_result,
+            objective=(
+                "Implement the embedded Skill's Rust driver phase directly in the writable "
+                "target worktree. Use the terminal freely, read the supplied prior work "
+                "products and original evidence, add or adapt public tests, and make only "
+                "necessary target changes. Do not build or run QEMU in this stage. Return one "
+                "Markdown work report with changed paths, the Skill's target-compliance review, "
+                "and remaining evidence limits. There is no response schema; the controller "
+                "snapshots Git mechanically."
+            ),
         )
 
-    @staticmethod
-    def _latest_compliance_result(
-        project: Project,
-        target: ComplianceRepairTarget | None = None,
-    ) -> dict[str, object] | None:
-        findings = [
-            ref
-            for ref in project.artifact_refs(stage=MigrationStage.TARGET_COMPLIANCE)
-            if ref.kind == CodexArtifact.JOB_RESULT.value and ref.ordinal is not None
-        ]
-        if not findings:
-            return None
-        latest = max(findings, key=lambda ref: ref.ordinal)
-        path = project.artifacts.path_for_digest(latest.digest)
-        try:
-            result = json.loads(path.read_text(encoding="utf-8"))
-        except (OSError, UnicodeDecodeError, json.JSONDecodeError) as error:
-            raise WorkflowError("latest target compliance result is unreadable") from error
-        if not isinstance(result, dict) or result.get("schema_version") != 2:
-            return None
-        report = ComplianceReport.from_dict(result)
-        delta = report.repair_delta(target)
-        if delta is None:
-            return None
-        return {
-            "schema_version": 1,
-            "source_stage": MigrationStage.TARGET_COMPLIANCE.value,
-            "source_result": {
-                "digest": latest.digest,
-                "ordinal": latest.ordinal,
-            },
-            "findings": delta,
-        }
-
-    @staticmethod
-    def _accept_implementation_result(project: Project, job: ArtifactOccurrence) -> None:
-        try:
-            DriverImplementationService().finalize(
-                project,
-                ImplementationResponse.read(project.artifacts.path_for_digest(job.digest)),
-            )
-        except CodexOutputError:
-            raise
-        except WorkflowError as error:
-            raise CodexOutputError(f"driver implementation failed: {error}") from error
+    def _accept_implementation_result(
+        self, project: Project, job: ArtifactOccurrence
+    ) -> None:
+        report = self._materialize_codex_report(
+            project, MigrationStage.DRIVER_IMPLEMENTATION, job
+        )
+        DriverImplementationService().snapshot_worktree(project, report)
 
     def _compliance(self, project: Project) -> None:
-        extra = {}
-        recheck = self._latest_compliance_result(project)
-        if recheck is not None:
-            extra["compliance_recheck"] = recheck
-        self._codex_gate(
-            project,
-            MigrationStage.TARGET_COMPLIANCE,
-            self._migration_context(
-                project,
-                (
-                    (MigrationStage.HANDOFF, MigrationArtifact.HANDOFF),
-                    (MigrationStage.DRIVER_IMPLEMENTATION, MigrationArtifact.IMPLEMENTATION_BUNDLE),
-                    (
-                        MigrationStage.DRIVER_IMPLEMENTATION,
-                        MigrationArtifact.TARGET_CHANGE_INVENTORY,
-                    ),
-                    (KnowledgeStage.KNOWLEDGE_BASE, KnowledgeArtifact.QUERY_CONTRACT),
-                    (KnowledgeStage.KNOWLEDGE_BASE, KnowledgeArtifact.GENERATED_SKILL),
-                    (TargetStudyStage.STUDY, TargetStudyArtifact.STRUCTURED_PROFILE),
-                    (TargetStudyStage.STUDY, TargetStudyArtifact.API_EVIDENCE),
-                    (TargetStudyStage.STUDY, TargetStudyArtifact.ANALOGOUS_DRIVER_TRACE),
-                    (TargetStudyStage.STUDY, TargetStudyArtifact.CHANGE_PLAN),
-                    (SourceAnalysisStage.SOURCE_CLOSURE, SourceAnalysisArtifact.MATERIALS_MANIFEST),
-                ),
-                extra=extra,
-            ),
-            self._accept_compliance_result,
+        if project.stage(MigrationStage.TARGET_COMPLIANCE).status is StageStatus.READY:
+            project.start(MigrationStage.TARGET_COMPLIANCE)
+        report = project.artifact(
+            MigrationStage.DRIVER_IMPLEMENTATION,
+            MigrationArtifact.TRANSLATION_COVERAGE,
         )
-
-    def _accept_compliance_result(self, project: Project, job: ArtifactOccurrence) -> None:
-        try:
-            report = ComplianceReport.read(project.artifacts.path_for_digest(job.digest))
-        except WorkflowError as error:
-            raise CodexOutputError(f"target compliance failed: {error}") from error
-        if report.requires_repair(ComplianceRepairTarget.KNOWLEDGE):
-            project.retry_from(
-                KnowledgeStage.KNOWLEDGE_BASE,
-                trigger=MigrationStage.TARGET_COMPLIANCE,
-                reason=(
-                    "target compliance requested knowledge repair from "
-                    f"job {job.digest}:{job.ordinal}"
+        project.finalize_stage(
+            MigrationStage.TARGET_COMPLIANCE,
+            (
+                GeneratedArtifact(
+                    MigrationArtifact.COMPLIANCE_REPORT,
+                    project.artifacts.read(report),
+                    "derived:implementation-work-report",
                 ),
-            )
-            return
-        if report.requires_repair(ComplianceRepairTarget.IMPLEMENTATION):
-            project.retry_from(
-                MigrationStage.DRIVER_IMPLEMENTATION,
-                trigger=MigrationStage.TARGET_COMPLIANCE,
-                reason=(
-                    "target compliance requested implementation repair from "
-                    f"job {job.digest}:{job.ordinal}"
-                ),
-            )
-            return
-        try:
-            ComplianceService().finalize(project, report)
-        except WorkflowError as error:
-            raise CodexOutputError(f"target compliance failed: {error}") from error
+            ),
+        )
 
     def _artifact_preparation(self, project: Project) -> None:
         self._codex_gate(
@@ -874,20 +754,24 @@ class PortRunner:
                 ),
             ),
             self._accept_artifact_preparation_result,
+            objective=(
+                "Complete the embedded Skill's artifact-preparation work directly in the "
+                "writable target worktree. Use the terminal to build, inject, or package by the "
+                "evidenced target artifact mode and prove the current migrated driver is "
+                "included. Copy the final runnable artifact to "
+                ".dpf-output/runtime-artifact. Return one Markdown work report containing the "
+                "exact commands, identities, presence proof, failures, and limits. There is no "
+                "response schema; the controller hashes the produced artifact mechanically."
+            ),
         )
 
-    @staticmethod
-    def _accept_artifact_preparation_result(project: Project, job: ArtifactOccurrence) -> None:
-        try:
-            result = ArtifactPreparationService().run(
-                project, project.artifacts.path_for_digest(job.digest)
-            )
-            if result["status"] != StageStatus.PASS.value:
-                raise CodexOutputError(f"{result['error']}; attempt: {result['attempt']}")
-        except CodexOutputError:
-            raise
-        except WorkflowError as error:
-            raise CodexOutputError(f"artifact preparation failed: {error}") from error
+    def _accept_artifact_preparation_result(
+        self, project: Project, job: ArtifactOccurrence
+    ) -> None:
+        report = self._materialize_codex_report(
+            project, MigrationStage.ARTIFACT_PREPARATION, job
+        )
+        ArtifactPreparationService().capture_codex_artifact(project, report)
 
     def _public_qemu(self, project: Project) -> None:
         artifact = project.artifact(
@@ -920,21 +804,36 @@ class PortRunner:
                 },
             ),
             self._accept_public_qemu_result,
+            objective=(
+                "Complete the embedded Skill's public QEMU evidence work using the terminal. "
+                "Read the current runtime artifact and all prior work products, create a "
+                "self-checking public harness at .dpf-output/public-qemu.sh in the writable "
+                "target worktree, and exercise only public developer evidence. The script must "
+                "use $DPF_RUNTIME_ARTIFACT, return zero only after its oracle proves the current "
+                "migrated driver ran under QEMU, and preserve logs under .dpf-output/qemu-runs. "
+                "Return one Markdown report with commands, observations, failures, attribution, "
+                "and scope limits. There is no response schema; the controller reruns the script "
+                "and captures its result mechanically."
+            ),
         )
         if not accepted:
             return
         if project.stage(MigrationStage.PUBLIC_QEMU_VALIDATION).status is StageStatus.RUNNING:
             PublicRepairService().prepare(project)
 
-    @staticmethod
-    def _accept_public_qemu_result(project: Project, job: ArtifactOccurrence) -> None:
-        try:
-            PublicQemuService().run(
-                project,
-                PublicQemuPlan.read(project.artifacts.path_for_digest(job.digest)),
-            )
-        except WorkflowError as error:
-            raise CodexOutputError(f"public QEMU plan failed: {error}") from error
+    def _accept_public_qemu_result(
+        self, project: Project, job: ArtifactOccurrence
+    ) -> None:
+        report = self._materialize_codex_report(
+            project, MigrationStage.PUBLIC_QEMU_VALIDATION, job
+        )
+        acquisition = load_repository_acquisition(project)
+        worktree = (project.root / acquisition.target_worktree.path).resolve()
+        PublicQemuService().run_script(
+            project,
+            script_path=worktree / ".dpf-output" / "public-qemu.sh",
+            work_report_path=report,
+        )
 
     def _public_repair(self, project: Project) -> None:
         service = PublicRepairService()
@@ -943,29 +842,9 @@ class PortRunner:
             service.finalize_not_applicable(project)
             return
         source_ref, failure = prepared
-        bundle = project.load_json_artifact(
-            MigrationStage.DRIVER_IMPLEMENTATION, MigrationArtifact.IMPLEMENTATION_BUNDLE
-        )
-        baseline = DriverImplementationService.baseline_context(project)
         context = {
             "failed_attempt": source_ref,
             "failed_evidence": failure,
-            "implementation_files": [
-                {"path": item["path"], "role": item["role"]} for item in bundle["files"]
-            ],
-            "implementation_baseline": (
-                None
-                if baseline is None
-                else {
-                    "file_roles": baseline["file_roles"],
-                    "unchanged_collections": [
-                        "coverage",
-                        "target_changes",
-                        "target_symbols",
-                        "unsafe_obligations",
-                    ],
-                }
-            ),
             "frozen_inputs": {
                 kind.value: self._artifact_context(project, stage, kind)
                 for stage, kind in (
@@ -983,19 +862,29 @@ class PortRunner:
         }
 
         def accept(project: Project, job: ArtifactOccurrence) -> None:
-            try:
-                decision = PublicRepairDecision.read(project.artifacts.path_for_digest(job.digest))
-                service.apply(project, decision, failure)
-            except CodexOutputError:
-                raise
-            except WorkflowError as error:
-                raise CodexOutputError(f"public repair failed: {error}") from error
+            report = self._materialize_codex_report(
+                project, MigrationStage.PUBLIC_REPAIR, job
+            )
+            service.finalize_codex_repair(
+                project,
+                work_report_path=report,
+                failure=failure,
+            )
 
         self._codex_gate(
             project,
             MigrationStage.PUBLIC_REPAIR,
             context,
             accept,
+            objective=(
+                "Perform the embedded Skill's narrow public repair loop using the terminal and "
+                "the preserved failed run. Diagnose before editing, inspect original target and "
+                "knowledge evidence, make only the necessary writable fix, rebuild "
+                ".dpf-output/runtime-artifact, and rerun .dpf-output/public-qemu.sh until its "
+                "public oracle passes or a precise external blocker is proven. Return one "
+                "Markdown work report with diagnosis, edits, commands, results, and limits. "
+                "There is no response schema; the controller reruns the harness mechanically."
+            ),
         )
 
     @staticmethod
