@@ -282,6 +282,23 @@ class PortRunner:
         return ArtifactOccurrence(latest.digest, latest.ordinal)
 
     @staticmethod
+    def _latest_persisted_job_occurrence(
+        project: Project, stage: StageKey
+    ) -> ArtifactOccurrence | None:
+        matches = [
+            ref
+            for ref in project.artifact_refs(
+                stage=stage,
+                direction=ArtifactDirection.OUTPUT,
+            )
+            if ref.kind == CodexArtifact.JOB_RESULT.value and ref.ordinal is not None
+        ]
+        if not matches:
+            return None
+        latest = max(matches, key=lambda ref: ref.ordinal)
+        return ArtifactOccurrence(latest.digest, latest.ordinal)
+
+    @staticmethod
     def _latest_thread_id(project: Project, stage: StageKey) -> str | None:
         logs = [
             ref
@@ -504,18 +521,22 @@ class PortRunner:
     def _target_study(self, project: Project) -> None:
         acquisition = load_repository_acquisition(project)
         target = acquisition.checkout(RepositoryRole.TARGET)
+        context: dict[str, object] = {
+            "target_repository": {
+                "path": str((project.root / target.checkout_path).resolve()),
+                "revision": target.resolved_commit,
+            },
+            "knowledge": self._artifact_context(
+                project, KnowledgeStage.KNOWLEDGE_BASE, KnowledgeArtifact.QUERY_CONTRACT
+            ),
+        }
+        repair = self._latest_compliance_result(project)
+        if repair is not None:
+            context["compliance_recheck"] = repair
         self._codex_gate(
             project,
             TargetStudyStage.STUDY,
-            {
-                "target_repository": {
-                    "path": str((project.root / target.checkout_path).resolve()),
-                    "revision": target.resolved_commit,
-                },
-                "knowledge": self._artifact_context(
-                    project, KnowledgeStage.KNOWLEDGE_BASE, KnowledgeArtifact.QUERY_CONTRACT
-                ),
-            },
+            context,
             self._accept_target_study_result,
         )
 
@@ -548,6 +569,13 @@ class PortRunner:
         MigrationHandoff().create(project)
 
     def _source_closure(self, project: Project) -> None:
+        if self._latest_job_occurrence(project, SourceAnalysisStage.SOURCE_CLOSURE) is None:
+            accepted = self._latest_persisted_job_occurrence(
+                project, SourceAnalysisStage.SOURCE_CLOSURE
+            )
+            if accepted is not None:
+                self._accept_source_closure_result(project, accepted)
+                return
         self._codex_gate(
             project,
             SourceAnalysisStage.SOURCE_CLOSURE,

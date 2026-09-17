@@ -10,13 +10,15 @@ from unittest.mock import Mock, patch
 
 from driver_port_factory.acquisition.job import ArtifactOccurrence
 from driver_port_factory.cli import parser
-from driver_port_factory.codex.contracts import CodexBackend, CodexOutputError
-from driver_port_factory.core.models import StageStatus, WorkflowError
+from driver_port_factory.codex.contracts import CodexArtifact, CodexBackend, CodexOutputError
+from driver_port_factory.core.models import ArtifactDirection, StageStatus, WorkflowError
 from driver_port_factory.knowledge.bootstrap import KnowledgeBootstrapper
 from driver_port_factory.knowledge.contracts import KnowledgeStage
 from driver_port_factory.migration.contracts import MigrationStage
 from driver_port_factory.port import PortOptions, PortRunner
 from driver_port_factory.source_analysis.clang_backend import AnalyzerFamily
+from driver_port_factory.source_analysis.contracts import SourceAnalysisStage
+from driver_port_factory.target_study.contracts import TargetStudyStage
 from tests.test_knowledge import prepare_project, probe_plan
 from tests.test_target_study import target_study_inputs
 
@@ -196,6 +198,52 @@ class PortRunnerTests(unittest.TestCase):
 
         self.assertEqual(codex.call_args.kwargs["thread_id"], "existing-thread")
         self.assertIsNone(codex.call_args.kwargs["follow_up"])
+
+    def test_target_study_receives_knowledge_repair_finding(self) -> None:
+        runner = PortRunner(options(Path("/workspace")))
+        project = SimpleNamespace(root=Path("/workspace"))
+        checkout = SimpleNamespace(checkout_path="target", resolved_commit="a" * 40)
+        acquisition = SimpleNamespace(checkout=Mock(return_value=checkout))
+        repair = {"source_stage": MigrationStage.TARGET_COMPLIANCE.value}
+
+        with (
+            patch("driver_port_factory.port.load_repository_acquisition", return_value=acquisition),
+            patch.object(runner, "_artifact_context", return_value={"digest": "b" * 64}),
+            patch.object(runner, "_latest_compliance_result", return_value=repair),
+            patch.object(runner, "_codex_gate") as codex_gate,
+        ):
+            runner._target_study(project)
+
+        self.assertEqual(codex_gate.call_args.args[1], TargetStudyStage.STUDY)
+        self.assertEqual(codex_gate.call_args.args[2]["compliance_recheck"], repair)
+
+    def test_source_closure_revalidates_accepted_proposal_after_repair(self) -> None:
+        runner = PortRunner(options(Path("/workspace")))
+        historical = SimpleNamespace(
+            kind=CodexArtifact.JOB_RESULT.value,
+            digest="a" * 64,
+            ordinal=7,
+        )
+        project = SimpleNamespace(
+            current_artifact_refs=Mock(return_value=[]),
+            artifact_refs=Mock(return_value=[historical]),
+        )
+
+        with (
+            patch.object(runner, "_accept_source_closure_result") as accept,
+            patch.object(runner, "_codex_gate") as codex_gate,
+        ):
+            runner._source_closure(project)
+
+        accept.assert_called_once_with(
+            project,
+            ArtifactOccurrence(historical.digest, historical.ordinal),
+        )
+        codex_gate.assert_not_called()
+        project.current_artifact_refs.assert_called_once_with(
+            stage=SourceAnalysisStage.SOURCE_CLOSURE,
+            direction=ArtifactDirection.OUTPUT,
+        )
 
     def test_target_study_document_gate_is_codex_output_error(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
