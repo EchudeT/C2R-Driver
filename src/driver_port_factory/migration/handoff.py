@@ -64,9 +64,10 @@ _BLIND_HANDOFF_ARTIFACTS = (
 class MigrationHandoff:
     def create(self, project: Project) -> dict[str, Any]:
         stage = project.stage(MigrationStage.HANDOFF)
-        if stage.status is not StageStatus.READY:
+        if stage.status is StageStatus.READY:
+            project.start(MigrationStage.HANDOFF)
+        elif stage.status is not StageStatus.RUNNING:
             raise WorkflowError(f"migration_handoff is {stage.status.value}, not READY")
-        project.start(MigrationStage.HANDOFF)
         acquisition = load_repository_acquisition(project)
         record = {
             "schema_version": 2,
@@ -141,7 +142,9 @@ class MigrationHandoff:
         refs = [
             ref
             for stage in project.workflow.spec(MigrationStage.HANDOFF).dependencies
-            for ref in project.artifact_refs(stage=stage, direction=ArtifactDirection.OUTPUT)
+            for ref in project.current_artifact_refs(
+                stage=stage, direction=ArtifactDirection.OUTPUT
+            )
             if ref.kind in kinds
         ]
         return [
