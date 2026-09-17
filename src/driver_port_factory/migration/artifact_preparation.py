@@ -215,6 +215,17 @@ class ArtifactPreparationService:
 
         runtime_data = runtime_path.read_bytes()
         runtime_sha256 = hashlib.sha256(runtime_data).hexdigest()
+        payloads = [
+            {key: item[key] for key in ("path", "role", "sha256")}
+            for item in implementation["files"]
+        ]
+        presence_result = asdict(presence)
+        driver_presence = self._driver_presence(
+            inputs[MigrationArtifact.IMPLEMENTATION_BUNDLE.value]["digest"],
+            runtime_sha256,
+            payloads,
+            presence_result,
+        )
         identity = {
             "schema_version": 2,
             "inputs": inputs,
@@ -225,11 +236,9 @@ class ArtifactPreparationService:
                 "size": len(runtime_data),
             },
             "base_artifact": base,
-            "implementation_payloads": [
-                {key: item[key] for key in ("path", "role", "sha256")}
-                for item in implementation["files"]
-            ],
-            "presence_check": asdict(presence),
+            "implementation_payloads": payloads,
+            "presence_check": presence_result,
+            "driver_presence": driver_presence,
             "tool_evidence": tool_evidence,
             "attempt_sha256": attempt_ref.digest,
             "runtime_status": ContractExecutionStatus.NOT_RUN.value,
@@ -306,6 +315,23 @@ class ArtifactPreparationService:
     def _json(value: dict[str, Any]) -> bytes:
         return (json.dumps(value, ensure_ascii=False, sort_keys=True, indent=2) + "\n").encode()
 
+    @classmethod
+    def _driver_presence(
+        cls,
+        implementation_sha256: str,
+        runtime_sha256: str,
+        payloads: list[dict[str, Any]],
+        presence_check: dict[str, Any],
+    ) -> dict[str, str]:
+        return {
+            "implementation_sha256": implementation_sha256,
+            "runtime_artifact_sha256": runtime_sha256,
+            "payloads_sha256": hashlib.sha256(cls._json({"files": payloads})).hexdigest(),
+            "presence_check_sha256": hashlib.sha256(
+                cls._json(presence_check)
+            ).hexdigest(),
+        }
+
 
 def _git(root: Path, *arguments: str) -> str:
     result = subprocess.run(
@@ -321,7 +347,10 @@ def _git(root: Path, *arguments: str) -> str:
 
 def validate_artifact_bundle(context: BundleValidationContext) -> None:
     runtime_ref, runtime = context.one_current(MigrationArtifact.RUNTIME_ARTIFACT)
-    attempt_ref, _ = context.one_auxiliary(MigrationArtifact.ARTIFACT_PREPARATION_ATTEMPT)
+    attempt_ref, attempt_data = context.one_auxiliary(
+        MigrationArtifact.ARTIFACT_PREPARATION_ATTEMPT
+    )
+    attempt = json_object(attempt_data, MigrationArtifact.ARTIFACT_PREPARATION_ATTEMPT.value)
     identity = json_object(
         context.one_current(MigrationArtifact.ARTIFACT_IDENTITY)[1],
         MigrationArtifact.ARTIFACT_IDENTITY.value,
@@ -329,6 +358,12 @@ def validate_artifact_bundle(context: BundleValidationContext) -> None:
     expected_inputs = {
         kind.value: context.one_dependency(kind)[0].to_dict() for kind in ARTIFACT_INPUTS
     }
+    expected_presence = ArtifactPreparationService._driver_presence(
+        expected_inputs[MigrationArtifact.IMPLEMENTATION_BUNDLE.value]["digest"],
+        runtime_ref.digest,
+        identity.get("implementation_payloads", []),
+        identity.get("presence_check", {}),
+    )
     if (
         identity.get("schema_version") != 2
         or identity.get("inputs") != expected_inputs
@@ -336,5 +371,8 @@ def validate_artifact_bundle(context: BundleValidationContext) -> None:
         or identity.get("runtime_artifact", {}).get("sha256") != runtime_ref.digest
         or hashlib.sha256(runtime).hexdigest() != runtime_ref.digest
         or identity.get("runtime_status") != ContractExecutionStatus.NOT_RUN.value
+        or attempt.get("status") != StageStatus.PASS.value
+        or identity.get("presence_check") != attempt.get("presence_check")
+        or identity.get("driver_presence") != expected_presence
     ):
         raise WorkflowError("runtime artifact identity is detached from its preparation run")

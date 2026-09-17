@@ -36,6 +36,7 @@ PUBLIC_QEMU_INPUTS = (
     MigrationArtifact.HANDOFF,
     MigrationArtifact.CONTRACTS,
     MigrationArtifact.TEST_PORT_MATRIX,
+    MigrationArtifact.TRANSLATION_COVERAGE,
     MigrationArtifact.RUNTIME_ARTIFACT,
     MigrationArtifact.ARTIFACT_IDENTITY,
     EnvironmentArtifact.EXPERIMENT_ROUTE,
@@ -61,6 +62,7 @@ class PublicRun:
     contract_ids: tuple[str, ...]
     test_ids: tuple[str, ...]
     cwd: str
+    runtime_artifact_path: str | None
     command: PlannedCommand
     oracle: str
     qemu_evidence: tuple[dict[str, Any], ...]
@@ -81,6 +83,11 @@ class PublicRun:
                 _strings(value["contract_ids"], "contract_ids", empty=True),
                 _strings(value["test_ids"], "test_ids", empty=True),
                 str(value["cwd"]),
+                (
+                    str(value["runtime_artifact_path"])
+                    if value.get("runtime_artifact_path") is not None
+                    else None
+                ),
                 PlannedCommand.from_dict(value["command"]),
                 str(value["oracle"]),
                 tuple(evidence),
@@ -92,7 +99,7 @@ class PublicRun:
         return run
 
     def to_dict(self) -> dict[str, Any]:
-        return {
+        value = {
             "run_id": self.run_id,
             "purpose": self.purpose,
             "contract_ids": list(self.contract_ids),
@@ -102,6 +109,9 @@ class PublicRun:
             "oracle": self.oracle,
             "qemu_evidence": list(self.qemu_evidence),
         }
+        if self.runtime_artifact_path is not None:
+            value["runtime_artifact_path"] = self.runtime_artifact_path
+        return value
 
 
 @dataclass(frozen=True, slots=True)
@@ -200,19 +210,14 @@ class PublicQemuService:
             result["execution_status"] == ContractExecutionStatus.FAIL.value for result in results
         )
         blocked = any(item.disposition is LadderDisposition.BLOCKED for item in plan.ladder)
+        execution_status = self._execution_status(results, failed, blocked, bool(executed))
         report = {
             "schema_version": 2,
             "inputs": inputs,
             "plan": plan.to_dict(),
             "runs": results,
             "status": StageStatus.FAIL.value if failed else StageStatus.PASS.value,
-            "execution_status": (
-                ContractExecutionStatus.FAIL.value
-                if failed
-                else ContractExecutionStatus.BLOCKED.value
-                if blocked
-                else ContractExecutionStatus.PASS.value
-            ),
+            "execution_status": execution_status.value,
             "integration_boundary": (
                 MigrationBoundary.BLOCKED_FULL_INTEGRATION.value if blocked else None
             ),
@@ -257,6 +262,7 @@ class PublicQemuService:
             timeout_seconds=run.command.timeout_seconds,
         )
         passed = PublicQemuService._command_passed(result, run.command)
+        runtime_bound = PublicQemuService._runtime_bound(project, run)
         return {
             "run_id": run.run_id,
             "contract_ids": list(run.contract_ids),
@@ -273,6 +279,8 @@ class PublicQemuService:
             ),
             "attribution": (
                 PublicRunAttribution.TARGET_DRIVER_ON_QEMU.value
+                if passed and runtime_bound
+                else PublicRunAttribution.PUBLIC_HARNESS.value
                 if passed
                 else PublicRunAttribution.INCONCLUSIVE.value
             ),
@@ -285,6 +293,8 @@ class PublicQemuService:
             ContractExecutionStatus.BLOCKED
             if LadderDisposition.BLOCKED in dispositions
             else ContractExecutionStatus.NOT_APPLICABLE
+            if LadderDisposition.NOT_APPLICABLE in dispositions
+            else ContractExecutionStatus.NOT_RUN
         )
         return {
             "run_id": run.run_id,
@@ -309,12 +319,30 @@ class PublicQemuService:
                 raise WorkflowError("public QEMU ladder references an unknown run")
             if item.disposition is LadderDisposition.EXECUTE and not item.run_ids:
                 raise WorkflowError("executed evidence-ladder level has no run")
+        for run in plan.runs:
+            dispositions = {
+                item.disposition for item in plan.ladder if run.run_id in item.run_ids
+            }
+            claims = bool(run.contract_ids or run.test_ids)
+            claim_dispositions = dispositions & {
+                LadderDisposition.EXECUTE,
+                LadderDisposition.BLOCKED,
+            }
+            if claims and len(claim_dispositions) != 1:
+                raise WorkflowError(
+                    "a public QEMU run with contracts or tests must be EXECUTE or BLOCKED"
+                )
+            if claims and not self._runtime_bound(project, run):
+                raise WorkflowError(
+                    "a public QEMU run with contracts or tests must use the current "
+                    "runtime artifact"
+                )
         covered_contracts = {item for run in plan.runs for item in run.contract_ids}
         covered_tests = {item for run in plan.runs for item in run.test_ids}
         if covered_contracts != self._expected_contracts(project):
             raise WorkflowError("public QEMU plan does not account for every QEMU contract")
         if covered_tests != self._expected_tests(project):
-            raise WorkflowError("public QEMU plan does not account for every retained test")
+            raise WorkflowError("public QEMU plan does not account for every expected public test")
         self._verify_qemu_evidence(project, plan)
 
     @staticmethod
@@ -331,11 +359,57 @@ class PublicQemuService:
         document = project.load_json_artifact(
             MigrationStage.TEST_ADAPTATION, MigrationArtifact.TEST_PORT_MATRIX
         )
+        coverage = project.load_json_artifact(
+            MigrationStage.DRIVER_IMPLEMENTATION,
+            MigrationArtifact.TRANSLATION_COVERAGE,
+        )
+        implemented = {
+            str(test_id)
+            for record in coverage["coverage"]
+            for test_id in record["test_ids"]
+        }
         return {
             str(item["test_id"])
             for item in document["tests"]
             if item["disposition"] in {TestDisposition.RETAIN.value, TestDisposition.ADAPT.value}
+            or (
+                item["disposition"] == TestDisposition.PRESERVE_BLOCKED.value
+                and str(item["test_id"]) in implemented
+            )
         }
+
+    @staticmethod
+    def _runtime_bound(project: Project, run: PublicRun) -> bool:
+        if run.runtime_artifact_path is None:
+            return False
+        runtime = project.artifact(
+            MigrationStage.ARTIFACT_PREPARATION,
+            MigrationArtifact.RUNTIME_ARTIFACT,
+        )
+        expected = project.artifacts.path_for_digest(runtime.digest).resolve()
+        if Path(run.runtime_artifact_path).resolve() != expected:
+            return False
+        return str(expected) in {*run.command.argv, *run.command.environment.values()}
+
+    @staticmethod
+    def _execution_status(
+        results: list[dict[str, Any]],
+        failed: bool,
+        blocked: bool,
+        executed: bool,
+    ) -> ContractExecutionStatus:
+        if failed:
+            return ContractExecutionStatus.FAIL
+        if blocked:
+            return ContractExecutionStatus.BLOCKED
+        if any(
+            item["execution_status"] == ContractExecutionStatus.NOT_RUN.value
+            for item in results
+        ):
+            return ContractExecutionStatus.NOT_RUN
+        if executed:
+            return ContractExecutionStatus.PASS
+        return ContractExecutionStatus.NOT_APPLICABLE
 
     @staticmethod
     def _verify_qemu_evidence(project: Project, plan: PublicQemuPlan) -> None:

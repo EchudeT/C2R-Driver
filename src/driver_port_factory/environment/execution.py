@@ -17,8 +17,14 @@ from ..core.models import (
 from ..core.project import Project
 from .contracts import EnvironmentArtifact, EnvironmentStage, ExperimentRouteMilestone
 from .documents import json_artifact, json_bytes, plan_path
-from .evidence import executable_identity, file_identity, frozen_repository_snapshot, workspace_path
-from .models import ExperimentPlan, ExperimentReadiness
+from .evidence import (
+    executable_identity,
+    file_identity,
+    freeze_qemu_executable,
+    frozen_repository_snapshot,
+    workspace_path,
+)
+from .models import ArtifactMode, ExperimentPlan, ExperimentReadiness
 
 
 @dataclass(frozen=True, slots=True)
@@ -44,6 +50,8 @@ class ExperimentExecutor:
             raise WorkflowError(f"route {route_id} already ran; retries require a new route ID")
 
         cwd = workspace_path(project, plan.cwd)
+        if plan.artifact_mode is ArtifactMode.DIRECT_DEVICE_MODEL:
+            freeze_qemu_executable(project, plan.command[0], cwd)
         executable = executable_identity(plan.command[0], cwd)
         result = CommandRunner(
             project.control / "command-runs" / "environment" / plan.route_id
@@ -123,6 +131,14 @@ class ExperimentExecutor:
     def _require_frozen_inputs(project: Project, plan: ExperimentPlan) -> None:
         if frozen_repository_snapshot(project) != plan.frozen_repositories:
             raise WorkflowError("frozen repositories changed after route registration")
+        candidates = project.load_json_artifact(
+            EnvironmentStage.RECOVERY,
+            EnvironmentArtifact.MODE_CANDIDATES,
+            direction=ArtifactDirection.INPUT,
+        )
+        candidate_modes = {ArtifactMode(item["artifact_mode"]) for item in candidates["candidates"]}
+        if plan.artifact_mode not in candidate_modes:
+            raise WorkflowError("experiment route did not select a discovered artifact mode")
         cwd = workspace_path(project, plan.cwd)
         if executable_identity(plan.command[0], cwd) != plan.executable_lock:
             raise WorkflowError("experiment runner changed after route registration")

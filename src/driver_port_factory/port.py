@@ -325,17 +325,15 @@ class PortRunner:
         stage: StageKey,
         context: dict[str, object],
         accept: Callable[[Project, ArtifactOccurrence], None],
-    ) -> None:
+    ) -> bool:
         thread_id = self._latest_thread_id(project, stage)
         follow_up = None
-        last_error: WorkflowError | None = None
         pending = self._latest_job_occurrence(project, stage)
         if pending is not None:
             try:
                 accept(project, pending)
-                return
+                return True
             except CodexOutputError as error:
-                last_error = error
                 follow_up = str(error)
         for _ in range(CODEX_GATE_CORRECTION_ATTEMPTS):
             result, _, response = self._codex(
@@ -347,14 +345,13 @@ class PortRunner:
             )
             try:
                 accept(project, self._job_occurrence(project, stage, response))
-                return
+                return True
             except CodexOutputError as error:
-                last_error = error
                 if not result.thread_id:
                     raise
                 thread_id = result.thread_id
                 follow_up = str(error)
-        raise WorkflowError(f"{stage.value} failed after same-session corrections: {last_error}")
+        return False
 
     @staticmethod
     def _write_response_parts(
@@ -504,7 +501,7 @@ class PortRunner:
             raise CodexOutputError(f"environment route failed: {error}") from error
         result = ExperimentExecutor().run(project, plan.route_id)
         if result.readiness is ExperimentReadiness.FAIL:
-            raise CodexOutputError(result.message)
+            raise CodexOutputError(f"{result.message}; attempt: {result.attempt_path}")
 
     def _knowledge(self, project: Project) -> None:
         context = {
@@ -886,7 +883,7 @@ class PortRunner:
                 project, project.artifacts.path_for_digest(job.digest)
             )
             if result["status"] != StageStatus.PASS.value:
-                raise CodexOutputError(str(result["error"]))
+                raise CodexOutputError(f"{result['error']}; attempt: {result['attempt']}")
         except CodexOutputError:
             raise
         except WorkflowError as error:
@@ -896,7 +893,7 @@ class PortRunner:
         artifact = project.artifact(
             MigrationStage.ARTIFACT_PREPARATION, MigrationArtifact.RUNTIME_ARTIFACT
         )
-        self._codex_gate(
+        accepted = self._codex_gate(
             project,
             MigrationStage.PUBLIC_QEMU_VALIDATION,
             self._migration_context(
@@ -905,6 +902,10 @@ class PortRunner:
                     (MigrationStage.HANDOFF, MigrationArtifact.HANDOFF),
                     (MigrationStage.CONTRACTS, MigrationArtifact.CONTRACTS),
                     (MigrationStage.TEST_ADAPTATION, MigrationArtifact.TEST_PORT_MATRIX),
+                    (
+                        MigrationStage.DRIVER_IMPLEMENTATION,
+                        MigrationArtifact.TRANSLATION_COVERAGE,
+                    ),
                     (MigrationStage.ARTIFACT_PREPARATION, MigrationArtifact.RUNTIME_ARTIFACT),
                     (MigrationStage.ARTIFACT_PREPARATION, MigrationArtifact.ARTIFACT_IDENTITY),
                     (EnvironmentStage.RECOVERY, EnvironmentArtifact.EXPERIMENT_ROUTE),
@@ -920,6 +921,8 @@ class PortRunner:
             ),
             self._accept_public_qemu_result,
         )
+        if not accepted:
+            return
         if project.stage(MigrationStage.PUBLIC_QEMU_VALIDATION).status is StageStatus.RUNNING:
             PublicRepairService().prepare(project)
 
