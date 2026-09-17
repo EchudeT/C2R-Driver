@@ -510,9 +510,12 @@ class DriverImplementationGate:
         for path, record in records.items():
             change_id = str(record.get("change_id"))
             planned = proposed.get(change_id)
-            exact = planned.get("exact_files_and_symbols") if planned else None
-            files = exact.get("files") if isinstance(exact, dict) else None
-            if not planned or not isinstance(files, list) or path not in files:
+            planned_paths = self._planned_change_paths(planned) if planned else ()
+            candidate = PurePosixPath(path)
+            if not any(
+                candidate == planned_path or planned_path in candidate.parents
+                for planned_path in planned_paths
+            ):
                 raise WorkflowError(
                     f"pre-existing target change lacks a frozen necessity record: {path}"
                 )
@@ -542,6 +545,30 @@ class DriverImplementationGate:
             raise WorkflowError("driver-owned plan cannot modify pre-existing target files")
         if required is not ChangeLevel.DRIVER_OWNED and not records:
             raise WorkflowError("target change plan requires a pre-existing target change")
+
+    @staticmethod
+    def _planned_change_paths(change: dict[str, Any]) -> tuple[PurePosixPath, ...]:
+        locators = change.get("exact_files_and_symbols")
+        if not isinstance(locators, list) or not locators:
+            raise WorkflowError("target change plan has invalid exact file and symbol locators")
+        paths = []
+        for locator in locators:
+            if not isinstance(locator, str):
+                raise WorkflowError("target change plan has invalid exact file and symbol locators")
+            raw_path, separator, symbols = locator.partition(":")
+            value = raw_path.strip().rstrip("/")
+            path = PurePosixPath(value)
+            if (
+                not separator
+                or not value
+                or not symbols.strip()
+                or path.is_absolute()
+                or ".." in path.parts
+                or path.as_posix() != value
+            ):
+                raise WorkflowError("target change plan has invalid exact file and symbol locators")
+            paths.append(path)
+        return tuple(paths)
 
     def _target_symbols(self) -> None:
         table = json_object(

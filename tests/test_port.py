@@ -57,6 +57,25 @@ def options(root: Path) -> PortOptions:
 
 
 class PortRunnerTests(unittest.TestCase):
+    def test_implementation_gate_failure_is_a_same_thread_correction(self) -> None:
+        project = SimpleNamespace(
+            artifacts=SimpleNamespace(path_for_digest=lambda _digest: Path("response.json"))
+        )
+        job = ArtifactOccurrence("a" * 64, 1)
+
+        with (
+            patch("driver_port_factory.port.ImplementationResponse.read", return_value=object()),
+            patch(
+                "driver_port_factory.port.DriverImplementationService.finalize",
+                side_effect=WorkflowError("target change inventory is incomplete"),
+            ),
+            self.assertRaisesRegex(
+                CodexOutputError,
+                "driver implementation failed: target change inventory is incomplete",
+            ),
+        ):
+            PortRunner._accept_implementation_result(project, job)
+
     def test_compliance_implementation_finding_retries_smallest_gate(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)

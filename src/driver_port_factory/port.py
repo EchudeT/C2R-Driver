@@ -721,10 +721,15 @@ class PortRunner:
 
     @staticmethod
     def _accept_implementation_result(project: Project, job: ArtifactOccurrence) -> None:
-        DriverImplementationService().finalize(
-            project,
-            ImplementationResponse.read(project.artifacts.path_for_digest(job.digest)),
-        )
+        try:
+            DriverImplementationService().finalize(
+                project,
+                ImplementationResponse.read(project.artifacts.path_for_digest(job.digest)),
+            )
+        except CodexOutputError:
+            raise
+        except WorkflowError as error:
+            raise CodexOutputError(f"driver implementation failed: {error}") from error
 
     def _compliance(self, project: Project) -> None:
         self._codex_gate(
