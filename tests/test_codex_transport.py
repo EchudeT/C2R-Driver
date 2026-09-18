@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import sys
+import json
+from subprocess import CompletedProcess
 from pathlib import Path
 
 from driver_port_factory.codex.transport import execute
@@ -8,6 +10,7 @@ from driver_port_factory.codex.gateway import CodexExecGateway, CodexJob, CodexR
 from driver_port_factory.codex.contracts import CodexSandbox
 from driver_port_factory.core.models import ActorRole, WorkflowError
 from driver_port_factory.migration.contracts import MigrationStage
+from driver_port_factory.environment.contracts import EnvironmentStage
 from unittest.mock import patch
 import pytest
 
@@ -48,3 +51,35 @@ def test_concurrent_resume_is_rejected_and_lock_released(tmp_path):
     with patch.object(gateway, "_run", side_effect=nested):
         assert gateway.run(job).final_response == "ok"
         assert gateway.run(job).final_response == "ok"
+
+
+@pytest.mark.parametrize("events,failed", [
+    ([{"type": "item.completed", "item": {"type": "agent_message", "text": "still working"}}], True),
+    ([{"type": "turn.completed"}], True),
+    ([{"type": "turn.failed"}], True),
+    ([{"type": "error", "message": "Reconnecting"},
+      {"type": "item.completed", "item": {"type": "agent_message", "text": "done"}},
+      {"type": "turn.completed"}], False),
+])
+def test_only_completed_turn_with_response_is_accepted(tmp_path, events, failed):
+    job = CodexJob(stage=MigrationStage.DRIVER_IMPLEMENTATION,
+                   actor_role=ActorRole.DEVELOPER, objective="test", prompt="test",
+                   execution_root=tmp_path, sandbox=CodexSandbox.WORKSPACE_WRITE)
+    output = "\n".join(json.dumps(event) for event in [None, *events])
+    with patch("driver_port_factory.codex.gateway.execute",
+               return_value=CompletedProcess([], 0, output, "")):
+        assert bool(CodexExecGateway().run(job).error) is failed
+
+
+def test_environment_resume_can_download_dependencies(tmp_path):
+    job = CodexJob(stage=EnvironmentStage.RECOVERY,
+                   actor_role=ActorRole.DEVELOPER, objective="test", prompt="test",
+                   execution_root=tmp_path, sandbox=CodexSandbox.WORKSPACE_WRITE,
+                   thread_id="environment-worker")
+    with patch("driver_port_factory.codex.gateway.execute",
+               return_value=CompletedProcess([], 0, "", "")) as run:
+        CodexExecGateway().run(job)
+    command = run.call_args.args[0]
+    assert "sandbox_workspace_write.network_access=true" in command
+    assert 'sandbox_mode="workspace-write"' in command
+    assert (tmp_path / ".dpf-output" / "cargo-home").is_dir()

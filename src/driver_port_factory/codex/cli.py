@@ -19,7 +19,7 @@ from ..core.models import (
 )
 from ..core.project import Project
 from .contracts import CodexArtifact, CodexBackend, CodexExecEventType
-from .gateway import CodexExecGateway, CodexJob, CodexResult, CodexSdkGateway
+from .gateway import CodexExecGateway, CodexJob, CodexResult
 from .policy import CodexExecutionPolicy
 from .prompts import RenderedPrompt, SkillPromptComposer
 from .sessions import save_session, stage_session
@@ -95,7 +95,7 @@ def run_codex_stage(
             "sandbox": grant.sandbox.value,
         },
     }
-    if stage_key in CodexExecutionPolicy.WRITABLE_STAGES:
+    if stage_key in CodexExecutionPolicy.DEPENDENCY_STAGES:
         context["tool_runtime"]["cargo_home"] = str(
             grant.execution_root / ".dpf-output" / "cargo-home"
         )
@@ -134,8 +134,9 @@ def run_codex_stage(
         thread_id=thread_id,
     )
     output_path = codex_dir / f"{stage_key.value}-{job.job_id}.result"
+    known_documents = session.get("documents", {}) if thread_id == session.get("thread_id") else {}
     documents = {
-        **session.get("documents", {}),
+        **known_documents,
         **{doc.relative_path: doc.digest for doc in rendered.documents},
     }
 
@@ -151,10 +152,9 @@ def run_codex_stage(
         with output_path.with_suffix(".events.jsonl").open("a", encoding="utf-8") as stream:
             stream.write(json.dumps(event) + "\n")
         if event.get("type") == CodexExecEventType.THREAD_STARTED.value:
-            save_session(project, key, event.get("thread_id"), session.get("documents", {}))
+            save_session(project, key, event.get("thread_id"), known_documents)
 
-    gateway_type = CodexExecGateway if backend is CodexBackend.EXEC else CodexSdkGateway
-    gateway = gateway_type(codex_bin, on_event=checkpoint)
+    gateway = CodexExecGateway(codex_bin, on_event=checkpoint)
     started = time.monotonic()
     try:
         result = gateway.run(job)
@@ -173,7 +173,7 @@ def run_codex_stage(
         project,
         key,
         result.thread_id,
-        documents if not result.error else session.get("documents", {}),
+        documents if not result.error else known_documents,
     )
     output_path.write_text(result.final_response, encoding="utf-8")
     if result.events:

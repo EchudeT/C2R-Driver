@@ -149,7 +149,8 @@ class AlignmentTests(unittest.TestCase):
                 Path(directory),
                 CodexSandbox.WORKSPACE_WRITE,
             )
-            event = '{"type":"item.completed","item":{"type":"agent_message","text":"ok"}}'
+            event = ('{"type":"item.completed","item":{"type":"agent_message","text":"ok"}}\n'
+                     '{"type":"turn.completed"}\n')
             with patch(
                 "driver_port_factory.codex.gateway.execute",
                 return_value=CompletedProcess([], 0, event, ""),
@@ -233,6 +234,8 @@ class AlignmentTests(unittest.TestCase):
             self.assertEqual(calls[1].thread_id, "implementation-session")
             self.assertIn("review_feedback_path", calls[1].prompt)
             self.assertIn("skill_document_unchanged", calls[1].prompt)
+            self.assertIn("source_path=", calls[1].prompt)
+            self.assertIn(str(Path(project.config.skill_root).resolve()), calls[1].prompt)
             self.assertLess(len(calls[1].prompt), len(calls[0].prompt))
             metrics = [json.loads(path.read_text()) for path in
                        (project.control / "codex").glob("driver_implementation-*.metrics.json")]

@@ -122,6 +122,8 @@ its internals. If a supplied tool fails on otherwise valid inputs, report the ex
 first error; the supervising controller maintainer owns infrastructure fixes.
 Unchanged Skill documents are already in this conversation. On resume, inspect changed inputs and
 review feedback, reuse prior decisions, and repair the smallest causal defect.
+After compaction, if a required Skill rule is no longer available in context, reopen its
+skill_document_unchanged.source_path; an unchanged hash is not a substitute for knowing the rule.
 When repairing a finding, trace its cause through affected callers, callbacks and failure exits;
 do not merely move the same invalid behavior into another function or execution context. Add the
 smallest regression that distinguishes the old failure from the repaired behavior, run affected

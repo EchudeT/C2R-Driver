@@ -34,6 +34,9 @@ class CodexExecutionPolicy:
             MigrationStage.PUBLIC_QEMU_VALIDATION,
         }
     )
+    DEPENDENCY_STAGES = WRITABLE_STAGES | frozenset(
+        {EnvironmentStage.RECOVERY, SourceAnalysisStage.SOURCE_CLOSURE}
+    )
     REPORT_WORKSPACE_STAGES = frozenset(
         {
             EnvironmentStage.RECOVERY,

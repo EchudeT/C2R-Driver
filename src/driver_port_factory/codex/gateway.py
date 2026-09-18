@@ -93,9 +93,9 @@ class CodexExecGateway:
         command.extend(["--disable", "apps"])
         command.extend([
             "-c", "sandbox_workspace_write.network_access="
-            + ("true" if job.stage in CodexExecutionPolicy.WRITABLE_STAGES else "false"),
+            + ("true" if job.stage in CodexExecutionPolicy.DEPENDENCY_STAGES else "false"),
         ])
-        if job.stage in CodexExecutionPolicy.WRITABLE_STAGES:
+        if job.stage in CodexExecutionPolicy.DEPENDENCY_STAGES:
             # Dependency downloads belong to the project, not the user's read-only
             # global cache. Keep source/baseline filesystem restrictions in place.
             cargo_home = execution_root / ".dpf-output" / "cargo-home"
@@ -115,7 +115,9 @@ class CodexExecGateway:
         events: list[dict[str, Any]] = []
         for line in completed.stdout.splitlines():
             try:
-                events.append(json.loads(line))
+                event = json.loads(line)
+                if isinstance(event, dict):
+                    events.append(event)
             except json.JSONDecodeError:
                 events.append({"type": "unparsed.stdout", "text": line})
         failure = None
@@ -153,8 +155,8 @@ class CodexExecGateway:
         )
         if not failure and any(event.get("type") == "turn.failed" for event in events):
             failure = "Codex turn failed; inspect preserved event log"
+        if not failure and not any(event.get("type") == "turn.completed" for event in events):
+            failure = "Codex stream ended without a completed turn; resume the preserved conversation"
+        if not failure and not final_response.strip():
+            failure = "Codex completed without a final response; resume the preserved conversation"
         return CodexResult(job.job_id, final_response, thread_id, tuple(events), failure)
-
-
-class CodexSdkGateway(CodexExecGateway):
-    """Compatibility alias using the persistent CLI transport."""

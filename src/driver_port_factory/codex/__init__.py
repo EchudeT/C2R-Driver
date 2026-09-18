@@ -1,6 +1,6 @@
 """Codex job contracts, Skill prompt composition, and gateways."""
 
-from .gateway import CodexExecGateway, CodexJob, CodexResult, CodexSdkGateway
+from .gateway import CodexExecGateway, CodexJob, CodexResult
 from .prompts import (
     PromptPack,
     RenderedPrompt,
@@ -13,7 +13,6 @@ __all__ = [
     "CodexExecGateway",
     "CodexJob",
     "CodexResult",
-    "CodexSdkGateway",
     "PromptPack",
     "RenderedPrompt",
     "SkillPromptComposer",

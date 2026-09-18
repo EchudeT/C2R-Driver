@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+from html import escape
 import json
 from dataclasses import dataclass
 from pathlib import Path
@@ -247,7 +248,8 @@ class SkillPromptComposer:
              f"{document.content}\n</skill_document>"
              if (known_documents or {}).get(document.relative_path) != document.digest
              else f'<skill_document_unchanged path="{document.relative_path}" '
-                  f'sha256="{document.digest}" />')
+                  f'sha256="{document.digest}" '
+                  f'source_path="{escape(str(self.skill_root / document.relative_path), quote=True)}" />')
             for document in documents
         )
         text = self.prompt_pack.template

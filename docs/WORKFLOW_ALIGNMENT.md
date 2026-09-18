@@ -106,7 +106,7 @@ Clang 18 的 AnalysisConsumer 会跳过 `__inline` 前缀函数的 CFG。
 执行器直接继承当前 `$CODEX_HOME/config.toml`（未设置时为 `~/.codex/config.toml`）
 及其 provider/env_key/auth 配置，不在仓库中复制密钥或硬编码旧中转。
 更换用户配置会改变会话身份，避免把旧 provider 的会话误用于新 provider。
-`--backend sdk` 为兼容入口，现通过相同的 CLI 传输，具有相同恢复语义。
+仅支持 `--backend exec`，不保留 SDK 兼容入口或旧会话回退。
 
 ```sh
 .venv/bin/python -m driver_port_factory.cli port run ../e2e-ne2000-agent-01 \

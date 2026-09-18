@@ -15,7 +15,6 @@ class CodexArtifact(StrEnum):
 
 class CodexBackend(StrEnum):
     EXEC = "exec"
-    SDK = "sdk"
 
 
 class CodexSandbox(StrEnum):
