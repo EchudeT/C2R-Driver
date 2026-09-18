@@ -9,6 +9,7 @@ from typing import Any
 
 from ..acquisition.repository import load_repository_acquisition
 from ..core.contracts import ArtifactKey
+from ..core.container_trace import ContainerTrace
 from ..core.execution import CommandResult, CommandRunner
 from ..core.models import FileArtifact, GeneratedArtifact, StageStatus, WorkflowError, utc_now
 from ..core.project import Project
@@ -81,32 +82,33 @@ def run_public_harness(
         path: (path.stat().st_mtime_ns, path.stat().st_size)
         for path in log_root.rglob("*") if path.is_file()
     }
-    result = CommandRunner(attempt_dir / "command").run(
-        [
-            strace,
-            "-f",
-            "-qq",
-            "-s",
-            "65535",
-            "-e",
-            "trace=execve",
-            "-o",
-            str(trace_path),
-            "/bin/sh",
-            str(script_path),
-        ],
-        cwd=worktree,
-        environment={
-            "DPF_RUNTIME_ARTIFACT": str(runtime_path),
-            "DPF_TARGET_WORKTREE": str(worktree),
-        },
-        timeout_seconds=3600,
-    )
+    with ContainerTrace(worktree, attempt_dir / "container-processes.json") as containers:
+        result = CommandRunner(attempt_dir / "command").run(
+            [
+                strace,
+                "-f",
+                "-qq",
+                "-s",
+                "65535",
+                "-e",
+                "trace=execve",
+                "-o",
+                str(trace_path),
+                "/bin/sh",
+                str(script_path),
+            ],
+            cwd=worktree,
+            environment={
+                "DPF_RUNTIME_ARTIFACT": str(runtime_path),
+                "DPF_TARGET_WORKTREE": str(worktree),
+            },
+            timeout_seconds=3600,
+        )
     lines = (
         trace_path.read_text(encoding="utf-8", errors="replace").splitlines()
         if trace_path.is_file() else []
     )
-    successful = successful_execs(lines)
+    successful = successful_execs(lines) + containers.executions(trace_path)
     executed = tuple(path for path, _ in successful)
     qemu_lines = tuple(
         line
@@ -183,6 +185,8 @@ class PublicQemuService:
                 "executed_programs": list(observed.executed_programs),
                 "qemu_execs": list(observed.qemu_execs),
                 "runtime_bound": observed.runtime_bound,
+                "container_evidence": str(observed.trace_path.parent / "container-processes.json"),
+                "container_evidence_sha256": file_sha256(observed.trace_path.parent / "container-processes.json"),
             },
             "logs": list(observed.logs),
             "evidence_status": (

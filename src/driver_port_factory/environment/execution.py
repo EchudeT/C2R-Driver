@@ -7,6 +7,7 @@ import uuid
 from dataclasses import asdict, dataclass
 from pathlib import Path
 
+from ..core.container_trace import ContainerTrace
 from ..core.execution import CommandRunner
 from ..core.models import (
     ActorRole,
@@ -68,26 +69,30 @@ class ExperimentExecutor:
         attempt_dir = project.control / "environment" / "codex-harness" / str(uuid.uuid4())
         attempt_dir.mkdir(parents=True, exist_ok=True)
         trace_path = attempt_dir / "execve.log"
-        result = CommandRunner(attempt_dir / "command").run(
-            [
-                strace,
-                "-f",
-                "-qq",
-                "-e",
-                "trace=execve",
-                "-o",
-                str(trace_path),
-                "/bin/sh",
-                str(script_path),
-            ],
-            cwd=script_path.parent,
-            environment={
-                "DPF_PROJECT_ROOT": str(project.root),
-                "DPF_ENVIRONMENT_WORKDIR": str(script_path.parent),
-            },
-            timeout_seconds=3600,
-        )
+        with ContainerTrace(script_path.parent, attempt_dir / "container-processes.json") as containers:
+            result = CommandRunner(attempt_dir / "command").run(
+                [
+                    strace,
+                    "-f",
+                    "-qq",
+                    "-s",
+                    "65535",
+                    "-e",
+                    "trace=execve",
+                    "-o",
+                    str(trace_path),
+                    "/bin/sh",
+                    str(script_path),
+                ],
+                cwd=script_path.parent,
+                environment={
+                    "DPF_PROJECT_ROOT": str(project.root),
+                    "DPF_ENVIRONMENT_WORKDIR": str(script_path.parent),
+                },
+                timeout_seconds=3600,
+            )
         executed = self._executed_programs(trace_path)
+        executed.extend(path for path, _ in containers.executions(trace_path))
         qemu_programs = [
             path for path in executed if Path(path).name.startswith("qemu-system-")
         ]
@@ -121,6 +126,8 @@ class ExperimentExecutor:
                 "sha256": file_sha256(trace_path),
                 "executed_programs": executed,
                 "qemu_programs": qemu_programs,
+                "container_evidence": str(containers.output),
+                "container_evidence_sha256": file_sha256(containers.output),
             },
             "readiness": readiness.value,
             "recorded_at": utc_now(),
@@ -139,8 +146,8 @@ class ExperimentExecutor:
                 str(attempt_path),
                 (f"smoke harness exit={result.exit_code}, timed_out={result.timed_out}, "
                  f"observed QEMU execs={len(qemu_programs)}. "
-                 "Host strace cannot follow Docker-daemon container processes; "
-                 "a container-only launch requires collector support, not a fake QEMU wrapper. "
+                 "Container runs require a fresh container, an exact workspace bind mount, "
+                 "a traced docker run, and a live QEMU process observation. "
                  f"Inspect stdout={result.stdout_path}, stderr={result.stderr_path}, "
                  f"trace={trace_path}"),
             )
