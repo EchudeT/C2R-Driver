@@ -2,6 +2,10 @@ from __future__ import annotations
 
 import json
 import uuid
+import fcntl
+import hashlib
+import os
+import tempfile
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -49,15 +53,27 @@ class CodexExecGateway:
         self.on_event = on_event
 
     def run(self, job: CodexJob) -> CodexResult:
+        # A resumed thread has one writer even across controllers or cwd changes.
+        identity = job.thread_id or str(job.execution_root.resolve())
+        root = Path(tempfile.gettempdir()) / f"dpf-session-locks-{os.getuid()}"
+        root.mkdir(mode=0o700, exist_ok=True)
+        with (root / hashlib.sha256(identity.encode()).hexdigest()).open("a") as lock:
+            try:
+                fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            except BlockingIOError as error:
+                raise WorkflowError("conversation already running; do not start another writer") from error
+            return self._run(job)
+
+    def _run(self, job: CodexJob) -> CodexResult:
         execution_root = job.execution_root.resolve()
         if not execution_root.is_dir():
             raise WorkflowError(f"Codex execution root does not exist: {execution_root}")
+        prefix = [self.codex_bin, "--cd", str(execution_root), "exec"]
         if job.thread_id:
-            command = [self.codex_bin, "exec", "resume", "--json"]
+            command = [*prefix, "resume", "--json"]
         else:
             command = [
-                self.codex_bin,
-                "exec",
+                *prefix,
                 "--json",
                 "--sandbox",
                 job.sandbox.value,

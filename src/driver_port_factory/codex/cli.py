@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+import time
 from pathlib import Path
 
 from ..cli_support import CommandRegistry, command_registry
@@ -21,7 +22,7 @@ from .contracts import CodexArtifact, CodexBackend, CodexExecEventType
 from .gateway import CodexExecGateway, CodexJob, CodexResult, CodexSdkGateway
 from .policy import CodexExecutionPolicy
 from .prompts import RenderedPrompt, SkillPromptComposer
-from .sessions import read_session, save_session, session_key
+from .sessions import save_session, stage_session
 
 
 def _render_prompt(
@@ -83,14 +84,15 @@ def run_codex_stage(
     elif stage.status is not StageStatus.RUNNING:
         raise WorkflowError(f"Codex stage must be READY or RUNNING, got {stage.status.value}")
     grant = CodexExecutionPolicy().grant(project, stage_key)
-    key = session_key(project, stage_key, grant, model, backend.value)
-    session = read_session(project, key)
+    key, session = stage_session(project, stage_key, grant, model, backend.value)
     thread_id = thread_id or session.get("thread_id")
     context = {
         **(context or {}),
         "tool_runtime": {
             "python": sys.executable,
             "workflow_cli": [sys.executable, "-m", "driver_port_factory.cli"],
+            "execution_root": str(grant.execution_root),
+            "sandbox": grant.sandbox.value,
         },
     }
     if stage_key in CodexExecutionPolicy.WRITABLE_STAGES:
@@ -137,7 +139,15 @@ def run_codex_stage(
         **{doc.relative_path: doc.digest for doc in rendered.documents},
     }
 
+    reported_usage = []
+    first_event_seconds = None
+
     def checkpoint(event: dict) -> None:
+        nonlocal first_event_seconds
+        if first_event_seconds is None and event.get("type") not in {"thread.started", "turn.started"}:
+            first_event_seconds = round(time.monotonic() - started, 3)
+        if event.get("type") == "turn.completed" and event.get("usage"):
+            reported_usage.append(event["usage"])
         with output_path.with_suffix(".events.jsonl").open("a", encoding="utf-8") as stream:
             stream.write(json.dumps(event) + "\n")
         if event.get("type") == CodexExecEventType.THREAD_STARTED.value:
@@ -145,7 +155,20 @@ def run_codex_stage(
 
     gateway_type = CodexExecGateway if backend is CodexBackend.EXEC else CodexSdkGateway
     gateway = gateway_type(codex_bin, on_event=checkpoint)
-    result = gateway.run(job)
+    started = time.monotonic()
+    try:
+        result = gateway.run(job)
+    finally:
+        # Keep a record even if transport fails; CLI token counters may be cumulative,
+        # so retain the reported usage rather than summing it into a fictitious bill.
+        output_path.with_suffix(".metrics.json").write_text(json.dumps({
+            "stage": stage_key.value, "job_id": job.job_id,
+            "elapsed_seconds": round(time.monotonic() - started, 3),
+            "resumed": bool(thread_id), "prompt_bytes": len(prompt.encode()),
+            "first_response_seconds": first_event_seconds,
+            "reported_usage": reported_usage,
+            "usage_semantics": "raw CLI counters; may include resumed history; not billing totals",
+        }))
     save_session(
         project,
         key,

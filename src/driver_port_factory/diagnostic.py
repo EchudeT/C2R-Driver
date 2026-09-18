@@ -12,7 +12,7 @@ from .acquisition.repository import load_repository_acquisition
 from .codex.gateway import CodexExecGateway, CodexJob
 from .codex.policy import CodexExecutionPolicy
 from .codex.prompts import SkillPromptComposer
-from .codex.sessions import read_session, session_key
+from .codex.sessions import stage_session
 from .composition import WORKFLOW_STAGE_CATALOG, open_project
 from .migration.contracts import MigrationStage
 
@@ -27,7 +27,7 @@ def run(workspace: Path, review: Path, skill_root: Path, model: str) -> Path:
     worktree = (project.root / acquisition.target_worktree.path).resolve()
     stage = MigrationStage.ARTIFACT_PREPARATION
     grant = CodexExecutionPolicy().grant(project, stage)
-    session = read_session(project, session_key(project, stage, grant, model, "exec"))
+    _, session = stage_session(project, stage, grant, model, "exec")
     if not session.get("thread_id"):
         raise ValueError("existing implementation conversation is required")
     attempt = project.control / "diagnostic-runs" / str(uuid.uuid4())

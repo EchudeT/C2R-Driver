@@ -24,9 +24,9 @@ def test_diagnostic_keeps_acceptance_ledger_unchanged(tmp_path):
             self.on_event({"type": "thread.started", "thread_id": "original-worker"})
             return CodexResult(job.job_id, "DIAGNOSTIC ONLY", "original-worker")
 
-    with patch("driver_port_factory.diagnostic.read_session", return_value={
+    with patch("driver_port_factory.diagnostic.stage_session", return_value=("key", {
         "thread_id": "original-worker", "documents": {},
-    }), patch("driver_port_factory.diagnostic.CodexExecGateway", Gateway):
+    })), patch("driver_port_factory.diagnostic.CodexExecGateway", Gateway):
         attempt = run(project.root, review, Path(project.config.skill_root), "gpt-5.6-sol")
     assert project.database_path.read_bytes() == before
     assert jobs[0].thread_id == "original-worker"

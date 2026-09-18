@@ -12,7 +12,10 @@ from driver_port_factory.acquisition.repository import load_repository_acquisiti
 from driver_port_factory.codex.contracts import CodexBackend, CodexOutputError, CodexSandbox
 from driver_port_factory.codex.gateway import CodexExecGateway, CodexJob, CodexResult
 from driver_port_factory.codex.policy import CodexExecutionPolicy
-from driver_port_factory.codex.sessions import session_key
+from driver_port_factory.codex.sessions import session_key, legacy_session_key, save_session, stage_session
+from driver_port_factory.environment.contracts import EnvironmentStage
+from driver_port_factory.target_study.contracts import TargetStudyStage
+from driver_port_factory.acquisition.contracts import AcquisitionStage
 from driver_port_factory.core.models import ActorRole, FileArtifact, StageStatus, WorkflowError
 from driver_port_factory.migration.artifact_preparation import ArtifactPreparationService
 from driver_port_factory.migration.contracts import MigrationArtifact, MigrationStage
@@ -20,6 +23,7 @@ from driver_port_factory.migration.implementation import DriverImplementationSer
 from driver_port_factory.migration.public_qemu import PublicQemuService
 from driver_port_factory.port import PortOptions, PortRunner
 from driver_port_factory.source_analysis.clang_backend import AnalyzerFamily
+from driver_port_factory.source_analysis.contracts import SourceAnalysisStage
 from driver_port_factory.source_analysis.closure import SourceClosureService
 from driver_port_factory.source_analysis.query import query_facts
 from driver_port_factory.source_analysis.structured import StructuredCAnalysisService
@@ -179,6 +183,10 @@ class AlignmentTests(unittest.TestCase):
                 return session_key(project, stage, policy.grant(project, stage), None, "exec")
 
             self.assertEqual(key(MigrationStage.CONTRACTS), key(MigrationStage.TEST_ADAPTATION))
+            for stage in (EnvironmentStage.RECOVERY, TargetStudyStage.STUDY,
+                          SourceAnalysisStage.SOURCE_CLOSURE, AcquisitionStage.REVISION_SELECTION,
+                          AcquisitionStage.EVIDENCE_CLOSURE, MigrationStage.CONTRACTS):
+                self.assertEqual(key(stage), key(MigrationStage.DRIVER_IMPLEMENTATION))
             self.assertEqual(
                 key(MigrationStage.DRIVER_IMPLEMENTATION), key(MigrationStage.ARTIFACT_PREPARATION)
             )
@@ -226,6 +234,27 @@ class AlignmentTests(unittest.TestCase):
             self.assertIn("review_feedback_path", calls[1].prompt)
             self.assertIn("skill_document_unchanged", calls[1].prompt)
             self.assertLess(len(calls[1].prompt), len(calls[0].prompt))
+            metrics = [json.loads(path.read_text()) for path in
+                       (project.control / "codex").glob("driver_implementation-*.metrics.json")]
+            self.assertEqual(len(metrics), 2)
+            self.assertEqual(sorted(item["resumed"] for item in metrics), [False, True])
+            self.assertTrue(all(item["elapsed_seconds"] >= 0 for item in metrics))
+
+    def test_persistent_worker_inherits_legacy_stage_session(self):
+        with tempfile.TemporaryDirectory() as directory:
+            project = ready_implementation(Path(directory))
+            stage = MigrationStage.DRIVER_IMPLEMENTATION
+            grant = CodexExecutionPolicy().grant(project, stage)
+            old = legacy_session_key(project, stage, grant, None, "exec")
+            save_session(project, old, "legacy-worker", {"skill": "hash"})
+            key, session = stage_session(project, stage, grant, None, "exec")
+            self.assertNotEqual(old, key)
+            self.assertEqual(session["thread_id"], "legacy-worker")
+            save_session(project, key, "persistent-worker", session["documents"])
+            self.assertEqual(stage_session(project, stage, grant, None, "exec")[1]["thread_id"],
+                             "persistent-worker")
+            self.assertNotEqual(key, session_key(project, stage, grant, "different-model", "exec"))
+            self.assertNotEqual(key, session_key(project, stage, grant, None, "sdk"))
 
     def test_artifact_checker_rejects_stale_payload_and_preserves_attempts(self):
         with tempfile.TemporaryDirectory() as directory:

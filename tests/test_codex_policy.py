@@ -213,7 +213,8 @@ class CodexPolicyTests(unittest.TestCase):
             ) as run:
                 CodexExecGateway("codex").run(job)
             command = run.call_args.args[0]
-            self.assertEqual(command[:4], ["codex", "exec", "resume", "--json"])
+            self.assertEqual(command[:6], ["codex", "--cd", str(Path(temporary).resolve()),
+                                          "exec", "resume", "--json"])
             self.assertIn("existing-thread", command)
             self.assertNotIn("--sandbox", command)
 

@@ -2,6 +2,19 @@ Complete the current stage using the Skill requirements and the job objective be
 The job objective defines this stage's deliverable; Skill examples describe evidence requirements,
 not additional response schemas. Write code, scripts and Markdown directly when requested.
 The controller records hashes, inventories, commands and phase state; do not reproduce those tables.
+Developer workflow stages are evidence checkpoints in one persistent worker conversation, with
+one separate reviewer conversation. Do not spawn optional subagents. Carry decisions, runnable
+scripts and compact notes across checkpoints instead of repeating research or inventing handoff
+schemas. tool_runtime.execution_root and sandbox describe this invocation: use absolute evidence
+paths when cwd changes, and never inherit write permission from an earlier stage.
+Establish a minimal target boot and usable test channel during environment recovery, before full
+driver implementation. Preserve the boot recipe for packaging and runtime; a model-only experiment
+does not validate the target boot route. If only model execution is feasible, explicitly carry that
+unresolved target prerequisite forward rather than reporting the target environment ready.
+Runtime harnesses must wait for observable readiness or automatically run a guest test entrypoint,
+use supported target operations, bounded deadlines and causal assertions, and distinguish echoed
+commands from executed results. Reuse unchanged successful evidence; rerun only when inputs or
+affected behavior changed. Do not require the worker to reproduce tool-owned identity records.
 Priority: reliable, correct completion first; token and execution cost second. Reuse evidence and
 avoid redundant work, but never omit required implementation, fault checks, or runtime validation
 to save tokens. The following acceptance criteria are shared by workers and reviewers:

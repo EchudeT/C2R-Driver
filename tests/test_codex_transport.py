@@ -4,6 +4,12 @@ import sys
 from pathlib import Path
 
 from driver_port_factory.codex.transport import execute
+from driver_port_factory.codex.gateway import CodexExecGateway, CodexJob, CodexResult
+from driver_port_factory.codex.contracts import CodexSandbox
+from driver_port_factory.core.models import ActorRole, WorkflowError
+from driver_port_factory.migration.contracts import MigrationStage
+from unittest.mock import patch
+import pytest
 
 
 def test_checkpoint_is_persisted_before_process_completes(tmp_path: Path):
@@ -25,3 +31,20 @@ def test_checkpoint_is_persisted_before_process_completes(tmp_path: Path):
     )
     assert result.returncode == 0
     assert len(result.stderr) <= 8000
+
+
+def test_concurrent_resume_is_rejected_and_lock_released(tmp_path):
+    job = CodexJob(stage=MigrationStage.DRIVER_IMPLEMENTATION,
+                   actor_role=ActorRole.DEVELOPER, objective="test", prompt="test",
+                   execution_root=tmp_path, sandbox=CodexSandbox.WORKSPACE_WRITE,
+                   thread_id=str(tmp_path))
+    gateway = CodexExecGateway()
+
+    def nested(current):
+        with pytest.raises(WorkflowError, match="already running"):
+            gateway.run(current)
+        return CodexResult(current.job_id, "ok", current.thread_id)
+
+    with patch.object(gateway, "_run", side_effect=nested):
+        assert gateway.run(job).final_response == "ok"
+        assert gateway.run(job).final_response == "ok"
