@@ -91,13 +91,16 @@ class CodexExecGateway:
             ]
         )
         command.extend(["--disable", "apps"])
+        command.extend([
+            "-c", "sandbox_workspace_write.network_access="
+            + ("true" if job.stage in CodexExecutionPolicy.WRITABLE_STAGES else "false"),
+        ])
         if job.stage in CodexExecutionPolicy.WRITABLE_STAGES:
             # Dependency downloads belong to the project, not the user's read-only
             # global cache. Keep source/baseline filesystem restrictions in place.
             cargo_home = execution_root / ".dpf-output" / "cargo-home"
             cargo_home.mkdir(parents=True, exist_ok=True)
             command.extend([
-                "-c", "sandbox_workspace_write.network_access=true",
                 "-c", f"shell_environment_policy.set.CARGO_HOME={json.dumps(str(cargo_home))}",
             ])
         command.extend(relay_overrides())

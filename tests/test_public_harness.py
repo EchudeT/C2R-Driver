@@ -14,6 +14,9 @@ from driver_port_factory.core.models import WorkflowError
 from driver_port_factory.core.trace import successful_execs
 from driver_port_factory.migration.public_qemu import run_public_harness
 from driver_port_factory.migration.public_repair import validate_public_repair_bundle
+from driver_port_factory.environment.execution import ExperimentExecutor
+from driver_port_factory.environment.inventory import EnvironmentInspector
+from tests.test_environment import acquired_project
 
 
 def test_final_review_is_required_and_bound_to_its_content(tmp_path: Path):
@@ -39,6 +42,22 @@ def test_interleaved_execs_preserve_success_and_reject_failure():
     assert len(results) == 1
     assert results[0][0] == "/bin/qemu-system-riscv64"
     assert '"image"' in results[0][1]
+
+
+@pytest.mark.skipif(shutil.which("strace") is None, reason="strace required")
+def test_current_environment_harness_rejects_printed_success(tmp_path):
+    project = acquired_project(tmp_path)
+    EnvironmentInspector().inspect(project)
+    script = project.root / "environment-smoke.sh"
+    script.write_text('echo "QMP_READY PASS"\n')
+    report = project.root / "report.md"
+    report.write_text("Claimed ready; verify execution independently.\n")
+    result = ExperimentExecutor().run_codex_harness(
+        project, script_path=script, work_report_path=report,
+    )
+    assert result.readiness.value == "FAIL"
+    attempt = json.loads(Path(result.attempt_path).read_text())
+    assert not attempt["exec_trace"]["qemu_programs"]
 
 
 @pytest.mark.skipif(shutil.which("strace") is None, reason="strace required")

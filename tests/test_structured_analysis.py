@@ -674,7 +674,9 @@ class StructuredCAnalysisTests(unittest.TestCase):
                 SourceAnalysisStage.SOURCE_CLOSURE,
                 SourceAnalysisArtifact.COMPILE_MANIFEST,
             )["compiler"]
-            self.assertNotEqual(facts["analyzer"]["sha256"], compiler["sha256"])
+            # gcc and clang can both be ccache symlinks. The dispatch path, not
+            # wrapper binary bytes, distinguishes the compiler invocation.
+            self.assertNotEqual(facts["analyzer"]["invocation_path"], compiler["resolved_path"])
             self.assertEqual(
                 AbiCompatibility.from_record(facts["analyzer"]["target_abi"]),
                 AbiCompatibility.from_record(compiler["verified_target_abi"]),
