@@ -21,8 +21,6 @@ from .job import (
 )
 from .parsing import exact_object, schema_version
 from .repository_role import RepositoryRole
-from .repository_spec import RepositorySpec
-from .revision_compatibility import CompatibilityClaimKind, CompatibilityEvidence
 
 _FULL_COMMIT = re.compile(r"[0-9a-fA-F]{40}|[0-9a-fA-F]{64}")
 _RELEASE_TAG = re.compile(r"(?:refs/tags/)?[vV]?\d+(?:\.\d+)+(?:[-._][A-Za-z0-9]+)*")
@@ -71,85 +69,9 @@ class RepositoryCandidate:
 
 
 @dataclass(frozen=True, slots=True)
-class ProposedRevisionBinding:
-    role: RepositoryRole
-    requested_ref: str
-
-    @classmethod
-    def from_dict(cls, value: object) -> ProposedRevisionBinding:
-        if not isinstance(value, dict) or set(value) != {"role", "requested_ref"}:
-            raise WorkflowError("compatibility binding has an invalid structure")
-        return cls(
-            RepositoryRole(value.get("role")),
-            nonempty(value.get("requested_ref"), "compatibility binding ref"),
-        )
-
-    def to_dict(self) -> dict[str, str]:
-        return {"role": self.role.value, "requested_ref": self.requested_ref}
-
-
-@dataclass(frozen=True, slots=True)
-class CompatibilityCitation:
-    source_url: str
-    claim: str
-    excerpt: str
-    claim_kind: CompatibilityClaimKind
-    bindings: tuple[ProposedRevisionBinding, ...]
-    max_bytes: int
-
-    @classmethod
-    def from_dict(cls, value: object) -> CompatibilityCitation:
-        candidate = exact_object(
-            value,
-            required={"source_url", "claim", "excerpt", "bindings"},
-            optional={"max_bytes"},
-            label="compatibility citation",
-        )
-        bindings = candidate["bindings"]
-        if not isinstance(bindings, list) or not bindings:
-            raise WorkflowError("compatibility citation bindings must be non-empty")
-        try:
-            parsed_bindings = tuple(ProposedRevisionBinding.from_dict(item) for item in bindings)
-        except (TypeError, ValueError) as error:
-            raise WorkflowError("compatibility citation has an invalid binding") from error
-        if len({binding.role for binding in parsed_bindings}) != len(parsed_bindings):
-            raise WorkflowError("compatibility citation binding roles must be unique")
-        max_bytes = candidate.get("max_bytes", 4 * 1024 * 1024)
-        if not isinstance(max_bytes, int) or not 0 < max_bytes <= 16 * 1024 * 1024:
-            raise WorkflowError("compatibility citation max_bytes is outside the controlled range")
-        source_url = nonempty(candidate["source_url"], "compatibility citation URL")
-        parsed_url = urlparse(source_url)
-        if parsed_url.scheme not in {"http", "https"} or not parsed_url.netloc:
-            raise WorkflowError("compatibility citation must use HTTP or HTTPS")
-        claim_kind = (
-            CompatibilityClaimKind.CROSS_REPOSITORY
-            if len(parsed_bindings) > 1
-            else CompatibilityClaimKind.MAINTENANCE
-        )
-        return cls(
-            source_url,
-            nonempty(candidate["claim"], "compatibility claim"),
-            nonempty(candidate["excerpt"], "compatibility evidence excerpt"),
-            claim_kind,
-            parsed_bindings,
-            max_bytes,
-        )
-
-    def to_dict(self) -> dict[str, object]:
-        return {
-            "source_url": self.source_url,
-            "claim": self.claim,
-            "excerpt": self.excerpt,
-            "bindings": [binding.to_dict() for binding in self.bindings],
-            "max_bytes": self.max_bytes,
-        }
-
-
-@dataclass(frozen=True, slots=True)
 class RevisionSelectionProposal:
     migration_envelope_sha256: str
     repositories: tuple[RepositoryCandidate, ...]
-    compatibility_evidence: tuple[CompatibilityCitation, ...]
     schema_version = 1
 
     @classmethod
@@ -160,28 +82,21 @@ class RevisionSelectionProposal:
                 "schema_version",
                 "migration_envelope_sha256",
                 "repositories",
-                "compatibility_evidence",
             },
             label="revision selection proposal",
         )
         schema_version(candidate, "revision selection proposal")
         raw_repositories = candidate["repositories"]
-        raw_evidence = candidate["compatibility_evidence"]
         if not isinstance(raw_repositories, list):
             raise WorkflowError("revision selection proposal requires repositories")
-        if not isinstance(raw_evidence, list):
-            raise WorkflowError("revision selection proposal requires compatibility evidence")
         repositories = tuple(RepositoryCandidate.from_dict(item) for item in raw_repositories)
         if Counter(item.role for item in repositories) != Counter(
             {role: 1 for role in RepositoryRole}
         ):
             raise WorkflowError("revision proposal requires one source, target, and QEMU candidate")
-        evidence = tuple(CompatibilityCitation.from_dict(item) for item in raw_evidence)
-        validate_proposed_compatibility_evidence(evidence, repositories)
         return cls(
             _sha256(candidate["migration_envelope_sha256"]),
             tuple(sorted(repositories, key=lambda item: item.role.sequence)),
-            evidence,
         )
 
     def to_dict(self) -> dict[str, object]:
@@ -189,7 +104,6 @@ class RevisionSelectionProposal:
             "schema_version": self.schema_version,
             "migration_envelope_sha256": self.migration_envelope_sha256,
             "repositories": [repository.to_dict() for repository in self.repositories],
-            "compatibility_evidence": [item.to_dict() for item in self.compatibility_evidence],
         }
 
 
@@ -238,13 +152,7 @@ class RevisionProposalImporter:
         )
         try:
             raw = json.loads(project.artifacts.read(job))
-            if isinstance(raw, dict) and {
-                "migration_envelope_sha256",
-                "compatibility_evidence",
-            } <= set(raw):
-                proposal = RevisionSelectionProposal.from_dict(raw)
-            else:
-                proposal = normalize_codex_revision_selection(project, raw)
+            proposal = normalize_codex_revision_selection(project, raw)
         except (UnicodeDecodeError, json.JSONDecodeError, WorkflowError) as error:
             raise CodexOutputError(f"invalid Codex revision proposal: {error}") from error
         envelope_ref = project.artifact(
@@ -321,7 +229,6 @@ def normalize_codex_revision_selection(
     return RevisionSelectionProposal(
         envelope.digest,
         tuple(sorted(repositories, key=lambda item: item.role.sequence)),
-        (),
     )
 
 
@@ -338,36 +245,6 @@ def load_revision_proposal(
         return RevisionProposalEnvelope.from_dict(json.loads(project.artifacts.read(ref)))
     except (UnicodeDecodeError, json.JSONDecodeError) as error:
         raise WorkflowError("controlled revision proposal is not UTF-8 JSON") from error
-
-
-def validate_proposed_compatibility_evidence(
-    evidence: tuple[CompatibilityCitation, ...],
-    repositories: tuple[RepositoryCandidate, ...],
-) -> None:
-    if not evidence:
-        return
-    expected = {(item.role, item.requested_ref) for item in repositories}
-    covered = {
-        (binding.role, binding.requested_ref) for item in evidence for binding in item.bindings
-    }
-    if covered != expected:
-        raise WorkflowError("revision evidence must cover every proposed ref")
-
-
-def validate_resolved_compatibility_evidence(
-    evidence: tuple[CompatibilityEvidence, ...],
-    repositories: tuple[RepositorySpec, ...],
-) -> None:
-    if not evidence:
-        return
-    expected = {(item.role, item.requested_ref, item.resolved_commit) for item in repositories}
-    covered = {
-        (binding.role, binding.requested_ref, binding.resolved_commit)
-        for item in evidence
-        for binding in item.bindings
-    }
-    if covered != expected:
-        raise WorkflowError("resolved evidence must cover every repository commit")
 
 
 def _repository_url(value: object) -> str:

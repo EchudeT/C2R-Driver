@@ -9,7 +9,6 @@ class AcquisitionStage(StrEnum):
 
 class AcquisitionArtifact(StrEnum):
     REVISION_SELECTION_PROPOSAL = "revision_selection_proposal"
-    REVISION_EVIDENCE_CONTENT = "revision_evidence_content"
     REVISION_MANIFEST = "revision_manifest"
     REPOSITORY_PLAN = "repository_plan"
     REPOSITORY_MANIFEST = "repository_manifest"

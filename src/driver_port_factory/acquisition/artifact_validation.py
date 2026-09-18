@@ -17,20 +17,13 @@ from .proposal import ProposalEnvelope
 from .repository_manifest import RepositoryAcquisition
 from .repository_role import RepositoryRole
 from .revision_manifest import RepositoryPlan, RevisionManifest
-from .revision_proposal import (
-    RevisionProposalEnvelope,
-    validate_resolved_compatibility_evidence,
-)
+from .revision_proposal import RevisionProposalEnvelope
 from .source_identity import SourceIdentityRecord
 
 
 def _revision_manifest(data: bytes) -> None:
     value = json_object(data, AcquisitionArtifact.REVISION_MANIFEST.value)
-    manifest = RevisionManifest.from_dict(value)
-    validate_resolved_compatibility_evidence(
-        manifest.compatibility_evidence,
-        manifest.repositories,
-    )
+    RevisionManifest.from_dict(value)
 
 
 def _repository_plan(data: bytes) -> None:
@@ -39,10 +32,6 @@ def _repository_plan(data: bytes) -> None:
     roles = Counter(repository.role for repository in plan.repositories)
     if roles != Counter({role: 1 for role in RepositoryRole}):
         raise WorkflowError("repository_plan requires one source, target, and QEMU repository")
-    validate_resolved_compatibility_evidence(
-        plan.compatibility_evidence,
-        plan.repositories,
-    )
 
 
 def _revision_selection_proposal(data: bytes) -> None:
@@ -110,7 +99,6 @@ def _retrieval_ledger(data: bytes) -> None:
 VALIDATORS = MappingProxyType[AcquisitionArtifact, ArtifactValidator](
     {
         AcquisitionArtifact.REVISION_SELECTION_PROPOSAL: _revision_selection_proposal,
-        AcquisitionArtifact.REVISION_EVIDENCE_CONTENT: nonempty,
         AcquisitionArtifact.REVISION_MANIFEST: _revision_manifest,
         AcquisitionArtifact.REPOSITORY_PLAN: _repository_plan,
         AcquisitionArtifact.REPOSITORY_MANIFEST: _repository_manifest,

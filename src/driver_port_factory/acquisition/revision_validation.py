@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import json
 import re
-from collections import Counter
 from pathlib import Path
 
 from ..codex.contracts import CodexArtifact
@@ -37,7 +36,6 @@ def validate_revision_bundle(context: BundleValidationContext) -> None:
         raise WorkflowError("repository plan does not bind its real migration envelope dependency")
     _validate_plan_proposal(plan, proposal, context.current_stage_artifacts)
     _validate_resolution_commands(context.project_root, plan)
-    _validate_evidence_content(plan, context.artifacts)
     _validate_manifest(revision, plan, envelope_ref.digest)
     if plan_ref.digest == plan.revision_proposal.digest:
         raise WorkflowError("repository plan cannot alias its auxiliary revision proposal")
@@ -74,24 +72,6 @@ def _validate_plan_proposal(
             candidate.selection_rule,
         ):
             raise WorkflowError("repository plan differs from its controlled revision proposal")
-    citations = envelope.proposal.compatibility_evidence
-    if len(plan.compatibility_evidence) != len(citations):
-        raise WorkflowError("repository plan changed compatibility evidence cardinality")
-    for evidence, citation in zip(plan.compatibility_evidence, citations, strict=True):
-        if (
-            evidence.source_url,
-            evidence.claim,
-            evidence.excerpt,
-            evidence.claim_kind,
-            tuple((item.role, item.requested_ref) for item in evidence.bindings),
-        ) != (
-            citation.source_url,
-            citation.claim,
-            citation.excerpt,
-            citation.claim_kind,
-            tuple((item.role, item.requested_ref) for item in citation.bindings),
-        ):
-            raise WorkflowError("repository plan changed compatibility evidence citation")
 
 
 def _validate_resolution_commands(root: Path, plan: RepositoryPlan) -> None:
@@ -167,25 +147,6 @@ def _stdout(command: RepositoryCommandRecord) -> str:
     return Path(command.result.stdout_path).read_text(encoding="utf-8", errors="replace")
 
 
-def _validate_evidence_content(
-    plan: RepositoryPlan,
-    artifacts: tuple[tuple[ArtifactRef, bytes], ...],
-) -> None:
-    contents = [
-        item
-        for item in artifacts
-        if item[0].kind == AcquisitionArtifact.REVISION_EVIDENCE_CONTENT.value
-    ]
-    expected = Counter((item.sha256, item.resolved_url) for item in plan.compatibility_evidence)
-    actual = Counter((ref.digest, ref.source) for ref, _ in contents)
-    if actual != expected:
-        raise WorkflowError("revision evidence content differs from the computed citations")
-    for evidence in plan.compatibility_evidence:
-        matches = [data for ref, data in contents if ref.digest == evidence.sha256]
-        if not matches or any(len(data) != evidence.size_bytes for data in matches):
-            raise WorkflowError("revision evidence size differs from its computed record")
-
-
 def _validate_manifest(
     revision: RevisionManifest,
     plan: RepositoryPlan,
@@ -197,8 +158,6 @@ def _validate_manifest(
         raise WorkflowError("revision manifest changed the proposal occurrence")
     if revision.selection_job != plan.selection_job:
         raise WorkflowError("revision manifest changed the selection job occurrence")
-    if revision.compatibility_evidence != plan.compatibility_evidence:
-        raise WorkflowError("revision manifest changed compatibility evidence")
     if revision.repositories != plan.repositories:
         raise WorkflowError("revision manifest differs from the repository plan")
 

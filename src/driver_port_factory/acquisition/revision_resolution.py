@@ -55,7 +55,7 @@ class RevisionResolver:
         )
 
     def _resolve_remote_name(self, role: RepositoryRole, url: str, requested_ref: str) -> str:
-        patterns = [
+        patterns = [requested_ref, f"{requested_ref}^{{}}"] if requested_ref.startswith("refs/") else [
             requested_ref,
             f"refs/heads/{requested_ref}",
             f"refs/tags/{requested_ref}",

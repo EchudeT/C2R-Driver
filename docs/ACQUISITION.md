@@ -11,27 +11,24 @@ revision_selection
 
 ## Revision selection
 
-The read-only `revision_selection` Codex job proposes three repository URLs, release tags or full
-commits, a selection rule, and compatibility citations. The controller imports the exact job
-occurrence, retrieves each cited document, computes its digest and size, resolves each ref, and
-freezes the resulting full commits. Codex does not supply trusted hashes, retrieval status, or
-resolved revisions.
+The `revision_selection` job returns only three repository choices:
+`{"repositories":[{"role":"source","url":"…","ref":"…"}, …]}`.
+Each ref must be a release tag or full commit. The controller binds the exact job
+occurrence to the frozen migration envelope, resolves the refs through Git, and records
+the command evidence and immutable commits in `revision_manifest` and `repository_plan`.
+Annotated tags are peeled to commits, including refs written as `refs/tags/vX.Y.Z`.
+Floating branch names such as `main`, `master`, and `HEAD` are rejected.
+
+There is one input format. Legacy revision proposals and old session records are not
+imported. Version compatibility is investigated through source evidence and exercised
+in the environment stage; a citation table is not a prerequisite for pinning repositories.
+When workflow contracts change, start a fresh run instead of migrating frozen state.
 
 ```sh
 dpf codex run RUN revision_selection --objective "Select compatible maintained releases"
 dpf acquire revision-proposal-import RUN --job-digest SHA256 --job-ordinal N
 dpf acquire revisions RUN --proposal-digest SHA256 --proposal-ordinal N
 ```
-
-Floating branch names such as `main`, `master`, and `HEAD` are rejected. The output
-`revision_manifest`, `repository_plan`, and raw `revision_evidence_content` occurrences remain
-bound to the frozen migration envelope and exact Codex proposal.
-
-Each resolved evidence record binds a typed maintenance or cross-repository claim to the exact
-requested refs and commits resolved by the controller. Retrieved bytes and ref-to-commit identity
-are `VERIFIED`; the Codex claim and excerpt/summary remain `INFERRED`. The controller does not
-require the excerpt field to be a byte-for-byte substring and never promotes it into verified
-compatibility.
 
 ## Repository acquisition
 

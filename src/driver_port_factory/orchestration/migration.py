@@ -158,10 +158,8 @@ def _migration_rows(config: ProjectConfig) -> tuple[StageRow, ...]:
             (
                 AcquisitionArtifact.REVISION_MANIFEST,
                 AcquisitionArtifact.REPOSITORY_PLAN,
-                AcquisitionArtifact.REVISION_EVIDENCE_CONTENT,
             ),
             (AcquisitionArtifact.REVISION_SELECTION_PROPOSAL,),
-            (AcquisitionArtifact.REVISION_EVIDENCE_CONTENT,),
         ),
         StageRow(
             AcquisitionStage.REPOSITORY_ACQUISITION,

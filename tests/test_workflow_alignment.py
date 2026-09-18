@@ -12,7 +12,7 @@ from driver_port_factory.acquisition.repository import load_repository_acquisiti
 from driver_port_factory.codex.contracts import CodexBackend, CodexOutputError, CodexSandbox
 from driver_port_factory.codex.gateway import CodexExecGateway, CodexJob, CodexResult
 from driver_port_factory.codex.policy import CodexExecutionPolicy
-from driver_port_factory.codex.sessions import session_key, legacy_session_key, save_session, stage_session
+from driver_port_factory.codex.sessions import session_key, save_session, stage_session
 from driver_port_factory.environment.contracts import EnvironmentStage
 from driver_port_factory.target_study.contracts import TargetStudyStage
 from driver_port_factory.acquisition.contracts import AcquisitionStage
@@ -240,17 +240,17 @@ class AlignmentTests(unittest.TestCase):
             self.assertEqual(sorted(item["resumed"] for item in metrics), [False, True])
             self.assertTrue(all(item["elapsed_seconds"] >= 0 for item in metrics))
 
-    def test_persistent_worker_inherits_legacy_stage_session(self):
+    def test_persistent_worker_uses_only_current_session(self):
         with tempfile.TemporaryDirectory() as directory:
             project = ready_implementation(Path(directory))
             stage = MigrationStage.DRIVER_IMPLEMENTATION
             grant = CodexExecutionPolicy().grant(project, stage)
-            old = legacy_session_key(project, stage, grant, None, "exec")
+            old = "obsolete-stage-session"
             save_session(project, old, "legacy-worker", {"skill": "hash"})
             key, session = stage_session(project, stage, grant, None, "exec")
             self.assertNotEqual(old, key)
-            self.assertEqual(session["thread_id"], "legacy-worker")
-            save_session(project, key, "persistent-worker", session["documents"])
+            self.assertEqual(session, {})
+            save_session(project, key, "persistent-worker", {"skill": "hash"})
             self.assertEqual(stage_session(project, stage, grant, None, "exec")[1]["thread_id"],
                              "persistent-worker")
             self.assertNotEqual(key, session_key(project, stage, grant, "different-model", "exec"))

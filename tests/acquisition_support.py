@@ -65,75 +65,27 @@ def select_revisions(
     requested_refs: dict[RepositoryRole, str] | None = None,
 ) -> None:
     project.start(AcquisitionStage.REVISION_SELECTION)
-    repositories = [
+    proposal = {"repositories": [
         {
             "role": role.value,
-            "platform": platform,
             "url": str(path.resolve()),
-            "requested_ref": (requested_refs or {}).get(role, git("rev-parse", "HEAD", cwd=path)),
-            "selection_rule": "fixture full commit with controlled compatibility evidence",
+            "ref": (requested_refs or {}).get(role, git("rev-parse", "HEAD", cwd=path)),
         }
-        for role, platform, path in (
-            (RepositoryRole.SOURCE, project.config.source_platform, source),
-            (RepositoryRole.TARGET, project.config.target_platform, target),
-            (RepositoryRole.QEMU, "qemu", qemu),
+        for role, path in (
+            (RepositoryRole.SOURCE, source),
+            (RepositoryRole.TARGET, target),
+            (RepositoryRole.QEMU, qemu),
         )
-    ]
-    evidence_text = (
-        "Maintained fixture releases are mutually compatible: "
-        + ", ".join(
-            f"{repository['role']}={repository['requested_ref']}" for repository in repositories
-        )
-        + ".\n"
-    ).encode()
-    with compatibility_evidence_server(evidence_text) as evidence_url:
-        proposal = {
-            "schema_version": 1,
-            "migration_envelope_sha256": project.artifact(
-                IntakeStage.ENVELOPE_FREEZE, IntakeArtifact.MIGRATION_ENVELOPE
-            ).digest,
-            "repositories": repositories,
-            "compatibility_evidence": [
-                *(
-                    {
-                        "source_url": evidence_url,
-                        "claim": f"{repository['role']} fixture release is maintained",
-                        "excerpt": evidence_text.decode().strip(),
-                        "bindings": [
-                            {
-                                "role": repository["role"],
-                                "requested_ref": repository["requested_ref"],
-                            }
-                        ],
-                    }
-                    for repository in repositories
-                ),
-                {
-                    "source_url": evidence_url,
-                    "claim": "the three fixture releases form one compatible set",
-                    "excerpt": evidence_text.decode().strip(),
-                    "bindings": [
-                        {
-                            "role": repository["role"],
-                            "requested_ref": repository["requested_ref"],
-                        }
-                        for repository in repositories
-                    ],
-                },
-            ],
-        }
-        data = json.dumps(proposal, sort_keys=True).encode()
-        job = project.record_artifact(
-            AcquisitionStage.REVISION_SELECTION,
-            GeneratedArtifact(CodexArtifact.JOB_RESULT, data, "test:revision-selection"),
-        )
-        assert job.ordinal is not None
-        occurrence = RevisionProposalImporter().import_job_result(
-            project,
-            job_digest=job.digest,
-            job_ordinal=job.ordinal,
-        )
-        RevisionSelector().select(project, proposal=occurrence)
+    ]}
+    job = project.record_artifact(
+        AcquisitionStage.REVISION_SELECTION,
+        GeneratedArtifact(CodexArtifact.JOB_RESULT, json.dumps(proposal).encode(), "test:revision-selection"),
+    )
+    assert job.ordinal is not None
+    occurrence = RevisionProposalImporter().import_job_result(
+        project, job_digest=job.digest, job_ordinal=job.ordinal,
+    )
+    RevisionSelector().select(project, proposal=occurrence)
 
 
 class _CompatibilityEvidenceHandler(BaseHTTPRequestHandler):

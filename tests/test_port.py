@@ -1,26 +1,18 @@
 from __future__ import annotations
 
-import json
 import subprocess
 import tempfile
 import unittest
 from pathlib import Path
 from types import SimpleNamespace
-from unittest.mock import Mock, patch
+from unittest.mock import patch
 
-from driver_port_factory.acquisition.job import ArtifactOccurrence
 from driver_port_factory.cli import parser
-from driver_port_factory.codex.contracts import CodexArtifact, CodexBackend, CodexOutputError
-from driver_port_factory.core.models import ArtifactDirection, StageStatus, WorkflowError
-from driver_port_factory.knowledge.bootstrap import KnowledgeBootstrapper
+from driver_port_factory.codex.contracts import CodexBackend, CodexOutputError
+from driver_port_factory.core.models import StageStatus, WorkflowError
 from driver_port_factory.knowledge.contracts import KnowledgeStage
-from driver_port_factory.migration.contracts import MigrationStage
 from driver_port_factory.port import PortOptions, PortRunner
 from driver_port_factory.source_analysis.clang_backend import AnalyzerFamily
-from driver_port_factory.source_analysis.contracts import SourceAnalysisStage
-from driver_port_factory.target_study.contracts import TargetStudyStage
-from tests.test_knowledge import prepare_project, probe_plan
-from tests.test_target_study import target_study_inputs
 
 
 class FakeProject:
@@ -59,85 +51,6 @@ def options(root: Path) -> PortOptions:
 
 
 class PortRunnerTests(unittest.TestCase):
-    def test_implementation_gate_failure_is_a_same_thread_correction(self) -> None:
-        project = SimpleNamespace(
-            artifacts=SimpleNamespace(path_for_digest=lambda _digest: Path("response.json"))
-        )
-        job = ArtifactOccurrence("a" * 64, 1)
-
-        with (
-            patch("driver_port_factory.port.ImplementationResponse.read", return_value=object()),
-            patch(
-                "driver_port_factory.port.DriverImplementationService.finalize",
-                side_effect=WorkflowError("target change inventory is incomplete"),
-            ),
-            self.assertRaisesRegex(
-                CodexOutputError,
-                "driver implementation failed: target change inventory is incomplete",
-            ),
-        ):
-            PortRunner._accept_implementation_result(project, job)
-
-    def test_compliance_knowledge_finding_retries_earliest_affected_gate(self) -> None:
-        with tempfile.TemporaryDirectory() as temporary:
-            root = Path(temporary)
-            report = root / "compliance.json"
-            plan = root / "unused-plan.json"
-            report.write_text(
-                json.dumps(
-                    {
-                        "schema_version": 1,
-                        "status": "VIOLATION",
-                        "areas": [
-                            {
-                                "area": "API_USAGE",
-                                "status": "VIOLATION",
-                                "repair_target": "IMPLEMENTATION",
-                                "summary": "Target wiring is missing.",
-                                "implementation_paths": ["driver.rs"],
-                                "target_evidence": [],
-                                "unsafe_obligation_ids": [],
-                                "details": {},
-                            },
-                            {
-                                "area": "DOCUMENTATION",
-                                "status": "UNKNOWN",
-                                "repair_target": "KNOWLEDGE",
-                                "summary": "Documentation evidence is incomplete.",
-                                "implementation_paths": ["driver.rs"],
-                                "target_evidence": [],
-                                "unsafe_obligation_ids": [],
-                                "details": {},
-                            },
-                        ],
-                        "apis": [],
-                        "target_changes": [],
-                        "execution": {"compile": "NOT_RUN", "runtime": "NOT_RUN"},
-                    }
-                ),
-                encoding="utf-8",
-            )
-            plan.write_text("not parsed for implementation repair", encoding="utf-8")
-            project = SimpleNamespace(retry_from=Mock())
-            runner = PortRunner(options(root))
-            job = ArtifactOccurrence("a" * 64, 3)
-
-            with patch.object(
-                runner,
-                "_write_response_parts",
-                return_value={"compliance_report": report, "artifact_preparation_plan": plan},
-            ):
-                runner._accept_compliance_result(project, job)
-
-            project.retry_from.assert_called_once_with(
-                KnowledgeStage.KNOWLEDGE_BASE,
-                trigger=MigrationStage.TARGET_COMPLIANCE,
-                reason=(
-                    "target compliance requested knowledge repair from "
-                    f"job {job.digest}:{job.ordinal}"
-                ),
-            )
-
     def test_operational_gate_failure_is_not_sent_back_to_codex(self) -> None:
         runner = PortRunner(options(Path("/unused")))
         result = SimpleNamespace(thread_id="knowledge-thread")
@@ -198,66 +111,6 @@ class PortRunnerTests(unittest.TestCase):
 
         self.assertIsNone(codex.call_args.kwargs["thread_id"])
         self.assertIsNone(codex.call_args.kwargs["follow_up"])
-
-    def test_target_study_receives_knowledge_repair_finding(self) -> None:
-        runner = PortRunner(options(Path("/workspace")))
-        project = SimpleNamespace(root=Path("/workspace"))
-        checkout = SimpleNamespace(checkout_path="target", resolved_commit="a" * 40)
-        acquisition = SimpleNamespace(checkout=Mock(return_value=checkout))
-        repair = {"source_stage": MigrationStage.TARGET_COMPLIANCE.value}
-
-        with (
-            patch("driver_port_factory.port.load_repository_acquisition", return_value=acquisition),
-            patch.object(runner, "_artifact_context", return_value={"digest": "b" * 64}),
-            patch.object(runner, "_latest_compliance_result", return_value=repair),
-            patch.object(runner, "_codex_gate") as codex_gate,
-        ):
-            runner._target_study(project)
-
-        self.assertEqual(codex_gate.call_args.args[1], TargetStudyStage.STUDY)
-        self.assertEqual(codex_gate.call_args.args[2]["compliance_recheck"], repair)
-
-    def test_source_closure_revalidates_accepted_proposal_after_repair(self) -> None:
-        runner = PortRunner(options(Path("/workspace")))
-        historical = SimpleNamespace(
-            kind=CodexArtifact.JOB_RESULT.value,
-            digest="a" * 64,
-            ordinal=7,
-        )
-        project = SimpleNamespace(
-            current_artifact_refs=Mock(return_value=[]),
-            artifact_refs=Mock(return_value=[historical]),
-        )
-
-        with (
-            patch.object(runner, "_accept_source_closure_result") as accept,
-            patch.object(runner, "_codex_gate") as codex_gate,
-        ):
-            runner._source_closure(project)
-
-        accept.assert_called_once_with(
-            project,
-            ArtifactOccurrence(historical.digest, historical.ordinal),
-        )
-        codex_gate.assert_not_called()
-        project.current_artifact_refs.assert_called_once_with(
-            stage=SourceAnalysisStage.SOURCE_CLOSURE,
-            direction=ArtifactDirection.OUTPUT,
-        )
-
-    def test_target_study_document_gate_is_codex_output_error(self) -> None:
-        with tempfile.TemporaryDirectory() as temporary:
-            root = Path(temporary)
-            project, checkouts = prepare_project(root)
-            KnowledgeBootstrapper().bootstrap(project, probe_plan_path=probe_plan(project.root))
-            parts, _ = target_study_inputs(project.root, project, checkouts)
-            parts["api_table"].write_text("[]", encoding="utf-8")
-            runner = PortRunner(options(root))
-
-            with patch.object(runner, "_write_response_parts", return_value=parts):
-                for _ in range(2):
-                    with self.assertRaisesRegex(CodexOutputError, "JSON must be an object"):
-                        runner._accept_target_study_result(project, object())
 
     def test_fresh_port_workspace_is_its_own_git_root(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:

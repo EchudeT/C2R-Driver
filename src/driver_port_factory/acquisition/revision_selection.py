@@ -9,7 +9,6 @@ from ..intake.contracts import IntakeArtifact, IntakeStage
 from .contracts import AcquisitionArtifact, AcquisitionStage
 from .job import ArtifactOccurrence
 from .repository_role import RepositoryRole
-from .revision_evidence import RevisionEvidenceRetriever
 from .revision_manifest import RepositoryPlan, RevisionManifest
 from .revision_proposal import load_revision_proposal
 from .revision_resolution import RevisionResolver
@@ -36,8 +35,6 @@ class RevisionSelector:
         if envelope.proposal.migration_envelope_sha256 != envelope_ref.digest:
             raise WorkflowError("revision proposal migration envelope drifted before selection")
         self._validate_platforms(project, envelope.proposal.repositories)
-        evidence_retriever = RevisionEvidenceRetriever()
-        citations = evidence_retriever.retrieve(envelope.proposal.compatibility_evidence)
         resolver = RevisionResolver(project.root, project.control)
         repositories = tuple(
             resolver.resolve(
@@ -49,11 +46,9 @@ class RevisionSelector:
             )
             for candidate in envelope.proposal.repositories
         )
-        retrieved_evidence = evidence_retriever.bind(citations, repositories)
         plan = RepositoryPlan(
             1,
             repositories,
-            tuple(item.record for item in retrieved_evidence),
             proposal,
             envelope.job_result,
             envelope_ref.digest,
@@ -65,7 +60,6 @@ class RevisionSelector:
             envelope_ref.digest,
             proposal,
             envelope.job_result,
-            plan.compatibility_evidence,
             repositories,
         )
         project.finalize_stage(
@@ -76,14 +70,6 @@ class RevisionSelector:
                     revision_manifest.to_dict(),
                 ),
                 self._artifact(AcquisitionArtifact.REPOSITORY_PLAN, plan_document),
-                *(
-                    GeneratedArtifact(
-                        AcquisitionArtifact.REVISION_EVIDENCE_CONTENT,
-                        item.data,
-                        item.record.resolved_url,
-                    )
-                    for item in retrieved_evidence
-                ),
             ),
         )
         return plan

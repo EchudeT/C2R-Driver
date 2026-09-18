@@ -1,4 +1,4 @@
-"""Durable, stage-scoped conversations; review never inherits implementation history."""
+"""Persistent worker and reviewer conversations with isolated project identities."""
 
 from __future__ import annotations
 
@@ -30,45 +30,18 @@ WORKER_STAGES = frozenset({
 def session_key(
     project: Project, stage: StageKey, grant: CodexExecutionGrant, model: str | None, backend: str
 ) -> str:
-    if (project.config.evaluation_mode is EvaluationMode.DEVELOPER_EVIDENCE
-            and stage in WORKER_STAGES):
-        # Permissions and cwd are still recalculated for every invocation. They are
-        # execution boundaries, not a reason to discard the worker's conversation.
-        home = Path(os.environ.get("CODEX_HOME", Path.home() / ".codex")).resolve()
-        config = home / "config.toml"
-        identity = ["persistent-worker-v1", str(project.root), project.config.actor_role.value,
-                    model, backend, str(home),
-                    hashlib.sha256(config.read_bytes()).hexdigest() if config.is_file() else ""]
-        return hashlib.sha256(json.dumps(identity).encode()).hexdigest()
-    return legacy_session_key(project, stage, grant, model, backend)
-
-
-def legacy_session_key(
-    project: Project, stage: StageKey, grant: CodexExecutionGrant, model: str | None, backend: str
-) -> str:
     home = Path(os.environ.get("CODEX_HOME", Path.home() / ".codex")).resolve()
     config = home / "config.toml"
-    config_hash = hashlib.sha256(config.read_bytes()).hexdigest() if config.is_file() else ""
-    # Phase gates do not require separate conversations when work/permissions match.
-    conversation = stage.value
-    if stage is MigrationStage.TEST_ADAPTATION:
-        conversation = MigrationStage.CONTRACTS.value
-    elif stage is MigrationStage.PUBLIC_REPAIR:
-        conversation = MigrationStage.TARGET_COMPLIANCE.value
-    elif stage in {
-        MigrationStage.ARTIFACT_PREPARATION,
-        MigrationStage.PUBLIC_QEMU_VALIDATION,
-    }:
-        conversation = MigrationStage.DRIVER_IMPLEMENTATION.value
+    if project.config.evaluation_mode is EvaluationMode.DEVELOPER_EVIDENCE and stage in WORKER_STAGES:
+        conversation = "worker"
+    elif stage in {MigrationStage.TARGET_COMPLIANCE, MigrationStage.PUBLIC_REPAIR}:
+        conversation = "reviewer"
+    else:
+        conversation = stage.value
     identity = [
-        conversation,
-        project.config.actor_role.value,
-        str(grant.execution_root),
-        grant.sandbox.value,
-        model,
-        backend,
-        str(home),
-        config_hash,
+        "persistent-conversations-v2", str(project.root), project.config.actor_role.value,
+        project.config.evaluation_mode.value, conversation, model, backend, str(home),
+        hashlib.sha256(config.read_bytes()).hexdigest() if config.is_file() else "",
     ]
     return hashlib.sha256(json.dumps(identity).encode()).hexdigest()
 
@@ -84,11 +57,7 @@ def read_session(project: Project, key: str) -> dict:
 def stage_session(project: Project, stage: StageKey, grant: CodexExecutionGrant,
                   model: str | None, backend: str) -> tuple[str, dict]:
     key = session_key(project, stage, grant, model, backend)
-    session = read_session(project, key)
-    if not session:
-        # Upgrade an existing project without dropping its active phase history.
-        session = read_session(project, legacy_session_key(project, stage, grant, model, backend))
-    return key, session
+    return key, read_session(project, key)
 
 
 def save_session(

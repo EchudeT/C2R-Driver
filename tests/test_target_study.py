@@ -149,11 +149,12 @@ PROFILE_HEADINGS_TO_STRUCTURED = (
 
 
 class TargetStudyTests(unittest.TestCase):
-    def test_ready_rejects_unfinished_investigation_and_incomplete_driver_trace(self) -> None:
+    def test_unresolved_investigation_blocks_but_inapplicable_trace_does_not(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             project, checkouts = prepare_project(Path(temporary))
             KnowledgeBootstrapper().bootstrap(project, probe_plan_path=probe_plan(project.root))
             paths, _chunks = target_study_inputs(project.root, project, checkouts)
+            paths.pop("profile_markdown")  # The service derives Markdown from the profile.
             changes = json.loads(paths["change_plan"].read_text(encoding="utf-8"))
             changes["investigations"] = [
                 {
@@ -167,7 +168,7 @@ class TargetStudyTests(unittest.TestCase):
             service = TargetStudyService()
 
             unfinished = service.validate(project, **paths)
-            self.assertIn("target platform study is not READY", unfinished.errors[0])
+            self.assertIn("unresolved investigations", unfinished.errors[0])
 
             changes["investigations"][0]["status"] = "PASS"
             write_json(paths["change_plan"], changes)
@@ -176,13 +177,14 @@ class TargetStudyTests(unittest.TestCase):
             write_json(paths["analogous_trace"], trace)
 
             incomplete = service.validate(project, **paths)
-            self.assertIn("target platform study is not READY", incomplete.errors[0])
+            self.assertEqual(incomplete.status, "PASS")
 
     def test_non_target_evidence_is_rejected_then_corrected_submission_passes(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             project, checkouts = prepare_project(Path(temporary))
             KnowledgeBootstrapper().bootstrap(project, probe_plan_path=probe_plan(project.root))
             paths, chunks = target_study_inputs(project.root, project, checkouts)
+            paths.pop("profile_markdown")  # Not an input to the current validator.
             api = json.loads(paths["api_table"].read_text(encoding="utf-8"))
             api["entries"][0]["definition_evidence"] = {
                 "chunk_id": chunks["source"],

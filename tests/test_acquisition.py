@@ -6,8 +6,7 @@ import tempfile
 import unittest
 from dataclasses import replace
 from pathlib import Path
-from types import SimpleNamespace
-from unittest.mock import Mock, patch
+from unittest.mock import patch
 
 from driver_port_factory.acquisition.baseline import BaselineRepositoryAcquirer
 from driver_port_factory.acquisition.closure import EvidenceClosureFinalizer
@@ -41,19 +40,13 @@ from driver_port_factory.acquisition.retrieval import (
     material_identifier,
 )
 from driver_port_factory.acquisition.retrieval_result import RetrievalFailure, RetrievedMaterial
-from driver_port_factory.acquisition.revision_compatibility import (
-    CompatibilityClaimKind,
-)
-from driver_port_factory.acquisition.revision_evidence import RevisionEvidenceRetriever
 from driver_port_factory.acquisition.revision_proposal import (
-    CompatibilityCitation,
-    ProposedRevisionBinding,
-    RevisionSelectionProposal,
+    RevisionProposalImporter,
 )
 from driver_port_factory.acquisition.revision_resolution import RevisionResolver
 from driver_port_factory.acquisition.revision_selection import RevisionSelector
 from driver_port_factory.acquisition.verification import AcquisitionVerifier
-from driver_port_factory.codex.contracts import CodexArtifact
+from driver_port_factory.codex.contracts import CodexArtifact, CodexOutputError
 from driver_port_factory.composition import initialize_project
 from driver_port_factory.core.models import (
     ActorRole,
@@ -393,39 +386,6 @@ class AcquisitionTests(unittest.TestCase):
             self.assertTrue(managed.is_symlink())
             self.assertEqual(marker.read_text(encoding="utf-8"), "outside\n")
 
-    def test_cross_claim_kind_is_derived_from_bindings(self) -> None:
-        repositories = [
-            {
-                "role": role.value,
-                "platform": role.value,
-                "url": f"https://example.invalid/{role.value}.git",
-                "requested_ref": "v1.0.0",
-                "selection_rule": "fixture",
-            }
-            for role in RepositoryRole
-        ]
-        proposal = {
-            "schema_version": 1,
-            "migration_envelope_sha256": "1" * 64,
-            "repositories": repositories,
-            "compatibility_evidence": [
-                {
-                    "source_url": "https://example.invalid/compatibility",
-                    "claim": "generic compatibility statement",
-                    "excerpt": "generic compatibility statement",
-                    "bindings": [
-                        {"role": item["role"], "requested_ref": item["requested_ref"]}
-                        for item in repositories
-                    ],
-                }
-            ],
-        }
-        parsed = RevisionSelectionProposal.from_dict(proposal)
-        self.assertEqual(
-            parsed.compatibility_evidence[0].claim_kind,
-            CompatibilityClaimKind.CROSS_REPOSITORY,
-        )
-
     def test_source_repository_cannot_close_a_target_facet(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             project, _, _, _ = ready_project(Path(temporary))
@@ -456,66 +416,62 @@ class AcquisitionTests(unittest.TestCase):
             with self.assertRaisesRegex(WorkflowError, "declared gap reason"):
                 EvidenceClosureFinalizer().finalize(project, proposal=imported.occurrence)
 
-    def test_revision_citation_excerpt_may_summarize_retrieved_content(self) -> None:
-        with compatibility_evidence_server(b"actual compatibility statement\n") as source_url:
-            citation = CompatibilityCitation(
-                source_url,
-                "fixture compatibility",
-                "missing quoted statement",
-                CompatibilityClaimKind.CROSS_REPOSITORY,
-                tuple(ProposedRevisionBinding(role, "v1.0.0") for role in RepositoryRole),
-                4096,
-            )
-            retrieved = RevisionEvidenceRetriever().retrieve((citation,))
-            self.assertEqual(retrieved[0].citation.excerpt, "missing quoted statement")
-            self.assertEqual(retrieved[0].data, b"actual compatibility statement\n")
+    def test_remote_release_tags_resolve_to_commits_in_both_spellings(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            source = repository(root, "origin", {"README": "source\n"})
+            git("tag", "v1.0.0", cwd=source)
+            git("tag", "-a", "v2.0.0", "-m", "annotated release", cwd=source)
+            commit = git("rev-parse", "HEAD", cwd=source)
+            project_root = root / "run"
+            project_root.mkdir()
+            resolver = RevisionResolver(project_root, project_root / ".dpf")
+            for reference in ("v1.0.0", "refs/tags/v1.0.0", "v2.0.0", "refs/tags/v2.0.0"):
+                with self.subTest(reference=reference):
+                    spec = resolver.resolve(
+                        role=RepositoryRole.SOURCE, platform="example-source",
+                        url=source.as_uri(), requested_ref=reference,
+                        selection_rule="test release",
+                    )
+                    self.assertEqual(spec.resolved_commit, commit)
 
-    def test_revision_evidence_preflight_precedes_remote_resolution(self) -> None:
-        project = Mock()
-        project.stage.side_effect = lambda stage: SimpleNamespace(
-            status=(
-                StageStatus.PASS
-                if stage is IntakeStage.ENVELOPE_FREEZE
-                else StageStatus.RUNNING
-            )
-        )
-        project.artifact.return_value = SimpleNamespace(digest="1" * 64)
-        project.config = SimpleNamespace(
-            source_platform="example-source",
-            target_platform="example-target",
-        )
-        repositories = tuple(
-            SimpleNamespace(role=role, platform=platform)
-            for role, platform in (
-                (RepositoryRole.SOURCE, "example-source"),
-                (RepositoryRole.TARGET, "example-target"),
-                (RepositoryRole.QEMU, "qemu"),
-            )
-        )
-        envelope = SimpleNamespace(
-            proposal=SimpleNamespace(
-                migration_envelope_sha256="1" * 64,
-                repositories=repositories,
-                compatibility_evidence=(),
-            )
-        )
-        with (
-            patch(
-                "driver_port_factory.acquisition.revision_selection.load_revision_proposal",
-                return_value=envelope,
-            ),
-            patch.object(
-                RevisionEvidenceRetriever,
-                "retrieve",
-                side_effect=WorkflowError("evidence preflight failed"),
-            ),
-            patch(
-                "driver_port_factory.acquisition.revision_selection.RevisionResolver"
-            ) as resolver,
-            self.assertRaisesRegex(WorkflowError, "evidence preflight failed"),
-        ):
-            RevisionSelector().select(project, proposal=ArtifactOccurrence("0" * 64, 0))
-        resolver.assert_not_called()
+    def test_compact_revision_selection_finishes_without_optional_citations(self) -> None:
+        for use_tag in (False, True):
+            with self.subTest(use_tag=use_tag), tempfile.TemporaryDirectory() as temporary:
+                with patch("tests.test_acquisition.select_revisions"):
+                    project, source, target, qemu = ready_project(Path(temporary))
+                project.start(AcquisitionStage.REVISION_SELECTION)
+                data = json.dumps({"repositories": [
+                    {
+                        "role": role.value,
+                        "url": str(path),
+                        "ref": "v1.0.0" if use_tag else git("rev-parse", "HEAD", cwd=path),
+                    }
+                    for role, path in zip(RepositoryRole, (source, target, qemu), strict=True)
+                ]}).encode()
+                obsolete = project.record_artifact(
+                    AcquisitionStage.REVISION_SELECTION,
+                    GeneratedArtifact(CodexArtifact.JOB_RESULT,
+                        json.dumps({**json.loads(data), "compatibility_evidence": []}).encode(),
+                        "test:obsolete-revision-format"),
+                )
+                with self.assertRaises(CodexOutputError):
+                    RevisionProposalImporter().import_job_result(
+                        project, job_digest=obsolete.digest, job_ordinal=obsolete.ordinal,
+                    )
+                job = project.record_artifact(
+                    AcquisitionStage.REVISION_SELECTION,
+                    GeneratedArtifact(CodexArtifact.JOB_RESULT, data, "test:compact-revisions"),
+                )
+                proposal = RevisionProposalImporter().import_job_result(
+                    project, job_digest=job.digest, job_ordinal=job.ordinal,
+                )
+                plan = RevisionSelector().select(project, proposal=proposal)
+                self.assertEqual(project.stage(AcquisitionStage.REVISION_SELECTION).status, StageStatus.PASS)
+                self.assertNotIn("compatibility_evidence", plan.to_dict())
+                self.assertEqual(len(plan.resolution_commands), 3)
+                RepositoryAcquirer().acquire(project)
+                self.assertEqual(project.stage(AcquisitionStage.REPOSITORY_ACQUISITION).status, StageStatus.PASS)
 
     def test_derived_material_requires_an_original_parent_and_matching_path(self) -> None:
         cases = (
