@@ -137,7 +137,12 @@ class ExperimentExecutor:
                 readiness,
                 StageStatus.RUNNING,
                 str(attempt_path),
-                "smoke harness did not complete successfully with an observed QEMU exec",
+                (f"smoke harness exit={result.exit_code}, timed_out={result.timed_out}, "
+                 f"observed QEMU execs={len(qemu_programs)}. "
+                 "Host strace cannot follow Docker-daemon container processes; "
+                 "a container-only launch requires collector support, not a fake QEMU wrapper. "
+                 f"Inspect stdout={result.stdout_path}, stderr={result.stderr_path}, "
+                 f"trace={trace_path}"),
             )
 
         inventory = project.load_json_artifact(

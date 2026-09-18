@@ -15,6 +15,13 @@ Runtime harnesses must wait for observable readiness or automatically run a gues
 use supported target operations, bounded deadlines and causal assertions, and distinguish echoed
 commands from executed results. Reuse unchanged successful evidence; rerun only when inputs or
 affected behavior changed. Do not require the worker to reproduce tool-owned identity records.
+Current harness evidence is collected with host strace: QEMU must actually execute as a child
+of the submitted shell harness. Docker builds are allowed, but host strace cannot follow the
+Docker daemon into a container. A Docker-only QEMU launch is therefore not yet supported by this
+collector. Use a genuine host-runnable QEMU distribution when available, retaining its dependencies
+and firmware, or report this infrastructure limit. Do not rename a wrapper to qemu-system-* or
+add an unrelated QEMU invocation to satisfy the check. Public QEMU must consume the supplied
+DPF_RUNTIME_ARTIFACT path and write fresh logs under .dpf-output/qemu-runs.
 Priority: reliable, correct completion first; token and execution cost second. Reuse evidence and
 avoid redundant work, but never omit required implementation, fault checks, or runtime validation
 to save tokens. The following acceptance criteria are shared by workers and reviewers:
