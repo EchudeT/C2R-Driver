@@ -105,6 +105,9 @@ class ValidationRegistry:
     def contains(self, kind: ArtifactKey) -> bool:
         return self._artifacts.get(kind.value) is kind
 
+    def has_bundle_validator(self, stage: StageKey) -> bool:
+        return stage.value in self._bundle_validators
+
     def values(self) -> tuple[str, ...]:
         return tuple(self._artifacts)
 

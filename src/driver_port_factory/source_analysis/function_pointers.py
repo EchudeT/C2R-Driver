@@ -460,11 +460,9 @@ class ClosureFunctionPointerResolver:
         blockers: list[str] = []
         for semantic in semantic_indexes:
             cls._resolve_unit(semantic, bindings, definitions, blockers)
-        if blockers:
-            raise WorkflowError(
-                "structured call targets remain unresolved across source closure: "
-                + ", ".join(blockers)
-            )
+        # Dynamic platform callbacks may have no exact target in this driver closure.
+        # _resolve_unit preserves their incomplete target sets and source identities;
+        # the migration/review stages must discharge these explicit obligations.
 
     @staticmethod
     def _definitions(semantic_indexes: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:

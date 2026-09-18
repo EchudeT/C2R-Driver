@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import hashlib
 import json
-import re
 import shutil
+import uuid
 from dataclasses import asdict, dataclass
 from pathlib import Path
 
@@ -17,6 +17,7 @@ from ..core.models import (
     utc_now,
 )
 from ..core.project import Project
+from ..core.trace import successful_execs
 from ..knowledge.index import file_sha256
 from .contracts import EnvironmentArtifact, EnvironmentStage, ExperimentRouteMilestone
 from .documents import json_artifact, json_bytes, plan_path
@@ -64,7 +65,7 @@ class ExperimentExecutor:
             raise WorkflowError("strace is required to prove that the smoke harness executed QEMU")
 
         script_digest = file_sha256(script_path)
-        attempt_dir = project.control / "environment" / "codex-harness" / script_digest[:20]
+        attempt_dir = project.control / "environment" / "codex-harness" / str(uuid.uuid4())
         attempt_dir.mkdir(parents=True, exist_ok=True)
         trace_path = attempt_dir / "execve.log"
         result = CommandRunner(attempt_dir / "command").run(
@@ -187,14 +188,8 @@ class ExperimentExecutor:
     def _executed_programs(trace_path: Path) -> list[str]:
         if not trace_path.is_file():
             return []
-        pattern = re.compile(r'execve\("([^"]+)"')
-        return sorted(
-            {
-                match.group(1)
-                for line in trace_path.read_text(encoding="utf-8", errors="replace").splitlines()
-                if (match := pattern.search(line)) is not None
-            }
-        )
+        lines = trace_path.read_text(encoding="utf-8", errors="replace").splitlines()
+        return sorted({path for path, _ in successful_execs(lines)})
 
     def run(self, project: Project, route_id: str) -> EnvironmentRunResult:
         project.ensure_role(*self.ROLES)
@@ -219,7 +214,8 @@ class ExperimentExecutor:
         ready = (
             result.launched
             and result.launch_error is None
-            and (result.timed_out or result.exit_code in plan.accepted_exit_codes)
+            and not result.timed_out
+            and result.exit_code in plan.accepted_exit_codes
         )
         readiness = ExperimentReadiness.PASS if ready else ExperimentReadiness.FAIL
         attempt = {

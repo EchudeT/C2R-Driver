@@ -106,7 +106,7 @@ class ProjectKnowledgeSkillGenerator:
             "build_command": f"{command_prefix} rebuild {workspace}",
             "search_command_template": (
                 f"{command_prefix} search {workspace} --query '<query>' "
-                "--domain '<domain>' --limit 20"
+                "--domain '<domain>' --limit 5"
             ),
             "show_command_template": (f"{command_prefix} show {workspace} --chunk-id '<chunk-id>'"),
             "pdf_verification_method": (

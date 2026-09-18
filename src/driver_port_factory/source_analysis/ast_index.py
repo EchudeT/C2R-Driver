@@ -422,7 +422,7 @@ class AstSemanticIndexer:
             ],
             "candidate_target_ids": sorted(resolution.candidate_targets),
             "target_set_complete": resolved,
-            "resolution_bases": resolution.bases,
+            "resolution_bases": list(resolution.bases),
         }
         if callee is not None:
             call["callee_expression_node_id"] = self._stable_id((*path, 0))

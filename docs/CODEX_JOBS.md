@@ -5,7 +5,7 @@
 阶段 Prompt 由 Prompt Pack 组合。默认 Pack 位于
 `src/driver_port_factory/data/prompt-packs/default/`，包含：
 
-- `manifest.json`：阶段到 Skill/reference 及唯一默认输出 Schema 的映射；
+- `manifest.json`：阶段到 Skill/reference、交付目标及可选输出 Schema 的映射；
 - `job.md`：可自由调整的外层提示词，使用 `{{job_json}}` 和 `{{skill_documents}}` 插槽。
 
 渲染结果包含角色与信任边界、对应 Skill 原文、本次 artifact/evidence 清单、目标和输出约束。
@@ -30,8 +30,13 @@ repository manifest 推导唯一 grant：
 
 | 阶段 | sandbox | execution root |
 |---|---|---|
-| `rust_implementation`、`public_repair` | `workspace-write` | `work/target-working` |
-| 其他 Codex/Hybrid/Independent stage | `read-only` | 项目根 |
+| 实现、产物准备、公开运行 | `workspace-write` | `work/target-working` |
+| 环境、源码闭包、研究、合同、测试设计、目标检查 | `workspace-write` | `work/stage-work/<stage>`，合同与测试共用目录 |
+| revision/evidence acquisition | `danger-full-access` | 项目根 |
+| 其他阶段及独立评测 | `read-only` | 项目根 |
+
+兼容阶段名 `public_repair` 的模型任务是最终运行证据复核，共用 `target_compliance`
+检查目录和会话；运行失败时仅由控制器路由回原实现者。
 
 可写 grant 必须位于当前项目内，且不能等于或包含项目根、`.dpf`、source baseline、target baseline
 或 QEMU baseline，也不能位于这些目录之下。策略在启动 Gateway 前 fail closed。CLI 不提供提权参数。
@@ -44,13 +49,12 @@ Gateway 成功返回后，控制器在 `.dpf/codex/` 写入 canonical result，�
 
 CLI 不提供把模型响应转换为 required output 或直接 finalize 的通用入口。所有阶段都必须由明确的
 领域 adapter 解析辅助响应或工作区变更，生成 typed artifact 完整 bundle，执行逐件 validator 和
-跨产物 bundle validator，再通过唯一的 `Project.finalize_stage` 原子提交。当前许多后续迁移阶段只有
-契约骨架，adapter 完整度以
-`SKILL_TRACEABILITY.md` 的 `PARTIAL/PLANNED` 标记为准。
+跨产物 bundle validator，再通过唯一的 `Project.finalize_stage` 原子提交。
+开发者流程允许直接交付代码、脚本和 Markdown；Markdown 阶段不为不存在的跨产物校验加载上游 AST。
 
 调用方不能传入任意 Schema。Prompt Pack 为结构化阶段声明唯一默认输出 Schema，控制器把它自动交给
 `codex exec --output-schema`，并再次确认响应为 JSON。领域 importer 继续执行 typed parser 与跨记录
-不变量校验；SDK Gateway 尚无等价的本地 Schema enforcement，因此整体能力仍为 `PARTIAL`。
+不变量校验。只有采集等确实需要机器结构的阶段使用响应 Schema，迁移工作报告没有 JSON 表格要求。
 
 `evidence_closure` 是已实现的领域 adapter：其 Schema 约束提议外形，随后 importer 按
 `codex_job_result` 的 digest+ordinal 精确绑定并执行 Python typed validator；静态 materializer 再验证
@@ -58,12 +62,15 @@ CLI 不提供把模型响应转换为 required output 或直接 finalize 的通�
 
 ## Gateway
 
-- `CodexExecGateway`：首次执行创建 thread；同一开发阶段 retry 时由控制器恢复该阶段保存的 thread，
-  并发送包含最新证据的完整 Job；消费 JSONL 事件并提取最后的 agent message；
-- `CodexSdkGateway`：延迟导入可选 SDK，按同一 execution root/sandbox 启动新 thread；
+- `CodexExecGateway`：首次创建 thread，返工和进程恢复使用原 thread；
+  只重新注入变化的 Skill 文档，最新输入和反馈以文件路径交接；
+- `CodexSdkGateway`：兼容入口，统一使用 CLI 传输，避免另一套恢复行为。
 
-模型名称可按 Job 覆盖。thread ID 由控制器从同一阶段保存的事件中恢复，不能由 CLI 注入，也不能跨
-阶段或信任域使用；sandbox 始终由阶段策略唯一确定。SDK backend 当前每个 Job 都新建 thread。
+模型名称可按 Job 覆盖。thread ID 从同一工作组、角色、目录、权限、模型和配置绑定的会话记录恢复，
+不能由 CLI 注入。每次调用及恢复均设置 224000 tokens 自动压缩阈值；sandbox 由阶段策略确定。
+契约与测试设计共用研究会话，实现/构建/公开运行共用工作会话，目标检查使用独立会话。
+运行失败直接路由回实现者，重新经过快照、检查、包装和运行，不再额外启动修复模型。
+详见 [新版对齐说明](WORKFLOW_ALIGNMENT.md)。
 
 对 `INDEPENDENT` owner，这个 fresh-thread 行为只是必要条件。Job 还必须从未保留迁移对话的新
 Codex 上下文/进程启动，并使用角色专属项目、凭据和材料挂载。共享迁移上下文或能读取候选/私测双方

@@ -111,7 +111,7 @@ class TranslationUnitExtractor:
             raise WorkflowError(f"translation unit has no compilation database entry: {unit_id}")
         arguments = entry.get("arguments")
         compile_directory = Path(str(entry.get("directory", ""))).resolve()
-        self._require_within(self.source_root, compile_directory, unit_id)
+        self._require_within(self.project.root, compile_directory, unit_id)
         if arguments != unit.get("arguments") or str(compile_directory) != unit.get(
             "compile_directory"
         ):
@@ -123,6 +123,11 @@ class TranslationUnitExtractor:
         return unit_id, source_path, compile_directory, arguments
 
     def _validate_dependencies(self, unit: dict[str, Any], unit_id: str) -> None:
+        for dependency in unit.get("generated_dependencies", []):
+            path = (self.project.root / dependency["path"]).resolve()
+            self._require_within(self.project.root, path, unit_id)
+            if not path.is_file() or file_sha256(path) != dependency.get("sha256"):
+                raise WorkflowError(f"generated dependency hash changed: {unit_id}")
         for dependency in unit.get("dependencies", []):
             if not isinstance(dependency, dict):
                 raise WorkflowError(f"translation unit has an invalid dependency: {unit_id}")

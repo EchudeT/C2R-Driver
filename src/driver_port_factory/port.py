@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 import subprocess
 from collections.abc import Callable
 from dataclasses import dataclass
@@ -22,6 +23,7 @@ from .acquisition.revision_selection import RevisionSelector
 from .cli_support import CommandRegistry, command_registry
 from .codex.cli import run_codex_stage
 from .codex.contracts import CodexArtifact, CodexBackend, CodexOutputError
+from .codex.policy import CodexExecutionPolicy
 from .composition import initialize_project, open_project
 from .core.contracts import ArtifactKey, StageKey
 from .core.models import (
@@ -29,7 +31,6 @@ from .core.models import (
     ArtifactDirection,
     EvaluationMode,
     FileArtifact,
-    GeneratedArtifact,
     ProjectConfig,
     StageStatus,
     WorkflowError,
@@ -116,6 +117,7 @@ class PortRunner:
 
     def run(self) -> PortOutcome:
         project = self._project()
+        review_retries = 0
         while True:
             stage = self._current(project)
             if stage is None:
@@ -137,6 +139,22 @@ class PortRunner:
                 return PortOutcome(stage.name.value, stage.status, "resolve recorded blocker")
             action(project)
             current = project.stage(stage.name)
+            if (
+                stage.name
+                in {
+                    MigrationStage.TARGET_COMPLIANCE,
+                    MigrationStage.PUBLIC_REPAIR,
+                    SourceAnalysisStage.STRUCTURED_C_ANALYSIS,
+                }
+                and current.status is StageStatus.PENDING
+            ):
+                review_retries += 1
+                if review_retries >= 3:
+                    return PortOutcome(
+                        stage.name.value,
+                        current.status,
+                        "review repair budget reached; inspect preserved findings",
+                    )
             if current.status is StageStatus.WAITING_FOR_USER:
                 return PortOutcome(
                     current.name.value, current.status, "answer persisted intake question"
@@ -218,6 +236,8 @@ class PortRunner:
         context: dict[str, object],
         *,
         objective: str | None = None,
+        thread_id: str | None = None,
+        follow_up: str | None = None,
     ):
         return run_codex_stage(
             project,
@@ -227,6 +247,9 @@ class PortRunner:
             backend=self.options.backend,
             codex_bin=self.options.codex_bin,
             model=self.options.model,
+            thread_id=thread_id,
+            follow_up=follow_up,
+            skill_root=self.options.skill_root.resolve(),
         )
 
     @staticmethod
@@ -241,6 +264,7 @@ class PortRunner:
             "kind": reference.kind,
             "digest": reference.digest,
             "path": str(project.artifacts.path_for_digest(reference.digest)),
+            "size_bytes": reference.size,
         }
 
     @staticmethod
@@ -301,17 +325,37 @@ class PortRunner:
         objective: str | None = None,
     ) -> bool:
         pending = self._latest_job_occurrence(project, stage)
-        if pending is not None:
-            accept(project, pending)
-            return True
-        _, _, response = self._codex(
-            project,
-            stage,
-            context,
-            objective=objective,
-        )
-        accept(project, self._job_occurrence(project, stage, response))
-        return True
+        thread_id = self._latest_thread_id(project, stage)
+        feedback = None
+        seen_errors = set()
+        for _ in range(3):
+            if pending is None:
+                result, _, response = self._codex(
+                    project,
+                    stage,
+                    context,
+                    objective=objective,
+                    thread_id=thread_id,
+                    follow_up=feedback,
+                )
+                thread_id = result.thread_id
+                pending = self._job_occurrence(project, stage, response)
+            try:
+                accept(project, pending)
+                return True
+            except CodexOutputError as error:
+                feedback = str(error)
+                if feedback in seen_errors:
+                    raise
+                seen_errors.add(feedback)
+                pending = None
+        raise CodexOutputError(f"bounded correction exhausted: {feedback}")
+
+    @staticmethod
+    def _latest_thread_id(project: Project, stage: StageKey) -> str | None:
+        # Gateway session identity also checks role, cwd, sandbox, model and provider.
+        # Never infer a thread from an unscoped historical event log here.
+        return None
 
     @staticmethod
     def _materialize_codex_report(
@@ -338,6 +382,19 @@ class PortRunner:
             raise WorkflowError("Codex work report is not UTF-8") from error
         if not text.strip():
             raise WorkflowError("Codex work report is blank")
+        report_paths = re.findall(r"^REPORT_PATH:\s*(.+\.md)\s*$", text, re.MULTILINE)
+        if not report_paths:
+            report_paths = re.findall(r"\]\((/[^\n)]+\.md)\)", text)
+        if len(set(report_paths)) == 1:
+            root = CodexExecutionPolicy().grant(project, stage).execution_root.resolve()
+            report_path = (root / report_paths[0].strip()).resolve()
+            if root not in report_path.parents or not report_path.is_file():
+                raise CodexOutputError(
+                    "report path must name a Markdown file in the stage workspace"
+                )
+            data = report_path.read_bytes()
+            if not data.decode("utf-8").strip():
+                raise CodexOutputError("report file is empty")
         output = (
             project.root
             / "work"
@@ -373,13 +430,6 @@ class PortRunner:
             AcquisitionStage.REVISION_SELECTION,
             {"migration_envelope": envelope},
             self._accept_revision_result,
-            objective=(
-                "Select exact maintained source, target, and QEMU repositories and immutable "
-                "revisions for the confirmed driver. Return only "
-                "{repositories:[{role,url,ref}]} with one source, one target, and one qemu row. "
-                "The controller derives platforms, envelope bindings, selection metadata, Git "
-                "resolution evidence, and all hashes; do not copy those fields into the reply."
-            ),
         )
 
     @staticmethod
@@ -440,16 +490,6 @@ class PortRunner:
                 for kind in (EnvironmentArtifact.INVENTORY, EnvironmentArtifact.MODE_CANDIDATES)
             },
             self._accept_environment_result,
-            objective=(
-                "Complete the embedded Skill's environment-recovery phase with the terminal. "
-                "Inspect the frozen repositories and supplied inventory, choose the least-cost "
-                "relevant route, and actually run it. Leave a self-contained repeatable smoke "
-                "harness named environment-smoke.sh in the current writable directory. Return "
-                "one Markdown work report describing the selected artifact mode, commands, "
-                "observations, failed alternatives, and remaining runtime boundary. There is no "
-                "response schema; the controller only reruns the script and records real exec, "
-                "exit-code, output, and hash evidence."
-            ),
         )
 
     def _accept_environment_result(self, project: Project, job: ArtifactOccurrence) -> None:
@@ -491,13 +531,6 @@ class PortRunner:
             TargetStudyStage.STUDY,
             context,
             self._accept_target_study_result,
-            objective=(
-                "Complete the embedded Skill's target-platform study using the terminal, the "
-                "generated knowledge-base Skill, and pinned target originals. Return one "
-                "complete Markdown work report covering the profile, target APIs, analogous "
-                "path, knowledge-quality probes, gaps, and minimum target-change boundary. "
-                "Use natural structure; there is no response schema."
-            ),
         )
 
     def _accept_target_study_result(self, project: Project, job: ArtifactOccurrence) -> None:
@@ -522,17 +555,21 @@ class PortRunner:
         MigrationHandoff().create(project)
 
     def _source_closure(self, project: Project) -> None:
-        if self._latest_job_occurrence(project, SourceAnalysisStage.SOURCE_CLOSURE) is None:
-            accepted = self._latest_persisted_job_occurrence(
-                project, SourceAnalysisStage.SOURCE_CLOSURE
-            )
-            if accepted is not None:
-                self._accept_source_closure_result(project, accepted)
-                return
+        attempts = [
+            ref
+            for ref in project.artifact_refs(stage=SourceAnalysisStage.STRUCTURED_C_ANALYSIS)
+            if ref.kind == SourceAnalysisArtifact.STRUCTURED_C_ANALYSIS_ATTEMPT.value
+        ]
         self._codex_gate(
             project,
             SourceAnalysisStage.SOURCE_CLOSURE,
             {
+                "structured_analyzer": self.options.analyzer,
+                "analysis_feedback_path": (
+                    str(project.artifacts.path_for_digest(attempts[-1].digest))
+                    if attempts
+                    else None
+                ),
                 "migration_envelope": self._artifact_context(
                     project, IntakeStage.ENVELOPE_FREEZE, IntakeArtifact.MIGRATION_ENVELOPE
                 ),
@@ -558,38 +595,52 @@ class PortRunner:
                 ),
             },
             self._accept_source_closure_result,
-            objective=(
-                "Complete the embedded Skill's source-closure phase using the terminal and "
-                "frozen source tree. In the current writable directory, create a standard "
-                "compile_commands.json containing the behaviorally required C translation "
-                "units with commands that actually preprocess successfully. Return one "
-                "Markdown work report explaining the selected closure, configurations, "
-                "branches, callbacks, tests, framework dependencies, and any real blocker. "
-                "There is no custom response schema; hashes and dependencies are derived by "
-                "the controller."
-            ),
         )
 
-    def _accept_source_closure_result(
-        self, project: Project, job: ArtifactOccurrence
-    ) -> None:
-        report = self._materialize_codex_report(
-            project, SourceAnalysisStage.SOURCE_CLOSURE, job
-        )
-        SourceClosureService().finalize_compilation_database(
-            project,
-            compilation_database_path=(
-                project.root / "work" / "stage-work" / "source_closure" / "compile_commands.json"
-            ),
-            work_report_path=report,
-        )
+    def _accept_source_closure_result(self, project: Project, job: ArtifactOccurrence) -> None:
+        report = self._materialize_codex_report(project, SourceAnalysisStage.SOURCE_CLOSURE, job)
+        try:
+            result = SourceClosureService().finalize_compilation_database(
+                project,
+                compilation_database_path=(
+                    project.root
+                    / "work"
+                    / "stage-work"
+                    / "source_closure"
+                    / "compile_commands.json"
+                ),
+                work_report_path=report,
+            )
+        except WorkflowError as error:
+            message = str(error)
+            actionable = (
+                "compile command",
+                "compile argv",
+                "compiler dependency scan failed",
+                "compile_commands.json",
+                "source compiler is unavailable",
+            )
+            if any(reason in message for reason in actionable):
+                raise CodexOutputError(message) from error
+            raise
+        if result.errors:
+            raise CodexOutputError("source closure failed: " + "; ".join(result.errors))
 
     def _structured_c(self, project: Project) -> None:
-        StructuredCAnalysisService().analyze(
+        result = StructuredCAnalysisService().analyze(
             project,
             analyzer=self.options.analyzer,
             analyzer_family=self.options.analyzer_family,
         )
+        if result.errors:
+            if not any("extraction failed:" in error or "target ABI differs" in error
+                       for error in result.errors):
+                raise WorkflowError("structured analysis tool failure: " + "; ".join(result.errors))
+            project.retry_from(
+                SourceAnalysisStage.SOURCE_CLOSURE,
+                trigger=SourceAnalysisStage.STRUCTURED_C_ANALYSIS,
+                reason=f"repair compile inputs after analysis failure: {result.report_path}",
+            )
 
     def _contracts(self, project: Project) -> None:
         self._codex_gate(
@@ -613,12 +664,6 @@ class PortRunner:
                 ),
             ),
             self._accept_contracts_result,
-            objective=(
-                "Complete the embedded Skill's migration-contract phase from the supplied "
-                "original evidence and structured C facts. Return one Markdown work report "
-                "with the contracts, evidence/inference distinctions, verification plans, and "
-                "real gaps. Use natural structure; there is no response schema."
-            ),
         )
 
     def _accept_contracts_result(self, project: Project, job: ArtifactOccurrence) -> None:
@@ -645,18 +690,9 @@ class PortRunner:
                 ),
             ),
             self._accept_test_adaptation_result,
-            objective=(
-                "Complete the embedded Skill's public source-test triage and adaptation plan. "
-                "Read the source tests and prior work products with the terminal, then return "
-                "one Markdown work report covering every discovered test, retained intent, "
-                "oracles, exclusions, gaps, and provenance. Use natural structure; there is no "
-                "response schema."
-            ),
         )
 
-    def _accept_test_adaptation_result(
-        self, project: Project, job: ArtifactOccurrence
-    ) -> None:
+    def _accept_test_adaptation_result(self, project: Project, job: ArtifactOccurrence) -> None:
         report = self._materialize_codex_report(project, MigrationStage.TEST_ADAPTATION, job)
         project.finalize_stage(
             MigrationStage.TEST_ADAPTATION,
@@ -677,6 +713,26 @@ class PortRunner:
                 for unit in facts["units"]
             ]
         }
+        review = self._latest_persisted_job_occurrence(project, MigrationStage.TARGET_COMPLIANCE)
+        if review:
+            extra["review_feedback_path"] = str(project.artifacts.path_for_digest(review.digest))
+        runtime_reports = [
+            ref for ref in project.artifact_refs(stage=MigrationStage.PUBLIC_QEMU_VALIDATION)
+            if ref.kind == MigrationArtifact.PUBLIC_QEMU_REPORT.value
+        ]
+        if runtime_reports:
+            latest = max(runtime_reports, key=lambda ref: ref.ordinal or 0)
+            if json.loads(project.artifacts.read(latest)).get("execution_status") != "PASS":
+                extra["runtime_failure_path"] = str(
+                    project.artifacts.path_for_digest(latest.digest)
+                )
+        runtime_review = self._latest_persisted_job_occurrence(
+            project, MigrationStage.PUBLIC_REPAIR
+        )
+        if runtime_review:
+            extra["runtime_review_path"] = str(
+                project.artifacts.path_for_digest(runtime_review.digest)
+            )
         self._codex_gate(
             project,
             MigrationStage.DRIVER_IMPLEMENTATION,
@@ -701,41 +757,49 @@ class PortRunner:
                 extra=extra,
             ),
             self._accept_implementation_result,
-            objective=(
-                "Implement the embedded Skill's Rust driver phase directly in the writable "
-                "target worktree. Use the terminal freely, read the supplied prior work "
-                "products and original evidence, add or adapt public tests, and make only "
-                "necessary target changes. Do not build or run QEMU in this stage. Return one "
-                "Markdown work report with changed paths, the Skill's target-compliance review, "
-                "and remaining evidence limits. There is no response schema; the controller "
-                "snapshots Git mechanically."
-            ),
         )
 
-    def _accept_implementation_result(
-        self, project: Project, job: ArtifactOccurrence
-    ) -> None:
-        report = self._materialize_codex_report(
-            project, MigrationStage.DRIVER_IMPLEMENTATION, job
-        )
+    def _accept_implementation_result(self, project: Project, job: ArtifactOccurrence) -> None:
+        report = self._materialize_codex_report(project, MigrationStage.DRIVER_IMPLEMENTATION, job)
         DriverImplementationService().snapshot_worktree(project, report)
 
     def _compliance(self, project: Project) -> None:
-        if project.stage(MigrationStage.TARGET_COMPLIANCE).status is StageStatus.READY:
-            project.start(MigrationStage.TARGET_COMPLIANCE)
-        report = project.artifact(
-            MigrationStage.DRIVER_IMPLEMENTATION,
-            MigrationArtifact.TRANSLATION_COVERAGE,
-        )
-        project.finalize_stage(
+        self._codex_gate(
+            project,
             MigrationStage.TARGET_COMPLIANCE,
-            (
-                GeneratedArtifact(
-                    MigrationArtifact.COMPLIANCE_REPORT,
-                    project.artifacts.read(report),
-                    "derived:implementation-work-report",
+            self._migration_context(
+                project,
+                (
+                    (MigrationStage.DRIVER_IMPLEMENTATION, MigrationArtifact.IMPLEMENTATION_BUNDLE),
+                    (MigrationStage.DRIVER_IMPLEMENTATION, MigrationArtifact.TRANSLATION_COVERAGE),
+                    (MigrationStage.CONTRACTS, MigrationArtifact.CONTRACTS),
+                    (MigrationStage.TEST_ADAPTATION, MigrationArtifact.TEST_PORT_MATRIX),
+                    (KnowledgeStage.KNOWLEDGE_BASE, KnowledgeArtifact.QUERY_CONTRACT),
+                    (TargetStudyStage.STUDY, TargetStudyArtifact.PROFILE),
+                    (
+                        SourceAnalysisStage.STRUCTURED_C_ANALYSIS,
+                        SourceAnalysisArtifact.STRUCTURED_C_FACTS,
+                    ),
                 ),
             ),
+            self._accept_compliance_result,
+        )
+
+    def _accept_compliance_result(self, project: Project, job: ArtifactOccurrence) -> None:
+        report = self._materialize_codex_report(project, MigrationStage.TARGET_COMPLIANCE, job)
+        verdict = report.read_text().strip().splitlines()[-1]
+        if verdict not in {"DPF_REVIEW: PASS", "DPF_REVIEW: REWORK"}:
+            raise CodexOutputError("review must end with DPF_REVIEW: PASS or DPF_REVIEW: REWORK")
+        if verdict == "DPF_REVIEW: REWORK":
+            project.retry_from(
+                MigrationStage.DRIVER_IMPLEMENTATION,
+                trigger=MigrationStage.TARGET_COMPLIANCE,
+                reason=f"review requires repair; feedback: {report}",
+            )
+            return
+        project.finalize_stage(
+            MigrationStage.TARGET_COMPLIANCE,
+            (FileArtifact(MigrationArtifact.COMPLIANCE_REPORT, report),),
         )
 
     def _artifact_preparation(self, project: Project) -> None:
@@ -754,23 +818,12 @@ class PortRunner:
                 ),
             ),
             self._accept_artifact_preparation_result,
-            objective=(
-                "Complete the embedded Skill's artifact-preparation work directly in the "
-                "writable target worktree. Use the terminal to build, inject, or package by the "
-                "evidenced target artifact mode and prove the current migrated driver is "
-                "included. Copy the final runnable artifact to "
-                ".dpf-output/runtime-artifact. Return one Markdown work report containing the "
-                "exact commands, identities, presence proof, failures, and limits. There is no "
-                "response schema; the controller hashes the produced artifact mechanically."
-            ),
         )
 
     def _accept_artifact_preparation_result(
         self, project: Project, job: ArtifactOccurrence
     ) -> None:
-        report = self._materialize_codex_report(
-            project, MigrationStage.ARTIFACT_PREPARATION, job
-        )
+        report = self._materialize_codex_report(project, MigrationStage.ARTIFACT_PREPARATION, job)
         ArtifactPreparationService().capture_codex_artifact(project, report)
 
     def _public_qemu(self, project: Project) -> None:
@@ -804,29 +857,14 @@ class PortRunner:
                 },
             ),
             self._accept_public_qemu_result,
-            objective=(
-                "Complete the embedded Skill's public QEMU evidence work using the terminal. "
-                "Read the current runtime artifact and all prior work products, create a "
-                "self-checking public harness at .dpf-output/public-qemu.sh in the writable "
-                "target worktree, and exercise only public developer evidence. The script must "
-                "use $DPF_RUNTIME_ARTIFACT, return zero only after its oracle proves the current "
-                "migrated driver ran under QEMU, and preserve logs under .dpf-output/qemu-runs. "
-                "Return one Markdown report with commands, observations, failures, attribution, "
-                "and scope limits. There is no response schema; the controller reruns the script "
-                "and captures its result mechanically."
-            ),
         )
         if not accepted:
             return
         if project.stage(MigrationStage.PUBLIC_QEMU_VALIDATION).status is StageStatus.RUNNING:
             PublicRepairService().prepare(project)
 
-    def _accept_public_qemu_result(
-        self, project: Project, job: ArtifactOccurrence
-    ) -> None:
-        report = self._materialize_codex_report(
-            project, MigrationStage.PUBLIC_QEMU_VALIDATION, job
-        )
+    def _accept_public_qemu_result(self, project: Project, job: ArtifactOccurrence) -> None:
+        report = self._materialize_codex_report(project, MigrationStage.PUBLIC_QEMU_VALIDATION, job)
         acquisition = load_repository_acquisition(project)
         worktree = (project.root / acquisition.target_worktree.path).resolve()
         PublicQemuService().run_script(
@@ -839,53 +877,41 @@ class PortRunner:
         service = PublicRepairService()
         prepared = service.prepare(project)
         if prepared is None:
-            service.finalize_not_applicable(project)
-            return
-        source_ref, failure = prepared
-        context = {
-            "failed_attempt": source_ref,
-            "failed_evidence": failure,
-            "frozen_inputs": {
-                kind.value: self._artifact_context(project, stage, kind)
-                for stage, kind in (
+            self._codex_gate(
+                project, MigrationStage.PUBLIC_REPAIR,
+                self._migration_context(project, (
+                    (MigrationStage.DRIVER_IMPLEMENTATION, MigrationArtifact.IMPLEMENTATION_BUNDLE),
                     (MigrationStage.CONTRACTS, MigrationArtifact.CONTRACTS),
                     (MigrationStage.TEST_ADAPTATION, MigrationArtifact.TEST_PORT_MATRIX),
-                    (
-                        MigrationStage.DRIVER_IMPLEMENTATION,
-                        MigrationArtifact.IMPLEMENTATION_BUNDLE,
-                    ),
+                    (MigrationStage.TARGET_COMPLIANCE, MigrationArtifact.COMPLIANCE_REPORT),
                     (MigrationStage.ARTIFACT_PREPARATION, MigrationArtifact.ARTIFACT_IDENTITY),
-                    (KnowledgeStage.KNOWLEDGE_BASE, KnowledgeArtifact.QUERY_CONTRACT),
-                    (TargetStudyStage.STUDY, TargetStudyArtifact.CHANGE_PLAN),
-                )
-            },
-        }
-
-        def accept(project: Project, job: ArtifactOccurrence) -> None:
-            report = self._materialize_codex_report(
-                project, MigrationStage.PUBLIC_REPAIR, job
+                    (MigrationStage.PUBLIC_QEMU_VALIDATION, MigrationArtifact.PUBLIC_QEMU_REPORT),
+                )),
+                self._accept_runtime_review,
             )
-            service.finalize_codex_repair(
-                project,
-                work_report_path=report,
-                failure=failure,
-            )
-
-        self._codex_gate(
-            project,
-            MigrationStage.PUBLIC_REPAIR,
-            context,
-            accept,
-            objective=(
-                "Perform the embedded Skill's narrow public repair loop using the terminal and "
-                "the preserved failed run. Diagnose before editing, inspect original target and "
-                "knowledge evidence, make only the necessary writable fix, rebuild "
-                ".dpf-output/runtime-artifact, and rerun .dpf-output/public-qemu.sh until its "
-                "public oracle passes or a precise external blocker is proven. Return one "
-                "Markdown work report with diagnosis, edits, commands, results, and limits. "
-                "There is no response schema; the controller reruns the harness mechanically."
-            ),
+            return
+        source_ref, _ = prepared
+        if project.stage(MigrationStage.PUBLIC_REPAIR).status is StageStatus.READY:
+            project.start(MigrationStage.PUBLIC_REPAIR)
+        project.retry_from(
+            MigrationStage.DRIVER_IMPLEMENTATION,
+            trigger=MigrationStage.PUBLIC_REPAIR,
+            reason=("runtime failure returns to the existing implementation conversation: "
+                    f"{project.artifacts.path_for_digest(source_ref['digest'])}"),
         )
+
+    def _accept_runtime_review(self, project: Project, job: ArtifactOccurrence) -> None:
+        report = self._materialize_codex_report(project, MigrationStage.PUBLIC_REPAIR, job)
+        verdict = report.read_text().strip().splitlines()[-1]
+        if verdict not in {"DPF_REVIEW: PASS", "DPF_REVIEW: REWORK"}:
+            raise CodexOutputError("review must end with DPF_REVIEW: PASS or DPF_REVIEW: REWORK")
+        if verdict == "DPF_REVIEW: REWORK":
+            project.retry_from(
+                MigrationStage.DRIVER_IMPLEMENTATION, trigger=MigrationStage.PUBLIC_REPAIR,
+                reason=f"runtime evidence review requires rework: {report}",
+            )
+            return
+        PublicRepairService().finalize_not_applicable(project, review_path=report)
 
     @staticmethod
     def _completion_audit(project: Project) -> None:
@@ -898,7 +924,19 @@ class PortRunner:
         *,
         extra: dict[str, object] | None = None,
     ) -> dict[str, object]:
+        acquisition = load_repository_acquisition(project)
         context: dict[str, object] = {
+            "workspace_paths": {
+                "project_root": str(project.root),
+                "target_worktree": str(project.root / acquisition.target_worktree.path),
+                "frozen_baselines": {
+                    record.role.value: str(project.root / record.checkout_path)
+                    for record in acquisition.checkouts
+                },
+                "knowledge_skill": self._artifact_context(
+                    project, KnowledgeStage.KNOWLEDGE_BASE, KnowledgeArtifact.GENERATED_SKILL
+                )["path"],
+            },
             "frozen_inputs": {
                 kind.value: self._artifact_context(project, owner, kind) for owner, kind in inputs
             }

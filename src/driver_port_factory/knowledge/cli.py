@@ -6,6 +6,7 @@ from pathlib import Path
 
 from ..cli_support import CommandRegistry, command_registry
 from ..composition import open_project
+from ..source_analysis.query import query_facts
 from .bootstrap import KnowledgeBootstrapper
 from .contracts import KnowledgeDomain
 from .index import KnowledgeIndex
@@ -77,6 +78,7 @@ def command_search(arguments: argparse.Namespace) -> None:
                 record_id=arguments.record_id,
                 path_prefix=arguments.path_prefix,
                 limit=arguments.limit,
+                compact=not arguments.full,
             ),
             ensure_ascii=False,
             sort_keys=True,
@@ -94,6 +96,13 @@ def command_show(arguments: argparse.Namespace) -> None:
             indent=2,
         )
     )
+
+
+def command_c_facts(arguments: argparse.Namespace) -> None:
+    project = open_project(Path(arguments.path), read_only=True)
+    print(json.dumps(query_facts(
+        project, symbol=arguments.symbol, source_path=arguments.source_path, limit=arguments.limit
+    ), ensure_ascii=False, indent=2))
 
 
 def register_commands(commands: CommandRegistry) -> None:
@@ -122,8 +131,19 @@ def register_commands(commands: CommandRegistry) -> None:
     search.add_argument("--record-id")
     search.add_argument("--path-prefix")
     search.add_argument("--limit", type=int, default=10)
+    search.add_argument(
+        "--full", action="store_true", help="include full chunks instead of summaries"
+    )
     search.set_defaults(handler=command_search)
     show = subcommands.add_parser("show")
     show.add_argument("path")
     show.add_argument("--chunk-id", required=True)
     show.set_defaults(handler=command_show)
+    facts = subcommands.add_parser(
+        "c-facts", help="inspect a named function/type in frozen C facts"
+    )
+    facts.add_argument("path")
+    facts.add_argument("--symbol", required=True)
+    facts.add_argument("--source-path")
+    facts.add_argument("--limit", type=int, default=5)
+    facts.set_defaults(handler=command_c_facts)

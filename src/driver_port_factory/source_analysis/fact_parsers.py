@@ -77,7 +77,7 @@ class RawFactParser:
             return self._llvm_summary(lines, target_triple)
         if fact_kind is RawFactKind.CFG:
             functions = self._parse_cfg(lines)
-            self._correlate_functions(functions, identities["functions"])
+            unavailable = self._correlate_functions(functions, identities["functions"])
             block_count = sum(len(function["blocks"]) for function in functions)
             edge_record_count = sum(
                 bool(block["predecessors"]) + bool(block["successors"])
@@ -91,6 +91,7 @@ class RawFactParser:
                     "edge_record_count": edge_record_count,
                     "ast_function_definition_count": len(identities["functions"]),
                     "functions": functions,
+                    "unavailable_functions": unavailable,
                 },
             )
         raise WorkflowError(f"unsupported raw fact kind: {fact_kind.value}")
@@ -265,16 +266,14 @@ class RawFactParser:
             else:
                 section.append(line)
         finish()
-        unique = {
-            json.dumps(record, ensure_ascii=False, sort_keys=True, separators=(",", ":")): record
-            for record in records
-        }
-        return list(unique.values())
+        # Macro expansions can produce distinct anonymous definitions with identical
+        # locations and layouts. Keep occurrences until each AST identity is bound.
+        return records
 
     @classmethod
     def _correlate_functions(
         cls, functions: list[dict[str, Any]], identities: list[dict[str, Any]]
-    ) -> None:
+    ) -> list[dict[str, Any]]:
         identities_by_name = {identity["name"]: identity for identity in identities}
         if len(identities_by_name) != len(identities):
             raise WorkflowError("AST contains duplicate C function definition names")
@@ -300,12 +299,23 @@ class RawFactParser:
             mapped.add(identity["node_id"])
             retained.append(function)
         expected = {identity["node_id"] for identity in identities}
-        if mapped != expected:
-            missing = sorted(expected - mapped)
+        # Clang AnalysisConsumer::VisitFunctionDecl deliberately skips this prefix.
+        # Retain an explicit gap, never fabricate CFG blocks or drop the AST body.
+        # llvm-project/release/18.x/clang/lib/StaticAnalyzer/Frontend/AnalysisConsumer.cpp
+        unavailable = [
+            {"ast_node_id": identity["node_id"], "name": identity["name"],
+             "reason": "clang-analyzer-skips-__inline-prefix",
+             "source_location": identity.get("source_location")}
+            for identity in identities
+            if identity["node_id"] not in mapped and identity["name"].startswith("__inline")
+        ]
+        missing = expected - mapped - {item["ast_node_id"] for item in unavailable}
+        if missing:
             raise WorkflowError(
-                "CFG does not cover every AST function definition: " + ", ".join(missing)
+                "CFG does not cover every AST function definition: " + ", ".join(sorted(missing))
             )
         functions[:] = retained
+        return unavailable
 
     @staticmethod
     def _declarator_candidates(signature: str, known_names: frozenset[str]) -> set[str]:
@@ -368,16 +378,24 @@ class RawFactParser:
                     for record in candidates
                     if self._record_structure_matches(record, identity, compare_types=True)
                 ]
-            if len(candidates) != 1:
+            signatures = {
+                json.dumps(
+                    {key: value for key, value in record.items() if key != "ast_node_id"},
+                    sort_keys=True,
+                )
+                for record in candidates
+            }
+            if len(signatures) != 1:
                 raise WorkflowError(
                     "record-layout identity correlation failed for AST record "
                     f"{identity['node_id']}: found {len(candidates)}"
                 )
-            if candidates[0]["ast_node_id"] is not None:
+            available = [record for record in candidates if record["ast_node_id"] is None]
+            if not available:
                 raise WorkflowError(
                     f"record layout {candidates[0]['record']} maps to multiple AST definitions"
                 )
-            candidates[0]["ast_node_id"] = identity["node_id"]
+            available[0]["ast_node_id"] = identity["node_id"]
         records[:] = [record for record in records if record["ast_node_id"] is not None]
 
     @classmethod

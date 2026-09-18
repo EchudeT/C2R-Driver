@@ -51,6 +51,7 @@ class DriverImplementationService:
         changed.update(
             filter(None, _git(worktree, "ls-files", "--others", "--exclude-standard").splitlines())
         )
+        changed = {path for path in changed if not path.startswith(".dpf-output/")}
         if not changed:
             raise WorkflowError("Codex completed driver implementation without changing files")
         existing = set(
@@ -183,6 +184,7 @@ def validate_implementation_bundle(context: BundleValidationContext) -> None:
     changed.update(
         filter(None, _git(worktree, "ls-files", "--others", "--exclude-standard").splitlines())
     )
+    changed = {path for path in changed if not path.startswith(".dpf-output/")}
     files = bundle.get("files")
     if not isinstance(files, list) or not files:
         raise WorkflowError("implementation snapshot has no changed files")

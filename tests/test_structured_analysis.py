@@ -25,6 +25,15 @@ from tests.test_source_closure import ready_project, source_closure, write_json
 
 
 class StructuredCAnalysisTests(unittest.TestCase):
+    def test_cfg_known_clang_omission_is_explicit_but_unknown_missing_body_fails(self):
+        parser = RawFactParser()
+        identity = {"node_id": "inline-id", "name": "__inline_memcpy"}
+        unavailable = parser._correlate_functions([], [identity])
+        self.assertEqual(unavailable[0]["ast_node_id"], "inline-id")
+        self.assertEqual(unavailable[0]["reason"], "clang-analyzer-skips-__inline-prefix")
+        with self.assertRaisesRegex(WorkflowError, "does not cover"):
+            parser._correlate_functions([], [{**identity, "name": "driver_probe"}])
+
     def test_external_declarations_exclude_unreferenced_analysis_candidates(self) -> None:
         ast = {
             "kind": "TranslationUnitDecl",
@@ -265,8 +274,48 @@ class StructuredCAnalysisTests(unittest.TestCase):
         )
 
         parser = RawFactParser()
-        self.assertEqual(len(parser._parse_record_layout(duplicate.splitlines())), 1)
-        self.assertEqual(len(parser._parse_record_layout((duplicate + different).splitlines())), 2)
+        self.assertEqual(len(parser._parse_record_layout(duplicate.splitlines())), 2)
+        self.assertEqual(len(parser._parse_record_layout((duplicate + different).splitlines())), 3)
+
+    def test_macro_duplicate_layouts_bind_distinct_ast_definitions(self) -> None:
+        compiler = shutil.which("clang-18") or shutil.which("clang")
+        if compiler is None:
+            self.skipTest("Clang is required")
+        source = (
+            "#define GROUP(name, ...) union { struct { __VA_ARGS__ }; "
+            "struct { __VA_ARGS__ } name; }\n"
+            "struct packet { GROUP(headers, unsigned short start; "
+            "unsigned short offset;); };\n"
+        )
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "macro.c"
+            path.write_text(source)
+            ast = subprocess.run(
+                [compiler, "-Xclang", "-ast-dump=json", "-fsyntax-only", str(path)],
+                check=True, capture_output=True,
+            )
+            layout = subprocess.run(
+                [compiler, "-Xclang", "-fdump-record-layouts-complete",
+                 "-fsyntax-only", str(path)],
+                check=True, capture_output=True,
+            )
+            semantic = AstSemanticIndexer("macro", path, json.loads(ast.stdout)).build()
+            parser = RawFactParser()
+            _, summary = parser.summarize(
+                RawFactKind.RECORD_LAYOUT, layout.stdout, semantic, "fixture-target"
+            )
+            identities = semantic["indexes"]["definition_identities"]["records"]
+            self.assertEqual(
+                {record["ast_node_id"] for record in summary["records"]},
+                {identity["node_id"] for identity in identities},
+            )
+            self.assertGreaterEqual(len(identities), 4)
+            # An identical second occurrence is evidence, not a duplicate to discard.
+            records = parser._parse_record_layout(layout.stdout.decode().splitlines())
+            repeated = next(record for record in records if records.count(record) > 1)
+            records.remove(repeated)
+            with self.assertRaises(WorkflowError):
+                parser._correlate_records(records, identities)
 
     def test_abi_compatibility_ignores_compiler_specific_macro_spelling(self) -> None:
         expected = {
@@ -596,7 +645,7 @@ class StructuredCAnalysisTests(unittest.TestCase):
             for unit in closure["translation_units"]:
                 unit["arguments"][0] = gcc
             probe_arguments = closure["translation_units"][0]["arguments"]
-            version = GccCompatibleCommand.version(Path(gcc).resolve())
+            version = GccCompatibleCommand.version(Path(gcc).absolute())
             closure["compiler"] = {
                 "family": "gcc-compatible",
                 "executable": gcc,

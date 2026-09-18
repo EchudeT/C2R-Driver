@@ -192,6 +192,9 @@ class GccCompatibleCommand:
         position = 1
         while position < len(arguments):
             argument = arguments[position]
+            if argument.startswith(("-Wp,-MMD,", "-Wp,-MD,", "-Wp,-MF,")):
+                position += 1
+                continue
             if argument == "-target" or argument.startswith("--target="):
                 has_explicit_target = True
             if argument in cls.OPTIONS_WITH_VALUES:

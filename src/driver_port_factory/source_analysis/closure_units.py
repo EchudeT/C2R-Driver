@@ -111,7 +111,10 @@ class TranslationUnitValidator:
         ):
             raise WorkflowError("translation unit arguments must be a non-empty argv list")
         argument_compiler = shutil.which(arguments[0])
-        if not argument_compiler or Path(argument_compiler).resolve() != self.context.compiler_path:
+        if (
+            not argument_compiler
+            or Path(argument_compiler).resolve() != self.context.compiler_path.resolve()
+        ):
             raise WorkflowError("translation unit argv does not use the frozen compiler")
         if not self.context.command_adapter.contains_source(arguments, compile_directory, path):
             raise WorkflowError(

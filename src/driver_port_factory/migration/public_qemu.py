@@ -1,8 +1,8 @@
 from __future__ import annotations
 
 import json
-import re
 import shutil
+import uuid
 from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any
@@ -12,6 +12,7 @@ from ..core.contracts import ArtifactKey
 from ..core.execution import CommandResult, CommandRunner
 from ..core.models import FileArtifact, GeneratedArtifact, StageStatus, WorkflowError, utc_now
 from ..core.project import Project
+from ..core.trace import successful_execs
 from ..core.validation import BundleValidationContext, json_object
 from ..environment.contracts import EnvironmentArtifact
 from ..environment.evidence import workspace_path
@@ -75,11 +76,18 @@ def run_public_harness(
         raise WorkflowError("strace is required to prove that the public harness executed QEMU")
     attempt_dir.mkdir(parents=True, exist_ok=True)
     trace_path = attempt_dir / "execve.log"
+    log_root = worktree / ".dpf-output" / "qemu-runs"
+    before = {
+        path: (path.stat().st_mtime_ns, path.stat().st_size)
+        for path in log_root.rglob("*") if path.is_file()
+    }
     result = CommandRunner(attempt_dir / "command").run(
         [
             strace,
             "-f",
             "-qq",
+            "-s",
+            "65535",
             "-e",
             "trace=execve",
             "-o",
@@ -94,19 +102,18 @@ def run_public_harness(
         },
         timeout_seconds=3600,
     )
-    lines = trace_path.read_text(encoding="utf-8", errors="replace").splitlines()
-    pattern = re.compile(r'execve\("([^"]+)"')
-    executed = tuple(
-        match.group(1) for line in lines if (match := pattern.search(line)) is not None
+    lines = (
+        trace_path.read_text(encoding="utf-8", errors="replace").splitlines()
+        if trace_path.is_file() else []
     )
+    successful = successful_execs(lines)
+    executed = tuple(path for path, _ in successful)
     qemu_lines = tuple(
         line
-        for line in lines
-        if (match := pattern.search(line)) is not None
-        and Path(match.group(1)).name.startswith("qemu-system-")
+        for path, line in successful
+        if Path(path).name.startswith("qemu-system-")
     )
-    runtime_bound = any(str(runtime_path) in line for line in qemu_lines)
-    log_root = worktree / ".dpf-output" / "qemu-runs"
+    runtime_bound = any(f'"{runtime_path}"' in line for line in qemu_lines)
     logs = (
         tuple(
             {
@@ -116,6 +123,7 @@ def run_public_harness(
             }
             for path in sorted(log_root.rglob("*"))
             if path.is_file() and path.stat().st_size > 0
+            and before.get(path) != (path.stat().st_mtime_ns, path.stat().st_size)
         )
         if log_root.is_dir()
         else ()
@@ -151,7 +159,7 @@ class PublicQemuService:
         )
         runtime_path = project.artifacts.path_for_digest(runtime.digest).resolve()
         script_digest = file_sha256(script_path)
-        attempt_dir = project.control / "public-qemu" / script_digest[:20]
+        attempt_dir = project.control / "public-qemu" / uuid.uuid4().hex
         observed = run_public_harness(
             attempt_dir=attempt_dir,
             script_path=script_path,

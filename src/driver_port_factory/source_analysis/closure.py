@@ -57,12 +57,12 @@ class NormalizedCompileCommand:
 
 
 def _normalize_compile_command(
-    source_root: Path, raw: object
+    source_root: Path, raw: object, workspace_root: Path | None = None
 ) -> NormalizedCompileCommand:
     if not isinstance(raw, dict):
         raise WorkflowError("compile command must be an object")
     directory = _inside_source_root(
-        source_root,
+        workspace_root or source_root,
         Path(str(raw.get("directory", source_root))),
         source_root,
         "compile command directory",
@@ -108,11 +108,12 @@ def _inside_source_root(
 def _resolve_executable(value: str, cwd: Path) -> Path:
     candidate = Path(value)
     if candidate.is_absolute():
-        return candidate.resolve()
+        return candidate.absolute()
     if "/" in value:
-        return (cwd / candidate).resolve()
+        return (cwd / candidate).absolute()
     located = shutil.which(value)
-    return Path(located).resolve() if located else Path()
+    # Preserve argv[0]: compiler-cache and multicall symlinks dispatch by basename.
+    return Path(located).absolute() if located else Path()
 
 
 class SourceClosureService:
@@ -137,7 +138,7 @@ class SourceClosureService:
             source = checkout(acquisition.checkouts, RepositoryRole.SOURCE)
             source_root = (project.root / source.checkout_path).resolve()
             database, units, source_files, compiler = self._derive_compile_inputs(
-                source_root, raw_entries
+                source_root, raw_entries, workspace_root=project.root
             )
             corpus_revision, corpus, added_ids = self._extend_knowledge(project, source_files)
             attempt_dir = self._new_attempt_dir(
@@ -206,7 +207,7 @@ class SourceClosureService:
 
     @staticmethod
     def _derive_compile_inputs(
-        source_root: Path, raw_entries: list[Any]
+        source_root: Path, raw_entries: list[Any], *, workspace_root: Path | None = None
     ) -> tuple[
         list[dict[str, Any]],
         list[dict[str, Any]],
@@ -221,7 +222,7 @@ class SourceClosureService:
         target_triple: str | None = None
         target_abi: dict[str, object] | None = None
         for index, raw in enumerate(raw_entries, start=1):
-            entry = _normalize_compile_command(source_root, raw)
+            entry = _normalize_compile_command(source_root, raw, workspace_root)
             directory = entry.directory
             source_path = entry.source_path
             resolved_compiler = entry.compiler_path
@@ -243,8 +244,10 @@ class SourceClosureService:
             elif target_triple != observed_triple or target_abi != observed_abi:
                 raise WorkflowError("compile commands do not share one target ABI")
             dependencies = adapter.dependencies(
-                normalized_arguments, directory, source_root, source_path
+                normalized_arguments, directory, workspace_root or source_root, source_path
             )
+            generated = dependencies - {p for p in dependencies if source_root in p.parents}
+            dependencies -= generated
             relative_source = source_path.relative_to(source_root).as_posix()
             dependency_records = [
                 {
@@ -254,10 +257,7 @@ class SourceClosureService:
                 }
                 for dependency in sorted(dependencies)
             ]
-            unit_id = (
-                f"tu-{index:03d}-"
-                f"{hashlib.sha256(relative_source.encode()).hexdigest()[:12]}"
-            )
+            unit_id = f"tu-{index:03d}-{hashlib.sha256(relative_source.encode()).hexdigest()[:12]}"
             units.append(
                 {
                     "unit_id": unit_id,
@@ -266,6 +266,13 @@ class SourceClosureService:
                     "compile_directory": str(directory),
                     "arguments": normalized_arguments,
                     "dependencies": dependency_records,
+                    "generated_dependencies": [
+                        {
+                            "path": str(path.relative_to(workspace_root or source_root)),
+                            "sha256": file_sha256(path),
+                        }
+                        for path in sorted(generated)
+                    ],
                 }
             )
             database.append(

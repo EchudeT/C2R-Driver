@@ -1,9 +1,9 @@
 from __future__ import annotations
 
+import json
 import unittest
 from pathlib import Path
 
-from driver_port_factory.core.models import WorkflowError
 from driver_port_factory.source_analysis.ast_index import AstSemanticIndexer
 from driver_port_factory.source_analysis.function_pointers import (
     ClosureFunctionPointerResolver,
@@ -144,7 +144,7 @@ def unit_b() -> dict[str, object]:
 
 
 class ClosureFunctionPointerTests(unittest.TestCase):
-    def test_cross_unit_field_assignment_resolves_exactly_and_unknown_write_fails(self) -> None:
+    def test_cross_unit_field_assignment_resolves_and_unknown_write_stays_explicit(self) -> None:
         writer = AstSemanticIndexer("writer", Path("a.c"), unit_a(exact=True)).build()
         caller = AstSemanticIndexer("caller", Path("b.c"), unit_b()).build()
 
@@ -170,8 +170,13 @@ class ClosureFunctionPointerTests(unittest.TestCase):
             "unknown-writer", Path("a.c"), unit_a(exact=False)
         ).build()
         unknown_caller = AstSemanticIndexer("unknown-caller", Path("b.c"), unit_b()).build()
-        with self.assertRaisesRegex(WorkflowError, "remain unresolved across source closure"):
-            ClosureFunctionPointerResolver.resolve([unknown_writer, unknown_caller])
+        ClosureFunctionPointerResolver.resolve([unknown_writer, unknown_caller])
+        self.assertEqual(unknown_caller["counts"]["unresolved_indirect_calls"], 1)
+        self.assertEqual(
+            unknown_caller["indexes"]["calls"][0]["dispatch"], CallDispatch.INDIRECT_UNRESOLVED
+        )
+        validate_semantic_index(unknown_caller)
+        self.assertEqual(json.loads(json.dumps(unknown_caller)), unknown_caller)
 
 
 if __name__ == "__main__":

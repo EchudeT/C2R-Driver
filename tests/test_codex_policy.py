@@ -140,10 +140,12 @@ class CodexPolicyTests(unittest.TestCase):
             networked = policy.grant(policy_project, AcquisitionStage.REVISION_SELECTION)
 
             self.assertEqual(writable.sandbox, CodexSandbox.WORKSPACE_WRITE)
-            self.assertEqual(repair, writable)
+            self.assertEqual(repair.sandbox, CodexSandbox.WORKSPACE_WRITE)
+            self.assertEqual(repair.execution_root, root / "work/stage-work/target_compliance")
             self.assertEqual(writable.execution_root, root / "work/target-working")
-            self.assertEqual(readonly.sandbox, CodexSandbox.READ_ONLY)
-            self.assertEqual(readonly.execution_root, root)
+            self.assertEqual(readonly.sandbox, CodexSandbox.WORKSPACE_WRITE)
+            self.assertEqual(readonly.execution_root, root / "work/stage-work/migration_contracts")
+            self.assertNotEqual(readonly.execution_root, writable.execution_root)
             self.assertEqual(networked.sandbox, CodexSandbox.UNRESTRICTED)
             self.assertEqual(networked.execution_root, root)
             self.assertNotEqual(writable.execution_root, root)
@@ -181,7 +183,7 @@ class CodexPolicyTests(unittest.TestCase):
                 '{"type":"agent_message","text":"ok"}}'
             )
             with patch(
-                "driver_port_factory.codex.gateway.subprocess.run",
+                "driver_port_factory.codex.gateway.execute",
                 return_value=CompletedProcess([], 0, stdout=output, stderr=""),
             ) as run:
                 result = CodexExecGateway("codex").run(job)
@@ -206,7 +208,7 @@ class CodexPolicyTests(unittest.TestCase):
                 '{"type":"agent_message","text":"ok"}}'
             )
             with patch(
-                "driver_port_factory.codex.gateway.subprocess.run",
+                "driver_port_factory.codex.gateway.execute",
                 return_value=CompletedProcess([], 0, stdout=output, stderr=""),
             ) as run:
                 CodexExecGateway("codex").run(job)

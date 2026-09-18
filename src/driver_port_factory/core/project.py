@@ -122,6 +122,17 @@ class Project:
             content = self.artifacts.put_bytes(data, kind=artifact.kind.value)
             ref = ArtifactRef(content, source)
             artifacts_with_data.append((ref, data))
+        if self.validators.has_bundle_validator(stage):
+            self._validate_stage_bundle(stage, tuple(artifacts_with_data))
+        refs = [ref for ref, _ in artifacts_with_data]
+        self._persistence._commit_validated_stage(stage, refs, message=message)
+        return tuple(ref.digest for ref in refs)
+
+    def _validate_stage_bundle(
+        self, stage: StageKey, artifacts_with_data: tuple[tuple[ArtifactRef, bytes], ...]
+    ) -> None:
+        # Markdown-only stages have no cross-artifact validator. Loading gigabytes
+        # of upstream ASTs there provides no extra check and can exhaust memory.
         dependency_artifacts = tuple(
             (ref, self.artifacts.read(ref))
             for dependency in self.workflow.spec(stage).dependencies
@@ -141,14 +152,11 @@ class Project:
             stage,
             BundleValidationContext(
                 self.root,
-                tuple(artifacts_with_data),
+                artifacts_with_data,
                 dependency_artifacts,
                 current_stage_artifacts,
             ),
         )
-        refs = [ref for ref, _ in artifacts_with_data]
-        self._persistence._commit_validated_stage(stage, refs, message=message)
-        return tuple(ref.digest for ref in refs)
 
     def _materialize(self, artifact: FileArtifact | GeneratedArtifact) -> tuple[bytes, str]:
         if isinstance(artifact, FileArtifact):

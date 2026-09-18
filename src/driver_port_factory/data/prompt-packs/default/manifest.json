@@ -4,44 +4,279 @@
   "template": "job.md",
   "correction_template": "correction.md",
   "stages": {
-    "driver_candidate_resolution": {"documents": ["open-kernel-driver-port/SKILL.md", "open-kernel-driver-port/references/intake.md"]},
-    "scope_confirmation": {"documents": ["open-kernel-driver-port/SKILL.md", "open-kernel-driver-port/references/intake.md"]},
-    "migration_envelope_freeze": {"documents": ["open-kernel-driver-port/SKILL.md", "open-kernel-driver-port/references/intake.md"]},
-    "revision_selection": {"documents": ["open-kernel-driver-port/SKILL.md", "open-kernel-driver-port/references/acquisition.md"], "objective": "Select and pin exact maintained source, target, and QEMU revisions for the confirmed driver. Return {schema_version:1,migration_envelope_sha256,repositories:[{role,platform,url,requested_ref,selection_rule}],compatibility_evidence:[{source_url,claim,excerpt,bindings:[{role,requested_ref}]}]}. An excerpt is an evidence summary, not a required byte-for-byte substring."},
-    "evidence_closure": {"documents": ["open-kernel-driver-port/SKILL.md", "open-kernel-driver-port/references/acquisition.md", "open-kernel-driver-port/references/handoff.md"], "objective": "Propose the smallest task-relevant acquisition closure. Return {schema_version:1,migration_envelope_sha256,repository_manifest_sha256,facets:[{lane,facet,disposition,rationale,locators,gap?}]}; cover all six Skill lanes, use CONTROLLED with content locators or EXPLICIT_GAP with {reason,impact,repair_trigger}, and include the frozen source driver entry."},
-    "environment_recovery": {"documents": ["open-kernel-driver-port/SKILL.md", "open-kernel-driver-port/references/environment-recovery.md"], "objective": "Select the least-cost concrete QEMU experiment route from the supplied mode candidates. Return {schema_version:3,route_id,milestone:EXPERIMENT_READY,purpose,artifact_mode,device_identity,topology,command:[...],cwd,environment,timeout_seconds,accepted_exit_codes,runner_evidence_paths,relevance_evidence,driver_insertion_or_packaging_path?}. Use the selected candidate's artifact_mode exactly."},
-    "knowledge_base": {"documents": ["open-kernel-driver-port/SKILL.md", "open-kernel-driver-port/references/knowledge-bootstrap.md"], "objective": "Create the Skill's mandatory knowledge probes from controlled originals. Return {schema_version:1,probes:[{probe_id,topic,domain,query,required,expected_record_ids?,path_prefix?,limit?,target_original?,target_gap?,inspected_paths?}]}. Required topic IDs are registration-lifecycle, resources-io-dma, interrupts-concurrency, ownership-errors-recovery, rust-safety-style, analogous-driver-framework, artifact-packaging-qemu, source-driver-entry, qemu-device-model, and hardware-or-explicit-gap. If compliance_recheck is present, replace the complete plan with one that closes its KNOWLEDGE findings."},
-    "target_platform_study": {"documents": ["knowledge-guided-driver-port/SKILL.md", "knowledge-guided-driver-port/references/target-platform-study.md", "knowledge-guided-driver-port/references/knowledge-contract.md", "knowledge-guided-driver-port/assets/target-platform-profile.md"], "objective": "Complete Skill Phase 2 from pinned target originals. Return {profile_json,api_table,analogous_trace,change_plan}. profile_json answers the nine template sections; api_table has entries; analogous_trace contains only applicable Skill steps in Skill order; change_plan records the lowest necessary integration level. Do not return Markdown because the controller renders it."},
-    "source_closure": {"documents": ["knowledge-guided-driver-port/SKILL.md", "knowledge-guided-driver-port/references/workflow.md", "knowledge-guided-driver-port/references/translation.md", "knowledge-guided-driver-port/references/knowledge-contract.md"], "objective": "Close Skill Phase 3 using frozen compile commands. Return one object with schema_version, source_root, source_revision, closure_status:CLOSED, compiler, defines, include_paths, configuration_inputs, generated_headers, selected_conditional_branches, translation_units, closure_categories, and unresolved_dependencies:[]; each translation unit includes unit_id, source_path, sha256, compile_directory, arguments, and dependencies."},
-    "structured_c_analysis": {"documents": ["knowledge-guided-driver-port/SKILL.md", "knowledge-guided-driver-port/references/translation.md"]},
-    "migration_contracts": {"documents": ["knowledge-guided-driver-port/SKILL.md", "knowledge-guided-driver-port/references/workflow.md", "knowledge-guided-driver-port/references/translation.md", "knowledge-guided-driver-port/references/knowledge-contract.md"], "objective": "Build Skill Phase 4 contracts from frozen evidence. Return {schema_version:1,contracts:[{id,requirement,evidence:{hardware,source,target,qemu},source_function_refs,rust_design_intent,verification,evidence_status,execution_status}],gaps:[...]}. Cite existing hardware/source/QEMU chunks, target {api_id} entries, and structured source functions; gaps name their knowledge or acquisition successor."},
-    "test_adaptation": {"documents": ["knowledge-guided-driver-port/SKILL.md", "knowledge-guided-driver-port/references/workflow.md", "knowledge-guided-driver-port/references/test-porting.md", "knowledge-guided-driver-port/references/knowledge-contract.md"], "objective": "Build Skill Phase 5 public developer test mappings and classify every discovered source test. Return {schema_version:1,tests:[{test_id,origin,source_test,primary_class,disposition,rationale,evidence,contract_ids,original_command,setup,stimulus,oracle,boundary_cases,negative_paths,cleanup,source_only_assertions_removed,adapter,limitations,expected_result,execution_status,public_developer_evidence}]}."},
-    "driver_implementation": {"documents": ["knowledge-guided-driver-port/SKILL.md", "knowledge-guided-driver-port/references/workflow.md", "knowledge-guided-driver-port/references/translation.md", "knowledge-guided-driver-port/references/target-changes.md", "knowledge-guided-driver-port/references/knowledge-contract.md", "knowledge-guided-driver-port/references/test-porting.md"], "objective": "Implement Skill Phase 6 directly in the writable target worktree. Reconstruct the evidenced driver behavior, adapt retained public tests, and make only necessary target changes. Return {schema_version:2,file_roles:[{path,role}],coverage:[...],target_changes:[...],target_symbols:[{api_id}],unsafe_obligations:[...]}; every non-test coverage item includes unit_ids and source_references:[{unit_id,fact_ids}], and the controller derives exact source spans, paths, and hashes. On repair, unchanged collections may be null. Do not build or run QEMU."},
-    "target_compliance": {"documents": ["knowledge-guided-driver-port/SKILL.md", "knowledge-guided-driver-port/references/workflow.md", "knowledge-guided-driver-port/references/knowledge-contract.md", "knowledge-guided-driver-port/references/target-changes.md"], "objective": "Perform only Skill Phase 7 against the current implementation and pinned target originals. Do not edit, compile, run QEMU, or plan Phase 8. Return {schema_version:2,status:PASS|VIOLATION|UNKNOWN,evidence:[...],findings:[{repair_target,summary,implementation_paths,target_evidence}]}; PASS has no findings."},
-    "artifact_preparation": {"documents": ["knowledge-guided-driver-port/SKILL.md", "knowledge-guided-driver-port/references/qemu-evidence.md"], "objective": "Plan only artifact preparation in Skill Phase 8. Return {schema_version:2, plan_id, artifact_mode, cwd, steps:[command], runtime_artifact, base_artifact, presence_check:command, tool_evidence_paths:[]}; command is {argv,environment,timeout_seconds,accepted_exit_codes}. The presence check must prove the current implementation payload is in runtime_artifact. Do not assume a fixed step sequence or packaged test artifact."},
-    "public_qemu_validation": {"documents": ["knowledge-guided-driver-port/SKILL.md", "knowledge-guided-driver-port/references/qemu-evidence.md"], "objective": "Freeze applicable public Skill Phase 8 QEMU evidence. Return {schema_version:2,runs:[{run_id,purpose,contract_ids,test_ids,cwd,runtime_artifact_path?,command,oracle,qemu_evidence}],ladder:[{level,disposition,run_ids,rationale}]}. A run with contracts or tests must pass the supplied current runtime_artifact_path unchanged in argv or environment and be marked EXECUTE or BLOCKED. Include any PRESERVE_BLOCKED test named by translation coverage. A command is {argv,environment,timeout_seconds,accepted_exit_codes} and must invoke a harness/checker that evaluates the predeclared oracle; exit status alone is never the oracle. Use NOT_APPLICABLE or BLOCKED honestly; do not assume packet fields or QMP and do not use private tests."},
-    "public_repair": {"documents": ["knowledge-guided-driver-port/SKILL.md", "knowledge-guided-driver-port/references/workflow.md", "knowledge-guided-driver-port/references/qemu-evidence.md", "knowledge-guided-driver-port/references/translation.md", "knowledge-guided-driver-port/references/test-porting.md", "knowledge-guided-driver-port/references/target-changes.md", "knowledge-guided-driver-port/references/knowledge-contract.md"], "objective": "Perform one narrow Skill Phase 9 diagnosis from the frozen failed public run. For a writable defect, edit the target worktree directly. Return {schema_version:2,attribution,action:APPLY|BLOCKED,failure_run_ids,summary,evidence,implementation}; implementation uses the Phase 6 response shape for APPLY and is null for BLOCKED. Do not use private evidence."},
-    "completion_audit": {"documents": ["knowledge-guided-driver-port/SKILL.md", "knowledge-guided-driver-port/references/workflow.md", "knowledge-guided-driver-port/references/knowledge-contract.md"]},
-    "driver_split": {"documents": ["blind-c2rust-driver-evaluation/SKILL.md", "blind-c2rust-driver-evaluation/references/curator-workflow.md"]},
-    "contract_freeze": {"documents": ["blind-c2rust-driver-evaluation/SKILL.md", "blind-c2rust-driver-evaluation/references/contracts-and-control-plane.md", "blind-c2rust-driver-evaluation/references/curator-workflow.md"]},
-    "reference_calibration": {"documents": ["blind-c2rust-driver-evaluation/SKILL.md", "blind-c2rust-driver-evaluation/references/curator-workflow.md"]},
-    "private_bundle_sealing": {"documents": ["blind-c2rust-driver-evaluation/SKILL.md", "blind-c2rust-driver-evaluation/references/curator-workflow.md"]},
-    "evaluation_inputs": {"documents": ["blind-c2rust-driver-evaluation/SKILL.md", "blind-c2rust-driver-evaluation/references/protocol.md", "blind-c2rust-driver-evaluation/references/candidate-sealing.md"]},
-    "isolation_gate": {"documents": ["blind-c2rust-driver-evaluation/SKILL.md", "blind-c2rust-driver-evaluation/references/protocol.md", "blind-c2rust-driver-evaluation/references/evaluator-workflow.md"]},
-    "reproducible_build": {"documents": ["blind-c2rust-driver-evaluation/SKILL.md", "blind-c2rust-driver-evaluation/references/evaluator-workflow.md", "blind-c2rust-driver-evaluation/references/candidate-sealing.md"]},
-    "mandatory_contracts": {"documents": ["blind-c2rust-driver-evaluation/SKILL.md", "blind-c2rust-driver-evaluation/references/contracts-and-control-plane.md", "blind-c2rust-driver-evaluation/references/evaluator-workflow.md"]},
-    "external_functionality": {"documents": ["blind-c2rust-driver-evaluation/SKILL.md", "blind-c2rust-driver-evaluation/references/contracts-and-control-plane.md", "blind-c2rust-driver-evaluation/references/evaluator-workflow.md"]},
-    "differential_execution": {"documents": ["blind-c2rust-driver-evaluation/SKILL.md", "blind-c2rust-driver-evaluation/references/contracts-and-control-plane.md", "blind-c2rust-driver-evaluation/references/evaluator-workflow.md"]},
-    "fault_injection": {"documents": ["blind-c2rust-driver-evaluation/SKILL.md", "blind-c2rust-driver-evaluation/references/evaluator-workflow.md"]},
-    "mutation_adequacy": {"documents": ["blind-c2rust-driver-evaluation/SKILL.md", "blind-c2rust-driver-evaluation/references/evaluator-workflow.md"]},
-    "stress": {"documents": ["blind-c2rust-driver-evaluation/SKILL.md", "blind-c2rust-driver-evaluation/references/evaluator-workflow.md"]},
-    "performance": {"documents": ["blind-c2rust-driver-evaluation/SKILL.md", "blind-c2rust-driver-evaluation/references/evaluator-workflow.md"]},
-    "hardware_subset": {"documents": ["blind-c2rust-driver-evaluation/SKILL.md", "blind-c2rust-driver-evaluation/references/evaluator-workflow.md"]},
-    "evaluation_report": {"documents": ["blind-c2rust-driver-evaluation/SKILL.md", "blind-c2rust-driver-evaluation/references/evaluator-workflow.md", "blind-c2rust-driver-evaluation/references/reporting.md"]},
-    "audit_inputs": {"documents": ["blind-c2rust-driver-evaluation/SKILL.md", "blind-c2rust-driver-evaluation/references/protocol.md"]},
-    "independence_audit": {"documents": ["blind-c2rust-driver-evaluation/SKILL.md", "blind-c2rust-driver-evaluation/references/protocol.md"]},
-    "commitment_audit": {"documents": ["blind-c2rust-driver-evaluation/SKILL.md", "blind-c2rust-driver-evaluation/references/protocol.md", "blind-c2rust-driver-evaluation/references/candidate-sealing.md"]},
-    "claim_audit": {"documents": ["blind-c2rust-driver-evaluation/SKILL.md", "blind-c2rust-driver-evaluation/references/reporting.md"]},
-    "audit_report": {"documents": ["blind-c2rust-driver-evaluation/SKILL.md", "blind-c2rust-driver-evaluation/references/protocol.md", "blind-c2rust-driver-evaluation/references/reporting.md"]}
+    "driver_candidate_resolution": {
+      "documents": [
+        "open-kernel-driver-port/SKILL.md",
+        "open-kernel-driver-port/references/intake.md"
+      ]
+    },
+    "scope_confirmation": {
+      "documents": [
+        "open-kernel-driver-port/SKILL.md",
+        "open-kernel-driver-port/references/intake.md"
+      ]
+    },
+    "migration_envelope_freeze": {
+      "documents": [
+        "open-kernel-driver-port/SKILL.md",
+        "open-kernel-driver-port/references/intake.md"
+      ]
+    },
+    "revision_selection": {
+      "documents": [
+        "open-kernel-driver-port/SKILL.md",
+        "open-kernel-driver-port/references/acquisition.md"
+      ],
+      "objective": "Select exact maintained source, target, and QEMU repositories and immutable revisions for the confirmed driver. Return only {repositories:[{role,url,ref}]} with one source, one target, and one qemu row. The controller derives platforms, envelope bindings, selection metadata, Git resolution evidence, and all hashes; do not copy those fields into the reply."
+    },
+    "evidence_closure": {
+      "documents": [
+        "open-kernel-driver-port/SKILL.md",
+        "open-kernel-driver-port/references/acquisition.md",
+        "open-kernel-driver-port/references/handoff.md"
+      ],
+      "objective": "Choose only task-relevant evidence that requires semantic judgment. Return {facets:[{lane,facet,rationale,repository_paths?:[{repository,path}],external_urls?:[url],gap?:{impact,repair_trigger}}]}. lane is one of source, target, qemu, hardware, test, or tooling; repository is one of source, target, or qemu; facet is a short semantic name chosen from the evidence's actual purpose, not a hidden enum. The controller adds source/driver_entry and owns digests, disposition, locator kinds, revisions, hashes, provenance, byte limits, material policy, and the actual gap reason. For controlled evidence, omit gap and list existing frozen repository paths. For a gap, include gap plus at least one candidate repository path or public URL actually checked. Cover target, qemu, hardware, test, and tooling; add extra source facets only when needed."
+    },
+    "environment_recovery": {
+      "documents": [
+        "open-kernel-driver-port/SKILL.md",
+        "open-kernel-driver-port/references/environment-recovery.md"
+      ],
+      "objective": "Complete the embedded Skill's environment-recovery phase with the terminal. Inspect the frozen repositories and supplied inventory, choose the least-cost relevant route, and actually run it. Leave a self-contained repeatable smoke harness named environment-smoke.sh in the current writable directory. Return one Markdown work report describing the selected artifact mode, commands, observations, failed alternatives, and remaining runtime boundary. There is no response schema; the controller only reruns the script and records real exec, exit-code, output, and hash evidence."
+    },
+    "knowledge_base": {
+      "documents": [
+        "open-kernel-driver-port/SKILL.md",
+        "open-kernel-driver-port/references/knowledge-bootstrap.md"
+      ],
+      "objective": "Create the Skill's mandatory knowledge probes from controlled originals. Return {schema_version:1,probes:[{probe_id,topic,domain,query,required,expected_record_ids?,path_prefix?,limit?,target_original?,target_gap?,inspected_paths?}]}. Required topic IDs are registration-lifecycle, resources-io-dma, interrupts-concurrency, ownership-errors-recovery, rust-safety-style, analogous-driver-framework, artifact-packaging-qemu, source-driver-entry, qemu-device-model, and hardware-or-explicit-gap. If compliance_recheck is present, replace the complete plan with one that closes its KNOWLEDGE findings."
+    },
+    "target_platform_study": {
+      "documents": [
+        "knowledge-guided-driver-port/SKILL.md",
+        "knowledge-guided-driver-port/references/target-platform-study.md",
+        "knowledge-guided-driver-port/references/knowledge-contract.md",
+        "knowledge-guided-driver-port/assets/target-platform-profile.md"
+      ],
+      "objective": "Complete the embedded Skill's target-platform study using the terminal, the generated knowledge-base Skill, and pinned target originals. Return one complete Markdown work report covering the profile, target APIs, analogous path, knowledge-quality probes, gaps, and minimum target-change boundary. Use natural structure; there is no response schema."
+    },
+    "source_closure": {
+      "documents": [
+        "knowledge-guided-driver-port/SKILL.md",
+        "knowledge-guided-driver-port/references/workflow.md",
+        "knowledge-guided-driver-port/references/translation.md",
+        "knowledge-guided-driver-port/references/knowledge-contract.md"
+      ],
+      "objective": "Complete the embedded Skill's source-closure phase using the terminal and frozen source tree. In the current writable directory, create a standard compile_commands.json containing the behaviorally required C translation units with commands that actually preprocess successfully. Return one Markdown work report explaining the selected closure, configurations, branches, callbacks, tests, framework dependencies, and any real blocker. There is no custom response schema; hashes and dependencies are derived by the controller."
+    },
+    "structured_c_analysis": {
+      "documents": [
+        "knowledge-guided-driver-port/SKILL.md",
+        "knowledge-guided-driver-port/references/translation.md"
+      ]
+    },
+    "migration_contracts": {
+      "documents": [
+        "knowledge-guided-driver-port/SKILL.md",
+        "knowledge-guided-driver-port/references/workflow.md",
+        "knowledge-guided-driver-port/references/translation.md",
+        "knowledge-guided-driver-port/references/knowledge-contract.md"
+      ],
+      "objective": "Complete the embedded Skill's migration-contract phase from the supplied original evidence and structured C facts. Return one Markdown work report with the contracts, evidence/inference distinctions, verification plans, and real gaps. Use natural structure; there is no response schema."
+    },
+    "test_adaptation": {
+      "documents": [
+        "knowledge-guided-driver-port/SKILL.md",
+        "knowledge-guided-driver-port/references/workflow.md",
+        "knowledge-guided-driver-port/references/test-porting.md",
+        "knowledge-guided-driver-port/references/knowledge-contract.md"
+      ],
+      "objective": "Complete the embedded Skill's public source-test triage and adaptation plan. Read the source tests and prior work products with the terminal, then return one Markdown work report covering every discovered test, retained intent, oracles, exclusions, gaps, and provenance. Use natural structure; there is no response schema."
+    },
+    "driver_implementation": {
+      "documents": [
+        "knowledge-guided-driver-port/SKILL.md",
+        "knowledge-guided-driver-port/references/workflow.md",
+        "knowledge-guided-driver-port/references/translation.md",
+        "knowledge-guided-driver-port/references/target-changes.md",
+        "knowledge-guided-driver-port/references/knowledge-contract.md",
+        "knowledge-guided-driver-port/references/test-porting.md"
+      ],
+      "objective": "Implement the embedded Skill's Rust driver phase directly in the writable target worktree. Use the terminal freely, read prior work products and original evidence, adapt public tests, and make only necessary target changes. Run focused compilation/tests when they help validate your edits; preserve passing outputs for later packaging. Inspect relevant structured-analysis limitations and unresolved callbacks rather than assuming READY means semantic completeness. Perform ordinary self-checks, then hand off to target_compliance, which owns the compliance review; do not add an optional nested review pipeline. For rework, fix or substantiate rebuttals to current blockers and rerun affected checks. Return one Markdown report with changed paths, safety/coverage rationale, and remaining evidence limits. The controller snapshots Git mechanically."
+    },
+    "target_compliance": {
+      "documents": [
+        "knowledge-guided-driver-port/SKILL.md",
+        "knowledge-guided-driver-port/references/workflow.md",
+        "knowledge-guided-driver-port/references/knowledge-contract.md",
+        "knowledge-guided-driver-port/references/target-changes.md"
+      ],
+      "objective": "Own the Skill's implementation compliance review, including any applicable repository review procedure. Review the implementation and retained tests against the supplied contracts, test plan and pinned originals, including target API, safety, concurrency, lifecycle and integration. Inspect actual code and relevant structured-analysis gaps; READY is extraction readiness, not semantic proof. Reuse existing review and test evidence after checking its applicability; do not duplicate equivalent persona passes. On rework inspect fixes and affected paths while retaining conclusions for unchanged code. Apply the shared blocking-evidence and rebuttal rules: verify callers and target guarantees before alleging a defect, consider worker counterevidence, and distinguish current-stage blockers from suggestions and later runtime checks. Do not edit target files. Write a concise Markdown review identifying blockers with their causal evidence and acknowledging withdrawn or resolved findings. End with exactly DPF_REVIEW: PASS when no evidenced current-stage blockers remain, or DPF_REVIEW: REWORK otherwise."
+    },
+    "artifact_preparation": {
+      "documents": [
+        "knowledge-guided-driver-port/SKILL.md",
+        "knowledge-guided-driver-port/references/qemu-evidence.md"
+      ],
+      "objective": "Complete the embedded Skill's artifact-preparation work directly in the writable target worktree. Use the terminal to build, inject, or package by the evidenced target artifact mode and prove the current migrated driver is included. Copy the final runnable artifact to .dpf-output/runtime-artifact. Create .dpf-output/check-presence.sh, which inspects $DPF_RUNTIME_ARTIFACT and fails unless the current driver is present (symbols, embedded payload, or the target's supported inspection mechanism). The controller reruns it. Return one Markdown report with exact commands, presence proof, failures, and limits. There is no response schema; the controller hashes the produced artifact mechanically."
+    },
+    "public_qemu_validation": {
+      "documents": [
+        "knowledge-guided-driver-port/SKILL.md",
+        "knowledge-guided-driver-port/references/qemu-evidence.md"
+      ],
+      "objective": "Complete the embedded Skill's public QEMU evidence work using the terminal. Read the current runtime artifact and all prior work products, create a self-checking public harness at .dpf-output/public-qemu.sh in the writable target worktree, and exercise only public developer evidence. The script must use $DPF_RUNTIME_ARTIFACT, return zero only after its oracle proves the current migrated driver ran under QEMU, and preserve logs under .dpf-output/qemu-runs. Return one Markdown report with commands, observations, failures, attribution, and scope limits. There is no response schema; the controller reruns the script and captures its result mechanically."
+    },
+    "public_repair": {
+      "documents": [
+        "knowledge-guided-driver-port/SKILL.md",
+        "knowledge-guided-driver-port/references/qemu-evidence.md",
+        "knowledge-guided-driver-port/references/test-porting.md"
+      ],
+      "objective": "Complete independent review of the public runtime evidence, continuing your implementation-review context. Inspect the actual public harness, oracle, captured commands, fresh logs, artifact lineage and required coverage. A successful QEMU process or printed marker alone does not prove that the migrated target driver ran correctly. Check required positive/negative controls and agreed scope limits against the Skill. Apply the shared blocking-evidence and rebuttal rules, without expanding device/platform scope or treating optional coverage as mandatory. Do not modify the target. Return a concise Markdown evidence review ending with DPF_REVIEW: PASS when no evidenced runtime-stage blockers remain, or DPF_REVIEW: REWORK otherwise. The controller sends required changes to the original implementation conversation."
+    },
+    "completion_audit": {
+      "documents": [
+        "knowledge-guided-driver-port/SKILL.md",
+        "knowledge-guided-driver-port/references/workflow.md",
+        "knowledge-guided-driver-port/references/knowledge-contract.md"
+      ]
+    },
+    "driver_split": {
+      "documents": [
+        "blind-c2rust-driver-evaluation/SKILL.md",
+        "blind-c2rust-driver-evaluation/references/curator-workflow.md"
+      ]
+    },
+    "contract_freeze": {
+      "documents": [
+        "blind-c2rust-driver-evaluation/SKILL.md",
+        "blind-c2rust-driver-evaluation/references/contracts-and-control-plane.md",
+        "blind-c2rust-driver-evaluation/references/curator-workflow.md"
+      ]
+    },
+    "reference_calibration": {
+      "documents": [
+        "blind-c2rust-driver-evaluation/SKILL.md",
+        "blind-c2rust-driver-evaluation/references/curator-workflow.md"
+      ]
+    },
+    "private_bundle_sealing": {
+      "documents": [
+        "blind-c2rust-driver-evaluation/SKILL.md",
+        "blind-c2rust-driver-evaluation/references/curator-workflow.md"
+      ]
+    },
+    "evaluation_inputs": {
+      "documents": [
+        "blind-c2rust-driver-evaluation/SKILL.md",
+        "blind-c2rust-driver-evaluation/references/protocol.md",
+        "blind-c2rust-driver-evaluation/references/candidate-sealing.md"
+      ]
+    },
+    "isolation_gate": {
+      "documents": [
+        "blind-c2rust-driver-evaluation/SKILL.md",
+        "blind-c2rust-driver-evaluation/references/protocol.md",
+        "blind-c2rust-driver-evaluation/references/evaluator-workflow.md"
+      ]
+    },
+    "reproducible_build": {
+      "documents": [
+        "blind-c2rust-driver-evaluation/SKILL.md",
+        "blind-c2rust-driver-evaluation/references/evaluator-workflow.md",
+        "blind-c2rust-driver-evaluation/references/candidate-sealing.md"
+      ]
+    },
+    "mandatory_contracts": {
+      "documents": [
+        "blind-c2rust-driver-evaluation/SKILL.md",
+        "blind-c2rust-driver-evaluation/references/contracts-and-control-plane.md",
+        "blind-c2rust-driver-evaluation/references/evaluator-workflow.md"
+      ]
+    },
+    "external_functionality": {
+      "documents": [
+        "blind-c2rust-driver-evaluation/SKILL.md",
+        "blind-c2rust-driver-evaluation/references/contracts-and-control-plane.md",
+        "blind-c2rust-driver-evaluation/references/evaluator-workflow.md"
+      ]
+    },
+    "differential_execution": {
+      "documents": [
+        "blind-c2rust-driver-evaluation/SKILL.md",
+        "blind-c2rust-driver-evaluation/references/contracts-and-control-plane.md",
+        "blind-c2rust-driver-evaluation/references/evaluator-workflow.md"
+      ]
+    },
+    "fault_injection": {
+      "documents": [
+        "blind-c2rust-driver-evaluation/SKILL.md",
+        "blind-c2rust-driver-evaluation/references/evaluator-workflow.md"
+      ]
+    },
+    "mutation_adequacy": {
+      "documents": [
+        "blind-c2rust-driver-evaluation/SKILL.md",
+        "blind-c2rust-driver-evaluation/references/evaluator-workflow.md"
+      ]
+    },
+    "stress": {
+      "documents": [
+        "blind-c2rust-driver-evaluation/SKILL.md",
+        "blind-c2rust-driver-evaluation/references/evaluator-workflow.md"
+      ]
+    },
+    "performance": {
+      "documents": [
+        "blind-c2rust-driver-evaluation/SKILL.md",
+        "blind-c2rust-driver-evaluation/references/evaluator-workflow.md"
+      ]
+    },
+    "hardware_subset": {
+      "documents": [
+        "blind-c2rust-driver-evaluation/SKILL.md",
+        "blind-c2rust-driver-evaluation/references/evaluator-workflow.md"
+      ]
+    },
+    "evaluation_report": {
+      "documents": [
+        "blind-c2rust-driver-evaluation/SKILL.md",
+        "blind-c2rust-driver-evaluation/references/evaluator-workflow.md",
+        "blind-c2rust-driver-evaluation/references/reporting.md"
+      ]
+    },
+    "audit_inputs": {
+      "documents": [
+        "blind-c2rust-driver-evaluation/SKILL.md",
+        "blind-c2rust-driver-evaluation/references/protocol.md"
+      ]
+    },
+    "independence_audit": {
+      "documents": [
+        "blind-c2rust-driver-evaluation/SKILL.md",
+        "blind-c2rust-driver-evaluation/references/protocol.md"
+      ]
+    },
+    "commitment_audit": {
+      "documents": [
+        "blind-c2rust-driver-evaluation/SKILL.md",
+        "blind-c2rust-driver-evaluation/references/protocol.md",
+        "blind-c2rust-driver-evaluation/references/candidate-sealing.md"
+      ]
+    },
+    "claim_audit": {
+      "documents": [
+        "blind-c2rust-driver-evaluation/SKILL.md",
+        "blind-c2rust-driver-evaluation/references/reporting.md"
+      ]
+    },
+    "audit_report": {
+      "documents": [
+        "blind-c2rust-driver-evaluation/SKILL.md",
+        "blind-c2rust-driver-evaluation/references/protocol.md",
+        "blind-c2rust-driver-evaluation/references/reporting.md"
+      ]
+    }
   }
 }

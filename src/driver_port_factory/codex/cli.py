@@ -21,6 +21,7 @@ from .contracts import CodexArtifact, CodexBackend, CodexExecEventType
 from .gateway import CodexExecGateway, CodexJob, CodexResult, CodexSdkGateway
 from .policy import CodexExecutionPolicy
 from .prompts import RenderedPrompt, SkillPromptComposer
+from .sessions import read_session, save_session, session_key
 
 
 def _render_prompt(
@@ -29,12 +30,14 @@ def _render_prompt(
     objective: str | None,
     context: dict[str, object] | None,
     prompt_pack_path: str | None,
+    known_documents: dict[str, str] | None = None,
+    skill_root: Path | None = None,
 ) -> RenderedPrompt:
     if not project.config.skill_root:
         raise WorkflowError("project has no skill_root; initialize it with --skill-root")
     configured_pack = prompt_pack_path or project.config.prompt_pack
     composer = SkillPromptComposer(
-        Path(project.config.skill_root),
+        skill_root or Path(project.config.skill_root),
         WORKFLOW_STAGE_CATALOG,
         project.workflow.stage_values,
         Path(configured_pack) if configured_pack else None,
@@ -44,6 +47,7 @@ def _render_prompt(
         actor_role=project.config.actor_role,
         objective=objective,
         context=context,
+        known_documents=known_documents,
     )
 
 
@@ -68,6 +72,8 @@ def run_codex_stage(
     model: str | None,
     prompt_pack_path: str | None = None,
     thread_id: str | None = None,
+    follow_up: str | None = None,
+    skill_root: Path | None = None,
 ) -> tuple[CodexResult, RenderedPrompt, Path]:
     stage = project.stage(stage_key)
     if stage.owner is StageOwner.STATIC:
@@ -76,12 +82,31 @@ def run_codex_stage(
         project.start(stage_key)
     elif stage.status is not StageStatus.RUNNING:
         raise WorkflowError(f"Codex stage must be READY or RUNNING, got {stage.status.value}")
+    grant = CodexExecutionPolicy().grant(project, stage_key)
+    key = session_key(project, stage_key, grant, model, backend.value)
+    session = read_session(project, key)
+    thread_id = thread_id or session.get("thread_id")
+    context = {
+        **(context or {}),
+        "tool_runtime": {
+            "python": sys.executable,
+            "workflow_cli": [sys.executable, "-m", "driver_port_factory.cli"],
+        },
+    }
+    if stage_key in CodexExecutionPolicy.WRITABLE_STAGES:
+        context["tool_runtime"]["cargo_home"] = str(
+            grant.execution_root / ".dpf-output" / "cargo-home"
+        )
+    if follow_up:
+        context = {**(context or {}), "controller_feedback": follow_up}
     rendered = _render_prompt(
         project,
         stage_key,
         objective,
         context,
         prompt_pack_path,
+        session.get("documents") if thread_id == session.get("thread_id") else None,
+        skill_root,
     )
     prompt = rendered.text
     project.record_artifact(
@@ -95,7 +120,6 @@ def run_codex_stage(
     )
     codex_dir = project.control / "codex"
     codex_dir.mkdir(parents=True, exist_ok=True)
-    grant = CodexExecutionPolicy().grant(project, stage_key)
     job = CodexJob(
         stage=stage_key,
         actor_role=project.config.actor_role,
@@ -108,9 +132,39 @@ def run_codex_stage(
         thread_id=thread_id,
     )
     output_path = codex_dir / f"{stage_key.value}-{job.job_id}.result"
-    gateway = CodexExecGateway(codex_bin) if backend is CodexBackend.EXEC else CodexSdkGateway()
+    documents = {
+        **session.get("documents", {}),
+        **{doc.relative_path: doc.digest for doc in rendered.documents},
+    }
+
+    def checkpoint(event: dict) -> None:
+        with output_path.with_suffix(".events.jsonl").open("a", encoding="utf-8") as stream:
+            stream.write(json.dumps(event) + "\n")
+        if event.get("type") == CodexExecEventType.THREAD_STARTED.value:
+            save_session(project, key, event.get("thread_id"), session.get("documents", {}))
+
+    gateway_type = CodexExecGateway if backend is CodexBackend.EXEC else CodexSdkGateway
+    gateway = gateway_type(codex_bin, on_event=checkpoint)
     result = gateway.run(job)
+    save_session(
+        project,
+        key,
+        result.thread_id,
+        documents if not result.error else session.get("documents", {}),
+    )
     output_path.write_text(result.final_response, encoding="utf-8")
+    if result.events:
+        event_data = "\n".join(json.dumps(event, sort_keys=True) for event in result.events) + "\n"
+        project.record_artifact(
+            stage_key,
+            GeneratedArtifact(
+                CodexArtifact.EVENT_LOG,
+                event_data.encode("utf-8"),
+                f"generated:codex-job:{result.job_id}",
+            ),
+        )
+    if result.error:
+        raise WorkflowError(result.error)
     if rendered.output_schema:
         try:
             json.loads(result.final_response)
@@ -122,16 +176,6 @@ def run_codex_stage(
         stage_key,
         FileArtifact(CodexArtifact.JOB_RESULT, output_path),
     )
-    if result.events:
-        event_data = "\n".join(json.dumps(event, sort_keys=True) for event in result.events) + "\n"
-        project.record_artifact(
-            stage_key,
-            GeneratedArtifact(
-                CodexArtifact.EVENT_LOG,
-                event_data.encode("utf-8"),
-                f"generated:codex-job:{result.job_id}",
-            ),
-        )
     return result, rendered, output_path
 
 

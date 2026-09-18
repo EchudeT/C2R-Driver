@@ -102,6 +102,7 @@ class AnalyzerIdentity:
     resolved_path: Path
     sha256: str
     version_output: str
+    invocation_path: Path
 
     def to_record(
         self,
@@ -114,6 +115,7 @@ class AnalyzerIdentity:
             "family": self.family,
             "requested_executable": self.requested_executable,
             "resolved_path": str(self.resolved_path),
+            "invocation_path": str(self.invocation_path),
             "sha256": self.sha256,
             "version_output": self.version_output,
             "version_output_sha256": hashlib.sha256(self.version_output.encode()).hexdigest(),
@@ -154,6 +156,7 @@ class ClangAnalysisBackend:
                 resolved_path=resolved,
                 sha256=file_sha256(resolved),
                 version_output=GccCompatibleCommand.version(invoked),
+                invocation_path=invoked.absolute(),
             )
         )
 
@@ -173,13 +176,13 @@ class ClangAnalysisBackend:
         observed_target = GccCompatibleCommand.effective_target_triple(
             arguments,
             compile_directory,
-            executable=self.identity.resolved_path,
+            executable=self.identity.invocation_path,
             target_triple=target_triple,
         )
         observed_abi = GccCompatibleCommand.abi_signature(
             arguments,
             compile_directory,
-            executable=self.identity.resolved_path,
+            executable=self.identity.invocation_path,
             target_triple=target_triple,
         )
         if observed_target != observed_abi["target_triple"]:
@@ -192,7 +195,7 @@ class ClangAnalysisBackend:
         runner = CommandRunner(unit_dir / "runs")
         base_arguments = GccCompatibleCommand.analysis_base_arguments(
             arguments,
-            self.identity.resolved_path,
+            self.identity.invocation_path,
             target_triple=target_triple,
         )
         raw_records: dict[RawFactKind, dict[str, Any]] = {}

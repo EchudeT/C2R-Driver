@@ -118,6 +118,7 @@ class CompletionAuditService:
             "contract_results": [],
             "test_results": [],
             "work_products": {
+                "runtime_evidence_review": repair.get("review"),
                 "contracts": _reference(
                     project, MigrationStage.CONTRACTS, MigrationArtifact.CONTRACTS
                 ),

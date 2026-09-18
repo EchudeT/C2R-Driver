@@ -111,7 +111,7 @@ class ClosureContextValidator:
         executable = shutil.which(str(compiler["executable"]))
         if not executable:
             raise WorkflowError(f"source compiler is unavailable: {compiler['executable']}")
-        compiler_path = Path(executable).resolve()
+        compiler_path = Path(executable).absolute()
         if not all(str(compiler[field]).strip() for field in compiler):
             raise WorkflowError("source compiler identity fields must be non-empty")
         compiler_version = adapter.version(compiler_path)

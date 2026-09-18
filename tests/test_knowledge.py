@@ -169,7 +169,7 @@ def prepare_project(root: Path) -> tuple[Project, dict[str, CheckoutRecord]]:
     route_plan = write_plan(
         project.root,
         "knowledge-prerequisite-smoke",
-        qemu_fixture(project.root),
+        qemu_fixture(project.root, qmp=False),
     )
     ExperimentPlanRegistrar().register(project, route_plan)
     ExperimentExecutor().run(project, "knowledge-prerequisite-smoke")

@@ -11,6 +11,7 @@ from ..core.project import Project
 from ..environment.contracts import EnvironmentStage
 from ..migration.contracts import MigrationStage
 from ..source_analysis.contracts import SourceAnalysisStage
+from ..target_study.contracts import TargetStudyStage
 from .contracts import CodexSandbox
 
 
@@ -31,24 +32,34 @@ class CodexExecutionPolicy:
             MigrationStage.DRIVER_IMPLEMENTATION,
             MigrationStage.ARTIFACT_PREPARATION,
             MigrationStage.PUBLIC_QEMU_VALIDATION,
-            MigrationStage.PUBLIC_REPAIR,
         }
     )
     REPORT_WORKSPACE_STAGES = frozenset(
-        {EnvironmentStage.RECOVERY, SourceAnalysisStage.SOURCE_CLOSURE}
+        {
+            EnvironmentStage.RECOVERY,
+            SourceAnalysisStage.SOURCE_CLOSURE,
+            TargetStudyStage.STUDY,
+            MigrationStage.CONTRACTS,
+            MigrationStage.TEST_ADAPTATION,
+            MigrationStage.TARGET_COMPLIANCE,
+            MigrationStage.PUBLIC_REPAIR,
+        }
     )
 
     def grant(self, project: Project, stage: StageKey) -> CodexExecutionGrant:
         if stage in self.NETWORK_STAGES:
             return CodexExecutionGrant(project.root, CodexSandbox.UNRESTRICTED)
         if stage in self.REPORT_WORKSPACE_STAGES:
-            execution_root = project.root / "work" / "stage-work" / stage.value
+            workspace_stage = (
+                MigrationStage.CONTRACTS if stage is MigrationStage.TEST_ADAPTATION else stage
+            )
+            if stage is MigrationStage.PUBLIC_REPAIR:
+                workspace_stage = MigrationStage.TARGET_COMPLIANCE
+            execution_root = project.root / "work" / "stage-work" / workspace_stage.value
             execution_root.mkdir(parents=True, exist_ok=True)
             acquisition = load_repository_acquisition(project)
             frozen = tuple(
-                self._project_path(
-                    project, record.checkout_path, f"{record.role.value} baseline"
-                )
+                self._project_path(project, record.checkout_path, f"{record.role.value} baseline")
                 for record in acquisition.checkouts
             )
             self._validate_writable_root(project, execution_root, frozen)

@@ -47,8 +47,8 @@ def validate_source_closure_bundle(context: BundleValidationContext) -> None:
         json_object(revision_data, SourceAnalysisArtifact.KNOWLEDGE_REVISION.value)
     )
     acquisition = RepositoryAcquisition.from_dict(json.loads(repository_data))
-    closure = json_object(closure_data, SourceAnalysisArtifact.SOURCE_CLOSURE.value)
     compile_manifest = json_object(compile_data, SourceAnalysisArtifact.COMPILE_MANIFEST.value)
+    closure = _closure_record(context, closure_data, compile_manifest)
 
     if (
         revision.parent_manifest_sha256 != parent_digest
@@ -97,6 +97,23 @@ def validate_source_closure_bundle(context: BundleValidationContext) -> None:
             source.resolved_commit,
             material,
         )
+
+
+def _closure_record(context: BundleValidationContext, data: bytes, manifest: dict) -> dict:
+    report = json_object(context.one_current(SourceAnalysisArtifact.SOURCE_CLOSURE_REPORT)[1],
+                         "source closure report")
+    if "work_report" not in report:
+        return json_object(data, SourceAnalysisArtifact.SOURCE_CLOSURE.value)
+    if report["work_report"].get("sha256") != hashlib.sha256(data).hexdigest():
+        raise WorkflowError("source closure report is detached from its work report")
+    for unit in manifest["translation_units"]:
+        for dependency in unit.get("generated_dependencies", []):
+            path = workspace_file(context.project_root, dependency.get("path"),
+                                  "generated dependency")
+            if hashlib.sha256(path.read_bytes()).hexdigest() != dependency.get("sha256"):
+                raise WorkflowError("generated dependency changed during source closure")
+    return {**manifest, "closure_categories": {}, "configuration_inputs": {"paths": []},
+            "generated_headers": {"paths": []}}
 
 
 def _verify_source_addition(

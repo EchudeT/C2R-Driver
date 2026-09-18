@@ -55,8 +55,16 @@ def _readiness(data: bytes) -> None:
 
 def _target_probes(data: bytes) -> None:
     value = json_object(data, KnowledgeArtifact.TARGET_PROBE_RESULTS.value)
-    if value.get("status") != "DEFERRED_TO_TARGET_PLATFORM_STUDY":
-        raise WorkflowError("target probes must be delegated to target_platform_study")
+    if value.get("status") == "DEFERRED_TO_TARGET_PLATFORM_STUDY":
+        return
+    probes = value.get("probes")
+    if (
+        value.get("status") != "PASS"
+        or not isinstance(probes, list)
+        or not probes
+        or any(not isinstance(probe, dict) or probe.get("status") != "PASS" for probe in probes)
+    ):
+        raise WorkflowError("target probes must pass or be delegated to target_platform_study")
 
 
 VALIDATORS = MappingProxyType[KnowledgeArtifact, ArtifactValidator](

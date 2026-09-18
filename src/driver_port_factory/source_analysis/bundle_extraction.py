@@ -215,8 +215,11 @@ class StructuredBundleExtractor:
                     "locking, ownership, or recovery behavior without source/hardware evidence."
                 ),
                 (
-                    "LLVM IR may omit unused inline definitions; typed AST and correlated CFG "
-                    "remain the source-completeness authorities."
+                    "LLVM IR may omit unused inline definitions. Clang CFG deliberately skips "
+                    "__inline-prefixed functions; unavailable_functions names these gaps. Typed "
+                    "AST bodies remain available. READY means evidence extracted, not that "
+                    "every semantic obligation is resolved. Migration and independent review "
+                    "must inspect relevant gaps and unresolved indirect calls."
                 ),
             ],
         }

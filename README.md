@@ -1,14 +1,18 @@
 # Driver Port Factory
 
+新版 Skill 对齐、会话持久化、224k 自动压缩和实跑命令见
+[工作流对齐说明](docs/WORKFLOW_ALIGNMENT.md)。
+
 Driver Port Factory（DPF）把 C 驱动跨平台迁移、公开验证、候选物封存和独立盲测组织成可审计的
 程序工作流。它严格区分确定性控制代码与 Codex 判断任务：程序拥有状态、门禁、哈希和执行结果；
 Codex Prompt、原始响应和事件只作辅助证据，required artifact 由明确的领域 adapter 生成和验证。
 
-本项目的规范来源是 `C-kernel-to-Rust` 的三个 Skill：
+开发者流程以新版 `C-kernel-to-Rust` 的两个 Skill 为规范：
 
 - `open-kernel-driver-port`：身份、采集、环境恢复和知识库；
 - `knowledge-guided-driver-port`：目标研究、结构化翻译、测试迁移和 QEMU 验证；
-- `blind-c2rust-driver-evaluation`：角色隔离、封存和私有评测。
+
+独立盲测的历史模块另行保留；新版上游不再包含其 Skill，本次实跑不覆盖独立盲测。
 
 DPF 通过可编辑的 Prompt Pack 把 Skill 原文及其 references 组合进阶段 Prompt。阶段映射位于
 `manifest.json`，外层提示词位于 `job.md`，不写死在 Python 控制器中。每次组合都会记录
@@ -29,7 +33,7 @@ Prompt Pack、模板、Skill 文档和完整 Prompt 的 SHA256，但普通开发
 - SHA256 内容寻址产物库；
 - 阶段依赖、必需输出和角色门禁；
 - Skill Prompt 选择、组合和快照；
-- `codex exec` 结构化调用及 Python SDK Gateway；
+- `codex exec` 持久会话、224k 自动压缩、独立检查与原会话返工；
 - 来源平台、目标平台、设备类别与 QEMU 插件协议；
 - 候选物 canonical manifest 和封存摘要；
 - 开发、前瞻盲测、事后封存盲测三种模式的时序骨架。

@@ -313,6 +313,7 @@ class KnowledgeIndex:
         record_id: str | None = None,
         path_prefix: str | None = None,
         limit: int = 10,
+        compact: bool = False,
     ) -> dict[str, Any]:
         if limit < 1:
             raise WorkflowError("knowledge search limit must be positive")
@@ -342,6 +343,8 @@ class KnowledgeIndex:
         for score, chunk in ranked[:limit]:
             result = dict(chunk)
             result["score"] = round(score, 6)
+            if compact:
+                result["summary"] = " ".join(result.pop("text", "").split())[:240]
             results.append(result)
         return {
             "status": KnowledgeIndexStatus.READY.value,

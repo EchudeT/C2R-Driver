@@ -40,6 +40,12 @@ class FrozenAnalysisInputs:
         if identity["revision"] != compile_manifest.get("source_revision"):
             raise WorkflowError("source checkout revision changed after source closure")
         self._validate_analyzer(facts, compile_manifest)
+        for unit in compile_manifest.get("translation_units", []):
+            for dependency in unit.get("generated_dependencies", []):
+                path = (self.project_root / dependency["path"]).resolve()
+                require_within(self.project_root, path, "generated dependency")
+                if not path.is_file() or file_sha256(path) != dependency.get("sha256"):
+                    raise WorkflowError("generated dependency changed during structured analysis")
         return source_root
 
     @staticmethod
@@ -104,9 +110,7 @@ class FrozenAnalysisInputs:
             raise WorkflowError("structured facts lack analyzer/compiler target ABI")
         if analyzer.get("observed_target_triple") != analyzer_abi.get("target_triple"):
             raise WorkflowError("structured analyzer target probes disagree")
-        if AbiCompatibility.from_record(analyzer_abi) != AbiCompatibility.from_record(
-            compiler_abi
-        ):
+        if AbiCompatibility.from_record(analyzer_abi) != AbiCompatibility.from_record(compiler_abi):
             raise WorkflowError("structured analyzer target ABI differs from frozen compiler")
         version_output = analyzer.get("version_output")
         if not isinstance(version_output, str) or hashlib.sha256(

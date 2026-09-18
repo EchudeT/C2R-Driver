@@ -37,7 +37,9 @@ def ready_project(root: Path):
     project, checkouts = prepare_project(root)
     KnowledgeBootstrapper().bootstrap(project, probe_plan_path=probe_plan(project.root))
     target_inputs, _ = target_study_inputs(project.root, project, checkouts)
-    TargetStudyService().validate(project, **target_inputs)
+    TargetStudyService().validate(
+        project, **{key: value for key, value in target_inputs.items() if key != "profile_markdown"}
+    )
     MigrationHandoff().create(project)
     return project, checkouts
 

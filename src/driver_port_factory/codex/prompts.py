@@ -225,6 +225,7 @@ class SkillPromptComposer:
         actor_role: ActorRole,
         objective: str | None = None,
         context: dict[str, object] | None = None,
+        known_documents: dict[str, str] | None = None,
     ) -> RenderedPrompt:
         documents = self.documents_for_stage(stage)
         stage_specification = self.prompt_pack.stages[stage.value]
@@ -242,8 +243,11 @@ class SkillPromptComposer:
             "context": context or {},
         }
         embedded_documents = "\n\n".join(
-            f'<skill_document path="{document.relative_path}">\n'
-            f"{document.content}\n</skill_document>"
+            (f'<skill_document path="{document.relative_path}">\n'
+             f"{document.content}\n</skill_document>"
+             if (known_documents or {}).get(document.relative_path) != document.digest
+             else f'<skill_document_unchanged path="{document.relative_path}" '
+                  f'sha256="{document.digest}" />')
             for document in documents
         )
         text = self.prompt_pack.template
