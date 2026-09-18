@@ -105,7 +105,7 @@ Clang 18 的 AnalysisConsumer 会跳过 `__inline` 前缀函数的 CFG。
 
 执行器直接继承当前 `$CODEX_HOME/config.toml`（未设置时为 `~/.codex/config.toml`）
 及其 provider/env_key/auth 配置，不在仓库中复制密钥或硬编码旧中转。
-更换用户配置会改变会话身份，避免把旧 provider 的会话误用于新 provider。
+更换模型或当前 provider 的连接配置会改变会话身份；自动新增项目可信目录不影响会话。
 仅支持 `--backend exec`，不保留 SDK 兼容入口或旧会话回退。
 
 ```sh

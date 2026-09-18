@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import tomllib
 from pathlib import Path
 
 from ..core.contracts import StageKey
@@ -32,6 +33,14 @@ def session_key(
 ) -> str:
     home = Path(os.environ.get("CODEX_HOME", Path.home() / ".codex")).resolve()
     config = home / "config.toml"
+    settings = tomllib.loads(config.read_text()) if config.is_file() else {}
+    provider = settings.get("model_provider", "openai")
+    connection = {
+        "provider": provider,
+        "settings": settings.get("model_providers", {}).get(provider, {}),
+        "model": model or settings.get("model"),
+        "base_url": settings.get("openai_base_url"),
+    }
     if project.config.evaluation_mode is EvaluationMode.DEVELOPER_EVIDENCE and stage in WORKER_STAGES:
         conversation = "worker"
     elif stage in {MigrationStage.TARGET_COMPLIANCE, MigrationStage.PUBLIC_REPAIR}:
@@ -41,7 +50,7 @@ def session_key(
     identity = [
         "persistent-conversations-v2", str(project.root), project.config.actor_role.value,
         project.config.evaluation_mode.value, conversation, model, backend, str(home),
-        hashlib.sha256(config.read_bytes()).hexdigest() if config.is_file() else "",
+        hashlib.sha256(json.dumps(connection, sort_keys=True).encode()).hexdigest(),
     ]
     return hashlib.sha256(json.dumps(identity).encode()).hexdigest()
 

@@ -4,11 +4,13 @@ import sys
 import json
 from subprocess import CompletedProcess
 from pathlib import Path
+from types import SimpleNamespace
 
 from driver_port_factory.codex.transport import execute
 from driver_port_factory.codex.gateway import CodexExecGateway, CodexJob, CodexResult
 from driver_port_factory.codex.contracts import CodexSandbox
-from driver_port_factory.core.models import ActorRole, WorkflowError
+from driver_port_factory.core.models import ActorRole, EvaluationMode, WorkflowError
+from driver_port_factory.codex.sessions import session_key
 from driver_port_factory.migration.contracts import MigrationStage
 from driver_port_factory.environment.contracts import EnvironmentStage
 from unittest.mock import patch
@@ -83,3 +85,19 @@ def test_environment_resume_can_download_dependencies(tmp_path):
     assert "sandbox_workspace_write.network_access=true" in command
     assert 'sandbox_mode="workspace-write"' in command
     assert (tmp_path / ".dpf-output" / "cargo-home").is_dir()
+
+
+def test_session_ignores_trust_updates_but_isolates_provider_changes(tmp_path, monkeypatch):
+    monkeypatch.setenv("CODEX_HOME", str(tmp_path))
+    config = tmp_path / "config.toml"
+    base = 'model_provider = "relay"\n[model_providers.relay]\nbase_url = "https://example.test/v1"\n'
+    config.write_text(base)
+    project = SimpleNamespace(root=tmp_path, config=SimpleNamespace(
+        actor_role=ActorRole.DEVELOPER, evaluation_mode=EvaluationMode.DEVELOPER_EVIDENCE))
+    def key():
+        return session_key(project, MigrationStage.DRIVER_IMPLEMENTATION, None, "gpt-5.6-sol", "exec")
+    original = key()
+    config.write_text(base + '\n[projects."/new/worktree"]\ntrust_level = "trusted"\n')
+    assert key() == original
+    config.write_text(base.replace("example.test", "different.test"))
+    assert key() != original
