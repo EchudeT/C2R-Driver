@@ -34,7 +34,12 @@ class RepositoryGit:
         result = self.runner.run(
             ["git", *arguments],
             cwd=cwd or self.project_root,
-            timeout_seconds=600,
+            timeout_seconds=(
+                1800 if operation in {
+                    RepositoryCommandKind.BASELINE_FETCH,
+                    RepositoryCommandKind.COMMIT_MEMBERSHIP,
+                } else 600
+            ),
         )
         stdout = Path(result.stdout_path).read_text(encoding="utf-8", errors="replace")
         if result.exit_code != 0:
