@@ -52,10 +52,13 @@ class ContainerTrace:
                     mounts = [m for m in info.get("Mounts", []) if m.get("Type") == "bind"]
                     if not any(Path(m["Source"]).resolve() == self.workspace for m in mounts):
                         continue
-                    top = self._call("top", identifier, "-eo", "args")
+                    top = self._call("top", identifier, "-eo", "pid,args")
                     for row in top.splitlines()[1:]:
                         try:
-                            argv = shlex.split(row)
+                            pid, command = row.strip().split(None, 1)
+                            if not pid.isdigit():
+                                continue
+                            argv = shlex.split(command)
                         except ValueError:
                             continue
                         if not argv or not Path(argv[0]).name.startswith("qemu-system-"):

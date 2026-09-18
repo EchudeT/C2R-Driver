@@ -18,7 +18,8 @@ def test_observer_requires_new_workspace_container_and_live_qemu(tmp_path, monke
             return json.dumps([{"Config": {"Image": "test:image"}, "Image": "sha256:fixed",
                                 "Mounts": [{"Type": "bind", "Source": source, "Destination": "/work"}]}])
         observer.stop.set()
-        return "COMMAND\nqemu-system-x86_64 -cdrom /work/runtime.iso\n"
+        assert args[2:] == ("-eo", "pid,args")
+        return "PID COMMAND\n123 qemu-system-x86_64 -cdrom /work/runtime.iso\n"
     monkeypatch.setattr(observer, "_call", call)
     observer._watch()
     assert len(observer.records) == 1
