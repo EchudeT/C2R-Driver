@@ -94,11 +94,24 @@ class ContainerTrace:
                 continue
             argv = []
             for argument in record["argv"]:
-                for mount in sorted(record["mounts"], key=lambda m: len(m["Destination"]), reverse=True):
-                    destination = mount["Destination"].rstrip("/")
-                    if argument == destination or argument.startswith(destination + "/"):
-                        argument = str(Path(mount["Source"]) / argument[len(destination):].lstrip("/"))
-                        break
+                # QEMU embeds drive paths in comma-separated key/value options.
+                # Translate only file values, never arbitrary option substrings.
+                fields = argument.split(",")
+                if ",," not in argument and any(field.startswith("file=/") for field in fields):
+                    argument = ",".join(
+                        "file=" + self._host_path(field[5:], record["mounts"])
+                        if field.startswith("file=/") else field for field in fields
+                    )
+                else:
+                    argument = self._host_path(argument, record["mounts"])
                 argv.append(argument)
             result.append((record["argv"][0], "docker-observed " + json.dumps(argv)))
         return tuple(result)
+
+    @staticmethod
+    def _host_path(argument: str, mounts: list[dict]) -> str:
+        for mount in sorted(mounts, key=lambda m: len(m["Destination"]), reverse=True):
+            destination = mount["Destination"].rstrip("/")
+            if argument == destination or argument.startswith(destination + "/"):
+                return str(Path(mount["Source"]) / argument[len(destination):].lstrip("/"))
+        return argument

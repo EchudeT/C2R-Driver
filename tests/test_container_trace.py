@@ -41,3 +41,21 @@ def test_unavailable_docker_does_not_invent_execution(tmp_path, monkeypatch):
     with observer:
         pass
     assert json.loads(observer.output.read_text())["observations"] == []
+
+
+def test_drive_artifact_mount_is_mapped_and_exactly_bound(tmp_path):
+    from driver_port_factory.migration.public_qemu import runtime_in_qemu_arguments
+
+    runtime = tmp_path / "frozen.iso"
+    observer = ContainerTrace(tmp_path, tmp_path / "observed.json")
+    observer.records = [{"image": "test:image", "argv": [
+        "qemu-system-x86_64", "-drive", "file=/runtime-artifact,media=cdrom,readonly=on"
+    ], "mounts": [{"Source": str(runtime), "Destination": "/runtime-artifact"}]}]
+    host = tmp_path / "exec.log"
+    host.write_text('execve("/bin/docker", ["docker", "run", "test:image"], []) = 0\n')
+    line = observer.executions(host)[0][1]
+    assert runtime_in_qemu_arguments(line, runtime)
+    assert not runtime_in_qemu_arguments(line, tmp_path / "frozen")
+    assert not runtime_in_qemu_arguments(line.replace("-drive", "-name"), runtime)
+    assert not runtime_in_qemu_arguments(line.replace("frozen.iso", "frozen.iso.other"), runtime)
+    assert not runtime_in_qemu_arguments(line.replace("file=", "id="), runtime)

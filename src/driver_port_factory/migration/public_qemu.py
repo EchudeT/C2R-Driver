@@ -41,6 +41,24 @@ PUBLIC_QEMU_INPUTS = (
 )
 
 
+def runtime_in_qemu_arguments(line: str, runtime_path: Path) -> bool:
+    """Match exact argv paths, including QEMU -drive file= options."""
+    try:
+        argv, _ = json.JSONDecoder().raw_decode(line[line.index("["):])
+    except (ValueError, json.JSONDecodeError):
+        return False
+    if not isinstance(argv, list) or not all(isinstance(arg, str) for arg in argv):
+        return False
+    runtime = str(runtime_path)
+    for index, argument in enumerate(argv):
+        if argument == runtime:
+            return True
+        if index and argv[index - 1] == "-drive" and ",," not in argument:
+            if f"file={runtime}" in argument.split(","):
+                return True
+    return False
+
+
 @dataclass(frozen=True, slots=True)
 class QemuHarnessResult:
     command: CommandResult
@@ -115,7 +133,7 @@ def run_public_harness(
         for path, line in successful
         if Path(path).name.startswith("qemu-system-")
     )
-    runtime_bound = any(f'"{runtime_path}"' in line for line in qemu_lines)
+    runtime_bound = any(runtime_in_qemu_arguments(line, runtime_path) for line in qemu_lines)
     logs = (
         tuple(
             {
