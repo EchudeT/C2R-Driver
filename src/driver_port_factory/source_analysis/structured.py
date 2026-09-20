@@ -36,14 +36,9 @@ class StructuredCAnalysisService:
     ) -> StructuredAnalysisResult:
         project.ensure_role(*self.ROLES)
         self._enter_stage(project)
-        compile_ref = project.artifact(
-            SourceAnalysisStage.SOURCE_CLOSURE,
-            SourceAnalysisArtifact.COMPILE_MANIFEST,
-        )
-        database_ref = project.artifact(
-            SourceAnalysisStage.SOURCE_CLOSURE,
-            SourceAnalysisArtifact.COMPILATION_DATABASE,
-        )
+        from .preparation import artifact, save
+        compile_ref = artifact(project, SourceAnalysisArtifact.COMPILE_MANIFEST)
+        database_ref = artifact(project, SourceAnalysisArtifact.COMPILATION_DATABASE)
         compile_bytes = project.artifacts.read(compile_ref)
         database_bytes = project.artifacts.read(database_ref)
         input_digest = hashlib.sha256(compile_bytes + database_bytes).hexdigest()
@@ -90,7 +85,7 @@ class StructuredCAnalysisService:
         report_path.write_bytes(self._json_bytes(report))
         if errors:
             project.record_artifact(
-                SourceAnalysisStage.STRUCTURED_C_ANALYSIS,
+                SourceAnalysisStage.SOURCE_CLOSURE,
                 FileArtifact(
                     SourceAnalysisArtifact.STRUCTURED_C_ANALYSIS_ATTEMPT,
                     report_path,
@@ -103,25 +98,26 @@ class StructuredCAnalysisService:
                 tuple(errors),
             )
 
-        project.finalize_stage(
-            SourceAnalysisStage.STRUCTURED_C_ANALYSIS,
+        save(
+            project,
             tuple(FileArtifact(kind, path) for kind, path in outputs),
+            append=True,
         )
         return StructuredAnalysisResult(
             StructuredAnalysisStatus.READY,
-            StageStatus.PASS,
+            StageStatus.RUNNING,
             str(report_path),
             (),
         )
 
     @staticmethod
     def _enter_stage(project: Project) -> None:
-        stage = project.stage(SourceAnalysisStage.STRUCTURED_C_ANALYSIS)
+        stage = project.stage(SourceAnalysisStage.SOURCE_CLOSURE)
         if stage.status is StageStatus.READY:
-            project.start(SourceAnalysisStage.STRUCTURED_C_ANALYSIS)
+            project.start(SourceAnalysisStage.SOURCE_CLOSURE)
         elif stage.status is not StageStatus.RUNNING:
             raise WorkflowError(
-                f"structured_c_analysis must be READY or RUNNING, got {stage.status.value}"
+                f"source analysis task must be READY or RUNNING, got {stage.status.value}"
             )
 
     @staticmethod

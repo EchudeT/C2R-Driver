@@ -4,7 +4,8 @@ import hashlib
 import json
 import os
 import shutil
-from dataclasses import dataclass
+import tempfile
+from dataclasses import asdict, dataclass
 from enum import StrEnum
 from pathlib import Path
 from typing import Any
@@ -203,11 +204,19 @@ class ClangAnalysisBackend:
         typed_ast: dict[str, Any] | None = None
 
         for spec in CLANG_EXTRACTIONS:
+            raw_path = raw_dir / spec.filename
+            if spec.kind is RawFactKind.TYPED_AST:
+                typed_ast, record = self._extract_ast(
+                    spec, project_root, unit_dir, raw_path, compile_directory,
+                    [*base_arguments, *spec.arguments], closure_files,
+                )
+                raw_records[spec.kind] = record
+                raw_paths.append(raw_path)
+                continue
             result = runner.run(
                 [*base_arguments, *spec.arguments], cwd=compile_directory, timeout_seconds=120
             )
             self._require_success(spec, result)
-            raw_path = raw_dir / spec.filename
             capture_path, capture_sha256, capture_size = self._capture(
                 result,
                 spec.stream,
@@ -215,19 +224,9 @@ class ClangAnalysisBackend:
             )
             if spec.require_output and capture_size == 0:
                 raise WorkflowError(f"{spec.kind.value} extraction was empty")
-            if spec.kind is RawFactKind.TYPED_AST:
-                typed_ast = ClosureAstProjector(closure_files).project(
-                    capture_path,
-                    raw_path,
-                    compile_directory=compile_directory,
-                    capture_sha256=capture_sha256,
-                    capture_size=capture_size,
-                )
-                raw_format = RawFactFormat.CLANG_AST_CLOSURE_JSON
-            else:
-                if capture_path != raw_path:
-                    self._link_or_copy(capture_path, raw_path)
-                raw_format = spec.format
+            if capture_path != raw_path:
+                self._link_or_copy(capture_path, raw_path)
+            raw_format = spec.format
             raw_paths.append(raw_path)
             raw_records[spec.kind] = {
                 "format": raw_format,
@@ -248,6 +247,45 @@ class ClangAnalysisBackend:
             target_triple=observed_target,
             target_abi=observed_abi,
         )
+
+    def _extract_ast(
+        self, spec: ExtractionSpec, project_root: Path, unit_dir: Path,
+        raw_path: Path, compile_directory: Path, arguments: list[str],
+        closure_files: ClosureFileSet,
+    ) -> tuple[dict[str, Any], dict[str, Any]]:
+        # Full compiler output is a streaming intermediate, not another permanent
+        # copy of every transitive header. Keep the exact invocation, diagnostics,
+        # capture digest and compact source/dependency projection for provenance.
+        with tempfile.TemporaryDirectory(prefix="ast-capture-", dir=unit_dir) as temporary:
+            result = CommandRunner(Path(temporary)).run(
+                arguments, cwd=compile_directory, timeout_seconds=120
+            )
+            command = asdict(result)
+            command.pop("stdout_path")
+            command.pop("stderr_path")
+            command["stdout_retention"] = "temporary; source dependency projection retained"
+            diagnostic = raw_path.with_suffix(".stderr")
+            shutil.copyfile(result.stderr_path, diagnostic)
+            command["stderr_path"] = str(diagnostic.relative_to(project_root))
+            raw_path.with_suffix(".command.json").write_text(
+                json.dumps(command, sort_keys=True) + "\n", encoding="utf-8"
+            )
+            self._require_success(spec, result)
+            capture = Path(result.stdout_path)
+            capture_size = capture.stat().st_size
+            if not capture_size:
+                raise WorkflowError("typed_ast extraction was empty")
+            typed_ast = ClosureAstProjector(closure_files).project(
+                capture, raw_path, compile_directory=compile_directory,
+                capture_sha256=result.stdout_sha256, capture_size=capture_size,
+            )
+            return typed_ast, {
+                "format": RawFactFormat.CLANG_AST_CLOSURE_JSON,
+                "path": str(raw_path.relative_to(project_root)),
+                "sha256": file_sha256(raw_path), "size": raw_path.stat().st_size,
+                "capture_sha256": result.stdout_sha256, "capture_size": capture_size,
+                "capture_retention": "temporary", "command": command,
+            }
 
     @staticmethod
     def _require_success(spec: ExtractionSpec, result: CommandResult) -> None:

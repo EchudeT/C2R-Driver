@@ -25,9 +25,36 @@ from driver_port_factory.acquisition.proposal import (
     normalize_codex_evidence_selection,
 )
 from driver_port_factory.acquisition.repository_role import RepositoryRole
+from driver_port_factory.core.models import WorkflowError
 
 
 class SemanticEvidenceSelectionTests(unittest.TestCase):
+    def test_all_hardware_authority_errors_are_reported_and_gap_repair_is_accepted(self):
+        facets = [
+            self._controlled("target", "framework", "target", "kernel/pci.rs"),
+            self._controlled("qemu", "model", "qemu", "hw/net/ne2000.c"),
+            self._controlled("test", "source_tests", "source", "tests/network.c"),
+            self._controlled("tooling", "build", "target", "README.md"),
+            self._controlled("hardware", "registers", "source", "drivers/8390.h"),
+            {**self._controlled("hardware", "manual", "qemu", "hw/net/ne2000.c"),
+             "external_urls": ["https://example.invalid/manual.pdf"],
+             "gap": {"impact": "No primary manual", "repair_trigger": "Acquire manual"}},
+        ]
+        kwargs = {"migration_envelope_sha256": "a" * 64,
+                  "repository_manifest_sha256": "b" * 64, "source_driver_path": "driver.c"}
+        with self.assertRaises(WorkflowError) as caught:
+            normalize_codex_evidence_selection({"facets": facets}, **kwargs)
+        message = str(caught.exception)
+        for expected in ("facets[4]", "facets[5]", "hardware/registers", "hardware/manual",
+                         "omit repository_paths", "external_urls", "repair_trigger"):
+            self.assertIn(expected, message)
+        facets[4]["lane"] = "source"
+        facets[5].pop("repository_paths")
+        proposal = normalize_codex_evidence_selection({"facets": facets}, **kwargs)
+        hardware = next(item for item in proposal.facets if item.facet.lane is EvidenceLane.HARDWARE)
+        self.assertEqual(hardware.disposition, FacetDisposition.EXPLICIT_GAP)
+        self.assertTrue(all(isinstance(item, ExternalReferenceLocator) for item in hardware.locators))
+
     def test_controller_adds_control_fields_to_semantic_choices(self) -> None:
         proposal = normalize_codex_evidence_selection(
             {

@@ -37,14 +37,6 @@ def _generated_skill(data: bytes) -> None:
         raise WorkflowError("generated_kb_skill does not describe every query operation")
 
 
-def _probe_attempt(data: bytes) -> None:
-    value = json_object(data, KnowledgeArtifact.PROBE_ATTEMPT.value)
-    if KnowledgeEvidenceStatus(value.get("status")) is not KnowledgeEvidenceStatus.FAIL:
-        raise WorkflowError("kb_probe_attempt must preserve a failed probe run")
-    if not value.get("failed_probe_ids"):
-        raise WorkflowError("kb_probe_attempt requires failed probe identifiers")
-
-
 def _readiness(data: bytes) -> None:
     value = json_object(data, KnowledgeArtifact.READINESS_REPORT.value)
     if KnowledgeEvidenceStatus(value.get("status")) is not KnowledgeEvidenceStatus.PASS:
@@ -55,23 +47,14 @@ def _readiness(data: bytes) -> None:
 
 def _target_probes(data: bytes) -> None:
     value = json_object(data, KnowledgeArtifact.TARGET_PROBE_RESULTS.value)
-    if value.get("status") == "DEFERRED_TO_TARGET_PLATFORM_STUDY":
-        return
-    probes = value.get("probes")
-    if (
-        value.get("status") != "PASS"
-        or not isinstance(probes, list)
-        or not probes
-        or any(not isinstance(probe, dict) or probe.get("status") != "PASS" for probe in probes)
-    ):
-        raise WorkflowError("target probes must pass or be delegated to target_platform_study")
+    if value.get("status") != "DEFERRED_TO_TARGET_PLATFORM_STUDY":
+        raise WorkflowError("semantic probes belong to the worker's target-platform study")
 
 
 VALIDATORS = MappingProxyType[KnowledgeArtifact, ArtifactValidator](
     {
         KnowledgeArtifact.STATUS: _status,
         KnowledgeArtifact.QUERY_CONTRACT: _query_contract,
-        KnowledgeArtifact.PROBE_ATTEMPT: _probe_attempt,
         KnowledgeArtifact.GENERATED_SKILL: _generated_skill,
         KnowledgeArtifact.READINESS_REPORT: _readiness,
         KnowledgeArtifact.TARGET_PROBE_RESULTS: _target_probes,

@@ -55,13 +55,6 @@ class CompletionAuditService:
             project, MigrationStage.PUBLIC_REPAIR, MigrationArtifact.PUBLIC_REPAIR_REPORT
         )
         runs = list(public.get("runs", []))
-        if repair.get("outcome") == ContractExecutionStatus.PASS.value:
-            repair_run = dict(repair.get("run", {}))
-            repair_run.setdefault("run_id", "public-repair-confirmation")
-            repair_run.setdefault("contract_ids", [])
-            repair_run.setdefault("test_ids", [])
-            repair_run.setdefault("evidence_status", ContractEvidenceStatus.VERIFIED.value)
-            runs.append(repair_run)
         target_driver_ran = any(
             run.get("execution_status") == ContractExecutionStatus.PASS.value
             and run.get("attribution") == PublicRunAttribution.TARGET_DRIVER_ON_QEMU.value
@@ -71,12 +64,6 @@ class CompletionAuditService:
             MigrationStage.ARTIFACT_PREPARATION, MigrationArtifact.RUNTIME_ARTIFACT
         )
         driver_presence = identity.get("driver_presence")
-        if repair.get("outcome") == ContractExecutionStatus.PASS.value:
-            driver_presence = {
-                **(driver_presence if isinstance(driver_presence, dict) else {}),
-                "repaired_runtime_artifact": repair.get("runtime_artifact"),
-                "repair_work_report": repair.get("work_report"),
-            }
         lineage_verified = (
             identity.get("runtime_artifact", {}).get("sha256") == runtime_ref.digest
             and isinstance(driver_presence, dict)
@@ -119,11 +106,13 @@ class CompletionAuditService:
             "test_results": [],
             "work_products": {
                 "runtime_evidence_review": repair.get("review"),
+                "review_mode": repair["review_mode"],
+                "review_decision": repair["decision"],
                 "contracts": _reference(
                     project, MigrationStage.CONTRACTS, MigrationArtifact.CONTRACTS
                 ),
                 "tests": _reference(
-                    project, MigrationStage.TEST_ADAPTATION, MigrationArtifact.TEST_PORT_MATRIX
+                    project, MigrationStage.CONTRACTS, MigrationArtifact.TEST_PORT_MATRIX
                 ),
                 "translation_and_compliance": _reference(
                     project,
@@ -136,15 +125,18 @@ class CompletionAuditService:
                     MigrationArtifact.TARGET_CHANGE_INVENTORY,
                 ),
                 "compliance": _reference(
-                    project, MigrationStage.TARGET_COMPLIANCE, MigrationArtifact.COMPLIANCE_REPORT
+                    project, MigrationStage.DRIVER_IMPLEMENTATION, MigrationArtifact.COMPLIANCE_REPORT
                 ),
             },
             "artifact_lineage": lineage,
             "public_runs": runs,
-            "failure_attribution": _failure_attribution(public, repair),
+            "failure_attribution": _failure_attribution(public),
             "unresolved": unresolved,
             "blind_candidate": blind,
             "scope_limits": {
+                "semantic_coverage": "WORKER_SELF_CHECK_NOT_INDEPENDENT_CONTRACT_VERIFICATION",
+                "mechanical_checks": "artifact hashes, observed execution, boot-argument binding and fresh logs",
+                "oracle_author": "worker; risk-triggered independent review when recorded",
                 "qemu_evidence": (
                     PublicRunAttribution.TARGET_DRIVER_ON_QEMU.value
                     if target_driver_ran
@@ -310,9 +302,7 @@ def _database_snapshot(root: Path) -> tuple[list[dict[str, Any]], list[dict[str,
         connection.close()
 
 
-def _failure_attribution(
-    public: dict[str, Any] | None, repair: dict[str, Any]
-) -> list[dict[str, Any]]:
+def _failure_attribution(public: dict[str, Any] | None) -> list[dict[str, Any]]:
     failures = [
         {
             "run_id": run.get("run_id"),
@@ -322,15 +312,6 @@ def _failure_attribution(
         for run in (public or {}).get("runs", [])
         if run.get("execution_status") != ContractExecutionStatus.PASS.value
     ]
-    if repair.get("outcome") != ContractExecutionStatus.NOT_APPLICABLE.value:
-        failures.append(
-            {
-                "repair_outcome": repair.get("outcome"),
-                "attribution": repair.get("attribution"),
-                "failure_run_ids": repair.get("failure_run_ids", []),
-                "summary": repair.get("summary"),
-            }
-        )
     return failures
 
 

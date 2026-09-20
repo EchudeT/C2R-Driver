@@ -10,6 +10,7 @@ import ijson
 from ..core.models import WorkflowError
 from ..knowledge.index import file_sha256
 from .ast_index import _ClangSourceLocations, _ResolvedLocations
+from .ast_scope import DeclarationScope
 from .semantic_model import ClangNodeKind
 
 
@@ -23,11 +24,23 @@ class ClosureFile:
 class ClosureFileSet:
     """Resolve Clang locations only to files frozen by the source-closure manifest."""
 
-    def __init__(self, source_root: Path, files: tuple[ClosureFile, ...]) -> None:
+    def __init__(self, source_root: Path, files: tuple[ClosureFile, ...],
+                 source_paths: frozenset[str] | None = None) -> None:
         self.source_root = source_root.resolve()
         self.files = files
         self.by_path = {file.path: file for file in files}
         self.location_cache: dict[Path, ClosureFile | None] = {}
+        roots = source_paths if source_paths is not None else frozenset(
+            file.relative_path for file in files if file.path.suffix == ".c"
+        )
+        source_directories = {Path(path).parent for path in roots}
+        # Driver-local headers expose entrypoints that need not be referenced by
+        # this TU (e.g. allocation wrappers). Shared framework headers are reached
+        # through compiler dependencies instead of being blanket roots.
+        self.source_paths = roots | frozenset(
+            file.relative_path for file in files
+            if Path(file.relative_path).parent in source_directories
+        )
 
     @classmethod
     def from_manifest(cls, manifest: dict[str, Any]) -> ClosureFileSet:
@@ -57,7 +70,10 @@ class ClosureFileSet:
             files.append(ClosureFile(relative_path, path, expected_digest))
         if not files:
             raise WorkflowError("source closure contains no analyzable C files")
-        return cls(source_root, tuple(files))
+        return cls(source_root, tuple(files), frozenset(
+            {unit["source_path"] for unit in units}
+            | {file.relative_path for file in files if file.path.suffix == ".c"}
+        ))
 
     @staticmethod
     def _add_record(records: dict[str, str], path: Any, digest: Any) -> None:
@@ -108,7 +124,7 @@ class ClosureFileSet:
 
 
 class ClosureAstProjector:
-    """Stream a Clang AST and retain only top-level subtrees owned by source closure."""
+    """Stream source roots plus compiler-referenced header declarations."""
 
     def __init__(self, closure: ClosureFileSet) -> None:
         self.closure = closure
@@ -128,6 +144,27 @@ class ClosureAstProjector:
             raise WorkflowError("Clang AST root is not TranslationUnitDecl")
 
         tracker = _ClangSourceLocations()
+        scope = DeclarationScope()
+        owned_ordinals: list[int] = []
+        with capture_path.open("rb") as stream:
+            for ordinal, node in enumerate(ijson.items(stream, "inner.item")):
+                if not isinstance(node, dict):
+                    raise WorkflowError("Clang AST contains a non-object top-level node")
+                locations = tracker.scan(node)
+                if not self._owned(node, locations, compile_directory):
+                    continue
+                resolved = locations.get(id(node))
+                root = resolved is not None and any(
+                    owner.relative_path in self.closure.source_paths
+                    for candidate in resolved.candidates()
+                    if (owner := self.closure.resolve_location(
+                        candidate.get("file"), compile_directory
+                    )) is not None
+                )
+                owned_ordinals.append(ordinal)
+                scope.add(node, root=root)
+        selected_ordinals = {owned_ordinals[index] for index in scope.selected()}
+        tracker = _ClangSourceLocations()
         selected: list[dict[str, Any]] = []
         observed_count = 0
         with capture_path.open("rb") as stream:
@@ -136,7 +173,7 @@ class ClosureAstProjector:
                 if not isinstance(node, dict):
                     raise WorkflowError("Clang AST contains a non-object top-level node")
                 locations = tracker.scan(node)
-                if not self._owned(node, locations, compile_directory):
+                if observed_count - 1 not in selected_ordinals:
                     continue
                 self._annotate(node, locations, compile_directory)
                 selected.append(node)
@@ -147,7 +184,9 @@ class ClosureAstProjector:
             "kind": ClangNodeKind.TRANSLATION_UNIT_DECL,
             "inner": selected,
             "dpfClosure": {
-                "schema_version": 1,
+                "schema_version": 2,
+                "selection": "source-and-transitive-compiler-dependencies",
+                "source_paths": sorted(self.closure.source_paths),
                 "files": self.closure.records(),
                 "capture_sha256": capture_sha256,
                 "capture_size": capture_size,
@@ -176,7 +215,9 @@ class ClosureAstProjector:
             projection.get("kind") != ClangNodeKind.TRANSLATION_UNIT_DECL
             or not isinstance(metadata, dict)
             or not isinstance(nodes, list)
-            or metadata.get("schema_version") != 1
+            or metadata.get("schema_version") != 2
+            or metadata.get("selection") != "source-and-transitive-compiler-dependencies"
+            or metadata.get("source_paths") != sorted(self.closure.source_paths)
             or metadata.get("files") != self.closure.records()
             or metadata.get("capture_sha256") != capture_sha256
             or metadata.get("capture_size") != capture_size

@@ -3,10 +3,10 @@ from enum import StrEnum
 
 class SourceAnalysisStage(StrEnum):
     SOURCE_CLOSURE = "source_closure"
-    STRUCTURED_C_ANALYSIS = "structured_c_analysis"
 
 
 class SourceAnalysisArtifact(StrEnum):
+    PREPARATION = "source_analysis_preparation"
     SOURCE_CLOSURE = "source_closure"
     SOURCE_CLOSURE_REPORT = "source_closure_report"
     SOURCE_CLOSURE_VALIDATION_ATTEMPT = "source_closure_validation_attempt"

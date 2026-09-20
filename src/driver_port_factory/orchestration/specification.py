@@ -38,7 +38,7 @@ def stage_spec(
     accept_failed: bool = False,
 ) -> StageSpec:
     codex_evidence = (
-        (CodexArtifact.JOB_RESULT, CodexArtifact.EVENT_LOG)
+        (CodexArtifact.JOB_RESULT, CodexArtifact.WORK_REPORT, CodexArtifact.EVENT_LOG)
         if owner in {StageOwner.CODEX, StageOwner.HYBRID, StageOwner.INDEPENDENT}
         else ()
     )

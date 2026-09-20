@@ -10,7 +10,7 @@ readme = "README.md"
 requires-python = ">=3.11"
 license = { text = "Proprietary" }
 authors = [{ name = "C2R Driver Project" }]
-dependencies = ["ijson>=3.3,<4"]
+dependencies = ["ijson>=3.3,<4", "tree-sitter>=0.25,<0.26", "tree-sitter-rust>=0.24,<0.25"]
 
 [project.optional-dependencies]
 codex = ["openai-codex"]
@@ -25,6 +25,7 @@ where = ["src"]
 [tool.setuptools.package-data]
 driver_port_factory = [
   "data/*.json",
+  "data/*.md",
   "data/prompt-packs/*/*.json",
   "data/prompt-packs/*/*.md",
   "data/schemas/acquisition/*.json",

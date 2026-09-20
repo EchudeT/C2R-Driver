@@ -8,13 +8,14 @@ from pathlib import Path
 
 from ..acquisition.repository import load_repository_acquisition
 from ..codex.contracts import CodexOutputError
-from ..core.execution import CommandRunner
+from ..core.execution import CommandRunner, script_command
 from ..core.models import FileArtifact, GeneratedArtifact, StageStatus, WorkflowError
 from ..core.project import Project
 from ..core.validation import BundleValidationContext, json_object
 from ..environment.contracts import EnvironmentArtifact, EnvironmentStage
 from ..knowledge.index import file_sha256
 from .contracts import MigrationArtifact, MigrationStage
+from .implementation import validate_worktree_snapshot
 
 
 def _json(value: dict) -> bytes:
@@ -39,17 +40,12 @@ class ArtifactPreparationService:
             MigrationStage.DRIVER_IMPLEMENTATION, MigrationArtifact.IMPLEMENTATION_BUNDLE
         )
         bundle = json.loads(project.artifacts.read(bundle_ref))
-        for item in bundle["files"]:
-            path = worktree / item["path"]
-            if not path.is_file() or file_sha256(path) != item["sha256"]:
-                raise CodexOutputError(
-                    "implementation changed after review; return to implementation"
-                )
+        validate_worktree_snapshot(project.root, bundle)
         runtime_hash = file_sha256(runtime)
         checker_hash = file_sha256(checker)
         attempt_dir = project.control / "artifact-preparation" / str(uuid.uuid4())
         command = CommandRunner(attempt_dir).run(
-            ["/bin/sh", str(checker)],
+            script_command(checker),
             cwd=worktree,
             environment={
                 "DPF_RUNTIME_ARTIFACT": str(runtime),
@@ -80,6 +76,7 @@ class ArtifactPreparationService:
         )
         if not passed:
             raise CodexOutputError(f"presence checker failed; inspect {command.stderr_path}")
+        validate_worktree_snapshot(project.root, bundle)
         mode = project.load_json_artifact(
             EnvironmentStage.RECOVERY, EnvironmentArtifact.MODE_RECORD
         )

@@ -188,3 +188,7 @@ class StageView:
 
 class WorkflowError(RuntimeError):
     """Raised when a workflow invariant would be violated."""
+
+
+class RepairExhausted(WorkflowError):
+    """The same prerequisite repair repeated with identical accepted inputs."""

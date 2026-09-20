@@ -178,6 +178,11 @@ def load_prompt_pack(path: Path | None, stage_catalog: StageCatalog) -> PromptPa
 class SkillPromptComposer:
     """Compose a stage prompt from an editable prompt pack and current Skill sources."""
 
+    @staticmethod
+    def _executable(stage):
+        from ..orchestration.protocol import TASKS
+        return stage in TASKS and TASKS[stage].executable
+
     def __init__(
         self,
         skill_root: Path,
@@ -229,6 +234,10 @@ class SkillPromptComposer:
         known_documents: dict[str, str] | None = None,
     ) -> RenderedPrompt:
         documents = self.documents_for_stage(stage)
+        if (context or {}).get("repair_execution"):
+            extra = "knowledge-guided-driver-port/references/qemu-evidence.md"
+            if all(d.relative_path != extra for d in documents):
+                documents = (*documents, self._read_document(extra))
         stage_specification = self.prompt_pack.stages[stage.value]
         effective_objective = (
             objective if objective is not None else stage_specification.objective
@@ -237,12 +246,18 @@ class SkillPromptComposer:
             raise WorkflowError(
                 f"stage {stage.value} needs an objective in the prompt pack or caller"
             )
+        prompt_context = dict(context or {})
+        feedback = prompt_context.get("controller_feedback")
+        if isinstance(feedback, str) and feedback:
+            prompt_context["controller_feedback"] = self.render_correction(feedback)
         header: dict[str, Any] = {
             "stage": stage.value,
             "actor_role": actor_role.value,
             "objective": effective_objective,
-            "context": context or {},
+            "context": prompt_context,
         }
+        from ..orchestration.protocol import describe
+        header["protocol"] = describe(stage.value)
         embedded_documents = "\n\n".join(
             (f'<skill_document path="{document.relative_path}">\n'
              f"{document.content}\n</skill_document>"
@@ -256,6 +271,10 @@ class SkillPromptComposer:
         for marker, value in {
             "{{job_json}}": json.dumps(header, ensure_ascii=False, sort_keys=True, indent=2),
             "{{skill_documents}}": embedded_documents,
+            "{{execution_rules}}": (
+                (self.prompt_pack.root / "execution.md").read_text(encoding="utf-8")
+                if "{{execution_rules}}" in text and self._executable(stage.value) else ""
+            ),
         }.items():
             text = text.replace(marker, value)
         if not text.endswith("\n"):

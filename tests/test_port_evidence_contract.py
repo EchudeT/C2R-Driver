@@ -6,7 +6,6 @@ from types import SimpleNamespace
 from unittest.mock import patch
 
 from driver_port_factory.acquisition.contracts import AcquisitionStage
-from driver_port_factory.acquisition.proposal import CODEX_EVIDENCE_SELECTION_OBJECTIVE
 from driver_port_factory.codex.contracts import CodexBackend, CodexOutputError
 from driver_port_factory.knowledge.contracts import KnowledgeStage
 from driver_port_factory.port import PortOptions, PortRunner
@@ -32,19 +31,16 @@ def runner() -> PortRunner:
 
 
 class PortEvidenceContractTests(unittest.TestCase):
-    def test_evidence_stage_overrides_prompt_pack_with_semantic_contract(self) -> None:
+    def test_evidence_stage_uses_prompt_pack_without_hidden_override(self) -> None:
         port = runner()
         with (
             patch.object(port, "_artifact_context", return_value={"digest": "a" * 64}),
             patch.object(port, "_codex_gate") as codex_gate,
         ):
-            port._evidence(object())
+            port._evidence(SimpleNamespace(artifact_refs=lambda **_: []))
 
         self.assertEqual(codex_gate.call_args.args[1], AcquisitionStage.EVIDENCE_CLOSURE)
-        self.assertEqual(
-            codex_gate.call_args.kwargs["objective"],
-            CODEX_EVIDENCE_SELECTION_OBJECTIVE,
-        )
+        self.assertNotIn("objective", codex_gate.call_args.kwargs)
 
     def test_same_compact_contract_is_used_for_correction(self) -> None:
         port = runner()

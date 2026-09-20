@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import hashlib
 import sqlite3
 from collections.abc import Iterable, Iterator
 from contextlib import contextmanager
@@ -22,6 +23,7 @@ from .models import (
     ArtifactDirection,
     ArtifactRef,
     ProjectConfig,
+    RepairExhausted,
     StageStatus,
     StageView,
     WorkflowError,
@@ -159,6 +161,28 @@ class _RunPersistence:
                 {"stage": name.value, "actor_role": actor_role.value},
             )
 
+    def retry_feedback(self, name: StageKey) -> dict[str, str] | None:
+        with self._connect() as connection:
+            row = connection.execute(
+                "SELECT sequence, event_type, payload FROM events WHERE json_extract(payload, '$.stage') = ? "
+                "AND event_type IN (?, ?) ORDER BY sequence DESC LIMIT 1",
+                (name.value, StageEvent.RETRIED.value, StageEvent.COMPLETED.value),
+            ).fetchone()
+            if row is None or row["event_type"] != StageEvent.RETRIED.value:
+                return None
+            payload = json.loads(row["payload"])
+            root = payload.get("repair_root", payload["stage"])
+            completion = connection.execute(
+                "SELECT sequence FROM events WHERE event_type=? AND sequence>? "
+                "AND json_extract(payload, '$.stage')=? "
+                "AND json_extract(payload, '$.outcome')='PASS' ORDER BY sequence DESC LIMIT 1",
+                (StageEvent.COMPLETED.value, row["sequence"], root),
+            ).fetchone()
+            state = connection.execute("SELECT status FROM stages WHERE name=?", (root,)).fetchone()
+        resolved = completion is not None and state is not None and state["status"] == "PASS"
+        return {**{key: payload[key] for key in ("stage", "trigger", "reason", "repair_root")
+                   if key in payload}, "status": "RESOLVED" if resolved else "OPEN"}
+
     def retry_from(
         self,
         name: StageKey,
@@ -166,6 +190,7 @@ class _RunPersistence:
         trigger: StageKey,
         actor_role: ActorRole,
         reason: str,
+        progress: object | None = None,
     ) -> None:
         configured_role = self.config.actor_role
         if not reason.strip():
@@ -179,10 +204,32 @@ class _RunPersistence:
             if actor_role not in allowed or actor_role is not configured_role:
                 raise WorkflowError(f"role {actor_role.value} may not retry {name.value}")
 
-            affected = connection.execute(
-                "SELECT name, position FROM stages WHERE position >= ? ORDER BY position",
-                (target["position"],),
-            ).fetchall()
+            # Evidence paths and prose are feedback, not proof of progress.
+            inputs = load_current_occurrences(connection, stage_name=name.value,
+                                              direction=ArtifactDirection.OUTPUT)
+            identity = sorted((ref.kind, ref.digest) for ref in inputs
+                              if not ref.kind.startswith("codex_"))
+            fingerprint = hashlib.sha256(json.dumps(
+                [name.value, trigger.value, progress if progress is not None else identity], sort_keys=True
+            ).encode()).hexdigest()
+            repeated = connection.execute(
+                "SELECT count(*) FROM events WHERE event_type = ? "
+                "AND json_extract(payload, '$.stage') = ? "
+                "AND json_extract(payload, '$.repair_fingerprint') = ?",
+                (StageEvent.RETRIED.value, name.value, fingerprint),
+            ).fetchone()[0]
+            if repeated >= 3:
+                raise RepairExhausted(
+                    "Repeated prerequisite repair without changed substantive inputs; "
+                    "preserved in ledger. Resolve the concrete blocker before resuming."
+                )
+
+            descendants = self.workflow.descendants(name)
+            if trigger.value not in descendants:
+                raise WorkflowError("repair target is not a data prerequisite of the current task")
+            affected = [row for row in connection.execute(
+                "SELECT name, position FROM stages ORDER BY position").fetchall()
+                if row["name"] in descendants]
             for row in affected:
                 stage = self.workflow.parse_stage(row["name"])
                 status = StageStatus.READY if stage is name else StageStatus.PENDING
@@ -203,13 +250,34 @@ class _RunPersistence:
                     StageEvent.RETRIED,
                     {
                         "stage": stage.value,
+                        "repair_root": name.value,
                         "status": status.value,
                         "trigger": trigger.value,
                         "actor_role": actor_role.value,
                         "reason": reason,
+                        "repair_fingerprint": fingerprint,
                         "artifact_boundaries": boundaries,
                     },
                 )
+
+    def reopen_blocked(self, name: StageKey, actor_role: ActorRole, *, reason: str) -> None:
+        if not reason.strip():
+            raise WorkflowError("reopening a blocker requires the resolution reason")
+        with self._connect() as connection:
+            row = self._stages.transition_row(connection, name, StageStatus.BLOCKED)
+            if actor_role is not self.config.actor_role or actor_role not in self._stages.allowed_roles(row, name):
+                raise WorkflowError(f"role {actor_role.value} may not reopen {name.value}")
+            boundaries = {direction.value: next_ordinal(connection, name.value, direction)
+                          for direction in ArtifactDirection}
+            connection.execute(
+                "UPDATE stages SET status = ?, started_at = NULL, completed_at = NULL, "
+                "message = NULL WHERE name = ?", (StageStatus.READY.value, name.value))
+            append_event(connection, StageEvent.RETRIED, {
+                "stage": name.value, "status": StageStatus.READY.value,
+                "trigger": name.value, "actor_role": actor_role.value,
+                "reason": "operator resolved blocker: " + reason,
+                "artifact_boundaries": boundaries,
+            })
 
     def wait_for_user(self, name: StageKey, *, question: str) -> None:
         with self._connect() as connection:

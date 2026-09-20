@@ -131,6 +131,7 @@ class PortRunnerTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temporary:
             runner = PortRunner(options(Path(temporary)))
             project = FakeProject(tuple(runner._actions))
+            project.control = Path(temporary)
             calls = []
             runner._actions = {
                 name: lambda active, stage=name: (
@@ -151,6 +152,7 @@ class PortRunnerTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temporary:
             runner = PortRunner(options(Path(temporary)))
             project = FakeProject(tuple(runner._actions))
+            project.control = Path(temporary)
             calls = {name: 0 for name in runner._actions}
             stop = tuple(runner._actions)[4]
 

@@ -7,9 +7,14 @@ class CodexOutputError(WorkflowError):
     """A model response failed its deterministic output/proposal gate."""
 
 
+class CodexContinuation(Exception):
+    """New controller evidence for the same worker, not a failed model answer."""
+
+
 class CodexArtifact(StrEnum):
     PROMPT = "codex_prompt"
     JOB_RESULT = "codex_job_result"
+    WORK_REPORT = "codex_work_report"
     EVENT_LOG = "codex_event_log"
 
 

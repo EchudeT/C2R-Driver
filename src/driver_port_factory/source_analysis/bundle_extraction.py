@@ -110,7 +110,7 @@ class StructuredBundleExtractor:
                     result.semantic_index,
                     ensure_ascii=False,
                     sort_keys=True,
-                    indent=2,
+                    separators=(",", ":"),
                 )
                 + "\n"
             ).encode()

@@ -17,13 +17,12 @@ from driver_port_factory.core.validation import BundleValidationContext
 from driver_port_factory.source_analysis.bundle_validation import (
     validate_structured_bundle,
 )
-from driver_port_factory.source_analysis.closure import SourceClosureService
 from driver_port_factory.source_analysis.contracts import (
     SourceAnalysisArtifact,
     SourceAnalysisStage,
 )
 from driver_port_factory.source_analysis.structured import StructuredCAnalysisService
-from tests.test_source_closure import ready_project, source_closure, write_json
+from tests.test_source_closure import ready_project, source_closure, prepare_source, finish_source
 
 Payloads = tuple[tuple[ArtifactRef, bytes], ...]
 
@@ -36,17 +35,17 @@ class StructuredBundleFixture:
     def __init__(self, root: Path) -> None:
         project, checkouts = ready_project(root)
         closure = source_closure(project, checkouts)
-        result = SourceClosureService().validate(
-            project,
-            closure_path=write_json(project.root / "source-closure.json", closure),
-        )
-        if result.stage_status.value != "PASS":
+        result = prepare_source(project, closure)
+        if result.errors:
             raise AssertionError(result.errors)
         analysis = StructuredCAnalysisService().analyze(project, analyzer="clang")
-        if analysis.stage_status.value != "PASS":
+        if analysis.errors:
             raise AssertionError(analysis.errors)
+        finish_source(project)
+        if list(project.control.glob("structured-c/attempts/*/units/*/ast-capture-*")):
+            raise AssertionError("full AST capture was retained after projection")
         self.project_root = project.root
-        self.current = self._payloads(project, SourceAnalysisStage.STRUCTURED_C_ANALYSIS)
+        self.current = self._payloads(project, SourceAnalysisStage.SOURCE_CLOSURE)
         self.dependencies = self._payloads(project, SourceAnalysisStage.SOURCE_CLOSURE)
 
     @staticmethod
@@ -163,7 +162,7 @@ class StructuredBundleIntegrityTests(unittest.TestCase):
         reopened = open_project(self.fixture.project_root)
         current = tuple(
             (reference, reopened.artifacts.read(reference))
-            for reference in reopened.artifact_refs(stage=SourceAnalysisStage.STRUCTURED_C_ANALYSIS)
+            for reference in reopened.artifact_refs(stage=SourceAnalysisStage.SOURCE_CLOSURE)
         )
         dependencies = tuple(
             (reference, reopened.artifacts.read(reference))
@@ -191,52 +190,18 @@ class StructuredBundleIntegrityTests(unittest.TestCase):
 
         self.assert_rejected(mutate)
 
-    def test_command_capture_cannot_diverge_from_frozen_raw_provenance(self) -> None:
+    def test_validation_uses_frozen_payload_not_mutable_capture(self) -> None:
         facts = self.fixture.document(SourceAnalysisArtifact.STRUCTURED_C_FACTS)
-        unit = facts["units"][0]
-        raw_record = unit["raw_facts"]["preprocessed_source"]
-        forged = b'# 1 "forged.c"\nint forged_value;\n'
-        current = self.fixture.replace_linked(
-            self.fixture.current,
-            raw_record,
-            SourceAnalysisArtifact.STRUCTURED_C_RAW_FACT,
-            forged,
-        )
-        raw_record["summary"] = {
-            "line_count": 2,
-            "line_directive_count": 1,
-            "define_directive_count": 0,
-        }
-
-        command_link = unit["command_records"]
-        command_path = self.fixture.project_root / command_link["path"]
-        commands = json.loads(command_path.read_text(encoding="utf-8"))
-        command = next(
-            record for record in commands if record["fact_kind"] == "preprocessed_source"
-        )
-        stdout_path = Path(command["stdout_path"])
-        original_stdout = stdout_path.read_bytes()
-        digest = hashlib.sha256(forged).hexdigest()
-        command["stdout_sha256"] = digest
-        command["output_sha256"] = digest
-        command["output_size"] = len(forged)
-        stdout_path.write_bytes(forged)
+        record = facts["units"][0]["raw_facts"]["preprocessed_source"]
+        path = self.fixture.project_root / record["path"]
+        original = path.read_bytes()
+        path.write_bytes(b"forged preprocessor output")
         try:
-            current = self.fixture.replace_linked(
-                current,
-                command_link,
-                SourceAnalysisArtifact.STRUCTURED_C_COMMAND_RECORDS,
-                json_bytes(commands),
-            )
-            current = self.fixture.replace_document(
-                current,
-                SourceAnalysisArtifact.STRUCTURED_C_FACTS,
-                facts,
-            )
-            with self.assertRaisesRegex(WorkflowError, "command record differs"):
-                validate_structured_bundle(self.fixture.context(current))
+            # The validator consumes immutable submitted/CAS bytes, not a mutable
+            # command capture. Rebinding a forged payload is tested separately.
+            validate_structured_bundle(self.fixture.context())
         finally:
-            stdout_path.write_bytes(original_stdout)
+            path.write_bytes(original)
 
     def test_empty_semantic_index_is_rejected_after_digest_rebinding(self) -> None:
         def mutate(fixture: StructuredBundleFixture) -> Payloads:
@@ -254,20 +219,12 @@ class StructuredBundleIntegrityTests(unittest.TestCase):
 
         self.assert_rejected(mutate)
 
-    def test_incomplete_command_record_is_rejected_after_digest_rebinding(self) -> None:
+    def test_missing_raw_fact_is_rejected_after_digest_rebinding(self) -> None:
         def mutate(fixture: StructuredBundleFixture) -> Payloads:
             facts = fixture.document(SourceAnalysisArtifact.STRUCTURED_C_FACTS)
-            record = facts["units"][0]["command_records"]
-            current = fixture.replace_linked(
-                fixture.current,
-                record,
-                SourceAnalysisArtifact.STRUCTURED_C_COMMAND_RECORDS,
-                json_bytes([{"fact_kind": "typed_ast"}]),
-            )
+            del facts["units"][0]["raw_facts"]["preprocessed_source"]
             return fixture.replace_document(
-                current, SourceAnalysisArtifact.STRUCTURED_C_FACTS, facts
-            )
-
+                fixture.current, SourceAnalysisArtifact.STRUCTURED_C_FACTS, facts)
         self.assert_rejected(mutate)
 
     def test_duplicate_or_dropped_translation_units_are_rejected(self) -> None:

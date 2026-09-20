@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import json
-from collections.abc import Iterable, Mapping
+from collections.abc import Callable, Iterable, Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 from types import MappingProxyType
@@ -15,12 +15,32 @@ class ArtifactValidator(Protocol):
     def __call__(self, data: bytes) -> None: ...
 
 
+class ArtifactInputs(Sequence):
+    """Read and verify only the dependency payloads a validator actually uses."""
+
+    def __init__(self, refs: Iterable[ArtifactRef], reader: Callable[[ArtifactRef], bytes]):
+        self.refs = tuple(refs)
+        self.reader = reader
+
+    def __len__(self) -> int:
+        return len(self.refs)
+
+    def __getitem__(self, index):
+        if isinstance(index, slice):
+            return tuple((ref, self.reader(ref)) for ref in self.refs[index])
+        ref = self.refs[index]
+        return ref, self.reader(ref)
+
+    def matching(self, kind: ArtifactKey) -> list[tuple[ArtifactRef, bytes]]:
+        return [(ref, self.reader(ref)) for ref in self.refs if ref.kind == kind.value]
+
+
 @dataclass(frozen=True, slots=True)
 class BundleValidationContext:
     project_root: Path
     artifacts: tuple[tuple[ArtifactRef, bytes], ...]
-    dependency_artifacts: tuple[tuple[ArtifactRef, bytes], ...]
-    current_stage_artifacts: tuple[tuple[ArtifactRef, bytes], ...] = ()
+    dependency_artifacts: Sequence[tuple[ArtifactRef, bytes]]
+    current_stage_artifacts: Sequence[tuple[ArtifactRef, bytes]] = ()
 
     def one_current(self, kind: ArtifactKey) -> tuple[ArtifactRef, bytes]:
         return self._one(self.artifacts, kind, "final bundle")
@@ -33,11 +53,12 @@ class BundleValidationContext:
 
     @staticmethod
     def _one(
-        artifacts: tuple[tuple[ArtifactRef, bytes], ...],
+        artifacts: Sequence[tuple[ArtifactRef, bytes]],
         kind: ArtifactKey,
         label: str,
     ) -> tuple[ArtifactRef, bytes]:
-        matches = [artifact for artifact in artifacts if artifact[0].kind == kind.value]
+        matches = (artifacts.matching(kind) if isinstance(artifacts, ArtifactInputs) else
+                   [artifact for artifact in artifacts if artifact[0].kind == kind.value])
         if len(matches) != 1:
             raise WorkflowError(f"{label} requires exactly one {kind.value}, found {len(matches)}")
         return matches[0]

@@ -11,7 +11,6 @@ from driver_port_factory.composition import ARTIFACT_VALIDATORS
 from driver_port_factory.core.models import StageStatus, WorkflowError
 from driver_port_factory.migration.contracts import MigrationStage
 from driver_port_factory.source_analysis.ast_index import AstSemanticIndexer
-from driver_port_factory.source_analysis.closure import SourceClosureService
 from driver_port_factory.source_analysis.compiler import AbiCompatibility, GccCompatibleCommand
 from driver_port_factory.source_analysis.contracts import (
     SourceAnalysisArtifact,
@@ -21,7 +20,7 @@ from driver_port_factory.source_analysis.fact_model import RawFactKind
 from driver_port_factory.source_analysis.fact_parsers import RawFactParser
 from driver_port_factory.source_analysis.semantic_model import CallDispatch, RelationKind
 from driver_port_factory.source_analysis.structured import StructuredCAnalysisService
-from tests.test_source_closure import ready_project, source_closure, write_json
+from tests.test_source_closure import ready_project, source_closure, prepare_source, finish_source
 
 
 class StructuredCAnalysisTests(unittest.TestCase):
@@ -552,24 +551,22 @@ class StructuredCAnalysisTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temporary:
             project, checkouts = ready_project(Path(temporary))
             closure = source_closure(project, checkouts)
-            SourceClosureService().validate(
-                project,
-                closure_path=write_json(project.root / "source-closure.json", closure),
-            )
+            prepare_source(project, closure)
 
             service = StructuredCAnalysisService()
             failed = service.analyze(project, analyzer="missing-dpf-clang")
             self.assertEqual(failed.status.value, "FAIL")
             self.assertIn("unavailable", failed.errors[0])
             self.assertEqual(
-                project.stage(SourceAnalysisStage.STRUCTURED_C_ANALYSIS).status,
+                project.stage(SourceAnalysisStage.SOURCE_CLOSURE).status,
                 StageStatus.RUNNING,
             )
 
             passed = service.analyze(project, analyzer="clang")
             self.assertEqual(passed.status.value, "READY")
+            finish_source(project)
             self.assertEqual(
-                project.stage(SourceAnalysisStage.STRUCTURED_C_ANALYSIS).status,
+                project.stage(SourceAnalysisStage.SOURCE_CLOSURE).status,
                 StageStatus.PASS,
             )
             self.assertEqual(
@@ -577,7 +574,7 @@ class StructuredCAnalysisTests(unittest.TestCase):
                 StageStatus.READY,
             )
             facts = project.load_json_artifact(
-                SourceAnalysisStage.STRUCTURED_C_ANALYSIS,
+                SourceAnalysisStage.SOURCE_CLOSURE,
                 SourceAnalysisArtifact.STRUCTURED_C_FACTS,
             )
             self.assertTrue(
@@ -590,7 +587,7 @@ class StructuredCAnalysisTests(unittest.TestCase):
             self.assertEqual(len(facts["units"]), 2)
             raw_facts = [
                 ref
-                for ref in project.artifact_refs(stage=SourceAnalysisStage.STRUCTURED_C_ANALYSIS)
+                for ref in project.artifact_refs(stage=SourceAnalysisStage.SOURCE_CLOSURE)
                 if ref.kind == SourceAnalysisArtifact.STRUCTURED_C_RAW_FACT.value
             ]
             self.assertGreater(len(raw_facts), 1)
@@ -658,16 +655,14 @@ class StructuredCAnalysisTests(unittest.TestCase):
                 ),
                 "language_mode": "gnu11",
             }
-            SourceClosureService().validate(
-                project,
-                closure_path=write_json(project.root / "source-closure.json", closure),
-            )
+            prepare_source(project, closure)
 
             result = StructuredCAnalysisService().analyze(project, analyzer=clang)
 
-            self.assertEqual(result.stage_status, StageStatus.PASS, result.errors)
+            self.assertEqual(result.stage_status, StageStatus.RUNNING, result.errors)
+            finish_source(project)
             facts = project.load_json_artifact(
-                SourceAnalysisStage.STRUCTURED_C_ANALYSIS,
+                SourceAnalysisStage.SOURCE_CLOSURE,
                 SourceAnalysisArtifact.STRUCTURED_C_FACTS,
             )
             compiler = project.load_json_artifact(

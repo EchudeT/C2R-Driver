@@ -102,8 +102,6 @@ def validate_source_closure_bundle(context: BundleValidationContext) -> None:
 def _closure_record(context: BundleValidationContext, data: bytes, manifest: dict) -> dict:
     report = json_object(context.one_current(SourceAnalysisArtifact.SOURCE_CLOSURE_REPORT)[1],
                          "source closure report")
-    if "work_report" not in report:
-        return json_object(data, SourceAnalysisArtifact.SOURCE_CLOSURE.value)
     if report["work_report"].get("sha256") != hashlib.sha256(data).hexdigest():
         raise WorkflowError("source closure report is detached from its work report")
     for unit in manifest["translation_units"]:
@@ -126,7 +124,6 @@ def _verify_source_addition(
     if (
         material.facet != SOURCE_CLOSURE_FACET
         or not material.original
-        or not material.index
         or not isinstance(origin, GitBlobOrigin)
         or origin.repository is not RepositoryRole.SOURCE
         or origin.commit != revision

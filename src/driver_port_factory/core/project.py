@@ -14,13 +14,14 @@ from .models import (
     FileArtifact,
     GeneratedArtifact,
     ProjectConfig,
+    RepairExhausted,
     StageStatus,
     StageView,
     WorkflowError,
 )
 from .policy import validate_project_config
 from .store import _RunPersistence
-from .validation import BundleValidationContext, ValidationRegistry
+from .validation import ArtifactInputs, BundleValidationContext, ValidationRegistry
 from .workflow import WorkflowDefinition
 
 
@@ -133,21 +134,23 @@ class Project:
     ) -> None:
         # Markdown-only stages have no cross-artifact validator. Loading gigabytes
         # of upstream ASTs there provides no extra check and can exhaust memory.
-        dependency_artifacts = tuple(
-            (ref, self.artifacts.read(ref))
+        if not self.validators.has_bundle_validator(stage):
+            return
+        dependency_artifacts = ArtifactInputs((
+            ref
             for dependency in self.workflow.spec(stage).dependencies
             for ref in self._persistence.current_artifact_refs(
                 stage=dependency,
                 direction=ArtifactDirection.OUTPUT,
             )
-        )
-        current_stage_artifacts = tuple(
-            (ref, self.artifacts.read(ref))
+        ), self.artifacts.read)
+        current_stage_artifacts = ArtifactInputs((
+            ref
             for ref in self._persistence.current_artifact_refs(
                 stage=stage,
                 direction=ArtifactDirection.OUTPUT,
             )
-        )
+        ), self.artifacts.read)
         self.validators.validate_bundle(
             stage,
             BundleValidationContext(
@@ -171,13 +174,21 @@ class Project:
     def start(self, stage: StageKey) -> None:
         self._persistence.start_stage(stage, self.config.actor_role)
 
-    def retry_from(self, stage: StageKey, *, trigger: StageKey, reason: str) -> None:
-        self._persistence.retry_from(
-            stage,
-            trigger=trigger,
-            actor_role=self.config.actor_role,
-            reason=reason,
-        )
+    def retry_feedback(self, stage: StageKey) -> dict[str, str] | None:
+        return self._persistence.retry_feedback(stage)
+
+    def retry_from(self, stage: StageKey, *, trigger: StageKey, reason: str,
+                   progress: object | None = None) -> None:
+        try:
+            self._persistence.retry_from(
+                stage, trigger=trigger, actor_role=self.config.actor_role, reason=reason,
+                progress=progress,
+            )
+        except RepairExhausted as error:
+            self.complete(trigger, StageStatus.BLOCKED, message=str(error))
+
+    def reopen_blocked(self, stage: StageKey, *, reason: str) -> None:
+        self._persistence.reopen_blocked(stage, self.config.actor_role, reason=reason)
 
     def complete(
         self, stage: StageKey, outcome: StageStatus, *, message: str | None = None
@@ -217,12 +228,19 @@ class Project:
     def record_event(self, event_type: EventKey, payload: dict[str, Any]) -> str:
         return self._persistence.record_event(event_type, payload)
 
-    def verify_integrity(self) -> None:
+    def verify_integrity(self, *, artifacts: bool = True) -> None:
         self._persistence.validate_integrity()
         self._verify_project_config()
+        if not artifacts:
+            return
+        verified: set[tuple[str, int, str]] = set()
         for ref in self.artifact_refs():
+            identity = (ref.digest, ref.size, ref.cas_path)
+            if identity in verified:
+                continue
             if not self.artifacts.verify(ref):
                 raise WorkflowError(f"artifact failed integrity verification: {ref.digest}")
+            verified.add(identity)
 
     def _verify_project_config(self) -> None:
         try:

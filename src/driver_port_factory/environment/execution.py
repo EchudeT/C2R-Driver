@@ -8,7 +8,8 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 
 from ..core.container_trace import ContainerTrace
-from ..core.execution import CommandRunner
+from ..codex.contracts import CodexOutputError
+from ..core.execution import CommandRunner, script_command
 from ..core.models import (
     ActorRole,
     ArtifactDirection,
@@ -18,7 +19,7 @@ from ..core.models import (
     utc_now,
 )
 from ..core.project import Project
-from ..core.trace import successful_execs
+from ..core.trace import qemu_experiment, successful_execs
 from ..knowledge.index import file_sha256
 from .contracts import EnvironmentArtifact, EnvironmentStage, ExperimentRouteMilestone
 from .documents import json_artifact, json_bytes, plan_path
@@ -56,11 +57,11 @@ class ExperimentExecutor:
         if project.stage(EnvironmentStage.RECOVERY).status is not StageStatus.RUNNING:
             raise WorkflowError("environment_recovery is not RUNNING")
         if not script_path.is_file():
-            raise WorkflowError("environment work did not create environment-smoke.sh")
+            raise CodexOutputError("environment work did not create environment-smoke.sh")
         if not work_report_path.is_file() or not work_report_path.read_text(
             encoding="utf-8"
         ).strip():
-            raise WorkflowError("environment work report is missing or blank")
+            raise CodexOutputError("environment work report is missing or blank")
         strace = shutil.which("strace")
         if strace is None:
             raise WorkflowError("strace is required to prove that the smoke harness executed QEMU")
@@ -81,8 +82,7 @@ class ExperimentExecutor:
                     "trace=execve",
                     "-o",
                     str(trace_path),
-                    "/bin/sh",
-                    str(script_path),
+                    *script_command(script_path),
                 ],
                 cwd=script_path.parent,
                 environment={
@@ -91,10 +91,12 @@ class ExperimentExecutor:
                 },
                 timeout_seconds=3600,
             )
-        executed = self._executed_programs(trace_path)
-        executed.extend(path for path, _ in containers.executions(trace_path))
+        executions = successful_execs(trace_path.read_text(errors="replace").splitlines()) if trace_path.is_file() else ()
+        executions += containers.executions(trace_path)
+        executed = list(dict.fromkeys(path for path, _ in executions))
         qemu_programs = [
-            path for path in executed if Path(path).name.startswith("qemu-system-")
+            path for path, line in executions
+            if Path(path).name.startswith("qemu-system-") and qemu_experiment(line)
         ]
         ready = (
             result.launched
@@ -107,6 +109,7 @@ class ExperimentExecutor:
         route_id = f"codex-harness-{script_digest[:16]}"
         attempt = {
             "schema_version": 3,
+            "repair_inputs": {"script_sha256": script_digest},
             "route": {
                 "route_id": route_id,
                 "artifact_mode": "documented-in-work-report",
@@ -145,7 +148,7 @@ class ExperimentExecutor:
                 StageStatus.RUNNING,
                 str(attempt_path),
                 (f"smoke harness exit={result.exit_code}, timed_out={result.timed_out}, "
-                 f"observed QEMU execs={len(qemu_programs)}. "
+                 f"observed QEMU experiment execs={len(qemu_programs)} (version/help is not smoke). "
                  "Container runs require a fresh container, an exact workspace bind mount, "
                  "a traced docker run, and a live QEMU process observation. "
                  f"Inspect stdout={result.stdout_path}, stderr={result.stderr_path}, "
@@ -232,6 +235,11 @@ class ExperimentExecutor:
         readiness = ExperimentReadiness.PASS if ready else ExperimentReadiness.FAIL
         attempt = {
             "schema_version": 3,
+            "repair_inputs": {
+                "route": {key: value for key, value in plan.to_dict().items() if key != "route_id"},
+                "executable": executable,
+                "runner_evidence": [file_identity(project, item) for item in plan.runner_evidence_paths],
+            },
             "route": plan.to_dict(),
             "frozen_repositories": plan.frozen_repositories,
             "command": asdict(result),

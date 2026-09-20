@@ -12,8 +12,9 @@ from .workflow import WorkflowDefinition
 
 
 class _LedgerProjection:
-    def __init__(self, workflow: WorkflowDefinition) -> None:
+    def __init__(self, workflow: WorkflowDefinition, retired=()) -> None:
         self.workflow = workflow
+        self.retired = set(retired)
         self.status = {
             stage.name.value: StageStatus.READY if not stage.dependencies else StageStatus.PENDING
             for stage in workflow.stages
@@ -65,7 +66,8 @@ class _LedgerProjection:
         trigger = payload.get("trigger")
         if not isinstance(trigger, str):
             raise WorkflowError("stage retry event has no trigger")
-        self.workflow.parse_stage(trigger)
+        if trigger not in self.retired:
+            self.workflow.parse_stage(trigger)
         boundaries = payload.get("artifact_boundaries")
         if not isinstance(boundaries, dict) or set(boundaries) != {
             direction.value for direction in ArtifactDirection
@@ -95,7 +97,8 @@ class _LedgerProjection:
         stage = payload.get("stage")
         if not isinstance(stage, str):
             raise WorkflowError("stage event has no stage identity")
-        self.workflow.parse_stage(stage)
+        if stage not in self.retired:
+            self.workflow.parse_stage(stage)
         return stage
 
 
@@ -103,11 +106,17 @@ def validate_state_projection(
     connection: sqlite3.Connection,
     workflow: WorkflowDefinition,
 ) -> None:
-    projection = _LedgerProjection(workflow)
     rows = connection.execute("SELECT event_type, payload FROM events ORDER BY sequence").fetchall()
+    retired = {stage for row in rows if row["event_type"] == RunEvent.PROTOCOL_UPGRADED.value
+               for stage in json.loads(row["payload"])["retired_stages"]}
+    if retired - {"structured_c_analysis"}:
+        raise WorkflowError("unsupported retired stage in protocol upgrade")
+    projection = _LedgerProjection(workflow, retired)
     for row in rows:
         projection.consume(row["event_type"], row["payload"])
     _validate_project_config(connection, projection.run_projects)
+    for stage in retired:
+        projection.status.pop(stage, None)
     _validate_stage_status(connection, projection.status)
     _validate_artifacts(connection, projection.artifacts)
 

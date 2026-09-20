@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from collections.abc import Callable
 from collections import Counter
 from dataclasses import dataclass
 
@@ -47,21 +48,6 @@ _STATIC_GIT_POLICY = MaterialPolicy(
     MaterialRedistribution.UNKNOWN,
     True,
 )
-
-CODEX_EVIDENCE_SELECTION_OBJECTIVE = (
-    "Choose only task-relevant evidence that requires semantic judgment. Return "
-    "{facets:[{lane,facet,rationale,repository_paths?:[{repository,path}],"
-    "external_urls?:[url],gap?:{impact,repair_trigger}}]}. lane is one of source, "
-    "target, qemu, hardware, test, or tooling; repository is one of source, target, "
-    "or qemu; facet is a short semantic name chosen from the evidence's actual "
-    "purpose, not a hidden enum. The controller adds source/driver_entry and owns "
-    "digests, disposition, locator kinds, revisions, hashes, provenance, byte limits, "
-    "material policy, and the actual gap reason. For controlled evidence, omit gap "
-    "and list existing frozen repository paths. For a gap, include gap plus at least "
-    "one candidate repository path or public URL actually checked. Cover target, "
-    "qemu, hardware, test, and tooling; add extra source facets only when needed."
-)
-
 
 @dataclass(frozen=True, slots=True)
 class ProposalImport:
@@ -226,6 +212,7 @@ def normalize_codex_evidence_selection(
     migration_envelope_sha256: str,
     repository_manifest_sha256: str,
     source_driver_path: str,
+    bind_document: Callable[[object], EvidenceLocator] | None = None,
 ) -> EvidenceDiscoveryProposal:
     """Convert semantic Codex choices into the controller-owned proposal contract."""
 
@@ -241,11 +228,19 @@ def normalize_codex_evidence_selection(
     if not isinstance(raw_facets, list):
         raise WorkflowError("Codex evidence selection facets must be a list")
     facets = [_static_source_entry(source_driver_path)]
-    for raw_facet in raw_facets:
-        normalized = _normalize_codex_facet(raw_facet)
+    errors = []
+    for index, raw_facet in enumerate(raw_facets):
+        try:
+            normalized = _normalize_codex_facet(raw_facet, bind_document=bind_document)
+            normalized = FacetProposal.from_dict(normalized.to_dict())
+        except WorkflowError as error:
+            errors.append(f"facets[{index}]: {error}")
+            continue
         if normalized.facet == SOURCE_DRIVER_ENTRY:
             continue
         facets.append(normalized)
+    if errors:
+        raise WorkflowError("Fix all invalid evidence facets in one response:\n" + "\n".join(errors))
     return EvidenceDiscoveryProposal.from_dict(
         {
             "schema_version": 1,
@@ -272,11 +267,11 @@ def _static_source_entry(source_driver_path: str) -> FacetProposal:
     )
 
 
-def _normalize_codex_facet(value: object) -> FacetProposal:
+def _normalize_codex_facet(value: object, *, bind_document=None) -> FacetProposal:
     candidate = exact_object(
         value,
         required={"lane", "facet", "rationale"},
-        optional={"repository_paths", "external_urls", "gap"},
+        optional={"repository_paths", "external_urls", "external_documents", "gap"},
         label="Codex evidence facet",
     )
     facet = parse_facet(candidate["lane"], candidate["facet"])
@@ -289,6 +284,13 @@ def _normalize_codex_facet(value: object) -> FacetProposal:
     locators: list[EvidenceLocator] = [
         _static_git_locator(item) for item in repository_paths
     ]
+    documents = candidate.get("external_documents", [])
+    if not isinstance(documents, list):
+        raise WorkflowError("external_documents must be a list")
+    if documents:
+        if bind_document is None:
+            raise WorkflowError("external documents require controller retrieval")
+        locators.extend(bind_document(document) for document in documents)
     locators.extend(
         ExternalReferenceLocator(
             http_url(url, "Codex evidence external URL"),
@@ -299,7 +301,7 @@ def _normalize_codex_facet(value: object) -> FacetProposal:
     gap = GapDeclaration.from_dict(candidate["gap"]) if "gap" in candidate else None
     if gap is None:
         if not locators:
-            raise WorkflowError("controlled Codex evidence facet requires repository_paths")
+            raise WorkflowError("controlled evidence requires repository_paths or external_documents")
         if external_urls:
             raise WorkflowError("controlled Codex evidence must use frozen repository paths")
         disposition = FacetDisposition.CONTROLLED
@@ -406,6 +408,7 @@ class EvidenceProposalImporter:
                     source_driver_path=envelope_document[
                         "source_driver_entry_or_repository_hint"
                     ],
+                    bind_document=self._document_binder(project),
                 )
         except (UnicodeDecodeError, json.JSONDecodeError, WorkflowError) as error:
             raise CodexOutputError(f"invalid Codex evidence proposal: {error}") from error
@@ -426,6 +429,11 @@ class EvidenceProposalImporter:
             ArtifactOccurrence(imported.digest, ordinal(imported.ordinal)),
             ArtifactOccurrence(binding.digest, binding.ordinal),
         )
+
+    @staticmethod
+    def _document_binder(project: Project):
+        from .document_binding import ExternalDocumentBinder
+        return ExternalDocumentBinder(project).bind
 
 
 def load_proposal_occurrence(

@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from dataclasses import replace
+
 from ..acquisition.contracts import AcquisitionArtifact, AcquisitionStage
 from ..control.contracts import ControlArtifact, ControlStage
 from ..core.models import ActorRole, EvaluationMode, ProjectConfig, StageOwner, StageSpec
@@ -45,13 +47,12 @@ def migration_workflow(config: ProjectConfig) -> tuple[StageSpec, ...]:
     specs.append(
         stage_spec(
             MigrationStage.PUBLIC_REPAIR,
-            "Diagnose public failures and run bounded narrow repair attempts.",
+            "Close worker evidence; independently review only triggered risks.",
             StageOwner.HYBRID,
             previous,
             (MigrationArtifact.PUBLIC_REPAIR_REPORT,),
             MIGRATION_ROLES,
-            auxiliary_outputs=(MigrationArtifact.PUBLIC_REPAIR_ATTEMPT,),
-            accept_failed=True,
+            prerequisites=(MigrationStage.DRIVER_IMPLEMENTATION, MigrationStage.CONTRACTS),
         )
     )
     if config.evaluation_mode is EvaluationMode.DEVELOPER_EVIDENCE:
@@ -65,7 +66,7 @@ def migration_workflow(config: ProjectConfig) -> tuple[StageSpec, ...]:
                 MIGRATION_ROLES,
             )
         )
-        return tuple(specs)
+        return _data_dependencies(tuple(specs))
 
     specs.append(
         stage_spec(
@@ -121,7 +122,21 @@ def migration_workflow(config: ProjectConfig) -> tuple[StageSpec, ...]:
             MIGRATION_ROLES,
         )
     )
-    return tuple(specs)
+    return _data_dependencies(tuple(specs))
+
+
+def _data_dependencies(specs):
+    """Display order schedules work; these edges alone describe result invalidation."""
+    changes = {
+        EnvironmentStage.RECOVERY: (AcquisitionStage.REPOSITORY_ACQUISITION,),
+        KnowledgeStage.KNOWLEDGE_BASE: (AcquisitionStage.EVIDENCE_CLOSURE,),
+        TargetStudyStage.STUDY: (KnowledgeStage.KNOWLEDGE_BASE, EnvironmentStage.RECOVERY),
+        SourceAnalysisStage.SOURCE_CLOSURE: (
+            AcquisitionStage.REPOSITORY_ACQUISITION, AcquisitionStage.EVIDENCE_CLOSURE,
+            KnowledgeStage.KNOWLEDGE_BASE),
+    }
+    return tuple(replace(spec, dependencies=changes[spec.name])
+                 if spec.name in changes else spec for spec in specs)
 
 
 def _migration_rows(config: ProjectConfig) -> tuple[StageRow, ...]:
@@ -208,7 +223,7 @@ def _migration_rows(config: ProjectConfig) -> tuple[StageRow, ...]:
         StageRow(
             KnowledgeStage.KNOWLEDGE_BASE,
             "Build or validate the evidence knowledge base and query contract.",
-            StageOwner.HYBRID,
+            StageOwner.STATIC,
             (
                 KnowledgeArtifact.STATUS,
                 KnowledgeArtifact.QUERY_CONTRACT,
@@ -216,7 +231,6 @@ def _migration_rows(config: ProjectConfig) -> tuple[StageRow, ...]:
                 KnowledgeArtifact.READINESS_REPORT,
                 KnowledgeArtifact.TARGET_PROBE_RESULTS,
             ),
-            (KnowledgeArtifact.PROBE_ATTEMPT,),
         ),
         StageRow(
             TargetStudyStage.STUDY,
@@ -253,7 +267,7 @@ def _migration_rows(config: ProjectConfig) -> tuple[StageRow, ...]:
         ),
         StageRow(
             SourceAnalysisStage.SOURCE_CLOSURE,
-            "Close the behaviorally required C dependency set.",
+            "Prepare compilation, extract facts, and self-check source behavior in one task.",
             StageOwner.HYBRID,
             (
                 SourceAnalysisArtifact.SOURCE_CLOSURE,
@@ -262,8 +276,16 @@ def _migration_rows(config: ProjectConfig) -> tuple[StageRow, ...]:
                 SourceAnalysisArtifact.COMPILATION_DATABASE,
                 SourceAnalysisArtifact.MATERIALS_MANIFEST,
                 SourceAnalysisArtifact.KNOWLEDGE_REVISION,
+                SourceAnalysisArtifact.STRUCTURED_C_FACTS,
+                SourceAnalysisArtifact.STRUCTURED_C_ANALYSIS_REPORT,
+                SourceAnalysisArtifact.STRUCTURED_C_RAW_FACT,
+                SourceAnalysisArtifact.STRUCTURED_C_SEMANTIC_INDEX,
             ),
-            (SourceAnalysisArtifact.SOURCE_CLOSURE_VALIDATION_ATTEMPT,),
+            (SourceAnalysisArtifact.SOURCE_CLOSURE_VALIDATION_ATTEMPT,
+             SourceAnalysisArtifact.STRUCTURED_C_ANALYSIS_ATTEMPT,
+             SourceAnalysisArtifact.PREPARATION),
+            (SourceAnalysisArtifact.STRUCTURED_C_RAW_FACT,
+             SourceAnalysisArtifact.STRUCTURED_C_SEMANTIC_INDEX),
             prerequisites=(
                 AcquisitionStage.EVIDENCE_CLOSURE,
                 AcquisitionStage.REPOSITORY_ACQUISITION,
@@ -271,38 +293,10 @@ def _migration_rows(config: ProjectConfig) -> tuple[StageRow, ...]:
             ),
         ),
         StageRow(
-            SourceAnalysisStage.STRUCTURED_C_ANALYSIS,
-            "Extract typed AST, CFG, layout, call, global, and effect facts.",
-            StageOwner.STATIC,
-            (
-                SourceAnalysisArtifact.STRUCTURED_C_FACTS,
-                SourceAnalysisArtifact.STRUCTURED_C_ANALYSIS_REPORT,
-                SourceAnalysisArtifact.STRUCTURED_C_RAW_FACT,
-                SourceAnalysisArtifact.STRUCTURED_C_SEMANTIC_INDEX,
-            ),
-            (SourceAnalysisArtifact.STRUCTURED_C_ANALYSIS_ATTEMPT,),
-            (
-                SourceAnalysisArtifact.STRUCTURED_C_RAW_FACT,
-                SourceAnalysisArtifact.STRUCTURED_C_SEMANTIC_INDEX,
-            ),
-        ),
-        StageRow(
             MigrationStage.CONTRACTS,
-            "Convert evidence into hardware, platform, safety, and lifecycle obligations.",
+            "Plan migration contracts and executable adapted tests together.",
             StageOwner.HYBRID,
-            (MigrationArtifact.CONTRACTS,),
-            prerequisites=(
-                MigrationStage.HANDOFF,
-                KnowledgeStage.KNOWLEDGE_BASE,
-                TargetStudyStage.STUDY,
-                SourceAnalysisStage.SOURCE_CLOSURE,
-            ),
-        ),
-        StageRow(
-            MigrationStage.TEST_ADAPTATION,
-            "Triage source tests and preserve portable device scenarios and oracles.",
-            StageOwner.HYBRID,
-            (MigrationArtifact.TEST_PORT_MATRIX,),
+            (MigrationArtifact.CONTRACTS, MigrationArtifact.TEST_PORT_MATRIX),
             prerequisites=(
                 MigrationStage.HANDOFF,
                 KnowledgeStage.KNOWLEDGE_BASE,
@@ -318,26 +312,15 @@ def _migration_rows(config: ProjectConfig) -> tuple[StageRow, ...]:
                 MigrationArtifact.IMPLEMENTATION_BUNDLE,
                 MigrationArtifact.TRANSLATION_COVERAGE,
                 MigrationArtifact.TARGET_CHANGE_INVENTORY,
+                MigrationArtifact.COMPLIANCE_REPORT,
             ),
             prerequisites=(
                 MigrationStage.HANDOFF,
                 MigrationStage.CONTRACTS,
                 SourceAnalysisStage.SOURCE_CLOSURE,
-                SourceAnalysisStage.STRUCTURED_C_ANALYSIS,
-                TargetStudyStage.STUDY,
-                KnowledgeStage.KNOWLEDGE_BASE,
-            ),
-        ),
-        StageRow(
-            MigrationStage.TARGET_COMPLIANCE,
-            "Review target API, style, safety, lifecycle, and integration rules.",
-            StageOwner.HYBRID,
-            (MigrationArtifact.COMPLIANCE_REPORT,),
-            prerequisites=(
-                MigrationStage.HANDOFF,
-                KnowledgeStage.KNOWLEDGE_BASE,
-                TargetStudyStage.STUDY,
                 SourceAnalysisStage.SOURCE_CLOSURE,
+                TargetStudyStage.STUDY,
+                KnowledgeStage.KNOWLEDGE_BASE,
             ),
         ),
         StageRow(
@@ -356,14 +339,12 @@ def _migration_rows(config: ProjectConfig) -> tuple[StageRow, ...]:
             MigrationStage.PUBLIC_QEMU_VALIDATION,
             "Run the public QEMU evidence ladder.",
             StageOwner.HYBRID,
-            (MigrationArtifact.PUBLIC_QEMU_REPORT,),
+            (MigrationArtifact.PUBLIC_QEMU_REPORT, MigrationArtifact.PUBLIC_QEMU_WORK_REPORT),
             (MigrationArtifact.PUBLIC_QEMU_ATTEMPT,),
             prerequisites=(
                 MigrationStage.HANDOFF,
                 MigrationStage.CONTRACTS,
-                MigrationStage.TEST_ADAPTATION,
                 MigrationStage.DRIVER_IMPLEMENTATION,
-                MigrationStage.TARGET_COMPLIANCE,
                 EnvironmentStage.RECOVERY,
                 KnowledgeStage.KNOWLEDGE_BASE,
                 SourceAnalysisStage.SOURCE_CLOSURE,

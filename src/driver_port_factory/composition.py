@@ -108,7 +108,8 @@ def initialize_project(root: Path, config: ProjectConfig) -> Project:
     )
 
 
-def open_project(root: Path, *, read_only: bool = False) -> Project:
+def open_project(root: Path, *, read_only: bool = False,
+                 verify_artifacts: bool = True) -> Project:
     resolved = root.resolve()
     config_path = resolved / Project.CONTROL_DIR / "project.json"
     try:
@@ -124,5 +125,9 @@ def open_project(root: Path, *, read_only: bool = False) -> Project:
         ARTIFACT_VALIDATORS,
         read_only=read_only,
     )
-    project.verify_integrity()
+    # Scoped readers verify the actual evidence they consume. Mutating commands
+    # and explicit audits still perform the full content check by default.
+    if not verify_artifacts and not read_only:
+        raise WorkflowError("scoped integrity is restricted to read-only consumers")
+    project.verify_integrity(artifacts=verify_artifacts)
     return project

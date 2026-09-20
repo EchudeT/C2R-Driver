@@ -55,6 +55,32 @@ def write_prompt_pack(
 
 
 class SkillPromptTests(unittest.TestCase):
+    def test_rendered_feedback_uses_correction_pack_without_mutating_context(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            relative = "open-kernel-driver-port/SKILL.md"
+            skill = root / "skills" / relative
+            skill.parent.mkdir(parents=True)
+            skill.write_text("Keep original requirements.\n", encoding="utf-8")
+            pack = write_prompt_pack(
+                root / "pack", wrapper="{{job_json}}\n{{skill_documents}}\n",
+                stages={EnvironmentStage.RECOVERY.value: [relative]},
+                objectives={EnvironmentStage.RECOVERY.value: "Run the smoke harness"},
+            )
+            context = {"controller_feedback": "two defects", "unrelated": "retained"}
+            composer = SkillPromptComposer(root / "skills", WORKFLOW_STAGE_CATALOG,
+                                          (EnvironmentStage.RECOVERY.value,), pack)
+            first = composer.render(stage=EnvironmentStage.RECOVERY,
+                                    actor_role=ActorRole.DEVELOPER, context=context)
+            self.assertIn("Rejected: two defects", first.text)
+            self.assertEqual(context["controller_feedback"], "two defects")
+            (pack / "correction.md").write_text("Batch repair: {{error}}\n", encoding="utf-8")
+            second = SkillPromptComposer(root / "skills", WORKFLOW_STAGE_CATALOG,
+                                        (EnvironmentStage.RECOVERY.value,), pack).render(
+                stage=EnvironmentStage.RECOVERY, actor_role=ActorRole.DEVELOPER, context=context)
+            self.assertIn("Batch repair: two defects", second.text)
+            self.assertNotEqual(first.digest, second.digest)
+
     def test_prompt_uses_current_skill_and_editable_wrapper_sources(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)

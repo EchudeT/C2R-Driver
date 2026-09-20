@@ -25,11 +25,7 @@ from ..core.models import (
 from ..core.project import Project
 from ..knowledge.corpus import CorpusManifest
 from ..knowledge.index import KnowledgeIndex, file_sha256
-from .closure_context import ClosureContextValidator
-from .closure_coverage import ClosureCoverageValidator
-from .closure_model import ClosureContext, TranslationUnitSet
 from .closure_paths import checkout
-from .closure_units import TranslationUnitValidator
 from .compiler import CompilerFamily, compiler_adapter
 from .contracts import (
     SourceAnalysisArtifact,
@@ -78,7 +74,7 @@ def _normalize_compile_command(
     arguments = raw.get("arguments")
     if arguments is None and isinstance(raw.get("command"), str):
         arguments = shlex.split(raw["command"])
-    if not isinstance(arguments, list) or not all(
+    if not isinstance(arguments, list) or not arguments or not all(
         isinstance(argument, str) and argument for argument in arguments
     ):
         raise WorkflowError("compile command requires an argv list or command string")
@@ -119,7 +115,7 @@ def _resolve_executable(value: str, cwd: Path) -> Path:
 class SourceClosureService:
     ROLES = (ActorRole.DEVELOPER, ActorRole.MIGRATION_OPERATOR)
 
-    def finalize_compilation_database(
+    def prepare_compilation_database(
         self,
         project: Project,
         *,
@@ -140,7 +136,9 @@ class SourceClosureService:
             database, units, source_files, compiler = self._derive_compile_inputs(
                 source_root, raw_entries, workspace_root=project.root
             )
-            corpus_revision, corpus, added_ids = self._extend_knowledge(project, source_files)
+            corpus_revision, corpus, added_ids = self._extend_knowledge(
+                project, source_files, source_paths={unit["source_path"] for unit in units}
+            )
             attempt_dir = self._new_attempt_dir(
                 project,
                 hashlib.sha256(compilation_database_path.read_bytes()).hexdigest(),
@@ -175,8 +173,9 @@ class SourceClosureService:
                     }
                 )
             )
-            project.finalize_stage(
-                SourceAnalysisStage.SOURCE_CLOSURE,
+            from .preparation import save
+            save(
+                project,
                 (
                     FileArtifact(SourceAnalysisArtifact.SOURCE_CLOSURE, work_report_path),
                     FileArtifact(SourceAnalysisArtifact.SOURCE_CLOSURE_REPORT, report_path),
@@ -193,6 +192,7 @@ class SourceClosureService:
                         f"generated:source-closure:{corpus.digest}",
                     ),
                 ),
+                request_sha256=hashlib.sha256(compilation_database_path.read_bytes()).hexdigest(),
             )
             if added_ids:
                 project.record_event(
@@ -200,7 +200,7 @@ class SourceClosureService:
                     {"added_ids": list(added_ids), "added_count": len(added_ids)},
                 )
             return SourceClosureResult(
-                ValidationStatus.PASS, StageStatus.PASS, str(report_path), ()
+                ValidationStatus.PASS, StageStatus.RUNNING, str(report_path), ()
             )
         except (OSError, UnicodeDecodeError, json.JSONDecodeError, WorkflowError) as error:
             raise WorkflowError(f"source closure mechanical processing failed: {error}") from error
@@ -302,131 +302,26 @@ class SourceClosureService:
         }
         return database, units, source_files, compiler
 
-    def validate(self, project: Project, *, closure_path: Path) -> SourceClosureResult:
-        project.ensure_role(*self.ROLES)
-        self._enter_stage(project)
-        controlled_input = self._controlled(project, closure_path)
-        input_digest = file_sha256(controlled_input)
-        attempt_dir = self._new_attempt_dir(project, input_digest)
-        errors: list[str] = []
-        details: dict[str, Any] = {}
-        compilation_database: list[dict[str, Any]] = []
-        compile_manifest: dict[str, Any] = {}
-        source_files: dict[str, Path] = {}
-        knowledge_revision: SourceCorpusRevision | None = None
-        corpus: CorpusManifest | None = None
-        added_ids: tuple[str, ...] = ()
-        try:
-            closure = self._load_json(controlled_input)
-            (
-                details,
-                compilation_database,
-                compile_manifest,
-                source_files,
-            ) = self._validate_closure(project, closure)
-            knowledge_revision, corpus, added_ids = self._extend_knowledge(project, source_files)
-            if file_sha256(controlled_input) != input_digest:
-                raise WorkflowError("source closure submission changed during validation")
-        except (WorkflowError, OSError, UnicodeDecodeError, subprocess.SubprocessError) as error:
-            errors.append(str(error))
-        report_path = self._write_report(
-            attempt_dir,
-            controlled_input,
-            input_digest,
-            details,
-            errors,
-        )
-        if errors:
-            project.record_artifact(
-                SourceAnalysisStage.SOURCE_CLOSURE,
-                FileArtifact(
-                    SourceAnalysisArtifact.SOURCE_CLOSURE_VALIDATION_ATTEMPT,
-                    report_path,
-                ),
-            )
-            return SourceClosureResult(
-                ValidationStatus.FAIL,
-                StageStatus.RUNNING,
-                str(report_path),
-                tuple(errors),
-            )
-        self._finalize(
-            project,
-            attempt_dir,
-            controlled_input,
-            report_path,
-            compilation_database,
-            compile_manifest,
-            knowledge_revision,
-            corpus,
-        )
-        if added_ids:
-            project.record_event(
-                SourceAnalysisEvent.CLOSURE_EXTENDED,
-                {"added_ids": list(added_ids), "added_count": len(added_ids)},
-            )
-        return SourceClosureResult(
-            ValidationStatus.PASS,
-            StageStatus.PASS,
-            str(report_path),
-            (),
-        )
-
-    def _validate_closure(
-        self, project: Project, closure: dict[str, Any]
-    ) -> tuple[dict[str, Any], list[dict[str, Any]], dict[str, Any], dict[str, Path]]:
-        context = ClosureContextValidator().validate(project, closure)
-        units = TranslationUnitValidator(context).validate(closure["translation_units"])
-        coverage = ClosureCoverageValidator(project, context, units).validate(closure)
-        source_files = {**units.source_files, **coverage.source_files}
-        manifest = self._compile_manifest(closure, context, units)
-        details = {
-            "source_revision": context.source.resolved_commit,
-            "translation_unit_count": len(units.records),
-            "controlled_file_count": len(source_files),
-            "closure_categories": coverage.records,
-            "compiler_sha256": manifest["compiler"]["sha256"],
-        }
-        return details, list(units.compilation_database), manifest, source_files
-
-    @staticmethod
-    def _compile_manifest(
-        closure: dict[str, Any],
-        context: ClosureContext,
-        units: TranslationUnitSet,
-    ) -> dict[str, Any]:
-        compiler = {
-            **context.compiler,
-            "resolved_path": str(context.compiler_path),
-            "sha256": file_sha256(context.compiler_path),
-            "version_output": context.compiler_version,
-            "version_output_sha256": hashlib.sha256(
-                context.compiler_version.encode("utf-8")
-            ).hexdigest(),
-            "verified_target_triple": units.target_triple,
-            "verified_target_abi": units.target_abi,
-        }
-        return {
-            "schema_version": 1,
-            "source_revision": context.source.resolved_commit,
-            "source_root": str(context.source_root),
-            "compiler": compiler,
-            "defines": list(context.defines),
-            "include_paths": [str(path) for path in context.resolved_include_paths],
-            "configuration_inputs": closure["configuration_inputs"],
-            "generated_headers": closure["generated_headers"],
-            "selected_conditional_branches": list(context.conditional_branches),
-            "translation_units": list(units.records),
-        }
-
     def _extend_knowledge(
-        self, project: Project, source_files: dict[str, Path]
+        self, project: Project, source_files: dict[str, Path], *, source_paths: set[str] | None = None
     ) -> tuple[SourceCorpusRevision, CorpusManifest, tuple[str, ...]]:
-        base = CorpusManifest.current(project)
+        from ..knowledge.contracts import KnowledgeArtifact, KnowledgeStage
+        from ..acquisition.material import parse_materials
+        status = project.load_json_artifact(KnowledgeStage.KNOWLEDGE_BASE, KnowledgeArtifact.STATUS)
+        parent_path = project.root / status["manifest_path"]
+        parent_data = parent_path.read_bytes()
+        if hashlib.sha256(parent_data).hexdigest() != status["manifest_sha256"]:
+            raise WorkflowError("source preparation parent corpus is damaged")
+        base = CorpusManifest(parse_materials(parent_data), parent_data,
+                              status["manifest_sha256"], str(parent_path))
         existing_paths = {record.path: record for record in base.records}
         checkouts = load_repository_acquisition(project).checkouts
         source = checkout(checkouts, RepositoryRole.SOURCE)
         source_root = (project.root / source.checkout_path).resolve()
+        roots = source_paths if source_paths is not None else {
+            relative for relative in source_files if Path(relative).suffix == ".c"
+        }
+        local_directories = {Path(relative).parent for relative in roots}
         additions: list[MaterialRecord] = []
         for relative, path in sorted(source_files.items()):
             workspace_relative = str(path.relative_to(project.root))
@@ -453,15 +348,16 @@ class SourceClosureService:
                     path.stat().st_size,
                     "text/plain",
                     True,
-                    True,
+                    relative in roots or Path(relative).parent in local_directories,
                     GitBlobOrigin(
                         RepositoryRole.SOURCE,
                         source.resolved_commit,
                         blob,
                         repository_relative,
                     ),
-                    category="behaviorally-required-source-closure",
-                    notes="Added by the validated source dependency closure.",
+                    category="compiler-dependency-closure",
+                    notes=("Frozen compiler dependency; shared headers are available as originals "
+                           "and reachable c-facts, not blanket full-text search chunks."),
                 )
             )
         corpus = CorpusManifest.candidate((*base.records, *additions), parent_digest=base.digest)
@@ -474,47 +370,6 @@ class SourceClosureService:
             index_status,
         )
         return revision, corpus, tuple(record.identifier for record in additions)
-
-    def _finalize(
-        self,
-        project: Project,
-        attempt_dir: Path,
-        controlled_input: Path,
-        report_path: Path,
-        compilation_database: list[dict[str, Any]],
-        compile_manifest: dict[str, Any],
-        knowledge_revision: SourceCorpusRevision | None,
-        corpus: CorpusManifest | None,
-    ) -> None:
-        if corpus is None or knowledge_revision is None:
-            raise WorkflowError("validated source closure has no corpus revision")
-        compilation_path = attempt_dir / "compile_commands.json"
-        compilation_bytes = self._json_array_bytes(compilation_database)
-        compilation_path.write_bytes(compilation_bytes)
-        compile_manifest["compilation_database_sha256"] = hashlib.sha256(
-            compilation_bytes
-        ).hexdigest()
-        compile_manifest_path = attempt_dir / "compile-manifest.json"
-        compile_manifest_path.write_bytes(self._json_bytes(compile_manifest))
-        project.finalize_stage(
-            SourceAnalysisStage.SOURCE_CLOSURE,
-            (
-                FileArtifact(SourceAnalysisArtifact.SOURCE_CLOSURE, controlled_input),
-                FileArtifact(SourceAnalysisArtifact.SOURCE_CLOSURE_REPORT, report_path),
-                FileArtifact(SourceAnalysisArtifact.COMPILE_MANIFEST, compile_manifest_path),
-                FileArtifact(SourceAnalysisArtifact.COMPILATION_DATABASE, compilation_path),
-                GeneratedArtifact(
-                    SourceAnalysisArtifact.MATERIALS_MANIFEST,
-                    corpus.data,
-                    corpus.source,
-                ),
-                GeneratedArtifact(
-                    SourceAnalysisArtifact.KNOWLEDGE_REVISION,
-                    self._json_bytes(knowledge_revision.to_dict()),
-                    f"generated:source-closure:{corpus.digest}",
-                ),
-            ),
-        )
 
     @staticmethod
     def _git_blob(root: Path, revision: str, relative: str) -> str:
@@ -529,26 +384,6 @@ class SourceClosureService:
                 f"source closure file is not tracked at the frozen revision: {relative}"
             )
         return completed.stdout.strip()
-
-    @staticmethod
-    def _write_report(
-        attempt_dir: Path,
-        controlled_input: Path,
-        input_digest: str,
-        details: dict[str, Any],
-        errors: list[str],
-    ) -> Path:
-        report = {
-            "schema_version": 1,
-            "status": ValidationStatus.PASS if not errors else ValidationStatus.FAIL,
-            "closure_input": {"path": str(controlled_input), "sha256": input_digest},
-            "details": details,
-            "errors": errors,
-            "validated_at": utc_now(),
-        }
-        report_path = attempt_dir / "validation.json"
-        report_path.write_bytes(SourceClosureService._json_bytes(report))
-        return report_path
 
     @staticmethod
     def _enter_stage(project: Project) -> None:
@@ -573,25 +408,6 @@ class SourceClosureService:
                 continue
             return candidate
         raise WorkflowError("source closure attempt sequence is exhausted")
-
-    @staticmethod
-    def _controlled(project: Project, path: Path) -> Path:
-        resolved = path.resolve()
-        if resolved != project.root and project.root not in resolved.parents:
-            raise WorkflowError("source closure submission must remain inside the project")
-        if not resolved.is_file():
-            raise WorkflowError(f"source closure submission is not a file: {resolved}")
-        return resolved
-
-    @staticmethod
-    def _load_json(path: Path) -> dict[str, Any]:
-        try:
-            value = json.loads(path.read_text(encoding="utf-8"))
-        except json.JSONDecodeError as error:
-            raise WorkflowError(f"invalid source closure JSON: {path}") from error
-        if not isinstance(value, dict):
-            raise WorkflowError("source closure must be a JSON object")
-        return value
 
     @staticmethod
     def _json_bytes(value: dict[str, Any]) -> bytes:

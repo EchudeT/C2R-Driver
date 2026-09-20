@@ -57,9 +57,19 @@ def validate_locator_authority(facet: EvidenceFacet, locator: EvidenceLocator) -
     policy = policy_for(facet)
     if isinstance(locator, GitBlobLocator):
         if locator.repository not in policy.git_roles:
+            remedy = (
+                "Hardware facets must omit repository_paths, even when declaring a gap. "
+                "Keep source/QEMU implementation evidence in its own lane; for missing "
+                "primary hardware evidence use an actually checked external_urls entry "
+                "and gap with impact and repair_trigger. Do not invent URLs."
+                if facet.lane is EvidenceLane.HARDWARE else
+                "Use a repository allowed for this lane: "
+                + ", ".join(sorted(role.value for role in policy.git_roles))
+                + ". Classify by evidence authority, not the topic mentioned in the file."
+            )
             raise WorkflowError(
                 f"{locator.repository.value} repository cannot control "
-                f"{facet.lane.value}/{facet.name}"
+                f"{facet.lane.value}/{facet.name}: {locator.path}. {remedy}"
             )
         return
     if isinstance(locator, ExternalReferenceLocator):

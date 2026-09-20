@@ -33,6 +33,7 @@ from ..migration.contracts import (
     MigrationArtifact,
     MigrationStage,
 )
+from ..migration.implementation import validate_worktree_snapshot
 from .contracts import (
     CandidateBundleFormat,
     PrivateEvaluationState,
@@ -471,26 +472,28 @@ class CandidateSealer:
             if item["kind"] in {
                 MigrationArtifact.PUBLIC_QEMU_ATTEMPT.value,
                 MigrationArtifact.PUBLIC_QEMU_REPORT.value,
-                MigrationArtifact.PUBLIC_REPAIR_ATTEMPT.value,
                 MigrationArtifact.PUBLIC_REPAIR_REPORT.value,
             }:
                 public_documents.append(json.loads(data))
 
         implementation = self._latest_implementation(project, occurrences)
-        worktree = self._worktree(project)
+        worktree = validate_worktree_snapshot(project.root, implementation)
         for item in implementation["files"]:
-            content = str(item["content"]).encode()
-            path = worktree / str(item["path"])
+            if item["state"] == "deleted":
+                continue
+            path = (worktree / str(item["path"])).resolve()
             if (
-                hashlib.sha256(content).hexdigest() != item["sha256"]
+                worktree not in path.parents
                 or not path.is_file()
                 or file_sha256(path) != item["sha256"]
             ):
                 raise WorkflowError("candidate source differs from the current implementation")
+            content = path.read_bytes()
             entities[f"candidate-source/{item['path']}"] = content
 
         patch = subprocess.run(
-            ["git", "diff", "--binary", "--no-ext-diff", "HEAD"],
+            ["git", "diff", "--binary", "--no-ext-diff", implementation["target_worktree"]["base_commit"],
+             "--", ".", ":(exclude).dpf-output"],
             cwd=worktree,
             check=True,
             capture_output=True,
@@ -607,13 +610,6 @@ class CandidateSealer:
     def _latest_implementation(
         project: Project, occurrences: list[dict[str, Any]]
     ) -> dict[str, Any]:
-        repair = CandidateSealer._one(occurrences, MigrationArtifact.PUBLIC_REPAIR_REPORT)
-        repair_document = json.loads(
-            project.artifacts.path_for_digest(repair["digest"]).read_bytes()
-        )
-        implementation = repair_document.get("implementation")
-        if isinstance(implementation, dict) and isinstance(implementation.get("document"), dict):
-            return implementation["document"]
         original = CandidateSealer._one(occurrences, MigrationArtifact.IMPLEMENTATION_BUNDLE)
         return json.loads(project.artifacts.path_for_digest(original["digest"]).read_bytes())
 
@@ -628,30 +624,28 @@ class CandidateSealer:
         documents: list[dict[str, Any]],
         entities: dict[str, bytes],
     ) -> None:
+        worktree = CandidateSealer._worktree(project)
         for document_index, document in enumerate(documents):
-            for run in document.get("runs", []):
-                run_id = str(run.get("run_id", "unknown"))
-                for section in ("qemu", "stimulus", "checker"):
-                    result = run.get(section)
-                    if not isinstance(result, dict):
-                        continue
-                    for name in ("stdout", "stderr", "qmp"):
-                        path_value = result.get(f"{name}_path")
-                        digest = result.get(f"{name}_sha256")
-                        if path_value is None:
-                            continue
-                        path = Path(str(path_value)).resolve()
-                        if (
-                            not path.is_file()
-                            or project.root not in path.parents
-                            or file_sha256(path) != digest
-                        ):
-                            raise WorkflowError(
-                                "public run evidence changed before candidate sealing"
-                            )
-                        entities[
-                            f"public-runs/{document_index:04d}-{run_id}/{section}-{name}.bin"
-                        ] = path.read_bytes()
+            for run_index, run in enumerate(document.get("runs", [])):
+                files = [(worktree / item["path"], item["sha256"])
+                         for item in run.get("logs", [])]
+                command = run.get("command", {})
+                for name in ("stdout", "stderr"):
+                    if command.get(f"{name}_path"):
+                        files.append((Path(command[f"{name}_path"]),
+                                      command[f"{name}_sha256"]))
+                trace = run.get("exec_trace", {})
+                if trace.get("path"):
+                    files.append((project.root / trace["path"], trace["sha256"]))
+                if trace.get("container_evidence"):
+                    files.append((Path(trace["container_evidence"]),
+                                  trace["container_evidence_sha256"]))
+                for index, (path, digest) in enumerate(files):
+                    path = path.resolve()
+                    if (project.root not in path.parents or not path.is_file()
+                            or file_sha256(path) != digest):
+                        raise WorkflowError("public run evidence changed before candidate sealing")
+                    entities[f"public-runs/{document_index:04d}-{run_index:04d}/{index:04d}.bin"] = path.read_bytes()
 
     @staticmethod
     def _runtime(
@@ -660,20 +654,7 @@ class CandidateSealer:
         documents: list[dict[str, Any]],
         entities: dict[str, bytes],
     ) -> None:
-        repaired = next(
-            (
-                item["artifact_identity"]
-                for item in reversed(documents)
-                if isinstance(item.get("artifact_identity"), dict)
-                and item.get("outcome") == ContractExecutionStatus.PASS.value
-            ),
-            None,
-        )
-        digest = (
-            repaired["artifact_sha256"]
-            if repaired is not None
-            else CandidateSealer._one(occurrences, MigrationArtifact.RUNTIME_ARTIFACT)["digest"]
-        )
+        digest = CandidateSealer._one(occurrences, MigrationArtifact.RUNTIME_ARTIFACT)["digest"]
         path = project.artifacts.path_for_digest(digest)
         if not path.is_file() or file_sha256(path) != digest:
             raise WorkflowError("current runtime artifact is absent or stale")
@@ -692,31 +673,16 @@ class CandidateSealer:
 
     @staticmethod
     def _capability_map(project: Project, public_documents: list[dict[str, Any]]) -> dict[str, Any]:
-        contracts = project.load_json_artifact(
-            MigrationStage.CONTRACTS, MigrationArtifact.CONTRACTS
-        )["contracts"]
-        results = {
-            contract_id: run.get("execution_status")
-            for document in public_documents
-            for run in document.get("runs", [])
-            for contract_id in run.get("contract_ids", [])
-        }
-        capabilities = [
-            {
-                "contract_id": item["id"],
-                "evidence_status": item["evidence_status"],
-                "execution_status": results.get(item["id"], item["execution_status"]),
-            }
-            for item in contracts
-        ]
+        # Contracts/tests are an authored Markdown plan, not a model-filled JSON table.
+        # Preserve the evidence without inventing per-contract execution classifications.
+        plan = project.artifact(MigrationStage.CONTRACTS, MigrationArtifact.CONTRACTS)
+        tests = project.artifact(MigrationStage.CONTRACTS, MigrationArtifact.TEST_PORT_MATRIX)
         return {
-            "schema_version": 1,
-            "capabilities": capabilities,
-            "unresolved": [
-                item
-                for item in capabilities
-                if item["execution_status"] != ContractExecutionStatus.PASS.value
-            ],
+            "schema_version": 2,
+            "migration_plan": plan.to_dict(),
+            "test_plan": tests.to_dict(),
+            "classification": "REQUIRES_INDEPENDENT_EVALUATION",
+            "public_evidence": public_documents,
         }
 
 

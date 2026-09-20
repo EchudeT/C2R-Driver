@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from ..core.models import WorkflowError, utc_now
+from ..codex.contracts import CodexOutputError
 from .accounting import CoverageEntry, EvidenceGap, RetrievalAttempt, reason_for_attempts
 from .facets import (
     SOURCE_DRIVER_ENTRY,
@@ -47,13 +48,20 @@ class EvidenceCollector:
         coverage: list[CoverageEntry] = []
         gaps: list[EvidenceGap] = []
         attempts: list[RetrievalAttempt] = []
+        errors: list[str] = []
         for item in proposal.facets:
             retrieval = self._retrieve_facet(retriever, item.facet, item.locators)
             attempts.extend(retrieval.attempts)
             materials.extend(retrieval.materials)
-            entry, facet_gaps = self._account_facet(item, retrieval)
+            try:
+                entry, facet_gaps = self._account_facet(item, retrieval)
+            except CodexOutputError as error:
+                errors.append(str(error))
+                continue
             coverage.append(entry)
             gaps.extend(facet_gaps)
+        if errors:
+            raise CodexOutputError("Repair all invalid evidence selections together:\n" + "\n".join(errors))
         self._source_entry(materials, expected_source_entry)
         return CollectedEvidence(
             tuple(materials),
@@ -106,9 +114,10 @@ class EvidenceCollector:
     ) -> tuple[CoverageEntry, tuple[EvidenceGap, ...]]:
         if proposal.disposition is FacetDisposition.CONTROLLED:
             if not retrieval.materials:
-                raise WorkflowError(
+                raise CodexOutputError(
                     f"controlled facet {proposal.facet.lane.value}/"
-                    f"{proposal.facet.name} retrieved no material"
+                    f"{proposal.facet.name} retrieved no material: "
+                    + "; ".join(attempt.detail for attempt in retrieval.attempts)
                 )
             return (
                 CoverageEntry.controlled(

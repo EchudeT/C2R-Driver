@@ -28,14 +28,17 @@ def _analysis_attempt(data: bytes) -> None:
 
 VALIDATORS = MappingProxyType[SourceAnalysisArtifact, ArtifactValidator](
     {
+        SourceAnalysisArtifact.PREPARATION: lambda data: json_object(data, "source preparation"),
         SourceAnalysisArtifact.STRUCTURED_C_ANALYSIS_REPORT: _analysis_report,
         SourceAnalysisArtifact.STRUCTURED_C_ANALYSIS_ATTEMPT: _analysis_attempt,
     }
 )
 
+def validate_source_analysis(context):
+    validate_source_closure_bundle(context)
+    validate_structured_bundle(context)
+
+
 BUNDLE_VALIDATORS = MappingProxyType[SourceAnalysisStage, BundleValidator](
-    {
-        SourceAnalysisStage.SOURCE_CLOSURE: validate_source_closure_bundle,
-        SourceAnalysisStage.STRUCTURED_C_ANALYSIS: validate_structured_bundle,
-    }
+    {SourceAnalysisStage.SOURCE_CLOSURE: validate_source_analysis}
 )

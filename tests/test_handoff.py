@@ -13,16 +13,14 @@ from driver_port_factory.migration.contracts import HandoffMode, MigrationArtifa
 from driver_port_factory.migration.handoff import MigrationHandoff
 from driver_port_factory.source_analysis.contracts import SourceAnalysisStage
 from driver_port_factory.target_study.contracts import TargetStudyArtifact
-from driver_port_factory.target_study.service import TargetStudyService
-from tests.test_knowledge import prepare_project, probe_plan
-from tests.test_target_study import target_study_inputs
+from tests.test_knowledge import prepare_project
+from tests.test_target_study import accept_target_study
 
 
 def handoff_ready_project(root: Path):
     project, checkouts = prepare_project(root)
-    KnowledgeBootstrapper().bootstrap(project, probe_plan_path=probe_plan(project.root))
-    inputs, _ = target_study_inputs(project.root, project, checkouts)
-    TargetStudyService().validate(project, **inputs)
+    KnowledgeBootstrapper().build_infrastructure(project)
+    accept_target_study(project)
     return project, checkouts
 
 
@@ -40,7 +38,6 @@ class MigrationHandoffTests(unittest.TestCase):
                 {
                     CodexArtifact.JOB_RESULT.value,
                     CodexArtifact.EVENT_LOG.value,
-                    KnowledgeArtifact.PROBE_ATTEMPT.value,
                     TargetStudyArtifact.VALIDATION_ATTEMPT.value,
                 }.isdisjoint(artifacts)
             )

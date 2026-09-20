@@ -22,7 +22,7 @@ from .policy import CodexExecutionGrant
 WORKER_STAGES = frozenset({
     AcquisitionStage.REVISION_SELECTION, AcquisitionStage.EVIDENCE_CLOSURE,
     EnvironmentStage.RECOVERY, TargetStudyStage.STUDY, SourceAnalysisStage.SOURCE_CLOSURE,
-    MigrationStage.CONTRACTS, MigrationStage.TEST_ADAPTATION,
+    MigrationStage.CONTRACTS,
     MigrationStage.DRIVER_IMPLEMENTATION, MigrationStage.ARTIFACT_PREPARATION,
     MigrationStage.PUBLIC_QEMU_VALIDATION,
 })
@@ -43,7 +43,7 @@ def session_key(
     }
     if project.config.evaluation_mode is EvaluationMode.DEVELOPER_EVIDENCE and stage in WORKER_STAGES:
         conversation = "worker"
-    elif stage in {MigrationStage.TARGET_COMPLIANCE, MigrationStage.PUBLIC_REPAIR}:
+    elif stage is MigrationStage.PUBLIC_REPAIR:
         conversation = "reviewer"
     else:
         conversation = stage.value
@@ -70,12 +70,36 @@ def stage_session(project: Project, stage: StageKey, grant: CodexExecutionGrant,
 
 
 def save_session(
-    project: Project, key: str, thread_id: str | None, documents: dict[str, str]
+    project: Project, key: str, thread_id: str | None, documents: dict[str, str],
+    inputs: dict[str, str] | None = None,
 ) -> None:
     if not thread_id:
         return
     path = project.control / "codex" / "sessions" / f"{key}.json"
     path.parent.mkdir(parents=True, exist_ok=True)
     temporary = path.with_suffix(".tmp")
-    temporary.write_text(json.dumps({"thread_id": thread_id, "documents": documents}))
+    temporary.write_text(json.dumps({"thread_id": thread_id, "documents": documents,
+                                     "inputs": inputs or {}}))
     temporary.replace(path)
+
+
+def input_changes(context: dict, known: dict[str, str]) -> tuple[dict, dict[str, str]]:
+    """Annotate immutable input identities; never claim that the model read their contents."""
+    supplied = dict(known)
+    changes = {"new": [], "changed": [], "unchanged": []}
+
+    def visit(value, location):
+        if isinstance(value, dict):
+            if all(isinstance(value.get(key), str) for key in ("kind", "digest", "path")):
+                key = "/".join(location)
+                digest = value["digest"]
+                status = ("new" if key not in known else
+                          "unchanged" if known[key] == digest else "changed")
+                changes[status].append(key)
+                supplied[key] = digest
+            else:
+                for key, child in value.items():
+                    visit(child, (*location, key))
+
+    visit(context, ())
+    return {**context, "input_changes": changes}, supplied

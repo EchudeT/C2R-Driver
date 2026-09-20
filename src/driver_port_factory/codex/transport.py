@@ -5,16 +5,23 @@ from __future__ import annotations
 import json
 import os
 import signal
+import selectors
+import time
+import codecs
 import subprocess
 import tempfile
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
+from ..core.models import WorkflowError
+
 
 def execute(
     command: list[str], *, cwd: Path, prompt: str,
     on_event: Callable[[dict[str, Any]], None] | None = None,
+    idle_timeout_seconds: float = 3600,
+    timeout_seconds: float = 21600,
 ) -> subprocess.CompletedProcess[str]:
     # File-backed stdin handles large prompts without blocking on pipe capacity;
     # stderr must not share the stdout pipe or a verbose CLI could deadlock.
@@ -28,7 +35,7 @@ def execute(
         lines: list[str] = []
         try:
             assert process.stdout is not None
-            for line in process.stdout:
+            for line in _lines(process, idle_timeout_seconds, timeout_seconds):
                 lines.append(line)
                 if on_event:
                     try:
@@ -56,3 +63,43 @@ def execute(
         return subprocess.CompletedProcess(
             command, code, "".join(lines), stderr.read().decode("utf-8", errors="replace")
         )
+
+
+def _lines(process: subprocess.Popen, idle: float, total: float):
+    """Bound silent provider hangs without buffering partial JSON indefinitely."""
+    started = last_output = time.monotonic()
+    decoder = codecs.getincrementaldecoder("utf-8")(errors="replace")
+    pending = ""
+    with selectors.DefaultSelector() as selector:
+        selector.register(process.stdout, selectors.EVENT_READ)
+        while True:
+            now = time.monotonic()
+            remaining = min(idle - (now - last_output), total - (now - started))
+            if remaining <= 0:
+                raise WorkflowError(
+                    "Codex CLI activity/turn deadline exceeded; owned processes stopped. "
+                    "Resume the preserved session after checking provider/tool availability."
+                )
+            if not selector.select(min(30, remaining)):
+                continue
+            chunk = os.read(process.stdout.fileno(), 65536)
+            if not chunk:
+                pending += decoder.decode(b"", final=True)
+                if pending:
+                    yield pending
+                # EOF is not activity or proof of exit: preserve BOTH deadlines.
+                now = time.monotonic()
+                remaining = min(idle - (now - last_output), total - (now - started))
+                try:
+                    process.wait(timeout=max(0, remaining))
+                except subprocess.TimeoutExpired as error:
+                    raise WorkflowError(
+                        "Codex CLI activity/turn deadline exceeded; owned processes stopped. "
+                        "Resume the preserved session after checking provider/tool availability."
+                    ) from error
+                return
+            last_output = time.monotonic()
+            pending += decoder.decode(chunk)
+            while "\n" in pending:
+                line, pending = pending.split("\n", 1)
+                yield line + "\n"

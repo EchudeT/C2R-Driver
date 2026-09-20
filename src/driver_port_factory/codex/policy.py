@@ -43,8 +43,6 @@ class CodexExecutionPolicy:
             SourceAnalysisStage.SOURCE_CLOSURE,
             TargetStudyStage.STUDY,
             MigrationStage.CONTRACTS,
-            MigrationStage.TEST_ADAPTATION,
-            MigrationStage.TARGET_COMPLIANCE,
             MigrationStage.PUBLIC_REPAIR,
         }
     )
@@ -53,12 +51,7 @@ class CodexExecutionPolicy:
         if stage in self.NETWORK_STAGES:
             return CodexExecutionGrant(project.root, CodexSandbox.UNRESTRICTED)
         if stage in self.REPORT_WORKSPACE_STAGES:
-            workspace_stage = (
-                MigrationStage.CONTRACTS if stage is MigrationStage.TEST_ADAPTATION else stage
-            )
-            if stage is MigrationStage.PUBLIC_REPAIR:
-                workspace_stage = MigrationStage.TARGET_COMPLIANCE
-            execution_root = project.root / "work" / "stage-work" / workspace_stage.value
+            execution_root = project.root / "work" / "stage-work" / stage.value
             execution_root.mkdir(parents=True, exist_ok=True)
             acquisition = load_repository_acquisition(project)
             frozen = tuple(

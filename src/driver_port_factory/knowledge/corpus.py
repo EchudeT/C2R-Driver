@@ -25,6 +25,12 @@ class CorpusManifest:
             raise WorkflowError("knowledge corpus requires a passed evidence closure")
         stage = AcquisitionStage.EVIDENCE_CLOSURE
         artifact = AcquisitionArtifact.MATERIALS_MANIFEST
+        from ..source_analysis.preparation import latest, artifact as prepared_artifact
+        if (project.stage(SourceAnalysisStage.SOURCE_CLOSURE).status is StageStatus.RUNNING
+                and latest(project)):
+            ref = prepared_artifact(project, SourceAnalysisArtifact.MATERIALS_MANIFEST)
+            data = project.artifacts.read(ref)
+            return cls(parse_materials(data), data, ref.digest, f"cas:sha256:{ref.digest}")
         if (
             SourceAnalysisStage.SOURCE_CLOSURE.value in project.workflow.stage_values
             and project.stage(SourceAnalysisStage.SOURCE_CLOSURE).status is StageStatus.PASS

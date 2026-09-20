@@ -16,13 +16,17 @@ from ..core.models import (
     StageOwner,
     StageStatus,
     WorkflowError,
+    utc_now,
 )
 from ..core.project import Project
+from ..source_analysis.contracts import SourceAnalysisStage
+from ..source_analysis.navigation import prepare_navigation
 from .contracts import CodexArtifact, CodexBackend, CodexExecEventType
 from .gateway import CodexExecGateway, CodexJob, CodexResult
 from .policy import CodexExecutionPolicy
 from .prompts import RenderedPrompt, SkillPromptComposer
-from .sessions import save_session, stage_session
+from .sessions import input_changes, save_session, stage_session
+from .accounting import estimate, latest_usage, model_settings, usage_delta
 
 
 def _render_prompt(
@@ -83,6 +87,13 @@ def run_codex_stage(
         project.start(stage_key)
     elif stage.status is not StageStatus.RUNNING:
         raise WorkflowError(f"Codex stage must be READY or RUNNING, got {stage.status.value}")
+    if SourceAnalysisStage.SOURCE_CLOSURE.value in project.workflow.stage_values:
+        from ..source_analysis.preparation import latest
+        source = project.stage(SourceAnalysisStage.SOURCE_CLOSURE)
+        receipt = latest(project) if source.status is StageStatus.RUNNING else None
+        if source.status is StageStatus.PASS or (receipt and any(
+                r["kind"] == "structured_c_facts" for r in receipt["artifacts"])):
+            prepare_navigation(project)
     grant = CodexExecutionPolicy().grant(project, stage_key)
     key, session = stage_session(project, stage_key, grant, model, backend.value)
     thread_id = thread_id or session.get("thread_id")
@@ -94,13 +105,52 @@ def run_codex_stage(
             "execution_root": str(grant.execution_root),
             "sandbox": grant.sandbox.value,
         },
+        "available_inputs": [d.value for d in project.workflow.spec(stage_key).dependencies],
     }
     if stage_key in CodexExecutionPolicy.DEPENDENCY_STAGES:
         context["tool_runtime"]["cargo_home"] = str(
             grant.execution_root / ".dpf-output" / "cargo-home"
         )
+    if stage_key is SourceAnalysisStage.SOURCE_CLOSURE:
+        from ..source_analysis.preparation import latest
+        receipt = latest(project)
+        context["source_operation"] = {
+            "inputs_prepared": receipt is not None,
+            "facts_prepared": bool(receipt and any(
+                r["kind"] == "structured_c_facts" for r in receipt["artifacts"])),
+            "query": "knowledge c-facts PROJECT --symbol NAME",
+        }
     if follow_up:
         context = {**(context or {}), "controller_feedback": follow_up}
+    repair = project.retry_feedback(stage_key)
+    from ..migration.repair_execution import active
+    if active(project, stage_key):
+        context["repair_execution"] = {
+            "mode": "prepare-once-controller-validates",
+            "completion": "Repair, affected checks, runtime artifact and public runner ready; DPF_SELF_REVIEW: PASS.",
+            "next": "Controller captures artifact and executes QEMU, then returns observations for worker self-check.",
+        }
+    if repair:
+        context["repair_state"] = repair
+        prior = [r for r in project.artifact_refs(stage=stage_key)
+                 if r.kind == CodexArtifact.WORK_REPORT.value]
+        if prior:
+            ref = max(prior, key=lambda r: r.ordinal)
+            context["previous_work_report"] = str(project.artifacts.path_for_digest(ref.digest))
+        context["repair_scope"] = (
+            "The prerequisite repair is complete. Continue with current frozen inputs; the historical "
+            "reason is not an outstanding defect. Revalidate only affected downstream results."
+            if repair["status"] == "RESOLVED" else
+            "Repair the causal defect and recheck only affected claims. Preserve code, reports, "
+            "compile commands, builds and passing tests whose inputs are unchanged. "
+            "Reusing a report is allowed; do not restart the whole phase investigation."
+        )
+    from ..orchestration.protocol import REPAIR_TARGETS
+    context["repair_targets"] = [s.name.value for s in project.stages()
+        if s.name.value in REPAIR_TARGETS and s.status is StageStatus.PASS
+        and stage_key.value in project.workflow.descendants(s.name)]
+    known_inputs = session.get("inputs", {}) if thread_id == session.get("thread_id") else {}
+    context, supplied_inputs = input_changes(context, known_inputs)
     rendered = _render_prompt(
         project,
         stage_key,
@@ -142,6 +192,25 @@ def run_codex_stage(
 
     reported_usage = []
     first_event_seconds = None
+    metrics = {
+        "stage": stage_key.value, "job_id": job.job_id, "thread_id": thread_id,
+        "started_at": utc_now(), "completed_at": None,
+        **model_settings(model),
+        "usage_baseline": latest_usage(codex_dir, thread_id),
+        "resumed": bool(thread_id), "prompt_bytes": len(prompt.encode()),
+        "usage_semantics": "cumulative thread counters; subtract usage_baseline",
+    }
+
+    def persist_metrics() -> None:
+        metrics.update(elapsed_seconds=round(time.monotonic() - started, 3),
+                       first_response_seconds=first_event_seconds, reported_usage=reported_usage)
+        metrics["usage"] = usage_delta(
+            reported_usage[-1] if reported_usage else None, metrics["usage_baseline"])
+        metrics["estimate"] = estimate(metrics["usage"], metrics["model"], metrics["service_tier"])
+        path = output_path.with_suffix(".metrics.json")
+        temporary = path.with_suffix(".tmp")
+        temporary.write_text(json.dumps(metrics))
+        temporary.replace(path)
 
     def checkpoint(event: dict) -> None:
         nonlocal first_event_seconds
@@ -152,28 +221,26 @@ def run_codex_stage(
         with output_path.with_suffix(".events.jsonl").open("a", encoding="utf-8") as stream:
             stream.write(json.dumps(event) + "\n")
         if event.get("type") == CodexExecEventType.THREAD_STARTED.value:
-            save_session(project, key, event.get("thread_id"), known_documents)
+            metrics["thread_id"] = event.get("thread_id")
+            save_session(project, key, event.get("thread_id"), known_documents, known_inputs)
+            persist_metrics()
+        elif event.get("type") == "turn.completed":
+            persist_metrics()
 
     gateway = CodexExecGateway(codex_bin, on_event=checkpoint)
     started = time.monotonic()
+    persist_metrics()
     try:
         result = gateway.run(job)
     finally:
-        # Keep a record even if transport fails; CLI token counters may be cumulative,
-        # so retain the reported usage rather than summing it into a fictitious bill.
-        output_path.with_suffix(".metrics.json").write_text(json.dumps({
-            "stage": stage_key.value, "job_id": job.job_id,
-            "elapsed_seconds": round(time.monotonic() - started, 3),
-            "resumed": bool(thread_id), "prompt_bytes": len(prompt.encode()),
-            "first_response_seconds": first_event_seconds,
-            "reported_usage": reported_usage,
-            "usage_semantics": "raw CLI counters; may include resumed history; not billing totals",
-        }))
+        metrics["completed_at"] = utc_now()
+        persist_metrics()
     save_session(
         project,
         key,
         result.thread_id,
         documents if not result.error else known_documents,
+        supplied_inputs if not result.error else known_inputs,
     )
     output_path.write_text(result.final_response, encoding="utf-8")
     if result.events:

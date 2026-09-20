@@ -141,7 +141,7 @@ class CodexPolicyTests(unittest.TestCase):
 
             self.assertEqual(writable.sandbox, CodexSandbox.WORKSPACE_WRITE)
             self.assertEqual(repair.sandbox, CodexSandbox.WORKSPACE_WRITE)
-            self.assertEqual(repair.execution_root, root / "work/stage-work/target_compliance")
+            self.assertEqual(repair.execution_root, root / "work/stage-work/public_repair")
             self.assertEqual(writable.execution_root, root / "work/target-working")
             self.assertEqual(readonly.sandbox, CodexSandbox.WORKSPACE_WRITE)
             self.assertEqual(readonly.execution_root, root / "work/stage-work/migration_contracts")

@@ -141,19 +141,13 @@ class WorkflowTests(unittest.TestCase):
                     ),
                 )
 
-    def test_public_repair_accepts_failed_qemu_dependency(self) -> None:
+    def test_evidence_closure_requires_successful_dependencies(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             project = initialize_project(Path(temporary) / "run", config())
-            with project._persistence._connect() as connection:  # arrange a late-stage fixture
-                connection.execute(
-                    "UPDATE stages SET status = ? WHERE name = ?",
-                    (StageStatus.FAIL.value, "public_qemu_validation"),
-                )
-            project._persistence.refresh_ready()
-            self.assertEqual(
-                project.stage(MigrationStage.PUBLIC_REPAIR).status,
-                StageStatus.READY,
-            )
+            spec = project.workflow.spec(MigrationStage.PUBLIC_REPAIR)
+            self.assertFalse(spec.accept_failed_dependencies)
+            self.assertIn(MigrationStage.PUBLIC_QEMU_VALIDATION, spec.dependencies)
+            self.assertIn(MigrationStage.DRIVER_IMPLEMENTATION, spec.dependencies)
 
     def test_success_finalization_rolls_back_as_one_transaction(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:

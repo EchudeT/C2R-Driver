@@ -3,16 +3,11 @@ from __future__ import annotations
 import json
 import tempfile
 import unittest
-from dataclasses import replace
 from pathlib import Path
-from unittest.mock import patch
 
 from driver_port_factory.acquisition.facets import (
-    EvidenceFacet,
-    EvidenceLane,
     QemuFacet,
     TargetFacet,
-    ToolingFacet,
     parse_facet,
 )
 from driver_port_factory.acquisition.repository import (
@@ -22,7 +17,6 @@ from driver_port_factory.acquisition.repository import (
 from driver_port_factory.acquisition.repository_checkout import CheckoutRecord
 from driver_port_factory.acquisition.repository_role import RepositoryRole
 from driver_port_factory.cli import parser
-from driver_port_factory.codex.contracts import CodexOutputError
 from driver_port_factory.composition import initialize_project
 from driver_port_factory.core.models import (
     ActorRole,
@@ -41,9 +35,7 @@ from driver_port_factory.knowledge.contracts import (
     KnowledgeDomain,
     KnowledgeStage,
 )
-from driver_port_factory.knowledge.corpus import CorpusManifest
 from driver_port_factory.knowledge.index import KnowledgeIndex
-from driver_port_factory.knowledge.probes import KnowledgeProbePlan
 from driver_port_factory.target_study.contracts import TargetStudyStage
 from tests.acquisition_support import close_evidence, repository, select_revisions
 from tests.test_environment import qemu_fixture, write_plan
@@ -88,13 +80,13 @@ def prepare_project(root: Path) -> tuple[Project, dict[str, CheckoutRecord]]:
         {
             "docs/driver-contract.md": "generic driver overview\n",
             "src/driver-api.rs": (
-                "registration lifecycle probe start stop cleanup\n"
-                "resources MMIO PIO DMA buffers\n"
-                "interrupts deferred work locks callback context allocation\n"
-                "ownership lifetimes errors recovery logging counters\n"
-                "safe Rust unsafe architecture style review rules\n"
-                "analogous driver framework owner implementation\n"
-                "artifact packaging component image QEMU runner\n"
+                "// registration lifecycle probe start stop cleanup\n"
+                "// resources MMIO PIO DMA buffers\n"
+                "// interrupts deferred work locks callback context allocation\n"
+                "// ownership lifetimes errors recovery logging counters\n"
+                "// safe Rust unsafe architecture style review rules\n"
+                "// analogous driver framework owner implementation\n"
+                "// artifact packaging component image QEMU runner\n"
             ),
             "Cargo.toml": "[workspace]\n",
         },
@@ -152,6 +144,10 @@ def prepare_project(root: Path) -> tuple[Project, dict[str, CheckoutRecord]]:
     close_evidence(
         project,
         {
+            parse_facet("target", TargetFacet.API_DEFINITIONS_AND_CALLS.value): (
+                RepositoryRole.TARGET,
+                "src/driver-api.rs",
+            ),
             parse_facet("target", TargetFacet.DRIVER_FRAMEWORK.value): (
                 RepositoryRole.TARGET,
                 "docs/driver-contract.md",
@@ -176,147 +172,7 @@ def prepare_project(root: Path) -> tuple[Project, dict[str, CheckoutRecord]]:
     return project, checkouts
 
 
-def probe_plan(root: Path, *, break_topic: str | None = None) -> Path:
-    rows = (
-        (
-            "source",
-            "source-driver-entry",
-            "source",
-            "example driver source entry",
-            "source-driver-entry",
-        ),
-        ("qemu", "qemu-device-model", "qemu", "QEMU device model", "qemu-model"),
-        (
-            "hardware",
-            "hardware-or-explicit-gap",
-            "hardware",
-            "hardware manual unavailable explicit evidence gap",
-            "hardware-gap",
-        ),
-        (
-            "target-registration",
-            "registration-lifecycle",
-            "target",
-            "registration lifecycle",
-            "target-contract",
-        ),
-        ("target-resources", "resources-io-dma", "target", "resources MMIO DMA", "target-contract"),
-        (
-            "target-interrupts",
-            "interrupts-concurrency",
-            "target",
-            "interrupts deferred work locks callback context",
-            "target-contract",
-        ),
-        (
-            "target-ownership",
-            "ownership-errors-recovery",
-            "target",
-            "ownership lifetimes errors recovery logging",
-            "target-contract",
-        ),
-        ("target-rust", "rust-safety-style", "target", "safe Rust unsafe style", "target-contract"),
-        (
-            "target-analog",
-            "analogous-driver-framework",
-            "target",
-            "analogous driver framework owner",
-            "target-contract",
-        ),
-        (
-            "target-artifact",
-            "artifact-packaging-qemu",
-            "target",
-            "artifact packaging image QEMU runner",
-            "target-contract",
-        ),
-    )
-    probes = []
-    for probe_id, topic, domain, query, _expected in rows:
-        probe = {
-            "probe_id": probe_id,
-            "topic": topic,
-            "domain": domain,
-            "query": "missing impossible terms" if topic == break_topic else query,
-            "required": True,
-            "expected_record_ids": [],
-            "limit": 10,
-        }
-        if domain == "target":
-            probe["target_original"] = "src/driver-api.rs"
-        probes.append(probe)
-    path = root / "knowledge-probes.json"
-    path.write_text(json.dumps({"schema_version": 1, "probes": probes}), encoding="utf-8")
-    return path
-
-
 class KnowledgeBootstrapTests(unittest.TestCase):
-    def test_invalid_probe_plan_is_codex_output_error(self) -> None:
-        with tempfile.TemporaryDirectory() as temporary:
-            root = Path(temporary)
-            path = root / "knowledge-probes.json"
-            for document in ("{", '{"schema_version": 1, "probes": []}'):
-                with self.subTest(document=document):
-                    path.write_text(document, encoding="utf-8")
-                    with self.assertRaises(CodexOutputError):
-                        KnowledgeProbePlan.load(path)
-
-    def test_original_binding_uses_all_records_in_the_probe_domain(self) -> None:
-        with tempfile.TemporaryDirectory() as temporary:
-            project, _ = prepare_project(Path(temporary))
-            manifest = KnowledgeIndex.for_project(project).manifest
-            seed = next(
-                record
-                for record in manifest.records
-                if getattr(record.origin, "repository", None) is RepositoryRole.TARGET
-            )
-            original = "src/driver-api.rs"
-            records = (
-                replace(
-                    seed,
-                    identifier="target-z",
-                    facet=EvidenceFacet(EvidenceLane.TARGET, TargetFacet.DRIVER_FRAMEWORK),
-                    origin=replace(seed.origin, path=original),
-                ),
-                replace(
-                    seed,
-                    identifier="tooling-a",
-                    facet=EvidenceFacet(
-                        EvidenceLane.TOOLING,
-                        ToolingFacet.RUNTIME_DOCUMENTATION,
-                    ),
-                    origin=replace(seed.origin, path=original),
-                ),
-                replace(
-                    seed,
-                    identifier="target-a",
-                    facet=EvidenceFacet(
-                        EvidenceLane.TARGET,
-                        TargetFacet.API_DEFINITIONS_AND_CALLS,
-                    ),
-                    origin=replace(seed.origin, path=original),
-                ),
-            )
-            plan = KnowledgeProbePlan.load(probe_plan(project.root))
-            plan = KnowledgeProbePlan(
-                tuple(
-                    replace(probe, expected_record_ids=("untrusted-plan-id",))
-                    if probe.probe_id == "target-registration"
-                    else probe
-                    for probe in plan.probes
-                )
-            )
-
-            bound = KnowledgeBootstrapper._bind_originals(
-                CorpusManifest.candidate(records, parent_digest=manifest.digest),
-                plan,
-            )
-
-            registration = next(
-                probe for probe in bound if probe.probe_id == "target-registration"
-            )
-            self.assertEqual(registration.expected_record_ids, ("target-a", "target-z"))
-
     def test_cli_has_no_uncontrolled_material_registration_path(self) -> None:
         root_commands = next(
             action.choices for action in parser()._actions if getattr(action, "choices", None)
@@ -330,9 +186,7 @@ class KnowledgeBootstrapTests(unittest.TestCase):
     def test_build_search_show_generated_skill_and_stale_detection(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             project, _ = prepare_project(Path(temporary))
-            result = KnowledgeBootstrapper().bootstrap(
-                project, probe_plan_path=probe_plan(project.root)
-            )
+            result = KnowledgeBootstrapper().build_infrastructure(project)
             self.assertEqual(result.readiness, "PASS")
             self.assertEqual(
                 project.stage(KnowledgeStage.KNOWLEDGE_BASE).status,
@@ -356,45 +210,6 @@ class KnowledgeBootstrapTests(unittest.TestCase):
             with self.assertRaises(WorkflowError):
                 index.status()
 
-    def test_missing_required_probe_keeps_stage_open_for_repair(self) -> None:
-        with tempfile.TemporaryDirectory() as temporary:
-            project, _ = prepare_project(Path(temporary))
-            path = probe_plan(project.root, break_topic="interrupts-concurrency")
-            result = KnowledgeBootstrapper().bootstrap(
-                project,
-                probe_plan_path=path,
-            )
-            self.assertEqual(result.readiness, "FAIL")
-            self.assertIn("target-interrupts", result.failed_probe_ids)
-            self.assertEqual(
-                project.stage(KnowledgeStage.KNOWLEDGE_BASE).status,
-                StageStatus.RUNNING,
-            )
-            attempts = [
-                ref
-                for ref in project.artifact_refs(stage=KnowledgeStage.KNOWLEDGE_BASE)
-                if ref.kind == "kb_probe_attempt"
-            ]
-            self.assertEqual(len(attempts), 1)
-
-            with (
-                patch.object(KnowledgeIndex, "build", side_effect=AssertionError),
-                patch.object(KnowledgeIndex, "search", side_effect=AssertionError),
-                patch.object(
-                    KnowledgeBootstrapper,
-                    "_repair_target_corpus",
-                    side_effect=AssertionError,
-                ),
-            ):
-                replayed = KnowledgeBootstrapper().bootstrap(project, probe_plan_path=path)
-
-            self.assertEqual(replayed, result)
-            attempts = [
-                ref
-                for ref in project.artifact_refs(stage=KnowledgeStage.KNOWLEDGE_BASE)
-                if ref.kind == "kb_probe_attempt"
-            ]
-            self.assertEqual(len(attempts), 1)
 
 
 if __name__ == "__main__":

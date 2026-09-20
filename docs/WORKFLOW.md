@@ -13,23 +13,19 @@
 | 7 | repository_acquisition | 静态 | 三个 repository lock、source identity、独立 target worktree |
 | 8 | evidence_closure | 混合 | plan、受控 materials、逐 facet coverage、gap register、retrieval ledger |
 | 9 | environment_recovery | 混合 | artifact mode、experiment route |
-| 10 | knowledge_base | 静态 | KB integrity、query contract、target probes、生成的项目 KB Skill |
+| 10 | knowledge_base | 静态执行 | 工具构建 KB、query contract 和项目 KB Skill；语义检查由目标研究工作者完成 |
 | 11 | target_platform_study | Codex+Gate | target profile、API evidence、analog trace、target-change plan |
-| 12 | source_closure | Codex+静态 Gate | frozen compile manifest、compiler-discovered closure、KB revision |
-| 13 | structured_c_analysis | 静态 | Clang AST/CFG/layout/preprocessor、LLVM IR、CPG/call/global/effect/span indexes |
-| 14 | migration_contracts | 混合 | evidence-backed contracts |
-| 15 | test_adaptation | 混合 | retained/adapted/excluded matrix |
-| 16 | rust_design | Codex+Gate | ownership/concurrency/unsafe design |
-| 17 | rust_implementation | Codex+静态 | source/patch and contract mapping |
-| 18 | target_compliance | 混合 | target rules review |
-| 19 | artifact_preparation | 静态 | runtime artifact + identity proof |
-| 20 | public_qemu_validation | 静态 | public functional/failure runs |
-| 21 | public_repair | 混合 | diagnoses、patches、reruns |
-| 22 | candidate_sealing（仅 blind mode） | 静态 | canonical candidate manifest/digest |
-| 23 | digest export / candidate transfer（仅 blind mode） | 静态 | anchored digest or transfer record |
-| 24 | completion_audit | 静态 | final read-only coverage, chronology and evidence audit |
+| 12 | migration_handoff | 静态 | 复用已有证据生成交接身份 |
+| 13 | source_closure | Codex+静态工具 | 编译输入 → SOURCE_ANALYSIS → 原 worker 消费事实并完成覆盖自检 |
+| 14 | migration_contracts | 混合 | 一份合同与测试计划 |
+| 15 | driver_implementation | Codex+静态 | 实现、测试适配、合规自检和源码快照 |
+| 16 | artifact_preparation | 混合 | 可运行产物、测试入口和身份检查；必要源码调整自检后原地刷新快照 |
+| 17 | public_qemu_validation | 混合 | worker 准备 harness → 控制器执行并冻结 receipt → 原 worker 归因与自检 |
+| 18 | public_repair | 条件混合 | 默认静态收尾；unsafe 边界或明确请求才独立审查 |
+| 19 | completion_audit | 静态 | 汇总证据与未覆盖范围 |
 
-`DEVELOPER_EVIDENCE` 跳过第 21–22 阶段，在 public repair 后直接执行 completion audit。
+上表为 `DEVELOPER_EVIDENCE`，检查点数量不是模型调用数量。研究、实现和验证使用同一工作者。
+仅 blind mode 在 completion audit 前增加 candidate sealing 和 digest export / candidate transfer。
 `MIGRATION_OPERATOR` 在前瞻盲测中必须先导入 `public_bundle` 和 `curator_commitment`。
 事后封存模式在候选封存后只导出 opaque digest；迁移域不负责创建私有测试。
 `request_intake` 至 `migration_envelope_freeze` 全部通过前，acquisition 不得 clone 内核、镜像或工具链。
@@ -54,8 +50,14 @@ observation -> classification -> evidence query -> hypothesis
             -> narrow patch -> affected checks -> regression
 ```
 
-每轮拥有固定预算并产生新的不可覆盖 run。只有公开阶段允许修复。私有结果反馈后的修复必须创建 `POST_FEEDBACK` 实验，不能覆盖 first-attempt 结果。
+不同回退路径不共用“审查三次”预算；同一目标/触发及阶段实质输入的修复次数记录在 ledger，
+允许三次回退，第四次 BLOCKED，不会因重启、新报告路径或原因改写归零。报告正文仍作为反馈保留；
+编译参数、代码等实质输入改变后使用新的计数。真实 blocker 明确停止。每次真正执行产生不可覆盖 run；恢复后复用同一
+未变化的成功 receipt，不制造重复运行。只有公开阶段允许修复；私有反馈后的修复须创建新实验。
 
-目标合规若报告未解决的 `IMPLEMENTATION` finding，`PortRunner` 按最小受影响门禁回到
-`driver_implementation`，并把该合规结果交给同一可写阶段修复；实现及后续阶段以新的 attempt
-边界重新执行，旧 Prompt、结果和成功 bundle 仍保留在 CAS、occurrence 与 ledger 中供审计。
+公开执行失败留在原工作会话分类，不默认启动审查者或重开实现。源码变化才回实现；
+镜像/客体入口问题回包装；同镜像的 harness/oracle 问题留在运行。当前回退原因和冻结报告正文
+随任务恢复，修复后只做受影响检查。补报告不触发实现或 QEMU 重跑。Rust 审查按变化语法单元
+及跨文件名称依赖定位，不因无关旧 unsafe、注释或格式修改触发。宏/通配导入、语法错误和
+分析超限明确保守回退；不是完整类型/动态调用分析。代码、计划、镜像与
+harness 输入不变的已通过独立审查可复用。历史证据保留在 CAS 与 ledger，不增加旧执行协议。

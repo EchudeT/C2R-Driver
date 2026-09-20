@@ -1,12 +1,5 @@
 from enum import StrEnum
 
-from ..core.models import WorkflowError
-
-
-class KnowledgeInfrastructureError(WorkflowError):
-    """Knowledge corpus preparation failed independently of a Codex proposal."""
-
-
 class KnowledgeStage(StrEnum):
     KNOWLEDGE_BASE = "knowledge_base"
 
@@ -14,7 +7,6 @@ class KnowledgeStage(StrEnum):
 class KnowledgeArtifact(StrEnum):
     STATUS = "kb_status"
     QUERY_CONTRACT = "kb_query_contract"
-    PROBE_ATTEMPT = "kb_probe_attempt"
     GENERATED_SKILL = "generated_kb_skill"
     READINESS_REPORT = "kb_readiness_report"
     TARGET_PROBE_RESULTS = "target_probe_results"

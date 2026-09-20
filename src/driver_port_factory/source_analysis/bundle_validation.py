@@ -23,8 +23,8 @@ class StructuredBundleValidator:
         report_payload = self.inventory.current_one(
             SourceAnalysisArtifact.STRUCTURED_C_ANALYSIS_REPORT
         )
-        compile_payload = self.inventory.dependency_one(SourceAnalysisArtifact.COMPILE_MANIFEST)
-        database_payload = self.inventory.dependency_one(
+        compile_payload = self.inventory.current_one(SourceAnalysisArtifact.COMPILE_MANIFEST)
+        database_payload = self.inventory.current_one(
             SourceAnalysisArtifact.COMPILATION_DATABASE
         )
         facts = json_object(facts_payload.data, facts_payload.ref.kind)

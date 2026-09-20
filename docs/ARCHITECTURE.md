@@ -25,7 +25,7 @@ DPF 是证据驱动的工作流控制器，不是拥有全局权限的长对话�
 | `intake` | clone 前需求解析、候选消歧、范围冻结 | `IntakeStage`、`IntakeArtifact`、`IntakeStatus` |
 | `acquisition` | revision、受控 repository、逐 facet 证据闭包 | `AcquisitionStage`、各域 facet、typed origin/gap |
 | `environment` | artifact mode 与可执行实验路线 | `EnvironmentInspector`、`ExperimentPlanRegistrar`、`ExperimentExecutor` |
-| `knowledge` | 消费不可变受控语料、建立索引、执行 probes、生成项目 KB Skill | `CorpusManifest`、`KnowledgeProbeExecutor`、`KnowledgeBootstrapper` |
+| `knowledge` | 消费不可变受控语料、建立索引、生成项目 KB Skill；语义探查归目标研究 | `CorpusManifest`、`KnowledgeIndex`、`KnowledgeBootstrapper` |
 | `target_study` | 目标画像、API 原文证据、相似驱动链路 | target-study contracts 与 validators |
 | `source_analysis` | C 闭包、固定编译配置、结构化语义事实 | closure/fact/semantic/analysis 四组契约 |
 | `migration` | 合同、测试适配、Rust 实现、运行和审计产物 | `MigrationStage`、`MigrationArtifact` |
@@ -68,15 +68,14 @@ WorkflowDefinition   ValidationRegistry
 | 0 迁移 envelope | `project_init` → intake 四阶段 → `revision_selection` |
 | 1 证据、运行环境和 baseline | `repository_acquisition` → `evidence_closure` → `environment_recovery` → `knowledge_base` |
 | 2 目标平台研究 | `target_platform_study` |
-| 3 来源范围闭包 | `source_closure` → `structured_c_analysis` |
+| 3 来源范围闭包 | `source_closure` 内准备输入 → `SOURCE_ANALYSIS` 工具收据 → 读取事实并自检 |
 | 4 编码前迁移合同 | `migration_contracts` |
-| 5 公开测试筛选与映射 | `test_adaptation` |
-| 6 Rust 设计与实现 | `rust_design` → `rust_implementation` |
-| 7 目标合规复核 | `target_compliance` |
+| 5 公开测试筛选与映射 | 同一个 `migration_contracts` 调用和报告 |
+| 6 Rust 设计与实现 | `driver_implementation`，含测试适配 |
+| 7 目标合规复核 | 工作者在实现阶段自检，无独立模型节点 |
 | 8 runtime artifact 与公开 QEMU ladder | `artifact_preparation` → `public_qemu_validation` |
-| 9 归因与窄修复 | `public_repair`，可接收前序公开失败但不能读取私有反馈 |
-| 10 盲测候选封存 | 仅 blind mode 执行 `candidate_sealing`，再按模式 export digest 或 transfer |
-| 11 最终证据审计 | developer 直接审计；blind 在 export/transfer 后只读审计封存身份、时序与逐合同结果 |
+| 9 归因与窄修复 | 原工作者返回最小受影响节点；`public_repair` 只在公开执行通过后条件收尾 |
+| 10 最终证据审计 | `completion_audit` 静态汇总；仅 blind mode 在此前增加封存与 export/transfer |
 
 `PROSPECTIVE_BLIND` 在迁移前增加 public bundle/commitment binding；
 `POST_HOC_SEALED_BLIND` 只在候选封存后导出 opaque digest。curator、evaluator、auditor 使用
@@ -123,12 +122,20 @@ required-output cardinality、foreign key、CAS canonical path/size/digest，以
 - `auxiliary` 是 attempt、Prompt、Codex 原始结果和事件等过程证据；可在 `RUNNING` 中追加，但永远
   不能补足 required output 或独立触发成功。
 
-`structured_c_analysis` 的 repeatable raw fact、semantic index 与 command record 使用
+`source_closure` 内分析操作的 repeatable raw fact、semantic index 与 command record 使用
 `ONE_OR_MORE`；facts 和 report 使用 `EXACTLY_ONE`。bundle validator 会重新绑定真实 compile
 manifest/database、Git checkout、analyzer 二进制、translation unit、原始 bytes、命令 stream 与
 closure-owned AST 重建语义，并要求所有 repeatable 产物恰好被一个 unit 引用，拒绝遗漏、重复、
-交换和游离产物。完整 Clang capture 流式落盘并按 hash/size 绑定，不在 CAS 或 bundle validation 中
-再次整体物化。
+交换和游离产物。完整 Clang AST capture 仅临时落盘；保存命令、诊断、capture hash/size 和
+投影，不再永久存放整份头文件树。投影以冻结 C 文件（包括 shared core）及同目录本地头文件为根，
+沿编译器声明 ID、重声明和类型关系闭包；不靠函数名前缀猜测范围。类型拼写仅用于同 TU 中
+编译器类型身份关联，有歧义时保留所有候选。语义索引使用紧凑 JSON，仍从投影重建校验。
+
+此 checkpoint 是源码闭包的静态证据处理，不增加模型对话或报告任务。默认查询返回摘要；
+`knowledge c-facts --detail calls|cfg` 按符号展开完整调用或 CFG，跨 TU 回调附目标名称和位置。
+纯 Markdown 阶段不加载依赖 payload；跨产物校验按实际读取的 artifact kind 加载并验证。
+C-facts 查询核对账本/配置及导航全部输入，不重复扫描无关 QEMU 镜像和历史产物；其他入口
+仍默认完整校验。没有使用可被时间戳欺骗的跨进程 hash 缓存。
 
 ## 6. JSON、CLI、SQLite 与 CAS 边界
 

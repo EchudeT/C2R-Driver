@@ -1,3 +1,3 @@
-from .service import TargetStudyResult, TargetStudyService
+from .service import TargetStudyService
 
-__all__ = ["TargetStudyResult", "TargetStudyService"]
+__all__ = ["TargetStudyService"]

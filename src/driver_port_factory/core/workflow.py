@@ -78,6 +78,15 @@ class WorkflowDefinition:
     _spec_index: Mapping[str, StageSpec]
     _output_contracts: Mapping[str, StageOutputContract]
 
+    def descendants(self, name: StageKey) -> set[str]:
+        affected = {name.value}
+        while True:
+            following = affected | {s.name.value for s in self.stages
+                if any(d.value in affected for d in s.dependencies)}
+            if following == affected:
+                return affected
+            affected = following
+
     @classmethod
     def build(
         cls,

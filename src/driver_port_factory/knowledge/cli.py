@@ -6,34 +6,17 @@ from pathlib import Path
 
 from ..cli_support import CommandRegistry, command_registry
 from ..composition import open_project
-from ..source_analysis.query import query_facts
-from .bootstrap import KnowledgeBootstrapper
+from ..source_analysis.query import query_symbols
+from ..source_analysis.navigation import prepare_navigation, require_analysis_ready
 from .contracts import KnowledgeDomain
 from .index import KnowledgeIndex
 
 
 def _query_index(arguments: argparse.Namespace) -> KnowledgeIndex:
-    project = open_project(Path(arguments.path), read_only=True)
+    # CorpusManifest and KnowledgeIndex validate this query's frozen dependencies.
+    # Unrelated runtime images are verified at stage acceptance, not on every lookup.
+    project = open_project(Path(arguments.path), read_only=True, verify_artifacts=False)
     return KnowledgeIndex.for_project(project)
-
-
-def command_bootstrap(arguments: argparse.Namespace) -> None:
-    project = open_project(Path(arguments.path))
-    result = KnowledgeBootstrapper().bootstrap(project, probe_plan_path=Path(arguments.probe_plan))
-    print(
-        json.dumps(
-            {
-                "readiness": result.readiness.value,
-                "stage_status": result.stage_status.value,
-                "generated_skill_path": result.generated_skill_path,
-                "failed_probe_ids": list(result.failed_probe_ids),
-                "errors": list(result.errors),
-            },
-            ensure_ascii=False,
-            sort_keys=True,
-            indent=2,
-        )
-    )
 
 
 def command_rebuild(arguments: argparse.Namespace) -> None:
@@ -99,10 +82,23 @@ def command_show(arguments: argparse.Namespace) -> None:
 
 
 def command_c_facts(arguments: argparse.Namespace) -> None:
+    # Navigation verifies its facts, semantic inputs and derived database; old
+    # QEMU images and unrelated historical outputs are not query dependencies.
+    project = open_project(Path(arguments.path), read_only=True, verify_artifacts=False)
+    require_analysis_ready(project)
+    results = query_symbols(
+        project, symbols=arguments.symbol, source_path=arguments.source_path,
+        limit=arguments.limit, detail=arguments.detail,
+    )
+    print(json.dumps(results[0] if len(results) == 1 else {"queries": results},
+                     ensure_ascii=False, indent=2))
+
+
+def command_c_facts_build(arguments: argparse.Namespace) -> None:
     project = open_project(Path(arguments.path), read_only=True)
-    print(json.dumps(query_facts(
-        project, symbol=arguments.symbol, source_path=arguments.source_path, limit=arguments.limit
-    ), ensure_ascii=False, indent=2))
+    require_analysis_ready(project)
+    prepare_navigation(project)
+    print(json.dumps({"navigation": "ready"}))
 
 
 def register_commands(commands: CommandRegistry) -> None:
@@ -110,10 +106,6 @@ def register_commands(commands: CommandRegistry) -> None:
         "knowledge", help="manage the provenance-checked local knowledge base"
     )
     subcommands = command_registry(knowledge, dest="knowledge_command")
-    bootstrap = subcommands.add_parser("bootstrap")
-    bootstrap.add_argument("path")
-    bootstrap.add_argument("--probe-plan", required=True)
-    bootstrap.set_defaults(handler=command_bootstrap)
     rebuild = subcommands.add_parser("rebuild")
     rebuild.add_argument("path")
     rebuild.set_defaults(handler=command_rebuild)
@@ -143,7 +135,15 @@ def register_commands(commands: CommandRegistry) -> None:
         "c-facts", help="inspect a named function/type in frozen C facts"
     )
     facts.add_argument("path")
-    facts.add_argument("--symbol", required=True)
+    facts.add_argument("--symbol", required=True, action="append",
+                       help="repeat for a batch (up to 32); each index is scanned once")
     facts.add_argument("--source-path")
     facts.add_argument("--limit", type=int, default=5)
+    facts.add_argument("--detail", choices=("summary", "calls", "cfg"), default="summary",
+                       help="fetch full calls or compiler CFG only for the selected symbol")
     facts.set_defaults(handler=command_c_facts)
+    build = subcommands.add_parser(
+        "c-facts-build", help="prepare derived symbol navigation outside the worker sandbox"
+    )
+    build.add_argument("path")
+    build.set_defaults(handler=command_c_facts_build)

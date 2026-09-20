@@ -26,6 +26,7 @@ from driver_port_factory.source_analysis.clang_backend import AnalyzerFamily
 from driver_port_factory.source_analysis.contracts import SourceAnalysisStage
 from driver_port_factory.source_analysis.closure import SourceClosureService
 from driver_port_factory.source_analysis.query import query_facts
+from driver_port_factory.source_analysis.navigation import cache_root, prepare_navigation
 from driver_port_factory.source_analysis.structured import StructuredCAnalysisService
 from tests.test_source_closure import ready_project, source_closure
 
@@ -51,26 +52,30 @@ def ready_implementation(root: Path):
     report.write_text(
         "# Source closure\nCompiler-derived fixture closure; no JSON report schema.\n"
     )
-    SourceClosureService().finalize_compilation_database(
+    SourceClosureService().prepare_compilation_database(
         project, compilation_database_path=database, work_report_path=report
     )
     result = StructuredCAnalysisService().analyze(project)
     if result.errors:
         raise AssertionError(result.errors)
+    prepare_navigation(project)
+    from driver_port_factory.source_analysis.preparation import finish
+    report.write_text(report.read_text() + "\nDPF_SELF_REVIEW: PASS\n")
+    finish(project, report)
     skill = Path(project.config.skill_root) / "knowledge-guided-driver-port"
     skill.mkdir(exist_ok=True)
     (skill / "SKILL.md").write_text("# Fixture skill\nUse original evidence.\n")
     (skill / "references").mkdir(exist_ok=True)
     for name in ("translation.md", "knowledge-contract.md"):
         (skill / "references" / name).write_text("# Evidence fixture\n")
-    for stage, kind in (
-        (MigrationStage.CONTRACTS, MigrationArtifact.CONTRACTS),
-        (MigrationStage.TEST_ADAPTATION, MigrationArtifact.TEST_PORT_MATRIX),
-    ):
-        project.start(stage)
-        report = project.root / f"{stage.value}.md"
-        report.write_text("# Fixture evidence\nPreserve example_init returning shared_value.\n")
-        project.finalize_stage(stage, (FileArtifact(kind, report),))
+    project.start(MigrationStage.CONTRACTS)
+    report = project.root / "migration-plan.md"
+    report.write_text("# Fixture plan\nPreserve example_init returning shared_value.\n"
+                      "Test with one operation and a wrong-device control.\n")
+    project.finalize_stage(MigrationStage.CONTRACTS, (
+        FileArtifact(MigrationArtifact.CONTRACTS, report),
+        FileArtifact(MigrationArtifact.TEST_PORT_MATRIX, report),
+    ))
     references = Path(project.config.skill_root) / "knowledge-guided-driver-port/references"
     for name in ("workflow.md", "test-porting.md", "target-changes.md", "qemu-evidence.md"):
         (references / name).write_text("# Fixture rule\n" + "Inspect original evidence.\n" * 80)
@@ -172,10 +177,10 @@ class AlignmentTests(unittest.TestCase):
                 "driver_port_factory.codex.gateway.execute",
                 return_value=CompletedProcess([], 0, event, ""),
             ) as run:
-                CodexExecGateway().run(replace(job, stage=MigrationStage.TARGET_COMPLIANCE))
+                CodexExecGateway().run(replace(job, stage=MigrationStage.PUBLIC_REPAIR))
             self.assertNotIn("sandbox_workspace_write.network_access=true", run.call_args.args[0])
 
-    def test_reviewer_rework_preserves_implementation_session(self):
+    def test_worker_rework_preserves_implementation_session(self):
         with tempfile.TemporaryDirectory() as directory:
             project = ready_implementation(Path(directory))
             policy = CodexExecutionPolicy()
@@ -183,7 +188,6 @@ class AlignmentTests(unittest.TestCase):
             def key(stage):
                 return session_key(project, stage, policy.grant(project, stage), None, "exec")
 
-            self.assertEqual(key(MigrationStage.CONTRACTS), key(MigrationStage.TEST_ADAPTATION))
             for stage in (EnvironmentStage.RECOVERY, TargetStudyStage.STUDY,
                           SourceAnalysisStage.SOURCE_CLOSURE, AcquisitionStage.REVISION_SELECTION,
                           AcquisitionStage.EVIDENCE_CLOSURE, MigrationStage.CONTRACTS):
@@ -196,21 +200,29 @@ class AlignmentTests(unittest.TestCase):
                 key(MigrationStage.PUBLIC_QEMU_VALIDATION),
             )
             self.assertNotEqual(
-                key(MigrationStage.DRIVER_IMPLEMENTATION), key(MigrationStage.TARGET_COMPLIANCE)
-            )
-            self.assertEqual(
-                key(MigrationStage.TARGET_COMPLIANCE), key(MigrationStage.PUBLIC_REPAIR)
+                key(MigrationStage.DRIVER_IMPLEMENTATION), key(MigrationStage.PUBLIC_REPAIR)
             )
             port = runner(project)
             worktree = project.root / load_repository_acquisition(project).target_worktree.path
             (worktree / "driver.rs").write_text("pub fn init() -> u32 { 1 }\n")
+            (cache_root(project) / "manifest.json").unlink()
             calls = []
 
             def gateway(job):
+                self.assertTrue(query_facts(project, symbol="example_init")["results"])
                 calls.append(job)
+                report = job.execution_root / ".dpf-output/report.md"
+                report.parent.mkdir(exist_ok=True)
+                ctx = json.loads(job.prompt.split("<job>", 1)[1].split("</job>", 1)[0])["context"]
+                if ctx.get("repair_execution"):
+                    (report.parent / "runtime-artifact").write_bytes((worktree / "driver.rs").read_bytes())
+                    (report.parent / "check-presence.sh").write_text(
+                        'cmp "$DPF_RUNTIME_ARTIFACT" "$DPF_TARGET_WORKTREE/driver.rs"\n')
+                    (report.parent / "public-qemu.sh").write_text("exit 1\n")
+                report.write_text("# Evidence\nImplementation coverage and limits.\nDPF_SELF_REVIEW: PASS\n")
                 return CodexResult(
                     job.job_id,
-                    "# Evidence\nImplementation coverage and limits.\n",
+                    f"REPORT_PATH: {report}\n",
                     job.thread_id or "implementation-session",
                 )
 
@@ -219,20 +231,19 @@ class AlignmentTests(unittest.TestCase):
                 self.assertEqual(
                     project.stage(MigrationStage.DRIVER_IMPLEMENTATION).status, StageStatus.PASS
                 )
-                with patch(
-                    "driver_port_factory.codex.cli.CodexExecGateway.run",
-                    return_value=CodexResult(
-                        "review", "Check overflow.\nDPF_REVIEW: REWORK", "review-session"
-                    ),
-                ):
-                    port._compliance(project)
+                project.start(MigrationStage.ARTIFACT_PREPARATION)
+                project.retry_from(MigrationStage.DRIVER_IMPLEMENTATION,
+                    trigger=MigrationStage.ARTIFACT_PREPARATION, reason="source prerequisite")
                 self.assertEqual(
                     project.stage(MigrationStage.DRIVER_IMPLEMENTATION).status, StageStatus.READY
                 )
                 port._implementation(project)
             self.assertIsNone(calls[0].thread_id)
             self.assertEqual(calls[1].thread_id, "implementation-session")
-            self.assertIn("review_feedback_path", calls[1].prompt)
+            resumed_job = json.loads(calls[1].prompt.split("<job>", 1)[1].split("</job>", 1)[0])
+            changes = resumed_job["context"]["input_changes"]
+            self.assertTrue(any(key.startswith("frozen_inputs/") for key in changes["unchanged"]))
+            self.assertFalse(changes["changed"])
             self.assertIn("skill_document_unchanged", calls[1].prompt)
             self.assertIn("source_path=", calls[1].prompt)
             self.assertIn(str(Path(project.config.skill_root).resolve()), calls[1].prompt)
@@ -265,19 +276,15 @@ class AlignmentTests(unittest.TestCase):
             worktree = project.root / load_repository_acquisition(project).target_worktree.path
             (worktree / "driver.rs").write_text("current driver payload\n")
             report = project.root / "report.md"
-            report.write_text("# Build evidence\nCurrent payload must occur in the artifact.\n")
+            report.write_text("# Build evidence\nCurrent payload must occur in the artifact.\nDPF_SELF_REVIEW: PASS\n")
             project.start(MigrationStage.DRIVER_IMPLEMENTATION)
             DriverImplementationService().snapshot_worktree(project, report)
-            project.start(MigrationStage.TARGET_COMPLIANCE)
-            project.finalize_stage(
-                MigrationStage.TARGET_COMPLIANCE,
-                (FileArtifact(MigrationArtifact.COMPLIANCE_REPORT, report),),
-            )
             project.start(MigrationStage.ARTIFACT_PREPARATION)
             output = worktree / ".dpf-output"
             output.mkdir()
             (output / "runtime-artifact").write_text("stale payload\n")
             (output / "check-presence.sh").write_text(
+                '#!/usr/bin/env bash\nset -euo pipefail\nitems=(driver)\n[[ ${items[0]} == driver ]]\n'
                 'cmp "$DPF_RUNTIME_ARTIFACT" "$DPF_TARGET_WORKTREE/driver.rs"\n'
             )
             service = ArtifactPreparationService()
@@ -311,50 +318,29 @@ class AlignmentTests(unittest.TestCase):
                 port._codex_gate(project, MigrationStage.DRIVER_IMPLEMENTATION, {}, reject)
             self.assertEqual(gateway.call_count, 2)
 
-    def test_runtime_failure_returns_to_original_implementation_without_repair_model(self):
+    def test_runtime_failure_stays_with_worker_and_routes_packaging(self):
+        from tests.migration_support import packaged
         with tempfile.TemporaryDirectory() as directory:
-            project = ready_implementation(Path(directory))
+            project, worktree, report = packaged(Path(directory))
             port = runner(project)
-            worktree = project.root / load_repository_acquisition(project).target_worktree.path
-            (worktree / "driver.rs").write_text("pub fn init() -> u32 { 1 }\n")
-            jobs = []
-
-            def gateway(job):
-                jobs.append(job)
-                return CodexResult(job.job_id, "Fixture report.", "implementation-session")
-
-            with patch("driver_port_factory.codex.cli.CodexExecGateway.run", side_effect=gateway):
-                port._implementation(project)
-                report = worktree / "report.md"
-                report.write_text("Fixture review and build.\n")
-                project.start(MigrationStage.TARGET_COMPLIANCE)
-                project.finalize_stage(
-                    MigrationStage.TARGET_COMPLIANCE,
-                    (FileArtifact(MigrationArtifact.COMPLIANCE_REPORT, report),),
-                )
-                output = worktree / ".dpf-output"
-                output.mkdir()
-                (output / "runtime-artifact").write_bytes((worktree / "driver.rs").read_bytes())
-                (output / "check-presence.sh").write_text(
-                    'cmp "$DPF_RUNTIME_ARTIFACT" "$DPF_TARGET_WORKTREE/driver.rs"\n'
-                )
-                # report.md was added after snapshot; use the excluded output directory.
-                report.rename(output / "report.md")
-                report = output / "report.md"
-                project.start(MigrationStage.ARTIFACT_PREPARATION)
-                ArtifactPreparationService().capture_codex_artifact(project, report)
-                project.start(MigrationStage.PUBLIC_QEMU_VALIDATION)
-                script = output / "public-qemu.sh"
-                script.write_text("exit 1\n")
+            project.start(MigrationStage.PUBLIC_QEMU_VALIDATION)
+            script = worktree / ".dpf-output/public-qemu.sh"
+            script.write_text("exit 1\n")
+            report.write_text("# Ready\nDPF_RUN: PUBLIC_QEMU\n")
+            with self.assertRaisesRegex(CodexOutputError, "Public harness failed"):
                 PublicQemuService().run_script(project, script_path=script, work_report_path=report)
-                port._public_repair(project)
-                self.assertEqual(len(jobs), 1)
-                self.assertEqual(
-                    project.stage(MigrationStage.DRIVER_IMPLEMENTATION).status, StageStatus.READY
-                )
-                port._implementation(project)
-            self.assertEqual(jobs[-1].thread_id, "implementation-session")
-            self.assertIn("runtime_failure_path", jobs[-1].prompt)
+            self.assertEqual(project.stage(MigrationStage.PUBLIC_QEMU_VALIDATION).status, StageStatus.RUNNING)
+            self.assertEqual(project.stage(MigrationStage.PUBLIC_REPAIR).status, StageStatus.PENDING)
+            report.write_text("Missing guest entrypoint.\nDPF_REPAIR_STAGE: artifact_preparation\nDPF_REVIEW: REWORK\n")
+            with patch("driver_port_factory.codex.cli.CodexExecGateway.run", return_value=CodexResult(
+                "runtime", f"REPORT_PATH: {report}\n", "worker-session")) as gateway:
+                port._public_qemu(project)
+            self.assertEqual(gateway.call_count, 1)
+            self.assertEqual(gateway.call_args.args[0].stage, MigrationStage.PUBLIC_QEMU_VALIDATION)
+            self.assertEqual(project.stage(MigrationStage.DRIVER_IMPLEMENTATION).status, StageStatus.PASS)
+            self.assertEqual(project.stage(MigrationStage.ARTIFACT_PREPARATION).status, StageStatus.READY)
+            context = runner(project)._migration_context(project, ())
+            self.assertIn("Missing guest entrypoint", Path(context["runtime_work_report_path"]).read_text())
 
 
 if __name__ == "__main__":

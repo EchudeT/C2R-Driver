@@ -3,6 +3,8 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import shlex
+import signal
 import subprocess
 import time
 from collections.abc import Mapping, Sequence
@@ -10,6 +12,16 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 
 from .models import utc_now
+
+
+def script_command(path: Path) -> list[str]:
+    """Honor the authored interpreter even when the script is not executable."""
+    with path.open(encoding="utf-8") as stream:
+        first = stream.readline().strip()
+    interpreter = shlex.split(first[2:]) if first.startswith("#!") else ["/bin/bash"]
+    if not interpreter:
+        raise ValueError(f"empty script interpreter: {path}")
+    return [*interpreter, str(path.resolve())]
 
 
 @dataclass(frozen=True, slots=True)
@@ -61,16 +73,33 @@ class CommandRunner:
         try:
             launched = True
             with stdout_path.open("wb") as stdout, stderr_path.open("wb") as stderr:
-                completed = subprocess.run(
+                process = subprocess.Popen(
                     list(argv),
                     cwd=cwd.resolve(),
                     env={**os.environ, **dict(environment or {})},
                     stdout=stdout,
                     stderr=stderr,
-                    check=False,
-                    timeout=timeout_seconds,
+                    start_new_session=True,
                 )
-            exit_code = completed.returncode
+                try:
+                    process.wait(timeout=timeout_seconds)
+                except BaseException:
+                    # Timeout/cancellation must not leave child builds or QEMU running.
+                    try:
+                        os.killpg(process.pid, signal.SIGTERM)
+                        process.wait(timeout=5)
+                    except subprocess.TimeoutExpired:
+                        os.killpg(process.pid, signal.SIGKILL)
+                        process.wait()
+                    except ProcessLookupError:
+                        pass
+                    finally:
+                        try:
+                            os.killpg(process.pid, signal.SIGKILL)
+                        except ProcessLookupError:
+                            pass
+                    raise
+            exit_code = process.returncode
         except subprocess.TimeoutExpired:
             timed_out = True
             exit_code = 124

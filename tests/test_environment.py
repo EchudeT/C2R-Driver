@@ -160,27 +160,27 @@ class EnvironmentRecoveryTests(unittest.TestCase):
         self.assertEqual(plan.topology, value["topology"])
         self.assertEqual(plan.relevance_evidence, value["relevance_evidence"])
 
-    def test_marker_only_attempt_fails_before_real_qmp_attempt_passes(self) -> None:
+    def test_marker_only_harness_fails_before_observed_execution_passes(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             project = acquired_project(Path(temporary))
             EnvironmentInspector().inspect(project)
-            marker = qemu_fixture(project.root, qmp=False)
-            ExperimentPlanRegistrar().register(project, write_plan(project.root, "marker", marker))
-            failed = ExperimentExecutor().run(project, "marker")
+            script = project.root / "environment-smoke.sh"
+            report = project.root / "environment-report.md"
+            report.write_text("# Synthetic controller smoke, not driver evidence\n")
+            script.write_text("echo QMP_READY\n")
+            failed = ExperimentExecutor().run_codex_harness(
+                project, script_path=script, work_report_path=report)
             self.assertEqual(failed.readiness.value, "FAIL")
-            self.assertTrue(Path(failed.attempt_path).is_file())
             self.assertEqual(project.stage(EnvironmentStage.RECOVERY).status, StageStatus.RUNNING)
-
-            qemu = qemu_fixture(project.root)
-            ExperimentPlanRegistrar().register(project, write_plan(project.root, "qmp", qemu))
-            passed = ExperimentExecutor().run(project, "qmp")
+            qemu = qemu_fixture(project.root, qmp=False)
+            script.write_text(f'"{qemu}" -machine none -qtest stdio\n')
+            passed = ExperimentExecutor().run_codex_harness(
+                project, script_path=script, work_report_path=report)
             self.assertEqual(passed.readiness.value, "PASS")
-            self.assertEqual(project.stage(EnvironmentStage.RECOVERY).status, StageStatus.PASS)
-            run = project.load_json_artifact(
-                EnvironmentStage.RECOVERY, EnvironmentArtifact.EXPERIMENT_READY_RUN
-            )
-            self.assertEqual(run["qmp"]["handshake_status"], "VERIFIED")
-            self.assertEqual(run["process"]["exit_code"], 0)
+            route = project.load_json_artifact(
+                EnvironmentStage.RECOVERY, EnvironmentArtifact.EXPERIMENT_ROUTE)
+            self.assertFalse(route["migrated_driver_runtime_ready"])
+            self.assertTrue(route["qemu_programs"])
 
     def test_frozen_checkout_drift_is_rejected_before_plan_or_execution(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
@@ -201,38 +201,15 @@ class EnvironmentRecoveryTests(unittest.TestCase):
             with self.assertRaisesRegex(WorkflowError, "repository identity drifted"):
                 ExperimentExecutor().run(project, "dirty")
 
-    def test_binary_and_bound_execution_evidence_tampering_are_rejected(self) -> None:
+    def test_binary_identity_tampering_is_rejected(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             project = acquired_project(Path(temporary))
             EnvironmentInspector().inspect(project)
-            qemu = qemu_fixture(project.root)
+            qemu = qemu_fixture(project.root, qmp=False)
             ExperimentPlanRegistrar().register(project, write_plan(project.root, "binary", qemu))
             qemu.write_text(qemu.read_text() + "\n# tampered\n")
-            with self.assertRaisesRegex(WorkflowError, "executable identity changed"):
+            with self.assertRaisesRegex(WorkflowError, "runner changed"):
                 ExperimentExecutor().run(project, "binary")
-
-        for field, mutate in (
-            ("argv", lambda value: value["process"]["argv"].append("--tampered")),
-            ("process", lambda value: value["process"].update({"pid": 1})),
-            ("socket", lambda value: value["qmp"].update({"socket_path": "/tmp/tampered"})),
-            ("transcript", lambda value: value["qmp"].update({"transcript_sha256": "0" * 64})),
-        ):
-            with self.subTest(field=field), tempfile.TemporaryDirectory() as temporary:
-                project = acquired_project(Path(temporary))
-                EnvironmentInspector().inspect(project)
-                qemu = qemu_fixture(project.root)
-                ExperimentPlanRegistrar().register(project, write_plan(project.root, field, qemu))
-                ExperimentExecutor().run(project, field)
-                plan = ExperimentExecutor._load_plan(project, field)
-                attempt = json.loads(
-                    (project.control / "environment/attempts" / f"{field}.json").read_text()
-                )
-                altered = copy.deepcopy(attempt)
-                mutate(altered)
-                self.assertEqual(
-                    ExperimentExecutor._final_gate(project, plan, altered).value,
-                    "FAIL",
-                )
 
 
 if __name__ == "__main__":

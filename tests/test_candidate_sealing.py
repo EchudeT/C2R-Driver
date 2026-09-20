@@ -21,7 +21,7 @@ from driver_port_factory.evaluation.contracts import EvaluationArtifact, Evaluat
 from driver_port_factory.migration.contracts import MigrationArtifact, MigrationStage
 from driver_port_factory.sealing.candidate import CandidateSealer, SealRequest
 from driver_port_factory.sealing.contracts import SealingArtifact, SealingEvent, SealingStage
-from tests.test_public_qemu import public_plan, public_qemu_project, run_public
+from tests.migration_support import accepted
 
 
 def blind_project(root: Path):
@@ -53,11 +53,7 @@ def blind_project(root: Path):
         return project
 
     with patch("tests.test_knowledge.initialize_project", side_effect=initialize):
-        project = public_qemu_project(root)
-    if run_public(project, public_plan(project)) != 0:
-        raise AssertionError("public QEMU fixture did not finalize")
-    if main(["public-repair", "run", str(project.root)]) != 0:
-        raise AssertionError("public repair fixture did not finalize")
+        project, _, _ = accepted(root)
     return project
 
 

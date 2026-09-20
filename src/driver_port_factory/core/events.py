@@ -3,6 +3,9 @@ from enum import StrEnum
 
 class RunEvent(StrEnum):
     CREATED = "run.created"
+    PROTOCOL_UPGRADED = "run.protocol_upgraded"
+    TASK_REUSE = "run.task_reuse"
+    REPAIR_PREPARED = "run.repair_prepared"
 
 
 class StageEvent(StrEnum):
