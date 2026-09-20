@@ -179,6 +179,7 @@ class Project:
 
     def retry_from(self, stage: StageKey, *, trigger: StageKey, reason: str,
                    progress: object | None = None) -> None:
+        from .phases import PhaseBoundaryError
         try:
             self._persistence.retry_from(
                 stage, trigger=trigger, actor_role=self.config.actor_role, reason=reason,
@@ -186,6 +187,8 @@ class Project:
             )
         except RepairExhausted as error:
             self.complete(trigger, StageStatus.BLOCKED, message=str(error))
+        except PhaseBoundaryError as error:
+            self.wait_for_user(trigger, question=f"{error}\nRequested reason: {reason}")
 
     def reopen_blocked(self, stage: StageKey, *, reason: str) -> None:
         self._persistence.reopen_blocked(stage, self.config.actor_role, reason=reason)

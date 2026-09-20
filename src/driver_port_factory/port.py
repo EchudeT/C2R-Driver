@@ -295,7 +295,7 @@ class PortRunner:
         thread_id = self._latest_thread_id(project, stage)
         feedback = None
         seen_errors = set()
-        corrections = continuations = 0
+        corrections = 0
         while corrections < 3:
             if pending is None:
                 result, _, response = self._codex(
@@ -318,16 +318,13 @@ class PortRunner:
                 target = project.stage(error.target)
                 if (target.status is not StageStatus.PASS or target.position >= project.stage(stage).position
                         or stage.value not in project.workflow.descendants(error.target)):
-                    feedback = "Repair locally; DPF_REPAIR_STAGE must name a passed actual data prerequisite."
+                    feedback = "Repair locally; DPF_REPAIR_STAGE must name a passed actual data prerequisite in context.repair_targets within the current phase."
                     pending = None
                     corrections += 1
                     continue
                 retry_prerequisite(project, error.target, trigger=stage, reason=str(error))
                 return False
             except CodexContinuation as progress:
-                continuations += 1
-                if continuations > 2:
-                    raise CodexOutputError("Execution is already recorded; inspect the receipt and finish self-check, or report the blocker.") from progress
                 # Progress is deliberately not formatted as rejected output.
                 context = {**context, "controller_execution": str(progress)}
                 feedback = None
@@ -705,7 +702,13 @@ class PortRunner:
         )
 
     def _implementation(self, project: Project) -> None:
-        from .migration.repair_execution import active, OBJECTIVE
+        from .migration.repair_execution import active, prepared
+        report = prepared(project) if active(project, MigrationStage.DRIVER_IMPLEMENTATION) else None
+        if report is not None:
+            if project.stage(MigrationStage.DRIVER_IMPLEMENTATION).status is StageStatus.READY:
+                project.start(MigrationStage.DRIVER_IMPLEMENTATION)
+            DriverImplementationService().snapshot_worktree(project, report)
+            return
         facts = project.load_json_artifact(
             SourceAnalysisStage.SOURCE_CLOSURE, SourceAnalysisArtifact.STRUCTURED_C_FACTS
         )
@@ -743,7 +746,6 @@ class PortRunner:
                 extra=extra,
             ),
             self._accept_implementation_result,
-            objective=OBJECTIVE if active(project, MigrationStage.DRIVER_IMPLEMENTATION) else None,
         )
 
     def _accept_implementation_result(self, project: Project, job: ArtifactOccurrence) -> None:
@@ -755,12 +757,12 @@ class PortRunner:
                 identity(project)
             except WorkflowError as error:
                 raise CodexOutputError(str(error)) from error
-        DriverImplementationService().snapshot_worktree(project, report)
         if repair:
             record(project, report)
+        DriverImplementationService().snapshot_worktree(project, report)
 
     def _artifact_preparation(self, project: Project) -> None:
-        from .migration.repair_execution import active, prepared, OBJECTIVE
+        from .migration.repair_execution import prepared
         report = prepared(project)
         preparation_error = None
         if report is not None:
@@ -791,7 +793,6 @@ class PortRunner:
                 extra={"controller_validation_error": preparation_error} if preparation_error else None,
             ),
             lambda p, job: self._accept_artifact_preparation_result(p, job, composite=bool(preparation_error)),
-            objective=OBJECTIVE if preparation_error or active(project, MigrationStage.ARTIFACT_PREPARATION) else None,
         )
 
     def _accept_artifact_preparation_result(
@@ -807,6 +808,7 @@ class PortRunner:
                 identity(project)
             except WorkflowError as error:
                 raise CodexOutputError(str(error)) from error
+            record(project, report)
         try:
             ArtifactPreparationService().capture_codex_artifact(project, report)
 
@@ -821,11 +823,11 @@ class PortRunner:
             if project.stage(MigrationStage.DRIVER_IMPLEMENTATION).status is not StageStatus.READY:
                 return
             project.start(MigrationStage.DRIVER_IMPLEMENTATION)
+            if repair:
+                record(project, report)
             DriverImplementationService().snapshot_worktree(project, report)
             project.start(MigrationStage.ARTIFACT_PREPARATION)
             ArtifactPreparationService().capture_codex_artifact(project, report)
-        if repair:
-            record(project, report)
 
     def _public_qemu(self, project: Project) -> None:
         from .migration.repair_execution import prepared

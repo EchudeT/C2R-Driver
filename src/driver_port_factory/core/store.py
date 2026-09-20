@@ -145,6 +145,8 @@ class _RunPersistence:
         configured_role = self.config.actor_role
         with self._connect() as connection:
             row = self._stages.transition_row(connection, name, StageStatus.READY)
+            from .phases import phase_rows, require_local_repair
+            require_local_repair(name, name, phase_rows(connection))
             allowed = self._stages.allowed_roles(row, name)
             if actor_role not in allowed or actor_role is not configured_role:
                 raise WorkflowError(
@@ -198,6 +200,8 @@ class _RunPersistence:
         with self._connect() as connection:
             target = self._stages.transition_row(connection, name, StageStatus.PASS)
             source = self._stages.transition_row(connection, trigger, StageStatus.RUNNING)
+            from .phases import phase_rows, require_local_repair
+            require_local_repair(name, trigger, phase_rows(connection))
             if target["position"] >= source["position"]:
                 raise WorkflowError("stage retry target must precede its trigger")
             allowed = self._stages.allowed_roles(target, name)

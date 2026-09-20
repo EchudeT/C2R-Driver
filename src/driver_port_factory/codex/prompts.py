@@ -235,6 +235,8 @@ class SkillPromptComposer:
     ) -> RenderedPrompt:
         documents = self.documents_for_stage(stage)
         if (context or {}).get("repair_execution"):
+            from ..migration.repair_execution import OBJECTIVE
+            objective = objective or OBJECTIVE
             extra = "knowledge-guided-driver-port/references/qemu-evidence.md"
             if all(d.relative_path != extra for d in documents):
                 documents = (*documents, self._read_document(extra))
@@ -258,6 +260,8 @@ class SkillPromptComposer:
         }
         from ..orchestration.protocol import describe
         header["protocol"] = describe(stage.value)
+        if prompt_context.get("repair_execution"):
+            header["protocol"]["completion"] = prompt_context["repair_execution"]["completion"]
         embedded_documents = "\n\n".join(
             (f'<skill_document path="{document.relative_path}">\n'
              f"{document.content}\n</skill_document>"

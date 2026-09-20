@@ -31,7 +31,7 @@ from driver_port_factory.source_analysis.structured import StructuredCAnalysisSe
 from tests.test_source_closure import ready_project, source_closure
 
 
-def ready_implementation(root: Path):
+def ready_implementation(root: Path, *, plan=True):
     # This fixture validates the controller; its simulator is explicitly synthetic.
     project, checkouts = ready_project(root)
     closure = source_closure(project, checkouts)
@@ -68,6 +68,8 @@ def ready_implementation(root: Path):
     (skill / "references").mkdir(exist_ok=True)
     for name in ("translation.md", "knowledge-contract.md"):
         (skill / "references" / name).write_text("# Evidence fixture\n")
+    if not plan:
+        return project
     project.start(MigrationStage.CONTRACTS)
     report = project.root / "migration-plan.md"
     report.write_text("# Fixture plan\nPreserve example_init returning shared_value.\n"

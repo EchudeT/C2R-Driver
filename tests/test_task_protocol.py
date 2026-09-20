@@ -87,7 +87,7 @@ def test_target_study_reuse_is_bound_to_non_source_evidence(tmp_path):
     remember(project)
     project.start(M.DRIVER_IMPLEMENTATION)
     project.retry_from(T.STUDY, trigger=M.DRIVER_IMPLEMENTATION, reason="fixture invalidation")
-    assert restore(project)
+    assert project.stage(M.DRIVER_IMPLEMENTATION).status is StageStatus.WAITING_FOR_USER
     assert project.stage(T.STUDY).status is StageStatus.PASS
     assert project.stage(S.SOURCE_CLOSURE).status is StageStatus.PASS
     project.verify_integrity()

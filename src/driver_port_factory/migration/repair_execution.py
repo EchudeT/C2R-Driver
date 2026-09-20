@@ -32,8 +32,9 @@ worker for final self-check. Keep unchanged coverage by reference; no new handof
 def active(project, stage):
     feedback = project.retry_feedback(stage)
     return bool(stage in (S.DRIVER_IMPLEMENTATION, S.ARTIFACT_PREPARATION)
-                and feedback and feedback["status"] == "OPEN"
-                and feedback.get("repair_root") == stage.value)
+                and ((feedback and feedback["status"] == "OPEN"
+                      and feedback.get("repair_root") == stage.value)
+                     or (stage is S.ARTIFACT_PREPARATION and prepared(project) is not None)))
 
 
 def identity(project):

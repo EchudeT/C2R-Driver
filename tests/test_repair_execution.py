@@ -74,6 +74,18 @@ def test_new_invalidation_retires_preparation_even_with_identical_files(tmp_path
     assert prepared(open_project(p.root)) is None
 
 
+def test_direct_repair_prompt_uses_composite_contract(tmp_path):
+    from driver_port_factory.codex.cli import _render_prompt
+    from driver_port_factory.migration.repair_execution import OBJECTIVE
+    p, _, _ = repair_fixture(tmp_path)
+    p.start(S.ARTIFACT_PREPARATION)
+    p.retry_from(S.DRIVER_IMPLEMENTATION, trigger=S.ARTIFACT_PREPARATION, reason="new defect")
+    rendered = _render_prompt(p, S.DRIVER_IMPLEMENTATION, None, None, None)
+    assert rendered.objective == OBJECTIVE
+    assert '"completion": "Repair, affected checks, runtime artifact and public runner ready; DPF_SELF_REVIEW: PASS."' in rendered.text
+    assert any(d.relative_path.endswith("qemu-evidence.md") for d in rendered.documents)
+
+
 def test_failed_execution_returns_evidence_and_does_not_auto_rerun_on_restart(tmp_path):
     p, _, _ = repair_fixture(tmp_path, failing_harness=True)
     port = runner(p)
@@ -101,11 +113,45 @@ def test_prepared_but_stale_image_cannot_skip_presence_validation(tmp_path):
     def fix(project, stage, context, accept, **kwargs):
         assert stage is S.ARTIFACT_PREPARATION
         assert "presence checker failed" in context["controller_validation_error"]
-        assert kwargs["objective"]
+        from driver_port_factory.codex.cli import _render_prompt
+        from driver_port_factory.migration.repair_execution import OBJECTIVE
+        prompt = _render_prompt(project, stage, None, context, None)
+        assert prompt.objective == OBJECTIVE
+        assert '"completion": "Repair, affected checks, runtime artifact and public runner ready; DPF_SELF_REVIEW: PASS."' in prompt.text
+        assert any(d.relative_path.endswith("qemu-evidence.md") for d in prompt.documents)
         return False
     with patch.object(port, "_codex_gate", side_effect=fix) as gateway:
         port._artifact_preparation(p)
     assert gateway.call_count == 1
     assert p.stage(S.ARTIFACT_PREPARATION).status is StageStatus.RUNNING
     assert p.stage(S.PUBLIC_QEMU_VALIDATION).status is StageStatus.PENDING
+    p.verify_integrity()
+
+
+@pytest.mark.parametrize("source_changed", [False, True])
+def test_packaging_interruption_reuses_preparation_without_model(tmp_path, source_changed):
+    p, worktree, report = repair_fixture(tmp_path)
+    p.start(S.ARTIFACT_PREPARATION)
+    if source_changed:
+        (worktree / "driver.rs").write_text("pub fn init() -> u32 { 3 }\n")
+        (worktree / ".dpf-output/runtime-artifact").write_bytes((worktree / "driver.rs").read_bytes())
+    port = runner(p)
+    from driver_port_factory.migration.artifact_preparation import ArtifactPreparationService
+    capture = ArtifactPreparationService.capture_codex_artifact
+    def interrupted(service, project, report):
+        capture(service, project, report)
+        raise RuntimeError("interrupted after packaging commit")
+    with patch.object(port, "_materialize_codex_report", return_value=report), patch.object(
+            ArtifactPreparationService, "capture_codex_artifact", interrupted):
+        with pytest.raises(RuntimeError, match="interrupted"):
+            port._accept_artifact_preparation_result(p, None, composite=True)
+    p = open_project(p.root)
+    assert prepared(p) == report
+    assert p.stage(S.ARTIFACT_PREPARATION).status is StageStatus.PASS
+    port = runner(p)
+    def self_check(project, stage, context, accept, **kwargs):
+        assert stage is S.PUBLIC_QEMU_VALIDATION
+        assert context["controller_execution"]["status"] == "PASS"
+    with patch.object(port, "_codex_gate", side_effect=self_check):
+        port._public_qemu(p)
     p.verify_integrity()

@@ -43,10 +43,9 @@ def test_required_independent_review_cannot_be_replaced_by_worker(tmp_path, impl
     project.start(S.COMPLETION_AUDIT)
     project.retry_from(S.PUBLIC_REPAIR, trigger=S.COMPLETION_AUDIT,
                        reason="verify unchanged review reuse")
-    port = runner(project)
-    with patch.object(port, "_codex", side_effect=AssertionError("unchanged risks must reuse review")):
-        port._public_repair(project)
-    assert project.load_json_artifact(S.PUBLIC_REPAIR, A.PUBLIC_REPAIR_REPORT)["reused_review_sha256"]
+    assert project.stage(S.COMPLETION_AUDIT).status.value == "WAITING_FOR_USER"
+    assert project.stage(S.PUBLIC_REPAIR).status.value == "PASS"
+    assert PublicRepairService.reusable_review(project) is not None
 
 
 def test_review_digest_and_decision_remain_bound(tmp_path):
@@ -91,20 +90,22 @@ def test_resolved_blocker_reopens_without_replaying_old_answer(tmp_path):
 def test_identical_prerequisite_budget_survives_restart(tmp_path):
     from driver_port_factory.core.models import FileArtifact, StageStatus
 
-    project = ready_implementation(tmp_path)
+    from tests.migration_support import implemented
+    project, _, _ = implemented(tmp_path)
     outputs = tuple(FileArtifact(kind, project.artifacts.path_for_digest(
-        project.artifact(S.CONTRACTS, kind).digest)) for kind in (A.CONTRACTS, A.TEST_PORT_MATRIX))
+        project.artifact(S.DRIVER_IMPLEMENTATION, kind).digest)) for kind in (
+            A.IMPLEMENTATION_BUNDLE, A.TRANSLATION_COVERAGE, A.TARGET_CHANGE_INVENTORY, A.COMPLIANCE_REPORT))
     for attempt in range(3):
-        project.start(S.DRIVER_IMPLEMENTATION)
-        project.retry_from(S.CONTRACTS, trigger=S.DRIVER_IMPLEMENTATION,
+        project.start(S.ARTIFACT_PREPARATION)
+        project.retry_from(S.DRIVER_IMPLEMENTATION, trigger=S.ARTIFACT_PREPARATION,
                            reason=f"same missing premise; new report-{attempt}.md")
         project = open_project(project.root)
-        project.start(S.CONTRACTS)
-        project.finalize_stage(S.CONTRACTS, outputs)
-    project.start(S.DRIVER_IMPLEMENTATION)
-    project.retry_from(S.CONTRACTS, trigger=S.DRIVER_IMPLEMENTATION, reason="same missing premise")
-    assert project.stage(S.DRIVER_IMPLEMENTATION).status is StageStatus.BLOCKED
-    assert project.stage(S.CONTRACTS).status is StageStatus.PASS
+        project.start(S.DRIVER_IMPLEMENTATION)
+        project.finalize_stage(S.DRIVER_IMPLEMENTATION, outputs)
+    project.start(S.ARTIFACT_PREPARATION)
+    project.retry_from(S.DRIVER_IMPLEMENTATION, trigger=S.ARTIFACT_PREPARATION, reason="same missing premise")
+    assert project.stage(S.ARTIFACT_PREPARATION).status is StageStatus.BLOCKED
+    assert project.stage(S.DRIVER_IMPLEMENTATION).status is StageStatus.PASS
     project.verify_integrity()
 
 

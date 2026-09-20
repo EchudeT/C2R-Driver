@@ -38,6 +38,16 @@ def _render_prompt(
     known_documents: dict[str, str] | None = None,
     skill_root: Path | None = None,
 ) -> RenderedPrompt:
+    from ..migration.repair_execution import active
+    from ..migration.contracts import MigrationStage
+    context = dict(context or {})
+    if active(project, stage) or (stage is MigrationStage.ARTIFACT_PREPARATION
+                                 and context.get("controller_validation_error")):
+        context["repair_execution"] = {
+            "mode": "prepare-once-controller-validates",
+            "completion": "Repair, affected checks, runtime artifact and public runner ready; DPF_SELF_REVIEW: PASS.",
+            "next": "Controller captures artifact and executes QEMU, then returns observations for worker self-check.",
+        }
     if not project.config.skill_root:
         raise WorkflowError("project has no skill_root; initialize it with --skill-root")
     configured_pack = prompt_pack_path or project.config.prompt_pack
@@ -123,13 +133,6 @@ def run_codex_stage(
     if follow_up:
         context = {**(context or {}), "controller_feedback": follow_up}
     repair = project.retry_feedback(stage_key)
-    from ..migration.repair_execution import active
-    if active(project, stage_key):
-        context["repair_execution"] = {
-            "mode": "prepare-once-controller-validates",
-            "completion": "Repair, affected checks, runtime artifact and public runner ready; DPF_SELF_REVIEW: PASS.",
-            "next": "Controller captures artifact and executes QEMU, then returns observations for worker self-check.",
-        }
     if repair:
         context["repair_state"] = repair
         prior = [r for r in project.artifact_refs(stage=stage_key)
@@ -146,8 +149,11 @@ def run_codex_stage(
             "Reusing a report is allowed; do not restart the whole phase investigation."
         )
     from ..orchestration.protocol import REPAIR_TARGETS
+    from ..core.phases import phase
+    context["phase"] = phase(stage_key)
     context["repair_targets"] = [s.name.value for s in project.stages()
         if s.name.value in REPAIR_TARGETS and s.status is StageStatus.PASS
+        and phase(s.name) == phase(stage_key)
         and stage_key.value in project.workflow.descendants(s.name)]
     known_inputs = session.get("inputs", {}) if thread_id == session.get("thread_id") else {}
     context, supplied_inputs = input_changes(context, known_inputs)

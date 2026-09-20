@@ -22,7 +22,8 @@ TASKS = {
     "driver_implementation": TaskProtocol(completion=
         "Finish implementation and affected checks; end DPF_SELF_REVIEW: PASS.", executable=True),
     "artifact_preparation": TaskProtocol(completion=
-        "Prepare artifact and presence checker. If packaging changed source/configuration, "
+        "Prepare artifact and checker covering payloads and reachable entrypoints for every retained "
+        "runtime scenario without artifact changes. If packaging changed source/configuration, "
         "self-check affected changes and end DPF_SELF_REVIEW: PASS; the controller refreshes "
         "the implementation snapshot without another implementation turn.", executable=True),
     "public_qemu_validation": TaskProtocol(("PUBLIC_QEMU",),
@@ -46,7 +47,7 @@ def describe(stage):
         "operations": [f"DPF_RUN: {op}" for op in task.operations],
         "operation_delivery": "End the report with an operation request; resume this task after its receipt.",
         "completion": task.completion,
-        "repair": "Choose from context.repair_targets. End DPF_REPAIR_STAGE: <affected prerequisite> then DPF_REVIEW: REWORK; explain the causal defect.",
+        "repair": "Within the current phase choose from context.repair_targets. End DPF_REPAIR_STAGE: <affected prerequisite> then DPF_REVIEW: REWORK; explain the causal defect. Completed earlier phases are sealed. If a frozen earlier premise must change, report the concrete blocker and impact; never silently reopen it.",
         "blocked": "Explain external prerequisite and alternatives; end DPF_STATUS: BLOCKED.",
     }
 

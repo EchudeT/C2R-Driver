@@ -28,10 +28,10 @@ def test_cli_before_analysis_reports_phase_boundary_without_creating_cache(tmp_p
     from driver_port_factory.migration.contracts import MigrationStage as M
     from driver_port_factory.source_analysis.contracts import SourceAnalysisStage as C
 
-    project = ready_implementation(tmp_path)
-    project.start(M.DRIVER_IMPLEMENTATION)
+    project = ready_implementation(tmp_path, plan=False)
+    project.start(M.CONTRACTS)
     project.retry_from(C.SOURCE_CLOSURE,
-                       trigger=M.DRIVER_IMPLEMENTATION,
+                       trigger=M.CONTRACTS,
                        reason="test phase boundary")
     assert project.stage(C.SOURCE_CLOSURE).status is StageStatus.READY
     before = (cache_root(project) / "manifest.json").read_bytes()

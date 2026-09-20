@@ -3,10 +3,10 @@ from __future__ import annotations
 import unittest
 from pathlib import Path
 from types import SimpleNamespace
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 from driver_port_factory.acquisition.contracts import AcquisitionStage
-from driver_port_factory.codex.contracts import CodexBackend, CodexOutputError
+from driver_port_factory.codex.contracts import CodexBackend, CodexContinuation, CodexOutputError
 from driver_port_factory.knowledge.contracts import KnowledgeStage
 from driver_port_factory.port import PortOptions, PortRunner
 from driver_port_factory.source_analysis.clang_backend import AnalyzerFamily
@@ -31,6 +31,20 @@ def runner() -> PortRunner:
 
 
 class PortEvidenceContractTests(unittest.TestCase):
+    def test_execution_receipts_continue_without_consuming_corrections(self) -> None:
+        port = runner()
+        accept = Mock(side_effect=[CodexContinuation(f"receipt {i}") for i in range(3)] + [None])
+        with (
+            patch.object(port, "_latest_job_occurrence", return_value=None),
+            patch.object(port, "_codex", return_value=(SimpleNamespace(thread_id="same-thread"), None, Path("response"))) as codex,
+            patch.object(port, "_job_occurrence", return_value=object()),
+        ):
+            self.assertTrue(port._codex_gate(object(), KnowledgeStage.KNOWLEDGE_BASE, {}, accept))
+        self.assertEqual(codex.call_count, 4)
+        self.assertEqual(codex.call_args.args[2]["controller_execution"], "receipt 2")
+        self.assertIsNone(codex.call_args.kwargs["follow_up"])
+        self.assertEqual(codex.call_args.kwargs["thread_id"], "same-thread")
+
     def test_evidence_stage_uses_prompt_pack_without_hidden_override(self) -> None:
         port = runner()
         with (

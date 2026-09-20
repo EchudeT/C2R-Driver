@@ -3,6 +3,13 @@
 Use self-contained shell entrypoints with a shebang (Bash default), bounded waits, process/port
 preflights and cleanup limited to run-owned resources. Controller and worker use the same scripts.
 Environment smoke must exercise the selected boot/device route; version/help listings are not smoke.
+Reuse valid check results for unchanged inputs. Batch known related fixes before expensive validation;
+rerun affected checks, widening for shared APIs, uncertain impact or failed evidence. Required acceptance
+checks still apply. Report-only edits need no behavioral rerun; formatting-only edits need the applicable
+format/build checks, not a full QEMU suite unless behavior or acceptance evidence may be affected.
+Give each execution distinct log paths and preflight mounts/cleanup before a costly run. Fixing a helper
+requires checks of its affected behavior, not automatically all driver tests; invalid or overwritten
+evidence still requires a replacement run. Reuse build caches even when a fresh container is required.
 Container QEMU requires a fresh docker run mounting the current execution directory so the collector
 can bind live execution to this run. Do not use an existing container, dummy QEMU or renamed wrapper.
 

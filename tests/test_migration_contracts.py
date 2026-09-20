@@ -11,9 +11,7 @@ def test_plan_is_one_gate_with_both_evidence_views(tmp_path):
     p.verify_integrity()
 
 def test_contract_only_cannot_finalize_combined_plan(tmp_path):
-    p = ready_implementation(tmp_path)
-    p.start(S.DRIVER_IMPLEMENTATION)
-    p.retry_from(S.CONTRACTS, trigger=S.DRIVER_IMPLEMENTATION, reason="fixture replan")
+    p = ready_implementation(tmp_path, plan=False)
     p.start(S.CONTRACTS)
     report = p.root / "plan.md"
     report.write_text("Incomplete contract-only submission")
@@ -21,9 +19,7 @@ def test_contract_only_cannot_finalize_combined_plan(tmp_path):
         p.finalize_stage(S.CONTRACTS, (FileArtifact(A.CONTRACTS, report),))
 
 def test_plan_acceptance_freezes_one_report_without_second_model(tmp_path):
-    p = ready_implementation(tmp_path)
-    p.start(S.DRIVER_IMPLEMENTATION)
-    p.retry_from(S.CONTRACTS, trigger=S.DRIVER_IMPLEMENTATION, reason="fixture replan")
+    p = ready_implementation(tmp_path, plan=False)
     p.start(S.CONTRACTS)
     port = runner(p)
     report = p.root / "new-plan.md"

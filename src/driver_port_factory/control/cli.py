@@ -50,6 +50,13 @@ def command_status(arguments: argparse.Namespace) -> None:
     )
     print(f"controller={stats['controller']['state']} "
           f"{stats['controller'].get('note', '')}")
+    from ..core.phases import GROUPS, phase
+    stages = project.stages()
+    for group in GROUPS:
+        members = [s for s in stages if phase(s.name) == group]
+        if members:
+            done = all(s.status.value in {"PASS", "NOT_APPLICABLE"} for s in members)
+            print(f"phase={group} state={'COMPLETE' if done else 'INCOMPLETE'}")
     for stage, row in zip(project.stages(), stats["stages"]):
         dependencies = ",".join(dependency.value for dependency in stage.dependencies) or "-"
         print(

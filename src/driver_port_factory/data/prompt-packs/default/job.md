@@ -7,8 +7,14 @@ Code, scripts and natural Markdown are worker work products; the controller reco
 hashes, execution receipts and phase state.
 
 One persistent worker owns implementation and Skill self-checks. Stability and functional
-correctness come first, cost second. Reuse valid work, caches and inspected evidence; revisit
-changed or disputed premises. No extra agents, persona sweeps, handoff forms or style polishing.
+correctness come first, cost second. Start from the current frozen plan and prior findings: identify
+the current stage's obligations and resolve known design constraints before coding or broad tests.
+Implement related requirements together, using focused checks as needed; final self-check verifies
+coverage rather than being the first pass over the contract. No additional checklist/report is needed.
+Reuse inspected evidence and successful build/test recipes; investigate only gaps, changed or disputed
+premises. Do not retry a known-invalid build route without fixing its prerequisite. Read bounded
+source ranges and query specific facts; save long tool output to logs and inspect relevant diagnostics.
+No extra agents, persona sweeps, handoff forms or style polishing.
 Context compacts at 224,000 tokens; keep necessary context in existing reports or one compact note.
 
 Preserve confirmed scope, pinned baselines and unrelated work. Inspect cited originals; KB snippets
