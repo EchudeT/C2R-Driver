@@ -11,17 +11,7 @@ from .job import ArtifactOccurrence
 from .proposal import EvidenceProposalImporter
 from .repository import RepositoryAcquirer
 from .revision_proposal import RevisionProposalImporter
-from .revision_selection import RevisionSelector
 from .verification import AcquisitionVerifier
-
-
-def command_revisions(arguments: argparse.Namespace) -> None:
-    project = open_project(Path(arguments.path))
-    plan = RevisionSelector().select(
-        project,
-        proposal=ArtifactOccurrence(arguments.proposal_digest, arguments.proposal_ordinal),
-    )
-    print(json.dumps(plan.to_dict(), ensure_ascii=False, sort_keys=True, indent=2))
 
 
 def command_repositories(arguments: argparse.Namespace) -> None:
@@ -104,11 +94,6 @@ def register_commands(commands: CommandRegistry) -> None:
         "acquire", help="pin repositories and close provenance-tracked evidence"
     )
     subcommands = command_registry(acquire, dest="acquire_command")
-    revisions = subcommands.add_parser("revisions")
-    revisions.add_argument("path")
-    revisions.add_argument("--proposal-digest", required=True)
-    revisions.add_argument("--proposal-ordinal", required=True, type=int)
-    revisions.set_defaults(handler=command_revisions)
     revision_proposal = subcommands.add_parser("revision-proposal-import")
     revision_proposal.add_argument("path")
     revision_proposal.add_argument("--job-digest", required=True)

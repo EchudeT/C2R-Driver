@@ -4,7 +4,6 @@ from ..core.contracts import StageKey
 from ..core.models import WorkflowError
 from ..acquisition.contracts import AcquisitionStage
 from ..environment.contracts import EnvironmentStage
-from ..source_analysis.contracts import SourceAnalysisStage
 from ..target_study.contracts import TargetStudyStage
 from .contracts import MigrationStage
 
@@ -14,7 +13,6 @@ def retry_prerequisite(project, target, *, trigger, reason):
     from ..core.models import ArtifactDirection
     refs = project.current_artifact_refs(stage=target, direction=ArtifactDirection.OUTPUT)
     selected = {
-        "source_closure": {"compile_manifest", "compilation_database"},
         "migration_contracts": {"migration_contracts", "test_port_matrix"},
         "target_platform_study": {"target_study_report"},
         "artifact_preparation": {"runtime_artifact"},
@@ -51,7 +49,6 @@ ROUTES = {stage.value: stage for stage in (
     AcquisitionStage.EVIDENCE_CLOSURE,
     EnvironmentStage.RECOVERY,
     TargetStudyStage.STUDY,
-    SourceAnalysisStage.SOURCE_CLOSURE,
     MigrationStage.CONTRACTS,
     MigrationStage.DRIVER_IMPLEMENTATION,
     MigrationStage.ARTIFACT_PREPARATION,

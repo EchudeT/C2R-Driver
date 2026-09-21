@@ -28,7 +28,7 @@ WAITING_FOR_USER + answer -> CONFIRMED -> FROZEN
 
 `migration_envelope` 至少包含：源/目标平台、用户原始名称、规范源驱动名、源码入口、设备系列、总线、候选设备 ID、包含范围、排除变体、QEMU 模型、确认依据和被选 candidate ID。
 
-只有 `migration_envelope_freeze=PASS` 后，`revision_selection` 才会变为 `READY`，因此后续 acquisition 无法绕过身份确认。
+只有 `migration_envelope_freeze=PASS` 后，`repository_acquisition` 才会变为 `READY`，因此后续 acquisition 无法绕过身份确认。
 
 ## CLI
 

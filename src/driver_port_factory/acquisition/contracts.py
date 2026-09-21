@@ -2,7 +2,6 @@ from enum import StrEnum
 
 
 class AcquisitionStage(StrEnum):
-    REVISION_SELECTION = "revision_selection"
     REPOSITORY_ACQUISITION = "repository_acquisition"
     EVIDENCE_CLOSURE = "evidence_closure"
 

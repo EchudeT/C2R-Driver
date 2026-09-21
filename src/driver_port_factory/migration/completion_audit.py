@@ -51,9 +51,20 @@ class CompletionAuditService:
         public = self._document(
             project, MigrationStage.PUBLIC_QEMU_VALIDATION, MigrationArtifact.PUBLIC_QEMU_REPORT
         )
-        repair = self._document(
-            project, MigrationStage.PUBLIC_REPAIR, MigrationArtifact.PUBLIC_REPAIR_REPORT
-        )
+        if project.config.evaluation_mode is EvaluationMode.DEVELOPER_EVIDENCE:
+            # Public validation already contains the worker's post-runtime self-check.
+            # Summarize it without a new risk scan or a second acceptance stage.
+            worker_ref = project.artifact(
+                MigrationStage.PUBLIC_QEMU_VALIDATION, MigrationArtifact.PUBLIC_QEMU_WORK_REPORT)
+            repair = {
+                "review": {"text": project.artifacts.read(worker_ref).decode(),
+                           "sha256": worker_ref.digest},
+                "review_mode": "worker_self_check",
+                "decision": None,
+            }
+        else:
+            repair = self._document(
+                project, MigrationStage.PUBLIC_REPAIR, MigrationArtifact.PUBLIC_REPAIR_REPORT)
         runs = list(public.get("runs", []))
         target_driver_ran = any(
             run.get("execution_status") == ContractExecutionStatus.PASS.value
@@ -98,6 +109,10 @@ class CompletionAuditService:
         audit = {
             "schema_version": 1,
             "audit_status": AUDIT_STATUS,
+            "worker_acceptances": [
+                {"stage": item.name.value, "decision": item.message}
+                for item in project.stages() if (item.message or "").startswith("WORKER_ACCEPTED:")
+            ],
             "evaluation_mode": project.config.evaluation_mode.value,
             "stage_results": stages,
             "artifact_snapshot": artifacts,
@@ -117,15 +132,12 @@ class CompletionAuditService:
                 "translation_and_compliance": _reference(
                     project,
                     MigrationStage.DRIVER_IMPLEMENTATION,
-                    MigrationArtifact.TRANSLATION_COVERAGE,
+                    MigrationArtifact.COMPLIANCE_REPORT,
                 ),
                 "target_changes": _reference(
                     project,
                     MigrationStage.DRIVER_IMPLEMENTATION,
                     MigrationArtifact.TARGET_CHANGE_INVENTORY,
-                ),
-                "compliance": _reference(
-                    project, MigrationStage.DRIVER_IMPLEMENTATION, MigrationArtifact.COMPLIANCE_REPORT
                 ),
             },
             "artifact_lineage": lineage,
@@ -136,7 +148,7 @@ class CompletionAuditService:
             "scope_limits": {
                 "semantic_coverage": "WORKER_SELF_CHECK_NOT_INDEPENDENT_CONTRACT_VERIFICATION",
                 "mechanical_checks": "artifact hashes, observed execution, boot-argument binding and fresh logs",
-                "oracle_author": "worker; risk-triggered independent review when recorded",
+                "oracle_author": "worker; public self-check is not independent evaluation",
                 "qemu_evidence": (
                     PublicRunAttribution.TARGET_DRIVER_ON_QEMU.value
                     if target_driver_ran

@@ -2,8 +2,8 @@ from enum import StrEnum
 
 
 class RunEvent(StrEnum):
+    CHECKER_DECISION = "run.checker_decision"
     CREATED = "run.created"
-    PROTOCOL_UPGRADED = "run.protocol_upgraded"
     TASK_REUSE = "run.task_reuse"
     REPAIR_PREPARED = "run.repair_prepared"
 

@@ -21,7 +21,7 @@ VALIDATORS = MappingProxyType[MigrationArtifact, ArtifactValidator](
         MigrationArtifact.CONTRACTS: utf8_document,
         MigrationArtifact.TEST_PORT_MATRIX: utf8_document,
         MigrationArtifact.IMPLEMENTATION_BUNDLE: json_object_document,
-        MigrationArtifact.TRANSLATION_COVERAGE: utf8_document,
+        MigrationArtifact.COMPLIANCE_REPORT: utf8_document,
         MigrationArtifact.TARGET_CHANGE_INVENTORY: json_object_document,
         MigrationArtifact.COMPLIANCE_REPORT: utf8_document,
         MigrationArtifact.ARTIFACT_PREPARATION_ATTEMPT: json_object_document,

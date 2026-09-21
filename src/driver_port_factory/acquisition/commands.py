@@ -12,8 +12,6 @@ from .repository_role import RepositoryRole
 
 
 class RepositoryCommandKind(StrEnum):
-    REVISION_RESOLUTION = "revision_resolution"
-    COMMIT_MEMBERSHIP = "commit_membership"
     BASELINE_INITIALIZATION = "baseline_initialization"
     ORIGIN_CONFIGURATION = "origin_configuration"
     BASELINE_FETCH = "baseline_fetch"

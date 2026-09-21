@@ -31,6 +31,7 @@ class CodexJob:
     model: str | None = None
     thread_id: str | None = None
     job_id: str = field(default_factory=lambda: str(uuid.uuid4()))
+    compact_token_limit: int = 224000
 
 
 @dataclass(frozen=True, slots=True)
@@ -83,7 +84,7 @@ class CodexExecGateway:
         command.extend(
             [
                 "-c",
-                "model_auto_compact_token_limit=224000",
+                f"model_auto_compact_token_limit={job.compact_token_limit}",
                 "-c",
                 'approval_policy="never"',
                 "-c",

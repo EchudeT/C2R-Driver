@@ -33,7 +33,12 @@ def controller_run(project):
         except BlockingIOError as error:
             raise WorkflowError("project controller already running; refusing duplicate") from error
         path = project.control / "controller.json"
+        previous = json.loads(path.read_text()) if path.exists() else {}
+        intervals = previous.get("intervals", [])
+        if previous.get("started_at") and previous.get("completed_at"):
+            intervals.append([previous["started_at"], previous["completed_at"]])
         record = {"pid": os.getpid(), "started_at": utc_now(), "state": "ACTIVE"}
+        record["intervals"] = intervals
 
         def save():
             temporary = path.with_suffix(".tmp")

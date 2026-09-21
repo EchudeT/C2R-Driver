@@ -1,13 +1,14 @@
 from __future__ import annotations
 
 import hashlib
+import json
 import os
 import uuid
 from pathlib import Path
 
 from ..core.ledger import canonical_json
 from ..core.models import WorkflowError
-from .commands import RepositoryCommandKind
+from .commands import RepositoryCommandKind, RepositoryCommandRecord
 from .git_execution import RepositoryGit
 from .repository_role import RepositoryRole
 from .repository_spec import RepositorySpec
@@ -48,6 +49,24 @@ class BareRepositoryStore:
             raise WorkflowError(f"managed repository path appeared during publish: {bare}")
         attempt.rename(bare)
         return bare
+
+    def fetch(self, bare: Path, spec) -> None:
+        """Keep a successful download and its receipt across controller restarts."""
+        argv = ["-C", str(bare), "fetch", "--depth=1", "--no-tags", "origin", spec.requested_ref]
+        receipt = bare / "dpf-fetch.json"
+        if receipt.is_file():
+            record = RepositoryCommandRecord.from_dict(json.loads(receipt.read_text()))
+            if record.role is spec.role and record.result.argv == ("git", *argv):
+                record.verify_evidence(self.project_root)
+                observed = self.git.optional(["-C", str(bare), "rev-parse", "FETCH_HEAD^{commit}"],
+                    operation=RepositoryCommandKind.BASELINE_COMMIT, role=spec.role)
+                if observed is not None:
+                    self.git.reuse(record)
+                    return
+        result = self.git.run(argv, operation=RepositoryCommandKind.BASELINE_FETCH, role=spec.role)
+        temporary = receipt.with_suffix(".tmp")
+        temporary.write_text(json.dumps(result.record.to_dict()) + "\n")
+        temporary.replace(receipt)
 
     def publish_lock(
         self,

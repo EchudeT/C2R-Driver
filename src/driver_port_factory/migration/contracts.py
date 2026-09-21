@@ -16,7 +16,6 @@ class MigrationArtifact(StrEnum):
     CONTRACTS = "migration_contracts"
     TEST_PORT_MATRIX = "test_port_matrix"
     IMPLEMENTATION_BUNDLE = "driver_implementation_bundle"
-    TRANSLATION_COVERAGE = "translation_coverage"
     TARGET_CHANGE_INVENTORY = "target_change_inventory"
     COMPLIANCE_REPORT = "compliance_report"
     ARTIFACT_PREPARATION_ATTEMPT = "artifact_preparation_attempt"

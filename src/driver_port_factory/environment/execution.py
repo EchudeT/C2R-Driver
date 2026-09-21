@@ -142,15 +142,13 @@ class ExperimentExecutor:
             FileArtifact(EnvironmentArtifact.RECOVERY_ATTEMPT, attempt_path),
         )
         if not ready:
-            return EnvironmentRunResult(
-                route_id,
-                readiness,
-                StageStatus.RUNNING,
-                str(attempt_path),
+            project.note_check(
                 (f"smoke harness exit={result.exit_code}, timed_out={result.timed_out}, "
                  f"observed QEMU experiment execs={len(qemu_programs)} (version/help is not smoke). "
-                 "Container runs require a fresh container, an exact workspace bind mount, "
-                 "a traced docker run, and a live QEMU process observation. "
+                 "Acceptance requires successful script execution and an observed non-discovery QEMU run; "
+                 "no boot/device argument whitelist applies. Route assertions belong to the harness. "
+                 "If QEMU ran but was not captured, diagnose the collector evidence, not the driver. "
+                 f"Container observations/errors={containers.output}. "
                  f"Inspect stdout={result.stdout_path}, stderr={result.stderr_path}, "
                  f"trace={trace_path}"),
             )
@@ -180,6 +178,7 @@ class ExperimentExecutor:
             "attempt_sha256": hashlib.sha256(attempt_path.read_bytes()).hexdigest(),
             "qemu_programs": qemu_programs,
             "migrated_driver_runtime_ready": False,
+            "mechanical_readiness": readiness.value,
         }
         project.finalize_stage(
             EnvironmentStage.RECOVERY,

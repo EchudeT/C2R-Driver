@@ -19,9 +19,11 @@ from .writable_target_validation import WritableTargetValidator
 
 
 def validate_repository_bundle(context: BundleValidationContext) -> None:
+    from .revision_validation import validate_revision_bundle
+    validate_revision_bundle(context)
     envelope_ref, envelope_data = context.one_dependency(IntakeArtifact.MIGRATION_ENVELOPE)
-    plan_ref, plan_data = context.one_dependency(AcquisitionArtifact.REPOSITORY_PLAN)
-    _, revision_data = context.one_dependency(AcquisitionArtifact.REVISION_MANIFEST)
+    plan_ref, plan_data = context.one_current(AcquisitionArtifact.REPOSITORY_PLAN)
+    _, revision_data = context.one_current(AcquisitionArtifact.REVISION_MANIFEST)
     _, repository_data = context.one_current(AcquisitionArtifact.REPOSITORY_MANIFEST)
     _, identity_data = context.one_current(AcquisitionArtifact.SOURCE_IDENTITY_VERIFICATION)
     envelope = _json_object(envelope_data, "migration envelope")

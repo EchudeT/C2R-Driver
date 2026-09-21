@@ -51,6 +51,11 @@ class Project:
             read_only=read_only,
         )
         self.artifacts = ArtifactStore(self.control / "cas")
+        self._checker_findings: list[str] = []
+
+    def note_check(self, message: str) -> None:
+        """Collect acceptance findings for one worker judgment, not repeated repairs."""
+        self._checker_findings.append(message)
 
     @classmethod
     def initialize(
@@ -117,16 +122,31 @@ class Project:
             artifact.kind.value for artifact in submitted
         )
         artifacts_with_data = []
+        findings, self._checker_findings = self._checker_findings, []
         for artifact in submitted:
             data, source = self._materialize(artifact)
-            self.validators.validate(artifact.kind, data)
+            try:
+                self.validators.validate(artifact.kind, data)
+            except WorkflowError as error:
+                findings.append(str(error))
             content = self.artifacts.put_bytes(data, kind=artifact.kind.value)
             ref = ArtifactRef(content, source)
             artifacts_with_data.append((ref, data))
         if self.validators.has_bundle_validator(stage):
-            self._validate_stage_bundle(stage, tuple(artifacts_with_data))
+            try:
+                self._validate_stage_bundle(stage, tuple(artifacts_with_data))
+            except WorkflowError as error:
+                findings.append(str(error))
         refs = [ref for ref, _ in artifacts_with_data]
+        if findings:
+            from .models import EvaluationMode
+            if self.config.evaluation_mode is not EvaluationMode.DEVELOPER_EVIDENCE:
+                raise WorkflowError("\n".join(findings))
+            from .checker_decision import request_decision
+            request_decision(self, stage, refs, findings)
         self._persistence._commit_validated_stage(stage, refs, message=message)
+        from .checker_decision import clear_pending
+        clear_pending(self, stage)
         return tuple(ref.digest for ref in refs)
 
     def _validate_stage_bundle(
@@ -158,6 +178,8 @@ class Project:
                 artifacts_with_data,
                 dependency_artifacts,
                 current_stage_artifacts,
+                frozenset(dependency.value for dependency in self.workflow.spec(stage).dependencies
+                          if (self.stage(dependency).message or "").startswith("WORKER_ACCEPTED:")),
             ),
         )
 

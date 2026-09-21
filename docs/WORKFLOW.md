@@ -9,23 +9,20 @@
 | 3 | driver_candidate_resolution | 混合 | 轻量元数据候选表 |
 | 4 | scope_confirmation | 混合/用户门 | 唯一候选或一次合并问题 |
 | 5 | migration_envelope_freeze | 静态 | 固定驱动、设备、总线、包含与排除范围 |
-| 6 | revision_selection | 混合 | pinned revisions |
-| 7 | repository_acquisition | 静态 | 三个 repository lock、source identity、独立 target worktree |
-| 8 | evidence_closure | 混合 | plan、受控 materials、逐 facet coverage、gap register、retrieval ledger |
-| 9 | environment_recovery | 混合 | artifact mode、experiment route |
-| 10 | knowledge_base | 静态执行 | 工具构建 KB、query contract 和项目 KB Skill；语义检查由目标研究工作者完成 |
-| 11 | target_platform_study | Codex+Gate | target profile、API evidence、analog trace、target-change plan |
-| 12 | migration_handoff | 静态 | 复用已有证据生成交接身份 |
-| 13 | source_closure | Codex+静态工具 | 编译输入 → SOURCE_ANALYSIS → 原 worker 消费事实并完成覆盖自检 |
-| 14 | migration_contracts | 混合 | 一份合同与测试计划 |
-| 15 | driver_implementation | Codex+静态 | 实现、测试适配、合规自检和源码快照 |
-| 16 | artifact_preparation | 混合 | 可运行产物、测试入口和身份检查；必要源码调整自检后原地刷新快照 |
-| 17 | public_qemu_validation | 混合 | worker 准备 harness → 控制器执行并冻结 receipt → 原 worker 归因与自检 |
-| 18 | public_repair | 条件混合 | 默认静态收尾；unsafe 边界或明确请求才独立审查 |
-| 19 | completion_audit | 静态 | 汇总证据与未覆盖范围 |
+| 6 | repository_acquisition | 混合 | 一次选择与获取，固定本地真实 commit； 三个 repository lock、source identity、独立 target worktree |
+| 7 | evidence_closure | 混合 | plan、受控 materials、逐 facet coverage、gap register、retrieval ledger |
+| 8 | environment_recovery | 混合 | artifact mode、experiment route |
+| 9 | knowledge_base | 静态执行 | 工具构建 KB、query contract 和项目 KB Skill；语义检查由目标研究工作者完成 |
+| 10 | target_platform_study | Codex+Gate | target profile、API evidence、analog trace、target-change plan |
+| 11 | migration_handoff | 静态 | 复用已有证据生成交接身份 |
+| 12 | migration_contracts | 混合 | 一份源码分析、迁移合同与测试计划 |
+| 13 | driver_implementation | Codex+静态 | 实现、测试适配、合规自检和源码快照 |
+| 14 | artifact_preparation | 混合 | 可运行产物、测试入口和身份检查；必要源码调整自检后原地刷新快照 |
+| 15 | public_qemu_validation | 混合 | worker 准备 harness → 控制器执行并冻结 receipt → 原 worker 归因与自检 |
+| 16 | completion_audit | 静态 | 直接汇总 QEMU、自检证据与未覆盖范围，不增加风险审查 |
 
 上表为 `DEVELOPER_EVIDENCE`，检查点数量不是模型调用数量。研究、实现和验证使用同一工作者。
-仅 blind mode 在 completion audit 前增加 candidate sealing 和 digest export / candidate transfer。
+仅 blind mode 保留 public_repair，并在 completion audit 前增加 candidate sealing 和 digest export / candidate transfer。
 `MIGRATION_OPERATOR` 在前瞻盲测中必须先导入 `public_bundle` 和 `curator_commitment`。
 事后封存模式在候选封存后只导出 opaque digest；迁移域不负责创建私有测试。
 `request_intake` 至 `migration_envelope_freeze` 全部通过前，acquisition 不得 clone 内核、镜像或工具链。
@@ -57,7 +54,9 @@ observation -> classification -> evidence query -> hypothesis
 
 公开执行失败留在原工作会话分类，不默认启动审查者或重开实现。源码变化才回实现；
 镜像/客体入口问题回包装；同镜像的 harness/oracle 问题留在运行。当前回退原因和冻结报告正文
-随任务恢复，修复后只做受影响检查。补报告不触发实现或 QEMU 重跑。Rust 审查按变化语法单元
+随任务恢复，修复后只做受影响检查。补报告不触发实现或 QEMU 重跑。
+
+以下 Rust 风险审查只属于盲测候选路径，不参与开发流程。Rust 审查按变化语法单元
 及跨文件名称依赖定位，不因无关旧 unsafe、注释或格式修改触发。宏/通配导入、语法错误和
 分析超限明确保守回退；不是完整类型/动态调用分析。代码、计划、镜像与
 harness 输入不变的已通过独立审查可复用。历史证据保留在 CAS 与 ledger，不增加旧执行协议。

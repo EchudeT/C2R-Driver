@@ -7,6 +7,10 @@ class CodexOutputError(WorkflowError):
     """A model response failed its deterministic output/proposal gate."""
 
 
+class ModelInvocationError(WorkflowError):
+    """The worker could not be invoked; do not recursively call it for recovery."""
+
+
 class CodexContinuation(Exception):
     """New controller evidence for the same worker, not a failed model answer."""
 

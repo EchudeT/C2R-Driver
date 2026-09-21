@@ -15,7 +15,7 @@ def require_self_review(text: str) -> None:
             "Complete the Skill's self-check in the existing work report and end it with "
             "DPF_SELF_REVIEW: PASS only after required current-stage checks pass. "
             "Do not create another report or review round. Request a same-phase prerequisite "
-            "from context.repair_targets with DPF_REPAIR_STAGE then DPF_REVIEW: REWORK, "
+            "from instructions.repair_targets with DPF_REPAIR_STAGE then DPF_REVIEW: REWORK, "
             "or report a concrete blocker ending DPF_STATUS: BLOCKED. Earlier phases are "
             "sealed; never claim false PASS."
         )

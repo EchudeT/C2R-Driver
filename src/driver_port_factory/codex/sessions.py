@@ -9,27 +9,36 @@ import tomllib
 from pathlib import Path
 
 from ..core.contracts import StageKey
-from ..core.models import EvaluationMode
-from ..acquisition.contracts import AcquisitionStage
-from ..environment.contracts import EnvironmentStage
-from ..source_analysis.contracts import SourceAnalysisStage
-from ..target_study.contracts import TargetStudyStage
+from ..core.models import EvaluationMode, StageStatus
 from ..core.project import Project
-from ..migration.contracts import MigrationStage
+from ..migration.contracts import MigrationArtifact, MigrationStage
 from .policy import CodexExecutionGrant
 
 
-WORKER_STAGES = frozenset({
-    AcquisitionStage.REVISION_SELECTION, AcquisitionStage.EVIDENCE_CLOSURE,
-    EnvironmentStage.RECOVERY, TargetStudyStage.STUDY, SourceAnalysisStage.SOURCE_CLOSURE,
-    MigrationStage.CONTRACTS,
-    MigrationStage.DRIVER_IMPLEMENTATION, MigrationStage.ARTIFACT_PREPARATION,
-    MigrationStage.PUBLIC_QEMU_VALIDATION,
-})
+def compact_token_limit(project: Project, stage: StageKey, thread_id: str | None) -> int:
+    """Use a lower native threshold only for the first implementation invocation.
+
+    Codex measures live context; billing counters are cumulative and cannot decide
+    whether compaction is needed. Existing metrics prevent reapplying on retries.
+    """
+    default = 224000
+    if (stage is not MigrationStage.DRIVER_IMPLEMENTATION or not thread_id
+            or project.config.evaluation_mode is not EvaluationMode.DEVELOPER_EVIDENCE):
+        return default
+    if project.stage(MigrationStage.CONTRACTS).status is not StageStatus.PASS:
+        return default
+    if any((project.control / "codex").glob("driver_implementation-*.metrics.json")):
+        return default
+    refs = project.artifact_refs(stage=MigrationStage.CONTRACTS)
+    required = {MigrationArtifact.CONTRACTS.value, MigrationArtifact.TEST_PORT_MATRIX.value}
+    present = {ref.kind for ref in refs
+               if ref.kind in required and project.artifacts.path_for_digest(ref.digest).is_file()}
+    return 160000 if required <= present else default
 
 
 def session_key(
-    project: Project, stage: StageKey, grant: CodexExecutionGrant, model: str | None, backend: str
+    project: Project, stage: StageKey, grant: CodexExecutionGrant, model: str | None, backend: str,
+    *, worker_decision: bool = False,
 ) -> str:
     home = Path(os.environ.get("CODEX_HOME", Path.home() / ".codex")).resolve()
     config = home / "config.toml"
@@ -41,7 +50,8 @@ def session_key(
         "model": model or settings.get("model"),
         "base_url": settings.get("openai_base_url"),
     }
-    if project.config.evaluation_mode is EvaluationMode.DEVELOPER_EVIDENCE and stage in WORKER_STAGES:
+    if (project.config.evaluation_mode is EvaluationMode.DEVELOPER_EVIDENCE
+            and (stage is not MigrationStage.PUBLIC_REPAIR or worker_decision)):
         conversation = "worker"
     elif stage is MigrationStage.PUBLIC_REPAIR:
         conversation = "reviewer"
@@ -64,8 +74,8 @@ def read_session(project: Project, key: str) -> dict:
 
 
 def stage_session(project: Project, stage: StageKey, grant: CodexExecutionGrant,
-                  model: str | None, backend: str) -> tuple[str, dict]:
-    key = session_key(project, stage, grant, model, backend)
+                  model: str | None, backend: str, *, worker_decision: bool = False) -> tuple[str, dict]:
+    key = session_key(project, stage, grant, model, backend, worker_decision=worker_decision)
     return key, read_session(project, key)
 
 

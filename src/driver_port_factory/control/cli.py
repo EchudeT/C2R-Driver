@@ -60,7 +60,7 @@ def command_status(arguments: argparse.Namespace) -> None:
     for stage, row in zip(project.stages(), stats["stages"]):
         dependencies = ",".join(dependency.value for dependency in stage.dependencies) or "-"
         print(
-            f"{stage.position + 1:02d} {stage.status.value:17} {stage.owner.value:11} "
+            f"{stage.position + 1:02d} {row['execution_state']:17} {stage.owner.value:11} "
             f"{stage.name.value:28} time={duration(row['elapsed_seconds'])} "
             f"attempts={row['attempts']} deps={dependencies}"
         )
@@ -69,6 +69,8 @@ def command_status(arguments: argparse.Namespace) -> None:
             if repair:
                 print(f"   repair={repair['status']} root={repair.get('repair_root', repair['stage'])} "
                       f"trigger={repair['trigger']} (evidence refresh; existing work retained)")
+        if (stage.message or "").startswith("WORKER_ACCEPTED:"):
+            print(f"   acceptance={stage.message}")
         if row["codex_calls"]:
             usage = row["usage"]
             print(f"   codex={row['codex_calls']} input={usage['input_tokens']:,} "
@@ -129,12 +131,6 @@ def command_ledger_verify(arguments: argparse.Namespace) -> None:
 
 
 def register_commands(commands: CommandRegistry) -> None:
-    upgrade = commands.add_parser("upgrade-protocol", help="upgrade an idle pre-analysis run in place")
-    upgrade.add_argument("path")
-    def perform_upgrade(arguments):
-        from .protocol_upgrade import upgrade
-        print(json.dumps(upgrade(arguments.path)))
-    upgrade.set_defaults(handler=perform_upgrade)
     init = commands.add_parser("init", help="initialize a role-specific project workspace")
     init.add_argument("path")
     init.add_argument("--project-id")

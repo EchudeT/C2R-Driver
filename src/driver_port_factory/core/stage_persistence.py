@@ -143,6 +143,7 @@ class _StagePersistence:
             required_outputs=spec.required_outputs,
             auxiliary_outputs=spec.auxiliary_outputs,
             description=row["description"],
+            message=row["message"],
         )
 
     def _validate_pass_outputs(self, connection: sqlite3.Connection, view: StageView) -> None:

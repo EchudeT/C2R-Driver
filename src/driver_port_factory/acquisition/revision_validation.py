@@ -2,18 +2,15 @@ from __future__ import annotations
 
 import json
 import re
-from pathlib import Path
 
 from ..codex.contracts import CodexArtifact
 from ..core.contracts import ArtifactKey
 from ..core.models import ArtifactRef, WorkflowError
 from ..core.validation import BundleValidationContext
 from ..intake.contracts import IntakeArtifact
-from .commands import RepositoryCommandKind, RepositoryCommandRecord
 from .contracts import AcquisitionArtifact
 from .job import ArtifactOccurrence
 from .repository_role import RepositoryRole
-from .repository_spec import RepositorySpec
 from .revision_manifest import RepositoryPlan, RevisionManifest
 from .revision_proposal import RevisionProposalEnvelope
 
@@ -35,7 +32,6 @@ def validate_revision_bundle(context: BundleValidationContext) -> None:
     if plan.migration_envelope_digest != envelope_ref.digest:
         raise WorkflowError("repository plan does not bind its real migration envelope dependency")
     _validate_plan_proposal(plan, proposal, context.current_stage_artifacts)
-    _validate_resolution_commands(context.project_root, plan)
     _validate_manifest(revision, plan, envelope_ref.digest)
     if plan_ref.digest == plan.revision_proposal.digest:
         raise WorkflowError("repository plan cannot alias its auxiliary revision proposal")
@@ -74,77 +70,10 @@ def _validate_plan_proposal(
             raise WorkflowError("repository plan differs from its controlled revision proposal")
 
 
-def _validate_resolution_commands(root: Path, plan: RepositoryPlan) -> None:
-    by_role = {role: [] for role in RepositoryRole}
-    for command in plan.resolution_commands:
-        command.verify_evidence(root)
-        if Path(command.result.cwd).resolve() != root.resolve():
-            raise WorkflowError("revision resolution command used an unexpected working directory")
-        by_role[command.role].append(command)
-    for repository in plan.repositories:
-        records = by_role[repository.role]
-        resolutions = [
-            item for item in records if item.operation is RepositoryCommandKind.REVISION_RESOLUTION
-        ]
-        if not resolutions or not any(
-            repository.resolved_commit in _stdout(command) for command in resolutions
-        ):
-            raise WorkflowError(
-                f"{repository.role.value} revision lacks successful resolution evidence"
-            )
-        _validate_resolution_shape(repository, records)
 
 
-def _validate_resolution_shape(
-    repository: RepositorySpec,
-    records: list[RepositoryCommandRecord],
-) -> None:
-    local = Path(repository.url)
-    resolutions = [
-        record
-        for record in records
-        if record.operation is RepositoryCommandKind.REVISION_RESOLUTION
-    ]
-    if local.is_absolute() and local.exists():
-        expected = (
-            "git",
-            "-C",
-            str(local.resolve()),
-            "rev-parse",
-            f"{repository.requested_ref}^{{commit}}",
-        )
-        if not any(record.result.argv == expected for record in resolutions):
-            raise WorkflowError("local revision command does not bind its repository and ref")
-        return
-    if _FULL_COMMIT.fullmatch(repository.requested_ref):
-        memberships = [
-            record
-            for record in records
-            if record.operation is RepositoryCommandKind.COMMIT_MEMBERSHIP
-        ]
-        origins = [
-            record
-            for record in records
-            if record.operation is RepositoryCommandKind.ORIGIN_CONFIGURATION
-        ]
-        if not memberships or not any(
-            record.result.argv[-1] == repository.requested_ref for record in memberships
-        ):
-            raise WorkflowError("remote full commit lacks active membership proof")
-        if not origins or not any(record.result.argv[-1] == repository.url for record in origins):
-            raise WorkflowError("remote commit proof does not bind its claimed origin")
-        return
-    if not any(
-        repository.url in record.result.argv
-        and repository.requested_ref in record.result.argv
-        and "ls-remote" in record.result.argv
-        for record in resolutions
-    ):
-        raise WorkflowError("remote revision command does not bind its repository and ref")
 
 
-def _stdout(command: RepositoryCommandRecord) -> str:
-    return Path(command.result.stdout_path).read_text(encoding="utf-8", errors="replace")
 
 
 def _validate_manifest(

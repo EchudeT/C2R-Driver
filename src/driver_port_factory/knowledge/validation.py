@@ -45,18 +45,11 @@ def _readiness(data: bytes) -> None:
         raise WorkflowError("kb_readiness_report must have no failed probes")
 
 
-def _target_probes(data: bytes) -> None:
-    value = json_object(data, KnowledgeArtifact.TARGET_PROBE_RESULTS.value)
-    if value.get("status") != "DEFERRED_TO_TARGET_PLATFORM_STUDY":
-        raise WorkflowError("semantic probes belong to the worker's target-platform study")
-
-
 VALIDATORS = MappingProxyType[KnowledgeArtifact, ArtifactValidator](
     {
         KnowledgeArtifact.STATUS: _status,
         KnowledgeArtifact.QUERY_CONTRACT: _query_contract,
         KnowledgeArtifact.GENERATED_SKILL: _generated_skill,
         KnowledgeArtifact.READINESS_REPORT: _readiness,
-        KnowledgeArtifact.TARGET_PROBE_RESULTS: _target_probes,
     }
 )

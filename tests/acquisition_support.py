@@ -4,8 +4,6 @@ import atexit
 import json
 import subprocess
 import threading
-from collections.abc import Iterator
-from contextlib import contextmanager
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
@@ -28,7 +26,6 @@ from driver_port_factory.acquisition.facets import (
 from driver_port_factory.acquisition.proposal import EvidenceProposalImporter, ProposalImport
 from driver_port_factory.acquisition.repository_role import RepositoryRole
 from driver_port_factory.acquisition.revision_proposal import RevisionProposalImporter
-from driver_port_factory.acquisition.revision_selection import RevisionSelector
 from driver_port_factory.codex.contracts import CodexArtifact
 from driver_port_factory.core.models import GeneratedArtifact
 from driver_port_factory.core.project import Project
@@ -64,60 +61,33 @@ def select_revisions(
     *,
     requested_refs: dict[RepositoryRole, str] | None = None,
 ) -> None:
-    project.start(AcquisitionStage.REVISION_SELECTION)
-    proposal = {"repositories": [
-        {
-            "role": role.value,
-            "url": str(path.resolve()),
-            "ref": (requested_refs or {}).get(role, git("rev-parse", "HEAD", cwd=path)),
-        }
-        for role, path in (
-            (RepositoryRole.SOURCE, source),
-            (RepositoryRole.TARGET, target),
-            (RepositoryRole.QEMU, qemu),
-        )
-    ]}
+    project.start(AcquisitionStage.REPOSITORY_ACQUISITION)
+    proposal = {
+        "repositories": [
+            {
+                "role": role.value,
+                "url": str(path.resolve()),
+                "ref": (requested_refs or {}).get(role, git("rev-parse", "HEAD", cwd=path)),
+            }
+            for role, path in (
+                (RepositoryRole.SOURCE, source),
+                (RepositoryRole.TARGET, target),
+                (RepositoryRole.QEMU, qemu),
+            )
+        ]
+    }
     job = project.record_artifact(
-        AcquisitionStage.REVISION_SELECTION,
-        GeneratedArtifact(CodexArtifact.JOB_RESULT, json.dumps(proposal).encode(), "test:revision-selection"),
+        AcquisitionStage.REPOSITORY_ACQUISITION,
+        GeneratedArtifact(
+            CodexArtifact.JOB_RESULT, json.dumps(proposal).encode(), "test:revision-selection"
+        ),
     )
     assert job.ordinal is not None
     occurrence = RevisionProposalImporter().import_job_result(
-        project, job_digest=job.digest, job_ordinal=job.ordinal,
+        project,
+        job_digest=job.digest,
+        job_ordinal=job.ordinal,
     )
-    RevisionSelector().select(project, proposal=occurrence)
-
-
-class _CompatibilityEvidenceHandler(BaseHTTPRequestHandler):
-    content = b""
-
-    def do_GET(self) -> None:
-        self.send_response(200)
-        self.send_header("Content-Type", "text/plain; charset=utf-8")
-        self.send_header("Content-Length", str(len(self.content)))
-        self.end_headers()
-        self.wfile.write(self.content)
-
-    def log_message(self, format: str, *args: object) -> None:
-        return
-
-
-@contextmanager
-def compatibility_evidence_server(content: bytes) -> Iterator[str]:
-    handler = type(
-        "CompatibilityEvidenceHandler",
-        (_CompatibilityEvidenceHandler,),
-        {"content": content},
-    )
-    server = ThreadingHTTPServer(("127.0.0.1", 0), handler)
-    thread = threading.Thread(target=server.serve_forever, daemon=True)
-    thread.start()
-    try:
-        yield f"http://127.0.0.1:{server.server_port}/compatibility.txt"
-    finally:
-        server.shutdown()
-        thread.join(timeout=2)
-        server.server_close()
 
 
 def close_evidence(

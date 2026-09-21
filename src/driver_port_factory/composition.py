@@ -31,14 +31,6 @@ from .orchestration.migration import migration_workflow
 from .sealing.contracts import SealingStage
 from .sealing.validation import BUNDLE_VALIDATORS as SEALING_BUNDLE_VALIDATORS
 from .sealing.validation import VALIDATORS as SEALING_VALIDATORS
-from .source_analysis.analysis_validation import (
-    BUNDLE_VALIDATORS as SOURCE_BUNDLE_VALIDATORS,
-)
-from .source_analysis.analysis_validation import VALIDATORS as ANALYSIS_VALIDATORS
-from .source_analysis.closure_validation import VALIDATORS as CLOSURE_VALIDATORS
-from .source_analysis.contracts import SourceAnalysisStage
-from .source_analysis.fact_validation import VALIDATORS as FACT_VALIDATORS
-from .source_analysis.semantic_validation import VALIDATORS as SEMANTIC_VALIDATORS
 from .target_study.contracts import TargetStudyStage
 from .target_study.validation import VALIDATORS as TARGET_STUDY_VALIDATORS
 
@@ -50,10 +42,6 @@ ARTIFACT_VALIDATORS = ValidationRegistry.compose(
         ENVIRONMENT_VALIDATORS,
         KNOWLEDGE_VALIDATORS,
         TARGET_STUDY_VALIDATORS,
-        CLOSURE_VALIDATORS,
-        FACT_VALIDATORS,
-        SEMANTIC_VALIDATORS,
-        ANALYSIS_VALIDATORS,
         MIGRATION_VALIDATORS,
         SEALING_VALIDATORS,
         EVALUATION_VALIDATORS,
@@ -63,7 +51,6 @@ ARTIFACT_VALIDATORS = ValidationRegistry.compose(
         ACQUISITION_BUNDLE_VALIDATORS,
         MIGRATION_BUNDLE_VALIDATORS,
         SEALING_BUNDLE_VALIDATORS,
-        SOURCE_BUNDLE_VALIDATORS,
     ),
 )
 
@@ -75,7 +62,6 @@ WORKFLOW_STAGE_CATALOG = StageCatalog.compose(
         EnvironmentStage,
         KnowledgeStage,
         TargetStudyStage,
-        SourceAnalysisStage,
         MigrationStage,
         SealingStage,
         EvaluationStage,
@@ -94,6 +80,14 @@ def workflow_for(config: ProjectConfig) -> WorkflowDefinition:
         specs = auditor_workflow(config)
     else:
         raise WorkflowError(f"unsupported actor role: {config.actor_role.value}")
+    from dataclasses import replace
+    from .codex.contracts import CodexArtifact
+    from .core.models import EvaluationMode, StageOwner
+    if config.evaluation_mode is EvaluationMode.DEVELOPER_EVIDENCE:
+        # Static stages call the same worker only when a checker needs a decision.
+        specs = tuple(replace(spec, auxiliary_outputs=(*spec.auxiliary_outputs,
+                      CodexArtifact.JOB_RESULT, CodexArtifact.WORK_REPORT, CodexArtifact.EVENT_LOG))
+                      if spec.owner is StageOwner.STATIC else spec for spec in specs)
     return WorkflowDefinition.build(specs, ARTIFACT_VALIDATORS)
 
 

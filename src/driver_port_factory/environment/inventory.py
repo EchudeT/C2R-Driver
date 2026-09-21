@@ -4,6 +4,7 @@ import os
 import platform
 import shutil
 import sys
+import subprocess
 from pathlib import Path
 from typing import Any
 
@@ -30,6 +31,7 @@ class EnvironmentInspector:
         "cargo",
         "rustc",
         "clang",
+        "clang-18",
         "cmake",
         "make",
         "ninja",
@@ -54,6 +56,7 @@ class EnvironmentInspector:
             path = shutil.which(name)
             tools.append({"name": name, "path": path, "available": path is not None})
         inventory = self._inventory(project, target, qemu, metadata, tools)
+        inventory["local_probes"] = self._local_probes(tools)
         candidates = {
             "schema_version": 1,
             "recorded_at": utc_now(),
@@ -78,6 +81,30 @@ class EnvironmentInspector:
                 direction=ArtifactDirection.INPUT,
             )
         return {"inventory": inventory, "artifact_mode_candidates": candidates}
+
+    @staticmethod
+    def _local_probes(tools):
+        """Bounded host facts, not inferred availability or old migration evidence."""
+        results, commands = [], []
+        for tool in tools:
+            if not tool["available"]:
+                continue
+            name, path = tool["name"], tool["path"]
+            if name.startswith("qemu-system-"):
+                commands.append(([path, "--version"], None))
+            elif name == "docker":
+                commands.append(([path, "image", "ls", "--format", "{{.Repository}}:{{.Tag}} {{.ID}}"], None))
+        for path in ("/usr/bin/clang-18", "/usr/bin/clang", "/usr/bin/gcc"):
+            if Path(path).is_file():
+                commands.append(([path, "-x", "c", "-fsyntax-only", "-"], "int main(void){return 0;}\n"))
+        for argv, source in commands:
+            try:
+                result = subprocess.run(argv, input=source, capture_output=True, text=True, timeout=10)
+                results.append({"argv": argv, "exit_code": result.returncode,
+                                "output": (result.stdout + result.stderr)[:4000]})
+            except (OSError, subprocess.TimeoutExpired) as error:
+                results.append({"argv": argv, "exit_code": None, "error": str(error)[:500]})
+        return results
 
     @staticmethod
     def _inventory(
@@ -210,7 +237,7 @@ class EnvironmentInspector:
                 }
             )
         qemu_tools = [
-            item for item in tools if item["available"] and item["name"].startswith("qemu-")
+            item for item in tools if item["available"] and item["name"].startswith("qemu-system-")
         ]
         if qemu_tools:
             candidates.append(

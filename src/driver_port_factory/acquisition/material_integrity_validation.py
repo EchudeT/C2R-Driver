@@ -5,7 +5,7 @@ from pathlib import Path
 
 from ..core.models import WorkflowError
 from .accounting import RetrievalAttempt
-from .authority import CorroboratedAuthority, RepositoryEndorsementAuthority
+from .authority import CorroboratedAuthority, RepositoryEndorsementAuthority, OriginalPublisherAuthority
 from .facet_policy import external_authority_is_allowed, repository_is_authoritative
 from .git_material_validation import validate_git_material_identity
 from .locators import ExternalUrlLocator, GitBlobLocator
@@ -95,6 +95,10 @@ def _validate_external_origin(
     ):
         raise WorkflowError("external material top-level provenance differs from its response")
     authority = locator.authority
+    if isinstance(authority, OriginalPublisherAuthority):
+        from .authority_verification import verify_publisher
+        verify_publisher(authority, origin.response.resolved_url)
+        return
     if isinstance(authority, CorroboratedAuthority):
         expected = tuple((item.source_url, item.expected_sha256) for item in authority.sources)
         actual = tuple((item.requested_url, item.sha256) for item in origin.corroboration)

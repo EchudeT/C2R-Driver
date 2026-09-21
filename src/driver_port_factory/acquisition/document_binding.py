@@ -1,12 +1,12 @@
 """Freeze a public document from semantic URL choices, without model-written hashes."""
 from __future__ import annotations
 
-from .authority import CorroboratedAuthority, CorroborationLocator
-from .authority_verification import PublisherIdentity
+from .authority import CorroboratedAuthority, CorroborationLocator, OriginalPublisherAuthority
+from .authority_verification import PublisherIdentity, verify_publisher
 from .facets import MaterialRedistribution
 from .http_content import EvidenceHttpContentRecorder
 from .locators import ExternalUrlLocator, MaterialPolicy
-from .parsing import exact_object, http_url
+from .parsing import exact_object, http_url, nonempty
 from .retrieval_result import RetrievalFailure
 from ..core.models import WorkflowError
 from ..core.project import Project
@@ -17,14 +17,25 @@ class ExternalDocumentBinder:
         self.content = EvidenceHttpContentRecorder(project)
 
     def bind(self, value: object) -> ExternalUrlLocator:
-        candidate = exact_object(value, required={"url", "corroboration_urls"},
+        candidate = exact_object(value, required={"url"},
+                                 optional={"corroboration_urls", "publisher_url", "basis"},
                                  label="external document")
         url = http_url(candidate["url"], "document URL")
-        others = candidate["corroboration_urls"]
+        limit = 16 * 1024 * 1024
+        if "publisher_url" in candidate:
+            if "corroboration_urls" in candidate:
+                raise WorkflowError("choose original publisher or corroborated mirror, not both")
+            authority = OriginalPublisherAuthority(http_url(candidate["publisher_url"], "publisher URL"),
+                                                   nonempty(candidate.get("basis"), "publisher evidence"))
+            primary = self.content.retrieve(url, expected_sha256=None, max_bytes=limit)
+            verify_publisher(authority, primary.response.resolved_url)
+            return ExternalUrlLocator(url, "sha256:" + primary.response.sha256,
+                primary.response.sha256, limit, authority,
+                MaterialPolicy("review-required", MaterialRedistribution.UNKNOWN, True))
+        others = candidate.get("corroboration_urls")
         if not isinstance(others, list) or not others:
             raise WorkflowError("external document needs an independently published copy of the same original")
         urls = tuple(http_url(item, "corroboration URL") for item in others)
-        limit = 16 * 1024 * 1024
         try:
             primary = self.content.retrieve(url, expected_sha256=None, max_bytes=limit)
             copies = [self.content.retrieve(other, expected_sha256=primary.response.sha256,

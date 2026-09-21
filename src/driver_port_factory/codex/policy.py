@@ -6,11 +6,10 @@ from pathlib import Path
 from ..acquisition.contracts import AcquisitionStage
 from ..acquisition.repository import load_repository_acquisition
 from ..core.contracts import StageKey
-from ..core.models import WorkflowError
+from ..core.models import EvaluationMode, WorkflowError
 from ..core.project import Project
 from ..environment.contracts import EnvironmentStage
 from ..migration.contracts import MigrationStage
-from ..source_analysis.contracts import SourceAnalysisStage
 from ..target_study.contracts import TargetStudyStage
 from .contracts import CodexSandbox
 
@@ -22,10 +21,10 @@ class CodexExecutionGrant:
 
 
 class CodexExecutionPolicy:
-    """Resolve the least-privilege filesystem grant owned by a workflow stage."""
+    """Developer workers have full tool access; stage directories organize their work."""
 
     NETWORK_STAGES = frozenset(
-        {AcquisitionStage.REVISION_SELECTION, AcquisitionStage.EVIDENCE_CLOSURE}
+        {AcquisitionStage.REPOSITORY_ACQUISITION, AcquisitionStage.EVIDENCE_CLOSURE}
     )
     WRITABLE_STAGES = frozenset(
         {
@@ -35,12 +34,11 @@ class CodexExecutionPolicy:
         }
     )
     DEPENDENCY_STAGES = WRITABLE_STAGES | frozenset(
-        {EnvironmentStage.RECOVERY, SourceAnalysisStage.SOURCE_CLOSURE}
+        {EnvironmentStage.RECOVERY, MigrationStage.CONTRACTS}
     )
     REPORT_WORKSPACE_STAGES = frozenset(
         {
             EnvironmentStage.RECOVERY,
-            SourceAnalysisStage.SOURCE_CLOSURE,
             TargetStudyStage.STUDY,
             MigrationStage.CONTRACTS,
             MigrationStage.PUBLIC_REPAIR,
@@ -48,6 +46,8 @@ class CodexExecutionPolicy:
     )
 
     def grant(self, project: Project, stage: StageKey) -> CodexExecutionGrant:
+        developer = getattr(getattr(project, "config", None), "evaluation_mode", None) is EvaluationMode.DEVELOPER_EVIDENCE
+        writable = CodexSandbox.UNRESTRICTED if developer else CodexSandbox.WORKSPACE_WRITE
         if stage in self.NETWORK_STAGES:
             return CodexExecutionGrant(project.root, CodexSandbox.UNRESTRICTED)
         if stage in self.REPORT_WORKSPACE_STAGES:
@@ -59,9 +59,9 @@ class CodexExecutionPolicy:
                 for record in acquisition.checkouts
             )
             self._validate_writable_root(project, execution_root, frozen)
-            return CodexExecutionGrant(execution_root, CodexSandbox.WORKSPACE_WRITE)
+            return CodexExecutionGrant(execution_root, writable)
         if stage not in self.WRITABLE_STAGES:
-            return CodexExecutionGrant(project.root, CodexSandbox.READ_ONLY)
+            return CodexExecutionGrant(project.root, CodexSandbox.UNRESTRICTED if developer else CodexSandbox.READ_ONLY)
         acquisition = load_repository_acquisition(project)
         execution_root = self._project_path(
             project,
@@ -73,7 +73,7 @@ class CodexExecutionPolicy:
             for record in acquisition.checkouts
         )
         self._validate_writable_root(project, execution_root, frozen)
-        return CodexExecutionGrant(execution_root, CodexSandbox.WORKSPACE_WRITE)
+        return CodexExecutionGrant(execution_root, writable)
 
     @staticmethod
     def controlled_input(project: Project, value: str, label: str) -> Path:

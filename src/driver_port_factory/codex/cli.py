@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import subprocess
 import sys
 import time
 from pathlib import Path
@@ -19,13 +20,11 @@ from ..core.models import (
     utc_now,
 )
 from ..core.project import Project
-from ..source_analysis.contracts import SourceAnalysisStage
-from ..source_analysis.navigation import prepare_navigation
-from .contracts import CodexArtifact, CodexBackend, CodexExecEventType
+from .contracts import CodexArtifact, CodexBackend, CodexExecEventType, CodexOutputError, ModelInvocationError
 from .gateway import CodexExecGateway, CodexJob, CodexResult
 from .policy import CodexExecutionPolicy
 from .prompts import RenderedPrompt, SkillPromptComposer
-from .sessions import input_changes, save_session, stage_session
+from .sessions import compact_token_limit, input_changes, save_session, stage_session
 from .accounting import estimate, latest_usage, model_settings, usage_delta
 
 
@@ -41,8 +40,8 @@ def _render_prompt(
     from ..migration.repair_execution import active
     from ..migration.contracts import MigrationStage
     context = dict(context or {})
-    if active(project, stage) or (stage is MigrationStage.ARTIFACT_PREPARATION
-                                 and context.get("controller_validation_error")):
+    if active(project, stage) or (
+            stage is MigrationStage.ARTIFACT_PREPARATION and context.get("controller_validation_error")):
         context["repair_execution"] = {
             "mode": "prepare-once-controller-validates",
             "completion": "Repair, affected checks, runtime artifact and public runner ready; DPF_SELF_REVIEW: PASS.",
@@ -91,21 +90,15 @@ def run_codex_stage(
     skill_root: Path | None = None,
 ) -> tuple[CodexResult, RenderedPrompt, Path]:
     stage = project.stage(stage_key)
-    if stage.owner is StageOwner.STATIC:
+    if stage.owner is StageOwner.STATIC and not (context or {}).get("checker_decision"):
         raise WorkflowError(f"stage {stage_key.value} is statically owned and cannot run Codex")
     if stage.status is StageStatus.READY:
         project.start(stage_key)
     elif stage.status is not StageStatus.RUNNING:
         raise WorkflowError(f"Codex stage must be READY or RUNNING, got {stage.status.value}")
-    if SourceAnalysisStage.SOURCE_CLOSURE.value in project.workflow.stage_values:
-        from ..source_analysis.preparation import latest
-        source = project.stage(SourceAnalysisStage.SOURCE_CLOSURE)
-        receipt = latest(project) if source.status is StageStatus.RUNNING else None
-        if source.status is StageStatus.PASS or (receipt and any(
-                r["kind"] == "structured_c_facts" for r in receipt["artifacts"])):
-            prepare_navigation(project)
     grant = CodexExecutionPolicy().grant(project, stage_key)
-    key, session = stage_session(project, stage_key, grant, model, backend.value)
+    key, session = stage_session(project, stage_key, grant, model, backend.value,
+                                 worker_decision=bool((context or {}).get("checker_decision")))
     thread_id = thread_id or session.get("thread_id")
     context = {
         **(context or {}),
@@ -117,19 +110,20 @@ def run_codex_stage(
         },
         "available_inputs": [d.value for d in project.workflow.spec(stage_key).dependencies],
     }
+    from ..environment.contracts import EnvironmentStage, EnvironmentArtifact
+    if (EnvironmentStage.RECOVERY.value in project.workflow.stage_values
+            and project.stage(EnvironmentStage.RECOVERY).status is StageStatus.PASS):
+        context["environment_evidence"] = {}
+        for kind in (EnvironmentArtifact.INVENTORY, EnvironmentArtifact.MODE_RECORD):
+            ref = project.artifact(EnvironmentStage.RECOVERY, kind)
+            context["environment_evidence"][kind.value] = {
+                "kind": kind.value, "digest": ref.digest,
+                "path": str(project.artifacts.path_for_digest(ref.digest)),
+            }
     if stage_key in CodexExecutionPolicy.DEPENDENCY_STAGES:
         context["tool_runtime"]["cargo_home"] = str(
             grant.execution_root / ".dpf-output" / "cargo-home"
         )
-    if stage_key is SourceAnalysisStage.SOURCE_CLOSURE:
-        from ..source_analysis.preparation import latest
-        receipt = latest(project)
-        context["source_operation"] = {
-            "inputs_prepared": receipt is not None,
-            "facts_prepared": bool(receipt and any(
-                r["kind"] == "structured_c_facts" for r in receipt["artifacts"])),
-            "query": "knowledge c-facts PROJECT --symbol NAME",
-        }
     if follow_up:
         context = {**(context or {}), "controller_feedback": follow_up}
     repair = project.retry_feedback(stage_key)
@@ -188,6 +182,7 @@ def run_codex_stage(
         output_schema=(rendered.output_schema.path if rendered.output_schema else None),
         model=model,
         thread_id=thread_id,
+        compact_token_limit=compact_token_limit(project, stage_key, thread_id),
     )
     output_path = codex_dir / f"{stage_key.value}-{job.job_id}.result"
     known_documents = session.get("documents", {}) if thread_id == session.get("thread_id") else {}
@@ -204,6 +199,7 @@ def run_codex_stage(
         **model_settings(model),
         "usage_baseline": latest_usage(codex_dir, thread_id),
         "resumed": bool(thread_id), "prompt_bytes": len(prompt.encode()),
+        "auto_compact_token_limit": job.compact_token_limit,
         "usage_semantics": "cumulative thread counters; subtract usage_baseline",
     }
 
@@ -238,6 +234,8 @@ def run_codex_stage(
     persist_metrics()
     try:
         result = gateway.run(job)
+    except (WorkflowError, OSError, subprocess.SubprocessError) as error:
+        raise ModelInvocationError(str(error)) from error
     finally:
         metrics["completed_at"] = utc_now()
         persist_metrics()
@@ -260,12 +258,12 @@ def run_codex_stage(
             ),
         )
     if result.error:
-        raise WorkflowError(result.error)
+        raise ModelInvocationError(result.error)
     if rendered.output_schema:
         try:
             json.loads(result.final_response)
         except json.JSONDecodeError as error:
-            raise WorkflowError(
+            raise CodexOutputError(
                 "Codex output is not valid JSON despite an output schema"
             ) from error
     project.record_artifact(

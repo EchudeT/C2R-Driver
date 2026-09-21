@@ -1,8 +1,8 @@
-The controller rejected the previous proposal:
+Diagnose the reported issue using existing evidence. Fix genuine defects together and recheck only
+affected paths; retain valid work. If the diagnostic contradicts execution evidence, identify the
+collector/protocol limitation rather than changing correct code to satisfy it. Keep the current
+job's response format and Skill requirements; never claim unexecuted checks passed.
 
+<diagnostic>
 {{error}}
-
-Address all reported defects together and check their directly affected paths. Retain valid work;
-do not repeat unrelated investigation or checks. Return one complete replacement in the current
-job's response format. A controller error is not authority to weaken Skill requirements or claim
-unexecuted checks passed; explain a conflicting premise using the relevant evidence.
+</diagnostic>

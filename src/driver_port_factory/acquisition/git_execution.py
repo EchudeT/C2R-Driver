@@ -15,6 +15,10 @@ class RepositoryGitResult:
     record: RepositoryCommandRecord
 
 
+class RepositoryFetchError(WorkflowError):
+    """Acquisition can resume the same selection without a paid model decision."""
+
+
 class RepositoryGit:
     """Execute Git commands and retain successful, typed command evidence."""
 
@@ -37,14 +41,14 @@ class RepositoryGit:
             timeout_seconds=(
                 1800 if operation in {
                     RepositoryCommandKind.BASELINE_FETCH,
-                    RepositoryCommandKind.COMMIT_MEMBERSHIP,
                 } else 600
             ),
         )
         stdout = Path(result.stdout_path).read_text(encoding="utf-8", errors="replace")
         if result.exit_code != 0:
             stderr = Path(result.stderr_path).read_text(encoding="utf-8", errors="replace")
-            raise WorkflowError(
+            error_type = RepositoryFetchError if operation is RepositoryCommandKind.BASELINE_FETCH else WorkflowError
+            raise error_type(
                 f"git command failed ({result.exit_code}): git {' '.join(arguments)}: "
                 f"{stderr.strip()}"
             )
@@ -70,3 +74,7 @@ class RepositoryGit:
     @property
     def records(self) -> tuple[RepositoryCommandRecord, ...]:
         return tuple(self._records)
+
+    def reuse(self, record: RepositoryCommandRecord) -> None:
+        record.verify_evidence(self.project_root)
+        self._records.append(record)

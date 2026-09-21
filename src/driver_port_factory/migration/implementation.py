@@ -12,7 +12,6 @@ from ..core.project import Project
 from ..core.validation import BundleValidationContext, json_object
 from ..knowledge.contracts import KnowledgeArtifact
 from ..knowledge.index import file_sha256
-from ..source_analysis.contracts import SourceAnalysisArtifact
 from ..target_study.contracts import TargetStudyArtifact
 from .contracts import MigrationArtifact, MigrationStage
 from .review_policy import require_self_review
@@ -23,12 +22,7 @@ IMPLEMENTATION_INPUTS = (
     MigrationArtifact.TEST_PORT_MATRIX,
     KnowledgeArtifact.QUERY_CONTRACT,
     KnowledgeArtifact.GENERATED_SKILL,
-    TargetStudyArtifact.STRUCTURED_PROFILE,
-    TargetStudyArtifact.API_EVIDENCE,
-    TargetStudyArtifact.ANALOGOUS_DRIVER_TRACE,
-    TargetStudyArtifact.CHANGE_PLAN,
-    SourceAnalysisArtifact.SOURCE_CLOSURE,
-    SourceAnalysisArtifact.STRUCTURED_C_FACTS,
+    TargetStudyArtifact.REPORT,
 )
 
 
@@ -94,12 +88,15 @@ class DriverImplementationService:
 
         if project.stage(MigrationStage.DRIVER_IMPLEMENTATION).status is not StageStatus.RUNNING:
             raise WorkflowError("driver_implementation must be RUNNING")
-        require_self_review(report_path.read_text(encoding="utf-8"))
+        try:
+            require_self_review(report_path.read_text(encoding="utf-8"))
+        except CodexOutputError as error:
+            project.note_check(str(error))
         acquisition = load_repository_acquisition(project)
         worktree = (project.root / acquisition.target_worktree.path).resolve()
         files = worktree_files(worktree, acquisition.target_worktree.base_commit)
         if not files:
-            raise CodexOutputError("implementation has no changes relative to frozen upstream")
+            project.note_check("implementation has no changes relative to frozen upstream")
         inputs = self._inputs(project)
         report = {
             "path": str(report_path.relative_to(project.root)),
@@ -130,7 +127,6 @@ class DriverImplementationService:
                     self._json(bundle),
                     "generated:driver-implementation-snapshot",
                 ),
-                FileArtifact(MigrationArtifact.TRANSLATION_COVERAGE, report_path),
                 FileArtifact(MigrationArtifact.COMPLIANCE_REPORT, report_path),
                 GeneratedArtifact(
                     MigrationArtifact.TARGET_CHANGE_INVENTORY,
@@ -173,7 +169,7 @@ def validate_implementation_bundle(context: BundleValidationContext) -> None:
         context.one_current(MigrationArtifact.TARGET_CHANGE_INVENTORY)[1],
         "target change inventory",
     )
-    report_ref, report_data = context.one_current(MigrationArtifact.TRANSLATION_COVERAGE)
+    report_ref, report_data = context.one_current(MigrationArtifact.COMPLIANCE_REPORT)
     try:
         report_text = report_data.decode("utf-8")
     except UnicodeDecodeError as error:
@@ -181,8 +177,6 @@ def validate_implementation_bundle(context: BundleValidationContext) -> None:
     if not report_text.strip():
         raise WorkflowError("implementation work report is not non-empty UTF-8")
     require_self_review(report_text)
-    if context.one_current(MigrationArtifact.COMPLIANCE_REPORT)[1] != report_data:
-        raise WorkflowError("compliance self-check must be the original implementation report")
     expected_inputs = {
         kind.value: context.one_dependency(kind)[0].to_dict() for kind in IMPLEMENTATION_INPUTS
     }

@@ -5,10 +5,10 @@ from .models import WorkflowError
 GROUPS = {
     "scope_and_baselines": (
         "project_init", "request_intake", "driver_candidate_resolution", "scope_confirmation",
-        "migration_envelope_freeze", "revision_selection", "repository_acquisition"),
+        "migration_envelope_freeze", "repository_acquisition"),
     "evidence_and_design": (
         "evidence_closure", "environment_recovery", "knowledge_base", "target_platform_study",
-        "migration_handoff", "source_closure", "migration_contracts"),
+        "migration_handoff", "migration_contracts"),
     "delivery": (
         "driver_implementation", "artifact_preparation", "public_qemu_validation", "public_repair"),
     "completion": ("completion_audit",),

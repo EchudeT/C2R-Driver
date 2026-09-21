@@ -52,15 +52,6 @@ class KnowledgeBootstrapper:
             "semantic_probe_owner": "target_platform_study",
             "recorded_at": utc_now(),
         }
-        deferred_target_study = {
-            "schema_version": 1,
-            "status": "DEFERRED_TO_TARGET_PLATFORM_STUDY",
-            "reason": (
-                "Target-specific semantic probes require Codex inspection of pinned originals; "
-                "the knowledge stage only builds the static index and query interface."
-            ),
-            "probes": [],
-        }
         project.finalize_stage(
             KnowledgeStage.KNOWLEDGE_BASE,
             (
@@ -79,11 +70,6 @@ class KnowledgeBootstrapper:
                     KnowledgeArtifact.READINESS_REPORT,
                     _json_bytes(readiness),
                     "generated:knowledge:readiness",
-                ),
-                GeneratedArtifact(
-                    KnowledgeArtifact.TARGET_PROBE_RESULTS,
-                    _json_bytes(deferred_target_study),
-                    "generated:knowledge:target-probes-deferred",
                 ),
             ),
         )

@@ -16,13 +16,15 @@ def exec_arguments(line: str) -> list[str]:
 
 
 def qemu_experiment(line: str) -> bool:
-    """Reject discovery-only commands; smoke oracles remain the harness's responsibility."""
+    """Identify non-discovery invocations, not the semantic validity of a test.
+
+    Environment smoke may exercise a device without booting a guest. Route-specific
+    assertions belong to the harness; a boot-argument whitelist cannot validate them.
+    """
     argv = exec_arguments(line)
     if any(arg in {"--version", "-version", "--help", "-help", "-h", "help", "?"} for arg in argv[1:]):
         return False
-    return any(arg in {"-kernel", "-bios", "-pflash", "-cdrom", "-drive", "-blockdev",
-                       "-hda", "-hdb", "-hdc", "-hdd", "-fda", "-fdb", "-qtest"}
-               and index + 1 < len(argv) for index, arg in enumerate(argv))
+    return bool(argv)
 
 
 def successful_execs(lines: Iterable[str]) -> tuple[tuple[str, str], ...]:

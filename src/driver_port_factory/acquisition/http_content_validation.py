@@ -30,8 +30,6 @@ class EvidenceContentOccurrences:
         attempts: tuple[RetrievalAttempt, ...],
     ) -> None:
         references = tuple(reference for attempt in attempts for reference in attempt.content_refs)
-        if len(set(references)) != len(references):
-            raise WorkflowError("retrieval attempts reuse an HTTP content occurrence")
         for reference in references:
             self._resolve(reference)
         attempts_by_material = {

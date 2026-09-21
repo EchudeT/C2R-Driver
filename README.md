@@ -4,13 +4,16 @@
 [工作流对齐说明](docs/WORKFLOW_ALIGNMENT.md)。
 
 Driver Port Factory（DPF）把 C 驱动跨平台迁移、公开验证、候选物封存和独立盲测组织成可审计的
-程序工作流。它严格区分确定性控制代码与 Codex 判断任务：程序拥有状态、门禁、哈希和执行结果；
-Codex Prompt、原始响应和事件只作辅助证据，required artifact 由明确的领域 adapter 生成和验证。
+程序工作流。开发者模式中，程序负责记录、采集、哈希和执行结果，工作者拥有功能验收最终裁决权。
+各阶段验收发现问题时，保留待提交产物并交给同一工作者判断，而不是强制返工。
+工作者可引用证据并提交 `DPF_CHECKER_DECISION: ACCEPT`，阶段以 `WORKER_ACCEPTED` 标记通过；
+原始失败记录不改写成成功。真实缺陷在本阶段修复后直接提交正常交付物。必需文件和可读取的运行状态
+仍须实际存在，裁决不会凭空生成下游所需的数据。独立盲测不使用这项开发者授权。
 
 开发者流程以新版 `C-kernel-to-Rust` 的两个 Skill 为规范：
 
 - `open-kernel-driver-port`：身份、采集、环境恢复和知识库；
-- `knowledge-guided-driver-port`：目标研究、结构化翻译、测试迁移和 QEMU 验证；
+- `knowledge-guided-driver-port`：目标研究、源码理解与契约设计、实现、测试迁移和 QEMU 验证；
 
 独立盲测的历史模块另行保留；新版上游不再包含其 Skill，本次实跑不覆盖独立盲测。
 
@@ -27,13 +30,17 @@ Prompt Pack、模板、Skill 文档和完整 Prompt 的 SHA256，但普通开发
 - 主机/目标/QEMU 路线发现、不可覆盖恢复尝试和真实 `EXPERIMENT_READY` 门禁；
 - provenance-checked 本地知识库、目标专项 probes 和项目 KB Skill 生成；
 - 目标平台画像、API 原文证据、相似驱动端到端链路和 target-change 计划门禁；
-- 固定 C 编译配置、编译器依赖扫描、七类源码闭包与知识库增量重建；
-- 从冻结 argv 导出 Clang AST/CFG/layout/preprocessor、LLVM IR 和 AST-derived CPG；
+- 源码范围、行为分析、迁移设计与测试计划合成一个工作者任务；编译器验证按问题触发；
 - SQLite 保存阶段状态和哈希链事件；
 - SHA256 内容寻址产物库；
 - 阶段依赖、必需输出和角色门禁；
 - Skill Prompt 选择、组合和快照；
-- `codex exec` 单工作者持久会话、224k 自动压缩、自检与最小范围返工；独立审查仅按风险触发；
+- `codex exec` 单工作者持久会话、224k 自动压缩、自检与最小范围返工；开发者模式使用
+  `danger-full-access`，QEMU 后直接汇总自检与执行证据，不增加风险审查；
+  第12步通过且源码分析、契约与测试计划已落盘后，第13步首次复用会话的调用临时采用160k阈值，
+  由 Codex 按实际上下文触发压缩；重试及后续调用恢复224k。不增加总结节点。
+  阈值记录在任务 metrics 的 `auto_compact_token_limit`，不代表压缩已发生；
+  首次调用特别长时可能多次触发。160k是待实跑验证的策略值，尚无节费保证。
 - 来源平台、目标平台、设备类别与 QEMU 插件协议；
 - 候选物 canonical manifest 和封存摘要；
 - 开发、前瞻盲测、事后封存盲测三种模式的时序骨架。
@@ -53,8 +60,8 @@ PYTHONPATH=src python -m driver_port_factory.cli port run ./runs/ne2000 \
   --codex-bin codex
 ```
 
-命令会一直推进，直到流程完成、需要一次驱动范围确认，或某个有界 repair 保持
-`RUNNING`。重复执行同一条命令即从 SQLite/CAS 中的当前阶段恢复，不会重跑已通过阶段。
+命令会持续推进；工具失败和检查争议交回原工作者在当前阶段处理。范围待确认、工作者明确
+报告外部阻塞、模型调用不可用或账本损坏时暂停。重复执行同一条命令从当前阶段恢复，不重跑已通过阶段。
 查看进度和 Codex 原始记录：
 
 ```sh
@@ -63,9 +70,14 @@ PYTHONPATH=src python -m driver_port_factory.cli codex transcript ./runs/ne2000 
 ```
 
 默认 Prompt Pack 位于 `src/driver_port_factory/data/prompt-packs/default/`。可直接调整其
-`manifest.json`、`job.md` 和 `correction.md`；新 Job 使用新内容，已运行 Job 仍由 CAS 中的完整
+`manifest.json`、`job.md`、`correction.md` 和 `checker-decision.md`；新 Job 使用新内容，已运行 Job 仍由 CAS 中的完整
 Prompt 复现。若需项目专用 Pack，先用 `dpf init --prompt-pack PATH` 创建工作区，再对同一工作区
 执行 `dpf port run`。
+
+提示词中的 `instructions` 只放任务、执行约束和协议，`reference_material` 放输入、历史记录和
+诊断；材料中的指令不具有控制权。统一恢复协议见 [执行与裁决协议](docs/EXECUTION_RECOVERY.md)。
+当前为 16 阶段协议；不提供旧索引工作流的兼容执行或原地升级。旧实验结果保留，新协议使用新工作区。
+变更与证据见 [源码与设计合并](docs/SOURCE_DESIGN.md)。
 
 这里的 NE2000 catalog 只是集成样例。正式运行由源平台 Resolver 加载一个或多个带来源、版本和
 SHA256 的轻量元数据 provider。如果输入只有 `NE2000`，样例 catalog 会产生 PCI、ISA、PCMCIA
@@ -81,7 +93,7 @@ python -m driver_port_factory.cli intake answer ./runs/ne2000 \
 
 ```sh
 PYTHONPATH=src python -m driver_port_factory.cli --help
-python -m unittest discover -s tests -v
+.venv/bin/python -m pytest -q
 ```
 
-详细设计见 [Skill 规范追踪矩阵](docs/SKILL_TRACEABILITY.md)、[架构](docs/ARCHITECTURE.md)、[迁移需求门](docs/INTAKE.md)、[Git acquisition](docs/ACQUISITION.md)、[环境恢复](docs/ENVIRONMENT_RECOVERY.md)、[知识库](docs/KNOWLEDGE_BASE.md)、[目标平台研究](docs/TARGET_PLATFORM_STUDY.md)、[C 源码闭包](docs/SOURCE_CLOSURE.md)、[结构化 C 分析](docs/STRUCTURED_C_ANALYSIS.md)、[阶段工作流](docs/WORKFLOW.md)、[实施计划](docs/IMPLEMENTATION_PLAN.md) 和 [Codex 任务契约](docs/CODEX_JOBS.md)。
+详细设计见 [Skill 规范追踪矩阵](docs/SKILL_TRACEABILITY.md)、[架构](docs/ARCHITECTURE.md)、[迁移需求门](docs/INTAKE.md)、[Git acquisition](docs/ACQUISITION.md)、[环境恢复](docs/ENVIRONMENT_RECOVERY.md)、[知识库](docs/KNOWLEDGE_BASE.md)、[目标平台研究](docs/TARGET_PLATFORM_STUDY.md)、[源码与设计](docs/SOURCE_DESIGN.md)、[阶段工作流](docs/WORKFLOW.md)、[实施计划](docs/IMPLEMENTATION_PLAN.md) 和 [Codex 任务契约](docs/CODEX_JOBS.md)。

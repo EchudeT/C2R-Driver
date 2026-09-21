@@ -3,7 +3,6 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from ..core.models import WorkflowError
-from .commands import RepositoryCommandRecord
 from .job import ArtifactOccurrence, JobResultBinding
 from .parsing import exact_object, nonempty, object_id, schema_version, sha256
 from .repository_role import RepositoryRole
@@ -17,7 +16,6 @@ class RepositoryPlan:
     revision_proposal: ArtifactOccurrence
     selection_job: JobResultBinding
     migration_envelope_digest: str
-    resolution_commands: tuple[RepositoryCommandRecord, ...]
     planned_at: str
 
     def to_dict(self) -> dict[str, object]:
@@ -30,7 +28,6 @@ class RepositoryPlan:
             },
             "selection_job": self.selection_job.to_dict(),
             "migration_envelope_digest": self.migration_envelope_digest,
-            "resolution_commands": [command.to_dict() for command in self.resolution_commands],
             "planned_at": self.planned_at,
         }
 
@@ -44,18 +41,14 @@ class RepositoryPlan:
                 "revision_proposal",
                 "selection_job",
                 "migration_envelope_digest",
-                "resolution_commands",
                 "planned_at",
             },
             label="repository plan",
         )
         schema_version(candidate, "repository plan")
         repositories = candidate["repositories"]
-        commands = candidate["resolution_commands"]
         if not isinstance(repositories, list):
             raise WorkflowError("repository plan collections must be lists")
-        if not isinstance(commands, list) or not commands:
-            raise WorkflowError("repository plan requires resolution command evidence")
         proposal = exact_object(
             candidate["revision_proposal"],
             required={"digest", "ordinal"},
@@ -78,7 +71,6 @@ class RepositoryPlan:
             ),
             JobResultBinding.from_dict(candidate["selection_job"]),
             sha256(candidate["migration_envelope_digest"], "repository plan envelope digest"),
-            tuple(RepositoryCommandRecord.from_dict(command) for command in commands),
             nonempty(candidate["planned_at"], "repository plan timestamp"),
         )
 

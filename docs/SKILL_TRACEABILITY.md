@@ -10,7 +10,7 @@
 |---|---|---|---|
 | clone 前确认 source、target、唯一驱动及设备/总线范围 | `request_intake` 至 `migration_envelope_freeze`、`intake/` | request、候选、一次合并问题、确认答案、冻结 envelope | IMPLEMENTED |
 | 歧义状态可持久恢复且不得重复提问 | `intake/service.py`、SQLite ledger | `WAITING_FOR_USER` 与 answer 事件 | IMPLEMENTED |
-| source/target/QEMU 使用完整提交而非浮动分支 | `revision_selection`、`acquisition/` | revision manifest、解析命令证据 | PARTIAL |
+| source/target/QEMU 使用完整提交而非浮动分支 | `repository_acquisition`、`acquisition/` | revision manifest、解析命令证据 | PARTIAL |
 | 上游输入只读、target baseline 与 writable worktree 分离 | `repository_acquisition`、`acquisition/` | 三个 baseline lock、独立 target-working、可恢复 partial clone | PARTIAL |
 | 最小证据闭包覆盖源码、测试、目标、QEMU、硬件和工具链 | `evidence_closure`、`acquisition/facets.py` | typed proposal、逐文件 Git blob/external origin、不可变语料 artifact、coverage、gap、retrieval ledger 与 bundle gate | PARTIAL |
 | 环境恢复必须实际达到 `EXPERIMENT_READY` | `environment_recovery` | 三仓复验、冻结 runner 身份、真实启动/退出或有界超时、不可覆盖 run | IMPLEMENTED |
@@ -24,8 +24,8 @@
 | Skill 要求 | 程序阶段/模块 | 强制产物或检查 | 状态 |
 |---|---|---|---|
 | 先完成目标平台画像、API 表和相似驱动端到端链路 | `target_platform_study` | target profile、API evidence、analog trace | IMPLEMENTED |
-| 固定真实 C 编译配置并递归关闭共享源码、头、配置、callback、注册表、测试和框架依赖 | `source_closure`、`source_analysis/` | compiler identity、compile database、依赖扫描、七类 closure、KB revision | PARTIAL |
-| 导出 AST/CPG/CFG/layout/preprocessor/call/global/effect 和精确 source spans | `structured_c_analysis`、`source_analysis/` | Clang/LLVM capture hash、closure-owned typed AST/CPG、工具/命令/输入摘要；bundle gate 绑定 checkout/compiler/argv/capture/unit 并重建 closure semantic index | IMPLEMENTED |
+| 理解必要共享源码、头、配置、callback、注册表、测试和框架依赖 | `migration_contracts` | 原文证据、必要编译器探测与源码/设计自检，共用一份报告 | WORKER_OWNED |
+| 编译器语义证据 | 具体问题按需探测 | 按用户授权替代全量结构化导出；未解决语义不允许猜测，见 SOURCE_DESIGN.md | USER_POLICY_OVERRIDE |
 | 在编码前建立硬件/源/目标/QEMU 四域迁移合同 | `migration_contracts` | 每项证据、Rust 设计、验证 oracle、独立状态 | PARTIAL |
 | 驱动逻辑按合同重构而非逐行或按名称猜测 | `rust_design`、`rust_implementation` | source span/structured-fact-to-contract coverage 与 unsafe obligations | PARTIAL |
 | 修改既有目标文件前证明必要性并选择最低 change level | target-change gate | necessity record、baseline、patch、rollback | PARTIAL |
@@ -33,7 +33,7 @@
 | 公共测试与新增迁移测试不得冒充私有/独立测试 | test provenance gate | `SOURCE/ADAPTED/NEW_MIGRATION_TEST` | PARTIAL |
 | 产物身份必须证明当前驱动实际进入 QEMU | `artifact_preparation` | base/payload/final hashes、insertion proof | PLANNED |
 | 按 evidence ladder 运行并保留每次失败 | `public_qemu_validation`、run store | plan、命令、日志、oracle、状态与归因 | PARTIAL |
-| 公开失败按类别窄修复并复跑受影响测试和回归 | `public_repair` | budget、diagnosis、patch scope、reruns | PARTIAL |
+| 公开失败按类别窄修复并复跑受影响测试和回归 | `public_qemu_validation` | diagnosis、patch scope、reruns、自检 | PARTIAL |
 | 最终按合同而非单一总分报告 | `completion_audit` | evidence audit | PARTIAL |
 
 ## 独立评测：blind-c2rust-driver-evaluation

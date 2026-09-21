@@ -9,7 +9,6 @@ class KnowledgeArtifact(StrEnum):
     QUERY_CONTRACT = "kb_query_contract"
     GENERATED_SKILL = "generated_kb_skill"
     READINESS_REPORT = "kb_readiness_report"
-    TARGET_PROBE_RESULTS = "target_probe_results"
 
 
 class KnowledgeIndexStatus(StrEnum):

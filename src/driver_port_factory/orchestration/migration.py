@@ -11,7 +11,6 @@ from ..intake.contracts import IntakeArtifact, IntakeStage
 from ..knowledge.contracts import KnowledgeArtifact, KnowledgeStage
 from ..migration.contracts import MigrationArtifact, MigrationStage
 from ..sealing.contracts import SealingArtifact, SealingStage
-from ..source_analysis.contracts import SourceAnalysisArtifact, SourceAnalysisStage
 from ..target_study.contracts import TargetStudyArtifact, TargetStudyStage
 from .specification import StageRow, append_linear, stage_spec
 
@@ -44,10 +43,23 @@ def migration_workflow(config: ProjectConfig) -> tuple[StageSpec, ...]:
         previous = EvaluationStage.BLIND_BINDING
 
     previous = append_linear(specs, _migration_rows(config), previous, MIGRATION_ROLES)
+    if config.evaluation_mode is EvaluationMode.DEVELOPER_EVIDENCE:
+        specs.append(
+            stage_spec(
+                MigrationStage.COMPLETION_AUDIT,
+                "Audit contract, implementation, test, and runtime coverage.",
+                StageOwner.STATIC,
+                previous,
+                (MigrationArtifact.EVIDENCE_AUDIT,),
+                MIGRATION_ROLES,
+            )
+        )
+        return _data_dependencies(tuple(specs))
+
     specs.append(
         stage_spec(
             MigrationStage.PUBLIC_REPAIR,
-            "Close worker evidence; independently review only triggered risks.",
+            "Close evidence for the separately scoped blind-candidate workflow.",
             StageOwner.HYBRID,
             previous,
             (MigrationArtifact.PUBLIC_REPAIR_REPORT,),
@@ -55,19 +67,6 @@ def migration_workflow(config: ProjectConfig) -> tuple[StageSpec, ...]:
             prerequisites=(MigrationStage.DRIVER_IMPLEMENTATION, MigrationStage.CONTRACTS),
         )
     )
-    if config.evaluation_mode is EvaluationMode.DEVELOPER_EVIDENCE:
-        specs.append(
-            stage_spec(
-                MigrationStage.COMPLETION_AUDIT,
-                "Audit contract, implementation, test, and runtime coverage.",
-                StageOwner.STATIC,
-                MigrationStage.PUBLIC_REPAIR,
-                (MigrationArtifact.EVIDENCE_AUDIT,),
-                MIGRATION_ROLES,
-            )
-        )
-        return _data_dependencies(tuple(specs))
-
     specs.append(
         stage_spec(
             SealingStage.CANDIDATE_SEALING,
@@ -131,9 +130,6 @@ def _data_dependencies(specs):
         EnvironmentStage.RECOVERY: (AcquisitionStage.REPOSITORY_ACQUISITION,),
         KnowledgeStage.KNOWLEDGE_BASE: (AcquisitionStage.EVIDENCE_CLOSURE,),
         TargetStudyStage.STUDY: (KnowledgeStage.KNOWLEDGE_BASE, EnvironmentStage.RECOVERY),
-        SourceAnalysisStage.SOURCE_CLOSURE: (
-            AcquisitionStage.REPOSITORY_ACQUISITION, AcquisitionStage.EVIDENCE_CLOSURE,
-            KnowledgeStage.KNOWLEDGE_BASE),
     }
     return tuple(replace(spec, dependencies=changes[spec.name])
                  if spec.name in changes else spec for spec in specs)
@@ -167,24 +163,17 @@ def _migration_rows(config: ProjectConfig) -> tuple[StageRow, ...]:
             (IntakeArtifact.MIGRATION_ENVELOPE, IntakeArtifact.IDENTITY_RECORD),
         ),
         StageRow(
-            AcquisitionStage.REVISION_SELECTION,
-            "Pin source, target, and QEMU revisions.",
+            AcquisitionStage.REPOSITORY_ACQUISITION,
+            "Select and acquire source, target, and QEMU once; pin the downloaded commits.",
             StageOwner.HYBRID,
             (
                 AcquisitionArtifact.REVISION_MANIFEST,
                 AcquisitionArtifact.REPOSITORY_PLAN,
-            ),
-            (AcquisitionArtifact.REVISION_SELECTION_PROPOSAL,),
-        ),
-        StageRow(
-            AcquisitionStage.REPOSITORY_ACQUISITION,
-            "Acquire immutable source, target, and QEMU repository baselines.",
-            StageOwner.STATIC,
-            (
                 AcquisitionArtifact.REPOSITORY_MANIFEST,
                 AcquisitionArtifact.SOURCE_IDENTITY_VERIFICATION,
             ),
-            (AcquisitionArtifact.REPOSITORY_ACQUISITION_ATTEMPT,),
+            (AcquisitionArtifact.REVISION_SELECTION_PROPOSAL,
+             AcquisitionArtifact.REPOSITORY_ACQUISITION_ATTEMPT,),
             prerequisites=(IntakeStage.ENVELOPE_FREEZE,),
         ),
         StageRow(
@@ -204,7 +193,6 @@ def _migration_rows(config: ProjectConfig) -> tuple[StageRow, ...]:
             ),
             prerequisites=(
                 IntakeStage.ENVELOPE_FREEZE,
-                AcquisitionStage.REVISION_SELECTION,
             ),
         ),
         StageRow(
@@ -229,7 +217,6 @@ def _migration_rows(config: ProjectConfig) -> tuple[StageRow, ...]:
                 KnowledgeArtifact.QUERY_CONTRACT,
                 KnowledgeArtifact.GENERATED_SKILL,
                 KnowledgeArtifact.READINESS_REPORT,
-                KnowledgeArtifact.TARGET_PROBE_RESULTS,
             ),
         ),
         StageRow(
@@ -237,11 +224,6 @@ def _migration_rows(config: ProjectConfig) -> tuple[StageRow, ...]:
             "Build the target profile, API evidence table, and analogous call chain.",
             StageOwner.CODEX,
             (
-                TargetStudyArtifact.PROFILE,
-                TargetStudyArtifact.STRUCTURED_PROFILE,
-                TargetStudyArtifact.API_EVIDENCE,
-                TargetStudyArtifact.ANALOGOUS_DRIVER_TRACE,
-                TargetStudyArtifact.CHANGE_PLAN,
                 TargetStudyArtifact.REPORT,
             ),
             (TargetStudyArtifact.VALIDATION_ATTEMPT,),
@@ -253,7 +235,6 @@ def _migration_rows(config: ProjectConfig) -> tuple[StageRow, ...]:
             (MigrationArtifact.HANDOFF,),
             prerequisites=(
                 IntakeStage.ENVELOPE_FREEZE,
-                AcquisitionStage.REVISION_SELECTION,
                 AcquisitionStage.REPOSITORY_ACQUISITION,
                 AcquisitionStage.EVIDENCE_CLOSURE,
                 EnvironmentStage.RECOVERY,
@@ -266,42 +247,16 @@ def _migration_rows(config: ProjectConfig) -> tuple[StageRow, ...]:
             ),
         ),
         StageRow(
-            SourceAnalysisStage.SOURCE_CLOSURE,
-            "Prepare compilation, extract facts, and self-check source behavior in one task.",
-            StageOwner.HYBRID,
-            (
-                SourceAnalysisArtifact.SOURCE_CLOSURE,
-                SourceAnalysisArtifact.SOURCE_CLOSURE_REPORT,
-                SourceAnalysisArtifact.COMPILE_MANIFEST,
-                SourceAnalysisArtifact.COMPILATION_DATABASE,
-                SourceAnalysisArtifact.MATERIALS_MANIFEST,
-                SourceAnalysisArtifact.KNOWLEDGE_REVISION,
-                SourceAnalysisArtifact.STRUCTURED_C_FACTS,
-                SourceAnalysisArtifact.STRUCTURED_C_ANALYSIS_REPORT,
-                SourceAnalysisArtifact.STRUCTURED_C_RAW_FACT,
-                SourceAnalysisArtifact.STRUCTURED_C_SEMANTIC_INDEX,
-            ),
-            (SourceAnalysisArtifact.SOURCE_CLOSURE_VALIDATION_ATTEMPT,
-             SourceAnalysisArtifact.STRUCTURED_C_ANALYSIS_ATTEMPT,
-             SourceAnalysisArtifact.PREPARATION),
-            (SourceAnalysisArtifact.STRUCTURED_C_RAW_FACT,
-             SourceAnalysisArtifact.STRUCTURED_C_SEMANTIC_INDEX),
-            prerequisites=(
-                AcquisitionStage.EVIDENCE_CLOSURE,
-                AcquisitionStage.REPOSITORY_ACQUISITION,
-                KnowledgeStage.KNOWLEDGE_BASE,
-            ),
-        ),
-        StageRow(
             MigrationStage.CONTRACTS,
-            "Plan migration contracts and executable adapted tests together.",
+            "Analyze source behavior, design migration contracts and plan tests in one worker task.",
             StageOwner.HYBRID,
             (MigrationArtifact.CONTRACTS, MigrationArtifact.TEST_PORT_MATRIX),
             prerequisites=(
                 MigrationStage.HANDOFF,
                 KnowledgeStage.KNOWLEDGE_BASE,
                 TargetStudyStage.STUDY,
-                SourceAnalysisStage.SOURCE_CLOSURE,
+                AcquisitionStage.REPOSITORY_ACQUISITION,
+                AcquisitionStage.EVIDENCE_CLOSURE,
             ),
         ),
         StageRow(
@@ -310,15 +265,12 @@ def _migration_rows(config: ProjectConfig) -> tuple[StageRow, ...]:
             StageOwner.CODEX,
             (
                 MigrationArtifact.IMPLEMENTATION_BUNDLE,
-                MigrationArtifact.TRANSLATION_COVERAGE,
-                MigrationArtifact.TARGET_CHANGE_INVENTORY,
                 MigrationArtifact.COMPLIANCE_REPORT,
+                MigrationArtifact.TARGET_CHANGE_INVENTORY,
             ),
             prerequisites=(
                 MigrationStage.HANDOFF,
                 MigrationStage.CONTRACTS,
-                SourceAnalysisStage.SOURCE_CLOSURE,
-                SourceAnalysisStage.SOURCE_CLOSURE,
                 TargetStudyStage.STUDY,
                 KnowledgeStage.KNOWLEDGE_BASE,
             ),
@@ -347,7 +299,7 @@ def _migration_rows(config: ProjectConfig) -> tuple[StageRow, ...]:
                 MigrationStage.DRIVER_IMPLEMENTATION,
                 EnvironmentStage.RECOVERY,
                 KnowledgeStage.KNOWLEDGE_BASE,
-                SourceAnalysisStage.SOURCE_CLOSURE,
+                AcquisitionStage.EVIDENCE_CLOSURE,
             ),
         ),
     )

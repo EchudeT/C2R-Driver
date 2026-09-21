@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 from html import escape
 import json
+import re
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -233,35 +234,51 @@ class SkillPromptComposer:
         context: dict[str, object] | None = None,
         known_documents: dict[str, str] | None = None,
     ) -> RenderedPrompt:
-        documents = self.documents_for_stage(stage)
+        deciding = bool((context or {}).get("checker_decision"))
+        recovery = ((self.prompt_pack.root / "checker-decision.md").read_text(encoding="utf-8")
+                    if deciding else None)
+        documents = (self.documents_for_stage(stage) if stage.value in self.prompt_pack.stages
+                     else (self._read_document("open-kernel-driver-port/SKILL.md"),)
+                     if deciding else self.documents_for_stage(stage))
         if (context or {}).get("repair_execution"):
             from ..migration.repair_execution import OBJECTIVE
             objective = objective or OBJECTIVE
             extra = "knowledge-guided-driver-port/references/qemu-evidence.md"
             if all(d.relative_path != extra for d in documents):
                 documents = (*documents, self._read_document(extra))
-        stage_specification = self.prompt_pack.stages[stage.value]
+        stage_specification = self.prompt_pack.stages.get(stage.value)
         effective_objective = (
-            objective if objective is not None else stage_specification.objective
+            objective if objective is not None else stage_specification.objective if stage_specification else None
         )
+        if deciding and effective_objective is None:
+            effective_objective = recovery
         if not isinstance(effective_objective, str) or not effective_objective.strip():
             raise WorkflowError(
                 f"stage {stage.value} needs an objective in the prompt pack or caller"
             )
         prompt_context = dict(context or {})
-        feedback = prompt_context.get("controller_feedback")
-        if isinstance(feedback, str) and feedback:
-            prompt_context["controller_feedback"] = self.render_correction(feedback)
-        header: dict[str, Any] = {
+        instructions: dict[str, Any] = {
             "stage": stage.value,
             "actor_role": actor_role.value,
             "objective": effective_objective,
-            "context": prompt_context,
         }
         from ..orchestration.protocol import describe
-        header["protocol"] = describe(stage.value)
+        instructions["protocol"] = describe(stage.value)
+        if deciding:
+            if effective_objective != recovery:
+                instructions["recovery"] = recovery
+            if stage_specification and stage_specification.output_schema:
+                instructions["output_schema"] = json.loads(stage_specification.output_schema.path.read_text())
         if prompt_context.get("repair_execution"):
-            header["protocol"]["completion"] = prompt_context["repair_execution"]["completion"]
+            instructions["protocol"]["completion"] = prompt_context["repair_execution"]["completion"]
+        for key in ("tool_runtime", "phase", "repair_targets", "repair_scope", "repair_execution"):
+            if key in prompt_context:
+                instructions[key] = prompt_context.pop(key)
+        if prompt_context.get("controller_feedback"):
+            instructions["correction"] = self.render_correction(
+                "See reference_material.controller_feedback for the diagnostic."
+            )
+        header = {"instructions": instructions, "reference_material": prompt_context}
         embedded_documents = "\n\n".join(
             (f'<skill_document path="{document.relative_path}">\n'
              f"{document.content}\n</skill_document>"
@@ -272,15 +289,17 @@ class SkillPromptComposer:
             for document in documents
         )
         text = self.prompt_pack.template
-        for marker, value in {
-            "{{job_json}}": json.dumps(header, ensure_ascii=False, sort_keys=True, indent=2),
+        substitutions = {
+            "{{job_json}}": json.dumps(header, ensure_ascii=False, sort_keys=True, indent=2).replace("<", "\\u003c").replace(">", "\\u003e"),
             "{{skill_documents}}": embedded_documents,
             "{{execution_rules}}": (
                 (self.prompt_pack.root / "execution.md").read_text(encoding="utf-8")
                 if "{{execution_rules}}" in text and self._executable(stage.value) else ""
             ),
-        }.items():
-            text = text.replace(marker, value)
+        }
+        # Substitute only the template, never placeholders appearing inside supplied content.
+        text = re.sub(r"\{\{(?:job_json|skill_documents|execution_rules)\}\}",
+                      lambda match: substitutions[match.group()], text)
         if not text.endswith("\n"):
             text += "\n"
         digest = hashlib.sha256(text.encode("utf-8")).hexdigest()
@@ -292,8 +311,8 @@ class SkillPromptComposer:
             prompt_pack_name=self.prompt_pack.name,
             prompt_pack_manifest_digest=self.prompt_pack.manifest_digest,
             prompt_template_digest=self.prompt_pack.template_digest,
-            output_schema=stage_specification.output_schema,
+            output_schema=stage_specification.output_schema if stage_specification and not deciding else None,
         )
 
     def render_correction(self, error: str) -> str:
-        return self.prompt_pack.correction_template.replace("{{error}}", error)
+        return self.prompt_pack.correction_template.replace("{{error}}", escape(error, quote=False))

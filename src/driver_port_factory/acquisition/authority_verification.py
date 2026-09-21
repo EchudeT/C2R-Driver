@@ -11,6 +11,7 @@ from .authority import (
     CorroboratedAuthority,
     EvidenceAuthority,
     RepositoryEndorsementAuthority,
+    OriginalPublisherAuthority,
 )
 from .facets import RetrievalOutcome
 from .http_content import EvidenceHttpContentRecorder, RecordedHttpContent
@@ -163,6 +164,12 @@ class ExternalAuthorityVerifier:
         raise TypeError(f"unsupported external authority type: {type(authority).__name__}")
 
     @verify.register
+    def _original_publisher(self, authority: OriginalPublisherAuthority,
+                            locator: ExternalUrlLocator, primary: RecordedHttpContent) -> AuthorityVerification:
+        verify_publisher(authority, primary.response.resolved_url)
+        return AuthorityVerification(EvidenceAuthority.PRIMARY, (), (primary.response.content_ref,))
+
+    @verify.register
     def _repository_endorsement(
         self,
         authority: RepositoryEndorsementAuthority,
@@ -179,3 +186,12 @@ class ExternalAuthorityVerifier:
         primary: RecordedHttpContent,
     ) -> AuthorityVerification:
         return self.corroborated.verify(authority, locator, primary)
+
+
+def verify_publisher(authority: OriginalPublisherAuthority, resolved_url: str) -> None:
+    """Bind the worker's source assessment to the actual retrieval host; no mirror required."""
+    publisher = PublisherIdentity.from_url(authority.publisher_url).hostname
+    actual = PublisherIdentity.from_url(resolved_url).hostname
+    if actual != publisher and not actual.endswith("." + publisher):
+        raise RetrievalFailure(RetrievalOutcome.CONFLICT,
+                               "document redirected outside the assessed original publisher")

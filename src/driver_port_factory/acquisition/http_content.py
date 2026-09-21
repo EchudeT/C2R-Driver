@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import hashlib
+import json
 from pathlib import Path
 
 from ..core.models import GeneratedArtifact, utc_now
@@ -31,6 +33,19 @@ class EvidenceHttpContentRecorder:
         expected_sha256: str | None,
         max_bytes: int,
     ) -> RecordedHttpContent:
+        cache = self.project.control / "http-downloads"
+        cache.mkdir(exist_ok=True)
+        pointer = cache / (hashlib.sha256(source_url.encode()).hexdigest() + ".json")
+        if pointer.is_file():
+            response = HttpResponseRecord.from_dict(json.loads(pointer.read_text()))
+            path = self.project.artifacts.path_for_digest(response.sha256)
+            data = path.read_bytes()
+            if (response.requested_url == source_url and len(data) <= max_bytes
+                    and hashlib.sha256(data).hexdigest() == response.sha256
+                    and (expected_sha256 is None or expected_sha256 == response.sha256)
+                    and any(response.content_ref.matches(ref) for ref in
+                            self.project.current_artifact_refs(stage=AcquisitionStage.EVIDENCE_CLOSURE))):
+                return RecordedHttpContent(data, response, path)
         downloaded = self.transport.download(source_url, max_bytes=max_bytes)
         recorded = self._record(downloaded)
         if expected_sha256 is not None and recorded.response.sha256 != expected_sha256:
@@ -40,6 +55,9 @@ class EvidenceHttpContentRecorder:
                 f"expected {expected_sha256}, got {recorded.response.sha256}",
                 (recorded.response.content_ref,),
             )
+        temporary = pointer.with_suffix(".tmp")
+        temporary.write_text(json.dumps(recorded.response.to_dict()) + "\n")
+        temporary.replace(pointer)
         return recorded
 
     def _record(self, downloaded: DownloadedHttpContent) -> RecordedHttpContent:

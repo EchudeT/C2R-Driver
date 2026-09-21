@@ -5,7 +5,7 @@ from enum import StrEnum
 from typing import TypeAlias
 
 from ..core.models import WorkflowError
-from .parsing import byte_limit, exact_object, http_url, relative_path, sha256
+from .parsing import byte_limit, exact_object, http_url, relative_path, sha256, nonempty
 from .repository_role import RepositoryRole
 
 
@@ -15,6 +15,7 @@ class EvidenceAuthority(StrEnum):
 
 
 class AuthorityBasisKind(StrEnum):
+    ORIGINAL_PUBLISHER = "original_publisher"
     REPOSITORY_ENDORSEMENT = "repository_endorsement"
     CORROBORATED = "corroborated"
 
@@ -73,14 +74,24 @@ class CorroboratedAuthority:
         return {"kind": self.kind.value, "sources": [source.to_dict() for source in self.sources]}
 
 
-AuthorityBasis: TypeAlias = RepositoryEndorsementAuthority | CorroboratedAuthority
+@dataclass(frozen=True, slots=True)
+class OriginalPublisherAuthority:
+    publisher_url: str
+    basis: str
+    kind = AuthorityBasisKind.ORIGINAL_PUBLISHER
+
+    def to_dict(self) -> dict:
+        return {"kind": self.kind.value, "publisher_url": self.publisher_url, "basis": self.basis}
+
+
+AuthorityBasis: TypeAlias = RepositoryEndorsementAuthority | CorroboratedAuthority | OriginalPublisherAuthority
 
 
 def parse_external_authority(value: object) -> AuthorityBasis:
     candidate = exact_object(
         value,
         required={"kind"},
-        optional={"repository", "path", "line_start", "line_end", "sources"},
+        optional={"repository", "path", "line_start", "line_end", "sources", "publisher_url", "basis"},
         label="external evidence authority",
     )
     try:
@@ -89,6 +100,10 @@ def parse_external_authority(value: object) -> AuthorityBasis:
         raise WorkflowError("external evidence authority has an invalid kind") from error
     if kind is AuthorityBasisKind.CORROBORATED:
         return _corroborated(candidate)
+    if kind is AuthorityBasisKind.ORIGINAL_PUBLISHER:
+        exact_object(candidate, required={"kind", "publisher_url", "basis"}, label="original publisher")
+        return OriginalPublisherAuthority(http_url(candidate["publisher_url"], "publisher URL"),
+                                          nonempty(candidate["basis"], "publisher evidence"))
     return _repository_endorsement(candidate)
 
 

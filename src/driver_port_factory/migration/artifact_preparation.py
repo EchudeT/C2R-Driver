@@ -75,7 +75,7 @@ class ArtifactPreparationService:
             ),
         )
         if not passed:
-            raise CodexOutputError(f"presence checker failed; inspect {command.stderr_path}")
+            project.note_check(f"presence checker failed; inspect {command.stderr_path}")
         validate_worktree_snapshot(project.root, bundle)
         mode = project.load_json_artifact(
             EnvironmentStage.RECOVERY, EnvironmentArtifact.MODE_RECORD

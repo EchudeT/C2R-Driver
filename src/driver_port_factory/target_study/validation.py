@@ -17,11 +17,6 @@ def _failed_attempt(data: bytes) -> None:
 
 VALIDATORS = MappingProxyType[TargetStudyArtifact, ArtifactValidator](
     {
-        TargetStudyArtifact.PROFILE: utf8_document,
-        TargetStudyArtifact.STRUCTURED_PROFILE: utf8_document,
-        TargetStudyArtifact.API_EVIDENCE: utf8_document,
-        TargetStudyArtifact.ANALOGOUS_DRIVER_TRACE: utf8_document,
-        TargetStudyArtifact.CHANGE_PLAN: utf8_document,
         TargetStudyArtifact.REPORT: utf8_document,
         TargetStudyArtifact.VALIDATION_ATTEMPT: _failed_attempt,
     }

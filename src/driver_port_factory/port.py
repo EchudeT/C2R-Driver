@@ -16,13 +16,14 @@ from .acquisition.proposal import EvidenceProposalImporter
 from .acquisition.repository import RepositoryAcquirer, load_repository_acquisition
 from .acquisition.repository_role import RepositoryRole
 from .acquisition.revision_proposal import RevisionProposalImporter
-from .acquisition.revision_selection import RevisionSelector
+from .acquisition.git_execution import RepositoryFetchError
 from .cli_support import CommandRegistry, command_registry
 from .codex.cli import run_codex_stage
-from .codex.contracts import CodexArtifact, CodexBackend, CodexContinuation, CodexOutputError
+from .codex.contracts import CodexArtifact, CodexBackend, CodexContinuation, CodexOutputError, ModelInvocationError
 from .codex.policy import CodexExecutionPolicy
 from .composition import initialize_project, open_project
 from .core.contracts import ArtifactKey, StageKey
+from .core.checker_decision import CheckerDecisionRequired, RecoveryPaused
 from .core.models import (
     ActorRole,
     ArtifactDirection,
@@ -51,10 +52,6 @@ from .migration.implementation import DriverImplementationService, Implementatio
 from .migration.public_qemu import PublicQemuService
 from .migration.public_repair import PublicRepairService
 from .migration.repair_routing import PrerequisiteRepair, WorkerBlocked, repair_target, retry_prerequisite
-from .source_analysis.clang_backend import AnalyzerFamily
-from .source_analysis.closure import SourceClosureService
-from .source_analysis.contracts import SourceAnalysisArtifact, SourceAnalysisStage
-from .source_analysis.structured import StructuredCAnalysisService
 from .target_study.contracts import TargetStudyArtifact, TargetStudyStage
 
 
@@ -69,8 +66,6 @@ class PortOptions:
     backend: CodexBackend
     codex_bin: str
     model: str | None
-    analyzer: str
-    analyzer_family: AnalyzerFamily
 
 
 @dataclass(frozen=True, slots=True)
@@ -96,14 +91,12 @@ class PortRunner:
         self.options = options
         self._actions: dict[StageKey, Callable[[Project], None]] = {
             IntakeStage.REQUEST: self._intake,
-            AcquisitionStage.REVISION_SELECTION: self._revisions,
             AcquisitionStage.REPOSITORY_ACQUISITION: self._repositories,
             AcquisitionStage.EVIDENCE_CLOSURE: self._evidence,
             EnvironmentStage.RECOVERY: self._environment,
             KnowledgeStage.KNOWLEDGE_BASE: self._knowledge,
             TargetStudyStage.STUDY: self._target_study,
             MigrationStage.HANDOFF: self._handoff,
-            SourceAnalysisStage.SOURCE_CLOSURE: self._source_closure,
             MigrationStage.CONTRACTS: self._contracts,
             MigrationStage.DRIVER_IMPLEMENTATION: self._implementation,
             MigrationStage.ARTIFACT_PREPARATION: self._artifact_preparation,
@@ -137,7 +130,30 @@ class PortRunner:
             action = self._actions.get(stage.name)
             if action is None or stage.status not in {StageStatus.READY, StageStatus.RUNNING}:
                 return PortOutcome(stage.name.value, stage.status, "resolve recorded blocker")
-            action(project)
+            try:
+                from .core.checker_decision import pending_decision
+                pending_check = pending_decision(project, stage.name)
+                if pending_check is not None:
+                    self._checker_decision(project, stage.name, pending_check)
+                    continue
+                action(project)
+            except CheckerDecisionRequired:
+                # Outputs and findings are already durable. Resume the same worker.
+                continue
+            except (ModelInvocationError, RepositoryFetchError, RecoveryPaused):
+                raise
+            except (WorkflowError, OSError, ValueError, subprocess.SubprocessError) as error:
+                if project.config.evaluation_mode is not EvaluationMode.DEVELOPER_EVIDENCE:
+                    raise
+                # Recovery is only safe with an intact ledger. Never ask the worker
+                # to patch immutable evidence or conceal corrupt persisted state.
+                project.verify_integrity()
+                from .core.checker_decision import request_recovery
+                try:
+                    request_recovery(project, stage.name, error)
+                except CheckerDecisionRequired:
+                    pass
+                continue
             current = project.stage(stage.name)
             if current.status is StageStatus.WAITING_FOR_USER:
                 return PortOutcome(
@@ -179,6 +195,41 @@ class PortRunner:
                 skill_root=str(self.options.skill_root.resolve()),
             ),
         )
+
+    def _checker_decision(self, project: Project, stage: StageKey, error) -> None:
+        from .core.checker_decision import accept_decision, clear_pending
+        from .core.models import StageOwner
+        payload = json.loads(error.path.read_text())
+        job = self._latest_job_occurrence(project, stage)
+        if job is None or job.ordinal <= payload["after_job"]:
+            _, _, response = self._codex(
+                project, stage,
+                {"checker_decision": True, "checker_findings": str(error),
+                 "captured_outputs": str(error.path)},
+            )
+            job = self._job_occurrence(project, stage, response)
+        reply = project.artifacts.path_for_digest(job.digest).read_text().strip()
+        try:
+            report = (self._materialize_codex_report(project, stage, job)
+                      if reply.startswith("REPORT_PATH:")
+                      or project.stage(stage).owner is StageOwner.STATIC else None)
+        except WorkerBlocked as blocker:
+            clear_pending(project, stage)
+            project.complete(stage, StageStatus.BLOCKED, message=str(blocker))
+            return
+        except PrerequisiteRepair:
+            if project.stage(stage).owner is StageOwner.STATIC:
+                raise
+            # Let the normal model-stage adapter apply the same routing and
+            # sealed-phase rules as it does for any other deliverable.
+            report = None
+        if report is not None and report.read_text().rstrip().endswith("\nDPF_CHECKER_DECISION: ACCEPT"):
+            accept_decision(project, stage, error.path, report)
+        else:
+            # The response IS the repaired deliverable. Existing adapters consume
+            # its persisted job directly; static operations rerun without another AI.
+            clear_pending(project, stage)
+            self._actions[stage](project)
 
     @staticmethod
     def _ensure_git_root(workspace: Path) -> None:
@@ -294,9 +345,7 @@ class PortRunner:
         pending = self._latest_job_occurrence(project, stage)
         thread_id = self._latest_thread_id(project, stage)
         feedback = None
-        seen_errors = set()
-        corrections = 0
-        while corrections < 3:
+        while True:
             if pending is None:
                 result, _, response = self._codex(
                     project,
@@ -318,9 +367,8 @@ class PortRunner:
                 target = project.stage(error.target)
                 if (target.status is not StageStatus.PASS or target.position >= project.stage(stage).position
                         or stage.value not in project.workflow.descendants(error.target)):
-                    feedback = "Repair locally; DPF_REPAIR_STAGE must name a passed actual data prerequisite in context.repair_targets within the current phase."
+                    feedback = "Repair locally; DPF_REPAIR_STAGE must name a passed actual data prerequisite in instructions.repair_targets within the current phase."
                     pending = None
-                    corrections += 1
                     continue
                 retry_prerequisite(project, error.target, trigger=stage, reason=str(error))
                 return False
@@ -329,14 +377,6 @@ class PortRunner:
                 context = {**context, "controller_execution": str(progress)}
                 feedback = None
                 pending = None
-            except CodexOutputError as error:
-                corrections += 1
-                feedback = str(error)
-                if feedback in seen_errors:
-                    raise
-                seen_errors.add(feedback)
-                pending = None
-        raise CodexOutputError(f"bounded correction exhausted: {feedback}")
 
     @staticmethod
     def _latest_thread_id(project: Project, stage: StageKey) -> str | None:
@@ -369,6 +409,7 @@ class PortRunner:
             if len(frozen) != 1:
                 raise WorkflowError("Codex work report was not persisted uniquely")
             path = project.artifacts.path_for_digest(frozen[0].digest)
+            PortRunner._validate_report_action(project, stage, path.read_text())
             PortRunner._report_outcome(path)
             return path
         data = project.artifacts.read(matches[0])
@@ -405,14 +446,17 @@ class PortRunner:
                 raise CodexOutputError("report file is empty")
         frozen = project.record_artifact(stage, GeneratedArtifact(CodexArtifact.WORK_REPORT, data, source))
         path = project.artifacts.path_for_digest(frozen.digest)
-        from .orchestration.protocol import operation
-        try:
-            operation(stage.value, report_text)
-        except WorkflowError as error:
-            raise CodexOutputError(str(error)) from error
+        PortRunner._validate_report_action(project, stage, report_text)
         PortRunner._report_outcome(path)
         return path
 
+    @staticmethod
+    def _validate_report_action(project: Project, stage: StageKey, text: str) -> None:
+        from .orchestration.protocol import operation
+        try:
+            operation(stage.value, text)
+        except WorkflowError as error:
+            raise CodexOutputError(str(error)) from error
     @staticmethod
     def _report_outcome(path: Path) -> None:
         text = path.read_text(encoding="utf-8").rstrip()
@@ -431,7 +475,7 @@ class PortRunner:
             catalog_paths=self.options.catalogs,
         )
 
-    def _revisions(self, project: Project) -> None:
+    def _repositories(self, project: Project) -> None:
         envelope = self._artifact_context(
             project,
             IntakeStage.ENVELOPE_FREEZE,
@@ -439,7 +483,7 @@ class PortRunner:
         )
         self._codex_gate(
             project,
-            AcquisitionStage.REVISION_SELECTION,
+            AcquisitionStage.REPOSITORY_ACQUISITION,
             {"migration_envelope": envelope},
             self._accept_revision_result,
         )
@@ -450,15 +494,11 @@ class PortRunner:
             proposal = RevisionProposalImporter().import_job_result(
                 project, job_digest=job.digest, job_ordinal=job.ordinal
             )
-            RevisionSelector().select(project, proposal=proposal)
-        except CodexOutputError:
+            RepositoryAcquirer().acquire(project, proposal=proposal)
+        except (CodexOutputError, CheckerDecisionRequired, RepositoryFetchError):
             raise
         except WorkflowError as error:
             raise CodexOutputError(f"revision proposal failed: {error}") from error
-
-    @staticmethod
-    def _repositories(project: Project) -> None:
-        RepositoryAcquirer().acquire(project)
 
     def _evidence(self, project: Project) -> None:
         inputs = {
@@ -565,108 +605,6 @@ class PortRunner:
     def _handoff(project: Project) -> None:
         MigrationHandoff().create(project)
 
-    def _source_closure(self, project: Project) -> None:
-        attempts = [
-            ref
-            for ref in project.artifact_refs(stage=SourceAnalysisStage.SOURCE_CLOSURE)
-            if ref.kind == SourceAnalysisArtifact.STRUCTURED_C_ANALYSIS_ATTEMPT.value
-        ]
-        self._codex_gate(
-            project,
-            SourceAnalysisStage.SOURCE_CLOSURE,
-            {
-                "structured_analyzer": self.options.analyzer,
-                "analysis_feedback_path": (
-                    str(project.artifacts.path_for_digest(attempts[-1].digest))
-                    if attempts
-                    else None
-                ),
-                "migration_envelope": self._artifact_context(
-                    project, IntakeStage.ENVELOPE_FREEZE, IntakeArtifact.MIGRATION_ENVELOPE
-                ),
-                "repository_manifest": self._artifact_context(
-                    project,
-                    AcquisitionStage.REPOSITORY_ACQUISITION,
-                    AcquisitionArtifact.REPOSITORY_MANIFEST,
-                ),
-                "materials_manifest": self._artifact_context(
-                    project,
-                    AcquisitionStage.EVIDENCE_CLOSURE,
-                    AcquisitionArtifact.MATERIALS_MANIFEST,
-                ),
-                "evidence_gap_register": self._artifact_context(
-                    project,
-                    AcquisitionStage.EVIDENCE_CLOSURE,
-                    AcquisitionArtifact.EVIDENCE_GAP_REGISTER,
-                ),
-                "knowledge_query_contract": self._artifact_context(
-                    project,
-                    KnowledgeStage.KNOWLEDGE_BASE,
-                    KnowledgeArtifact.QUERY_CONTRACT,
-                ),
-            },
-            self._accept_source_closure_result,
-        )
-
-    def _accept_source_closure_result(self, project: Project, job: ArtifactOccurrence) -> None:
-        report = self._materialize_codex_report(project, SourceAnalysisStage.SOURCE_CLOSURE, job)
-        from .source_analysis.preparation import finish, reusable
-        from .orchestration.protocol import operation
-        if operation(SourceAnalysisStage.SOURCE_CLOSURE.value, report.read_text()) is None:
-            try:
-                finish(project, report)
-            except WorkflowError as error:
-                raise CodexOutputError(str(error)) from error
-            return
-        database = project.root / "work/stage-work/source_closure/compile_commands.json"
-        if database.is_file() and reusable(project, database):
-            from .source_analysis.navigation import prepare_navigation
-            prepare_navigation(project)
-            raise CodexContinuation("Unchanged source inputs and facts verified; reuse knowledge c-facts and finish self-check.")
-        try:
-            result = SourceClosureService().prepare_compilation_database(
-                project,
-                compilation_database_path=(
-                    project.root
-                    / "work"
-                    / "stage-work"
-                    / "source_closure"
-                    / "compile_commands.json"
-                ),
-                work_report_path=report,
-            )
-        except WorkflowError as error:
-            message = str(error)
-            actionable = (
-                "compile command",
-                "compile argv",
-                "compiler dependency scan failed",
-                "compile_commands.json",
-                "source compiler is unavailable",
-            )
-            if any(reason in message for reason in actionable):
-                raise CodexOutputError(message) from error
-            raise
-        if result.errors:
-            raise CodexOutputError("source closure failed: " + "; ".join(result.errors))
-        result = StructuredCAnalysisService().analyze(
-            project,
-            analyzer=self.options.analyzer,
-            analyzer_family=self.options.analyzer_family,
-        )
-        if result.errors:
-            if not any("extraction failed:" in error or "target ABI differs" in error
-                       for error in result.errors):
-                raise WorkflowError("structured analysis tool failure: " + "; ".join(result.errors))
-            raise CodexOutputError(f"Repair compilation inputs locally: {result.report_path}; {result.errors}")
-        from .source_analysis.navigation import prepare_navigation
-        prepare_navigation(project)
-        raise CodexContinuation(
-            "Source facts are ready. Query knowledge c-facts for selected symbols, inspect originals, "
-            "and finish source behavior/coverage self-check in the same report. "
-            "If closure inputs must change, request SOURCE_ANALYSIS again."
-        )
-
     def _contracts(self, project: Project) -> None:
         self._codex_gate(
             project,
@@ -675,17 +613,10 @@ class PortRunner:
                 project,
                 (
                     (MigrationStage.HANDOFF, MigrationArtifact.HANDOFF),
+                    (AcquisitionStage.EVIDENCE_CLOSURE, AcquisitionArtifact.MATERIALS_MANIFEST),
+                    (AcquisitionStage.EVIDENCE_CLOSURE, AcquisitionArtifact.EVIDENCE_GAP_REGISTER),
                     (KnowledgeStage.KNOWLEDGE_BASE, KnowledgeArtifact.QUERY_CONTRACT),
-                    (TargetStudyStage.STUDY, TargetStudyArtifact.STRUCTURED_PROFILE),
-                    (TargetStudyStage.STUDY, TargetStudyArtifact.API_EVIDENCE),
-                    (TargetStudyStage.STUDY, TargetStudyArtifact.ANALOGOUS_DRIVER_TRACE),
-                    (TargetStudyStage.STUDY, TargetStudyArtifact.CHANGE_PLAN),
-                    (SourceAnalysisStage.SOURCE_CLOSURE, SourceAnalysisArtifact.SOURCE_CLOSURE),
-                    (SourceAnalysisStage.SOURCE_CLOSURE, SourceAnalysisArtifact.MATERIALS_MANIFEST),
-                    (
-                        SourceAnalysisStage.SOURCE_CLOSURE,
-                        SourceAnalysisArtifact.STRUCTURED_C_FACTS,
-                    ),
+                    (TargetStudyStage.STUDY, TargetStudyArtifact.REPORT),
                 ),
             ),
             self._accept_contracts_result,
@@ -709,19 +640,6 @@ class PortRunner:
                 project.start(MigrationStage.DRIVER_IMPLEMENTATION)
             DriverImplementationService().snapshot_worktree(project, report)
             return
-        facts = project.load_json_artifact(
-            SourceAnalysisStage.SOURCE_CLOSURE, SourceAnalysisArtifact.STRUCTURED_C_FACTS
-        )
-        extra: dict[str, object] = {
-            "semantic_indexes": [
-                {
-                    "unit_id": unit["unit_id"],
-                    "path": str((project.root / unit["semantic_index"]["path"]).resolve()),
-                    "sha256": unit["semantic_index"]["sha256"],
-                }
-                for unit in facts["units"]
-            ]
-        }
         self._codex_gate(
             project,
             MigrationStage.DRIVER_IMPLEMENTATION,
@@ -733,17 +651,8 @@ class PortRunner:
                     (MigrationStage.CONTRACTS, MigrationArtifact.TEST_PORT_MATRIX),
                     (KnowledgeStage.KNOWLEDGE_BASE, KnowledgeArtifact.QUERY_CONTRACT),
                     (KnowledgeStage.KNOWLEDGE_BASE, KnowledgeArtifact.GENERATED_SKILL),
-                    (TargetStudyStage.STUDY, TargetStudyArtifact.STRUCTURED_PROFILE),
-                    (TargetStudyStage.STUDY, TargetStudyArtifact.API_EVIDENCE),
-                    (TargetStudyStage.STUDY, TargetStudyArtifact.ANALOGOUS_DRIVER_TRACE),
-                    (TargetStudyStage.STUDY, TargetStudyArtifact.CHANGE_PLAN),
-                    (SourceAnalysisStage.SOURCE_CLOSURE, SourceAnalysisArtifact.SOURCE_CLOSURE),
-                    (
-                        SourceAnalysisStage.SOURCE_CLOSURE,
-                        SourceAnalysisArtifact.STRUCTURED_C_FACTS,
-                    ),
+                    (TargetStudyStage.STUDY, TargetStudyArtifact.REPORT),
                 ),
-                extra=extra,
             ),
             self._accept_implementation_result,
         )
@@ -788,7 +697,7 @@ class PortRunner:
                     (MigrationStage.DRIVER_IMPLEMENTATION, MigrationArtifact.COMPLIANCE_REPORT),
                     (EnvironmentStage.RECOVERY, EnvironmentArtifact.MODE_RECORD),
                     (EnvironmentStage.RECOVERY, EnvironmentArtifact.EXPERIMENT_ROUTE),
-                    (TargetStudyStage.STUDY, TargetStudyArtifact.STRUCTURED_PROFILE),
+                    (TargetStudyStage.STUDY, TargetStudyArtifact.REPORT),
                 ),
                 extra={"controller_validation_error": preparation_error} if preparation_error else None,
             ),
@@ -868,13 +777,13 @@ class PortRunner:
                     (MigrationStage.CONTRACTS, MigrationArtifact.TEST_PORT_MATRIX),
                     (
                         MigrationStage.DRIVER_IMPLEMENTATION,
-                        MigrationArtifact.TRANSLATION_COVERAGE,
+                        MigrationArtifact.COMPLIANCE_REPORT,
                     ),
                     (MigrationStage.ARTIFACT_PREPARATION, MigrationArtifact.RUNTIME_ARTIFACT),
                     (MigrationStage.ARTIFACT_PREPARATION, MigrationArtifact.ARTIFACT_IDENTITY),
                     (EnvironmentStage.RECOVERY, EnvironmentArtifact.EXPERIMENT_ROUTE),
                     (KnowledgeStage.KNOWLEDGE_BASE, KnowledgeArtifact.QUERY_CONTRACT),
-                    (SourceAnalysisStage.SOURCE_CLOSURE, SourceAnalysisArtifact.MATERIALS_MANIFEST),
+                    (AcquisitionStage.EVIDENCE_CLOSURE, AcquisitionArtifact.MATERIALS_MANIFEST),
                 ),
                 extra={
                     **execution,
@@ -1001,6 +910,8 @@ class PortRunner:
                 project, MigrationStage.DRIVER_IMPLEMENTATION, MigrationArtifact.IMPLEMENTATION_BUNDLE)
         for stage, key in ((MigrationStage.PUBLIC_QEMU_VALIDATION, "runtime_work_report_path"),
                            (MigrationStage.PUBLIC_REPAIR, "runtime_review_path")):
+            if stage.value not in project.workflow.stage_values:
+                continue
             repair = project.retry_feedback(stage)
             if repair and repair["status"] == "RESOLVED":
                 continue
@@ -1029,8 +940,6 @@ def command_port_run(arguments: argparse.Namespace) -> None:
             backend=arguments.backend,
             codex_bin=arguments.codex_bin,
             model=arguments.model,
-            analyzer=arguments.analyzer,
-            analyzer_family=arguments.analyzer_family,
         )
     ).run()
     print(json.dumps(outcome.to_dict(), ensure_ascii=False, sort_keys=True, indent=2))
@@ -1051,11 +960,4 @@ def register_commands(commands: CommandRegistry) -> None:
     )
     run.add_argument("--codex-bin", default="codex")
     run.add_argument("--model")
-    run.add_argument("--analyzer", default="clang")
-    run.add_argument(
-        "--analyzer-family",
-        type=AnalyzerFamily,
-        choices=list(AnalyzerFamily),
-        default=AnalyzerFamily.CLANG_LLVM,
-    )
     run.set_defaults(handler=command_port_run)

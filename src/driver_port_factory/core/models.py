@@ -184,6 +184,7 @@ class StageView:
     required_outputs: tuple[ArtifactRequirement, ...]
     auxiliary_outputs: tuple[ArtifactKey, ...]
     description: str
+    message: str | None = None
 
 
 class WorkflowError(RuntimeError):

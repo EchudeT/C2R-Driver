@@ -222,7 +222,7 @@ class _RunPersistence:
                 "AND json_extract(payload, '$.repair_fingerprint') = ?",
                 (StageEvent.RETRIED.value, name.value, fingerprint),
             ).fetchone()[0]
-            if repeated >= 3:
+            if repeated >= 1:
                 raise RepairExhausted(
                     "Repeated prerequisite repair without changed substantive inputs; "
                     "preserved in ledger. Resolve the concrete blocker before resuming."

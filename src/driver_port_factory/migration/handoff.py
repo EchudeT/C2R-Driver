@@ -44,11 +44,6 @@ _HANDOFF_ARTIFACTS = (
     KnowledgeArtifact.STATUS,
     KnowledgeArtifact.QUERY_CONTRACT,
     KnowledgeArtifact.GENERATED_SKILL,
-    KnowledgeArtifact.TARGET_PROBE_RESULTS,
-    TargetStudyArtifact.STRUCTURED_PROFILE,
-    TargetStudyArtifact.API_EVIDENCE,
-    TargetStudyArtifact.ANALOGOUS_DRIVER_TRACE,
-    TargetStudyArtifact.CHANGE_PLAN,
     TargetStudyArtifact.REPORT,
 )
 _BLIND_HANDOFF_ARTIFACTS = (

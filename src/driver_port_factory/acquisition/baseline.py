@@ -25,25 +25,13 @@ class BaselineRepositoryAcquirer:
         checkouts = self.control_root / "worktrees"
         checkouts.mkdir(parents=True, exist_ok=True)
         checkout = checkouts / checkout_name
-        self.git.run(
-            [
-                "-C",
-                str(bare),
-                "fetch",
-                "--depth=1",
-                "--no-tags",
-                "origin",
-                spec.requested_ref,
-            ],
-            operation=RepositoryCommandKind.BASELINE_FETCH,
-            role=spec.role,
-        )
+        self.store.fetch(bare, spec)
         fetched_commit = self.git.run(
             ["-C", str(bare), "rev-parse", "FETCH_HEAD^{commit}"],
             operation=RepositoryCommandKind.BASELINE_COMMIT,
             role=spec.role,
         ).stdout.lower()
-        if fetched_commit != spec.resolved_commit:
+        if getattr(spec, "resolved_commit", fetched_commit) != fetched_commit:
             raise WorkflowError(
                 f"fetched {spec.role.value} commit {fetched_commit} does not match "
                 f"planned {spec.resolved_commit}"

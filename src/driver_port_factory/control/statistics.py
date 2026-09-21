@@ -7,7 +7,12 @@ from datetime import UTC, datetime
 from ..codex.accounting import FIELDS, PRICE_DATE, PRICE_SOURCE, estimate, read_jobs, usage_delta
 
 
-def stage_times(events, now: datetime) -> dict:
+def stage_times(events, now: datetime, intervals=None) -> dict:
+    def elapsed(start, end):
+        if intervals is None:
+            return max(0, (end - start).total_seconds())
+        return sum(max(0, (min(end, right) - max(start, left)).total_seconds())
+                   for left, right in intervals)
     result, active, waiting = {}, {}, {}
     for event in events:
         payload = json.loads(event["payload"])
@@ -24,7 +29,7 @@ def stage_times(events, now: datetime) -> dict:
             "stage.retried",
             "stage.waiting_for_user",
         }:
-            row["elapsed_seconds"] += max(0, (stamp - active.pop(stage)).total_seconds())
+            row["elapsed_seconds"] += elapsed(active.pop(stage), stamp)
         if stage in waiting and kind in {
             "stage.completed",
             "stage.retried",
@@ -39,7 +44,7 @@ def stage_times(events, now: datetime) -> dict:
         elif kind == "stage.waiting_for_user":
             waiting[stage] = stamp
     for stage, stamp in active.items():
-        result[stage]["elapsed_seconds"] += max(0, (now - stamp).total_seconds())
+        result[stage]["elapsed_seconds"] += elapsed(stamp, now)
     for stage, stamp in waiting.items():
         result[stage]["waiting_seconds"] += max(0, (now - stamp).total_seconds())
     return result
@@ -47,6 +52,17 @@ def stage_times(events, now: datetime) -> dict:
 
 def project_statistics(project, *, pricing_model=None, pricing_tier=None) -> dict:
     now = datetime.now(UTC)
+    from .runtime import controller_status
+    stopped = controller_status(project)["state"] == "STOPPED"
+    path = project.control / "controller.json"
+    record = json.loads(path.read_text()) if path.exists() else {}
+    if stopped and record.get("completed_at"):
+        now = datetime.fromisoformat(record["completed_at"])
+    intervals = None
+    if "intervals" in record:
+        intervals = [(datetime.fromisoformat(a), datetime.fromisoformat(b))
+                     for a, b in record["intervals"]]
+        intervals.append((datetime.fromisoformat(record["started_at"]), now))
     with sqlite3.connect(f"{project.database_path.as_uri()}?mode=ro", uri=True) as connection:
         connection.row_factory = sqlite3.Row
         times = stage_times(
@@ -54,12 +70,15 @@ def project_statistics(project, *, pricing_model=None, pricing_tier=None) -> dic
                 "SELECT created_at,event_type,payload FROM events ORDER BY sequence"
             ),
             now,
+            intervals,
         )
     rows = {}
     for stage in project.stages():
         rows[stage.name.value] = {
             "stage": stage.name.value,
             "status": stage.status.value,
+            "execution_state": "STOPPED" if stopped and stage.status.value == "RUNNING" else stage.status.value,
+            "acceptance": stage.message if (stage.message or "").startswith("WORKER_ACCEPTED:") else None,
             **times.get(
                 stage.name.value, {"elapsed_seconds": 0.0, "waiting_seconds": 0.0, "attempts": 0}
             ),
@@ -138,7 +157,7 @@ def project_statistics(project, *, pricing_model=None, pricing_tier=None) -> dic
         "price_source": PRICE_SOURCE,
         "price_date": PRICE_DATE,
         "pricing_model_for_missing_metadata": pricing_model,
-        "note": "Wall time includes stopped controllers while RUNNING; user waits excluded. "
+        "note": "Recorded controller downtime and user waits are excluded; older runs may lack interval history. "
         "Retries included. Unknown usage is not zero. USD assumes short context with 224k "
         "auto-compaction; reasoning output is already included. Not a relay invoice.",
     }

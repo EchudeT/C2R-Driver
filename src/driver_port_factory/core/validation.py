@@ -41,6 +41,7 @@ class BundleValidationContext:
     artifacts: tuple[tuple[ArtifactRef, bytes], ...]
     dependency_artifacts: Sequence[tuple[ArtifactRef, bytes]]
     current_stage_artifacts: Sequence[tuple[ArtifactRef, bytes]] = ()
+    worker_accepted_dependencies: frozenset[str] = frozenset()
 
     def one_current(self, kind: ArtifactKey) -> tuple[ArtifactRef, bytes]:
         return self._one(self.artifacts, kind, "final bundle")

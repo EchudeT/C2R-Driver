@@ -6,11 +6,6 @@ class TargetStudyStage(StrEnum):
 
 
 class TargetStudyArtifact(StrEnum):
-    PROFILE = "target_profile"
-    STRUCTURED_PROFILE = "target_profile_structured"
-    API_EVIDENCE = "target_api_evidence"
-    ANALOGOUS_DRIVER_TRACE = "analogous_driver_trace"
-    CHANGE_PLAN = "target_change_plan"
     REPORT = "target_study_report"
     VALIDATION_ATTEMPT = "target_study_validation_attempt"
 

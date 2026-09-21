@@ -142,11 +142,11 @@ class RevisionProposalImporter:
         job_digest: str,
         job_ordinal: int,
     ) -> ArtifactOccurrence:
-        if project.stage(AcquisitionStage.REVISION_SELECTION).status is not StageStatus.RUNNING:
-            raise WorkflowError("revision_selection must be RUNNING before proposal import")
+        if project.stage(AcquisitionStage.REPOSITORY_ACQUISITION).status is not StageStatus.RUNNING:
+            raise WorkflowError("repository_acquisition must be RUNNING before proposal import")
         job = exact_occurrence(
             project,
-            stage=AcquisitionStage.REVISION_SELECTION,
+            stage=AcquisitionStage.REPOSITORY_ACQUISITION,
             kind=CodexArtifact.JOB_RESULT,
             occurrence=ArtifactOccurrence(job_digest, job_ordinal),
         )
@@ -171,7 +171,7 @@ class RevisionProposalImporter:
             + b"\n"
         )
         imported = project.record_artifact(
-            AcquisitionStage.REVISION_SELECTION,
+            AcquisitionStage.REPOSITORY_ACQUISITION,
             GeneratedArtifact(
                 AcquisitionArtifact.REVISION_SELECTION_PROPOSAL,
                 data,
@@ -237,7 +237,7 @@ def load_revision_proposal(
 ) -> RevisionProposalEnvelope:
     ref = exact_occurrence(
         project,
-        stage=AcquisitionStage.REVISION_SELECTION,
+        stage=AcquisitionStage.REPOSITORY_ACQUISITION,
         kind=AcquisitionArtifact.REVISION_SELECTION_PROPOSAL,
         occurrence=occurrence,
     )

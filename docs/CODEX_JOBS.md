@@ -108,13 +108,15 @@ repository manifest 推导唯一 grant：
 
 | 阶段 | sandbox | execution root |
 |---|---|---|
-| 实现、产物准备、公开运行 | `workspace-write` | `work/target-working` |
-| 环境、源码闭包、研究、合同及测试设计、条件独立审查 | `workspace-write` | `work/stage-work/<stage>` |
+| 开发模式：实现、产物准备、公开运行 | `danger-full-access` | `work/target-working` |
+| 开发模式：环境、研究、源码与设计 | `danger-full-access` | `work/stage-work/<stage>` |
 | revision/evidence acquisition | `danger-full-access` | 项目根 |
-| 其他阶段及独立评测 | `read-only` | 项目根 |
+| 开发模式：静态阶段恢复 | `danger-full-access` | 项目根 |
+| 非开发模式 | 按角色与阶段限制 | 角色专属工作区 |
 
-`public_repair` 是条件证据收尾：无风险触发时控制器冻结工作者自检证据，不调用模型；
-触发时在 `work/stage-work/public_repair` 使用独立会话，审查列出的风险和相关路径。
+开发流程没有 `public_repair`：公开 QEMU 后由原工作者自检，再直接静态汇总证据。
+以下风险策略仅属于单独的盲测候选路径，不参与开发流程，也不因开发优化自动启动：
+`public_repair` 无风险时冻结自检证据；触发时处理列出的风险和相关路径。
 触发依据是 Rust 语法单元的实质变化及其与 unsafe/extern 边界的名称依赖，或工作者的明确请求
 （含仓库明确要求）。分析冻结基线和当前源码，也检查未改文件中的调用者；不把同文件旧 unsafe
 自动当成当前风险。注释、格式和字符串中的 unsafe 不构成风险关键字。风险上下文包含变化
@@ -125,7 +127,7 @@ scope/行号、关联 boundary 和触发依据，审查者无需自行猜测整�
 触发不等于缺陷；没有触发也不是功能正确性的证明，自检和测试仍必需。
 工作者自检不冒充独立审查；输出记录实际 `review_mode`。旧独立合规节点已删除，不做兼容迁移。
 
-可写 grant 必须位于当前项目内，且不能等于或包含项目根、`.dpf`、source baseline、target baseline
+非开发模式的 workspace-write grant 必须位于当前项目内，且不能等于或包含项目根、`.dpf`、source baseline、target baseline
 或 QEMU baseline，也不能位于这些目录之下。策略在启动 Gateway 前 fail closed。CLI 不提供提权参数。
 
 ## 输出与成功门禁
@@ -139,11 +141,9 @@ CLI 不提供把模型响应转换为 required output 或直接 finalize 的通�
 跨产物 bundle validator，再通过唯一的 `Project.finalize_stage` 原子提交。
 开发者流程允许直接交付代码、脚本和 Markdown；Markdown 阶段不为不存在的跨产物校验加载上游 AST。
 
-源码阅读优先，编译器事实按问题查询。`knowledge c-facts PROJECT --symbol NAME` 返回
-`results`，不是 `matches`；`--detail calls` 展开被摘要截断的调用，`--detail cfg` 获取该函数的
-编译器 CFG。source_closure 内先提交编译输入并请求 `DPF_RUN: SOURCE_ANALYSIS`，收到控制器
-事实收据后在同一任务内查询导航并完成自检。未生成、损坏与真实缺证据是不同状态。
-工具不要求模型消费整个 AST、复述机器索引或另填分析表格。
+源码阅读、按需编译器验证、契约设计和公开测试计划在一个 `migration_contracts` 工作任务内完成，
+交付同一 Markdown。没有全量 C 索引、强制查询或 `SOURCE_ANALYSIS` 往返协议。
+用户批准的按需证据策略在统一工作协议中明确覆盖上游全量导出要求；其余 Skill 自检和 QEMU 职责保留。
 
 默认 Prompt Pack 不启用 `output_schema`。版本/证据选择返回简洁 JSON，由领域 importer
 解析并校验；工作报告通过唯一的绝对 `REPORT_PATH` 交付真实 Markdown 文件，不接受聊天正文降级。

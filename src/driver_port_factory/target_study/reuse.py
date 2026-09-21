@@ -14,7 +14,18 @@ def identity(project):
     corpus = CorpusManifest.current(project)
     # Source-only additions cannot change the pinned target framework. Other lanes
     # may change platform/packaging judgments and therefore require worker review.
-    materials = [r.to_dict() for r in corpus.records if r.facet.lane.value != "source"]
+    def semantic(value):
+        if isinstance(value, dict):
+            return {key: semantic(item) for key, item in value.items()
+                    if key not in {"acquired_at", "retrieved_at", "ordinal"}}
+        if isinstance(value, list):
+            return [semantic(item) for item in value]
+        return value
+
+    # Acquisition bookkeeping, order and duplicate records do not change evidence.
+    # Keep content, paths, origins and authority: cross-domain facts can affect the study.
+    materials = sorted({json.dumps(semantic(r.to_dict()), sort_keys=True)
+                        for r in corpus.records if r.facet.lane.value != "source"})
     value = {
         "materials": materials,
         "repositories": project.artifact(AcquisitionStage.REPOSITORY_ACQUISITION,
@@ -49,9 +60,8 @@ def restore(project):
         data = project.artifacts.read(matching[-1])
         if project.stage(S.STUDY).status is StageStatus.READY:
             project.start(S.STUDY)
-        project.finalize_stage(S.STUDY, tuple(GeneratedArtifact(kind, data,
-            f"reused:target-study:{receipt['report']}") for kind in (
-            A.PROFILE, A.STRUCTURED_PROFILE, A.API_EVIDENCE, A.ANALOGOUS_DRIVER_TRACE,
-            A.CHANGE_PLAN, A.REPORT)), message="Reused target study: relevant inputs unchanged")
+        project.finalize_stage(S.STUDY, (GeneratedArtifact(A.REPORT, data,
+            f"reused:target-study:{receipt['report']}"),),
+            message="Reused target study: relevant inputs unchanged")
         return True
     return False

@@ -6,8 +6,6 @@ from pathlib import Path
 
 from ..cli_support import CommandRegistry, command_registry
 from ..composition import open_project
-from ..source_analysis.query import query_symbols
-from ..source_analysis.navigation import prepare_navigation, require_analysis_ready
 from .contracts import KnowledgeDomain
 from .index import KnowledgeIndex
 
@@ -81,26 +79,6 @@ def command_show(arguments: argparse.Namespace) -> None:
     )
 
 
-def command_c_facts(arguments: argparse.Namespace) -> None:
-    # Navigation verifies its facts, semantic inputs and derived database; old
-    # QEMU images and unrelated historical outputs are not query dependencies.
-    project = open_project(Path(arguments.path), read_only=True, verify_artifacts=False)
-    require_analysis_ready(project)
-    results = query_symbols(
-        project, symbols=arguments.symbol, source_path=arguments.source_path,
-        limit=arguments.limit, detail=arguments.detail,
-    )
-    print(json.dumps(results[0] if len(results) == 1 else {"queries": results},
-                     ensure_ascii=False, indent=2))
-
-
-def command_c_facts_build(arguments: argparse.Namespace) -> None:
-    project = open_project(Path(arguments.path), read_only=True)
-    require_analysis_ready(project)
-    prepare_navigation(project)
-    print(json.dumps({"navigation": "ready"}))
-
-
 def register_commands(commands: CommandRegistry) -> None:
     knowledge = commands.add_parser(
         "knowledge", help="manage the provenance-checked local knowledge base"
@@ -131,19 +109,3 @@ def register_commands(commands: CommandRegistry) -> None:
     show.add_argument("path")
     show.add_argument("--chunk-id", required=True)
     show.set_defaults(handler=command_show)
-    facts = subcommands.add_parser(
-        "c-facts", help="inspect a named function/type in frozen C facts"
-    )
-    facts.add_argument("path")
-    facts.add_argument("--symbol", required=True, action="append",
-                       help="repeat for a batch (up to 32); each index is scanned once")
-    facts.add_argument("--source-path")
-    facts.add_argument("--limit", type=int, default=5)
-    facts.add_argument("--detail", choices=("summary", "calls", "cfg"), default="summary",
-                       help="fetch full calls or compiler CFG only for the selected symbol")
-    facts.set_defaults(handler=command_c_facts)
-    build = subcommands.add_parser(
-        "c-facts-build", help="prepare derived symbol navigation outside the worker sandbox"
-    )
-    build.add_argument("path")
-    build.set_defaults(handler=command_c_facts_build)

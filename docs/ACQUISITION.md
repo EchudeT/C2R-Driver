@@ -3,18 +3,17 @@
 Acquisition follows one ordered path after `migration_envelope_freeze=PASS`:
 
 ```text
-revision_selection
-  -> repository_acquisition (STATIC)
+repository_acquisition (one worker selection + one retained download)
   -> evidence_closure (HYBRID proposal + deterministic gate)
   -> environment_recovery
 ```
 
 ## Revision selection
 
-The `revision_selection` job returns only three repository choices:
+The `repository_acquisition` job returns only three repository choices:
 `{"repositories":[{"role":"source","url":"…","ref":"…"}, …]}`.
 Each ref must be a release tag or full commit. The controller binds the exact job
-occurrence to the frozen migration envelope, resolves the refs through Git, and records
+occurrence to the frozen migration envelope, downloads each repository once and resolves its local ref, and records
 the command evidence and immutable commits in `revision_manifest` and `repository_plan`.
 Annotated tags are peeled to commits, including refs written as `refs/tags/vX.Y.Z`.
 Floating branch names such as `main`, `master`, and `HEAD` are rejected.
@@ -25,9 +24,9 @@ in the environment stage; a citation table is not a prerequisite for pinning rep
 When workflow contracts change, start a fresh run instead of migrating frozen state.
 
 ```sh
-dpf codex run RUN revision_selection --objective "Select compatible maintained releases"
+dpf codex run RUN repository_acquisition --objective "Select compatible maintained releases"
 dpf acquire revision-proposal-import RUN --job-digest SHA256 --job-ordinal N
-dpf acquire revisions RUN --proposal-digest SHA256 --proposal-ordinal N
+dpf acquire repositories RUN
 ```
 
 ## Repository acquisition
@@ -39,15 +38,18 @@ must prove the frozen source entry exists and remains within the source checkout
 
 Interrupted acquisition remains `RUNNING`, appends a `repository_acquisition_attempt`, and can be
 retried. Existing partial bare repositories and completed baselines are verified and reused.
-Every retry fetches the selected ref again: ref drift fails closed instead of silently adopting a
-new commit.
+Successful downloads and their command receipts are reused on restart; tags are peeled locally
+and the downloaded commit is frozen. No temporary membership-probe repository exists. A Git fetch
+failure pauses acquisition with the selection and successful downloads retained; resuming retries
+the unfinished download, not the model selection. This does not promise byte-level resume of a
+partially transferred Git pack.
 
 Repository locks prove checkout identity only. They are never controlled materials and cannot
 satisfy an evidence facet.
 
 ## Evidence proposal boundary
 
-The `evidence_closure` Codex job runs read-only and returns only candidate locators and rationale.
+The `evidence_closure` Codex job returns only candidate locators and rationale.
 Its response contract is stated directly in the editable prompt pack. The response must cover the
 source, target, QEMU, hardware, test, and tooling domains. It may use only
 the concrete facets needed by the frozen migration scope; duplicate facets are rejected.
@@ -77,6 +79,12 @@ one typed origin:
 
 Derived material must reference a controlled original plus its original path and page map.
 Indexes and gap descriptions are not material evidence.
+
+An official original may be selected with `url`, `publisher_url` and a concise `basis` explaining
+the worker's source assessment; no mirror is required. Mirror inputs retain corroboration.
+Publisher assessment remains a worker judgment, not proof inferred from a hostname. The tool binds
+the actual response host and content. Successful HTTP responses are reused from CAS across binding,
+finalization and restart rather than downloaded again.
 
 ## Facet accounting
 

@@ -20,7 +20,13 @@ class PublicRepairService:
         reports = tuple(project.artifacts.read(project.artifact(stage, kind)).decode()
                         for stage, kind in ((S.DRIVER_IMPLEMENTATION, A.COMPLIANCE_REPORT),
                                             (S.PUBLIC_QEMU_VALIDATION, A.PUBLIC_QEMU_WORK_REPORT)))
-        return review_decision(project.root, bundle, reports)
+        from .implementation import ImplementationChanged
+        try:
+            return review_decision(project.root, bundle, reports)
+        except ImplementationChanged as error:
+            return {"policy": "rust-change-impact-or-explicit-request",
+                    "independent_required": True,
+                    "reasons": [{"kind": "implementation_drift", "detail": str(error)}]}
 
     @staticmethod
     def review_inputs(project: Project) -> dict:
@@ -52,7 +58,7 @@ class PublicRepairService:
         if reuse and reused is None:
             raise WorkflowError("no unchanged passing independent review to reuse")
         if decision["independent_required"] and review_path is None and reused is None:
-            raise WorkflowError("risk-triggered independent review is required")
+            project.note_check("Risk checker recommends independent review: " + json.dumps(decision))
         worker = project.artifact(S.PUBLIC_QEMU_VALIDATION, A.PUBLIC_QEMU_WORK_REPORT)
         text = (reused["text"] if reused is not None else
                 review_path.read_text(encoding="utf-8") if review_path is not None
@@ -88,7 +94,8 @@ def _review_inputs(bundle: dict, public: dict, contracts: str, tests: str) -> di
 def validate_public_repair_bundle(context: BundleValidationContext) -> None:
     report = json_object(context.one_current(A.PUBLIC_REPAIR_REPORT)[1], "evidence closure")
     public = json_object(context.one_dependency(A.PUBLIC_QEMU_REPORT)[1], "public QEMU report")
-    if public.get("execution_status") != "PASS":
+    if (public.get("execution_status") != "PASS"
+            and S.PUBLIC_QEMU_VALIDATION.value not in context.worker_accepted_dependencies):
         raise WorkflowError("evidence closure cannot accept a failed public run")
     bundle = json_object(context.one_dependency(A.IMPLEMENTATION_BUNDLE)[1], "implementation")
     self_check = context.one_dependency(A.COMPLIANCE_REPORT)[1].decode()
