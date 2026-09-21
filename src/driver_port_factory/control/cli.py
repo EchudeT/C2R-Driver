@@ -31,6 +31,7 @@ def command_init(arguments: argparse.Namespace) -> None:
         actor_role=arguments.role,
         skill_root=str(Path(arguments.skill_root).resolve()) if arguments.skill_root else None,
         prompt_pack=str(Path(arguments.prompt_pack).resolve()) if arguments.prompt_pack else None,
+        baseline_repositories=tuple(str(Path(path).resolve()) for path in arguments.baseline_repository),
     )
     initialize_project(root, config)
     print(root)
@@ -65,6 +66,11 @@ def command_status(arguments: argparse.Namespace) -> None:
             f"attempts={row['attempts']} deps={dependencies}"
         )
         if stage.status.value in {"READY", "RUNNING"}:
+            pointer = project.control / "checker-decisions" / f"{stage.name.value}.pending"
+            if pointer.is_file():
+                request_path = Path(pointer.read_text())
+                request = json.loads(request_path.read_text())
+                print(f"   recovery={'PAUSED' if request['paused'] else 'PENDING'} evidence={request_path}")
             repair = project.retry_feedback(stage.name)
             if repair:
                 print(f"   repair={repair['status']} root={repair.get('repair_root', repair['stage'])} "
@@ -109,6 +115,15 @@ def command_stage_reopen(arguments: argparse.Namespace) -> None:
     print(f"{stage.value} -> READY; resume port with the existing worker session")
 
 
+def command_recovery_resume(arguments: argparse.Namespace) -> None:
+    from ..core.checker_decision import resume_recovery
+    project = open_project(Path(arguments.path))
+    stage = project.workflow.parse_stage(arguments.stage)
+    with controller_run(project):
+        resume_recovery(project, stage, arguments.reason)
+    print(f"{stage.value}: recovery pause released; resume port to retry current work")
+
+
 def command_artifact_add(arguments: argparse.Namespace) -> None:
     project = open_project(Path(arguments.path))
     stage = project.workflow.parse_stage(arguments.stage)
@@ -140,6 +155,8 @@ def register_commands(commands: CommandRegistry) -> None:
     init.add_argument("--mode", type=EvaluationMode, choices=list(EvaluationMode), required=True)
     init.add_argument("--role", type=ActorRole, choices=list(ActorRole), required=True)
     init.add_argument("--skill-root")
+    init.add_argument("--baseline-repository", action="append", default=[],
+                      help="read-only upstream repository cache (repeatable)")
     init.add_argument("--prompt-pack", help="editable prompt-pack directory used by default")
     init.set_defaults(handler=command_init)
 
@@ -153,6 +170,11 @@ def register_commands(commands: CommandRegistry) -> None:
 
     stage = commands.add_parser("stage", help="manually drive a stage")
     stage_commands = command_registry(stage, dest="stage_command")
+    recovery = stage_commands.add_parser("recovery-resume", help="operator: resume stalled recovery after an external change")
+    recovery.add_argument("path")
+    recovery.add_argument("stage")
+    recovery.add_argument("--reason", required=True)
+    recovery.set_defaults(handler=command_recovery_resume)
     reopen = stage_commands.add_parser("reopen", help="operator: reopen a resolved BLOCKED stage")
     reopen.add_argument("path")
     reopen.add_argument("stage")

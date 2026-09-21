@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
+import re
 
 from ..core.execution import CommandRunner
 from ..core.models import WorkflowError
@@ -17,6 +18,10 @@ class RepositoryGitResult:
 
 class RepositoryFetchError(WorkflowError):
     """Acquisition can resume the same selection without a paid model decision."""
+
+
+class RepositorySelectionError(WorkflowError):
+    """A reachable remote rejected the selection; worker diagnosis is appropriate."""
 
 
 class RepositoryGit:
@@ -48,6 +53,20 @@ class RepositoryGit:
         if result.exit_code != 0:
             stderr = Path(result.stderr_path).read_text(encoding="utf-8", errors="replace")
             error_type = RepositoryFetchError if operation is RepositoryCommandKind.BASELINE_FETCH else WorkflowError
+            if (operation is RepositoryCommandKind.BASELINE_FETCH
+                    and not result.timed_out and result.launched
+                    and arguments[:1] == ["-C"]):
+                # Only diagnose after a failed download. Git's exit 2 proves a
+                # reachable remote has no matching ref; other exits say nothing
+                # about validity and remain resumable transport failures.
+                full_commit = bool(re.fullmatch(r"[0-9a-fA-F]{40}|[0-9a-fA-F]{64}", arguments[-1]))
+                probe = self.runner.run(
+                    ["git", "-C", arguments[1], "ls-remote", "--exit-code",
+                     "origin", *([] if full_commit else [arguments[-1]])],
+                    cwd=cwd or self.project_root, timeout_seconds=60,
+                )
+                if (probe.exit_code == 2 or full_commit and probe.exit_code == 0) and not probe.timed_out:
+                    error_type = RepositorySelectionError
             raise error_type(
                 f"git command failed ({result.exit_code}): git {' '.join(arguments)}: "
                 f"{stderr.strip()}"

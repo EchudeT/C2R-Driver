@@ -43,6 +43,16 @@ class ArtifactPreparationService:
         validate_worktree_snapshot(project.root, bundle)
         runtime_hash = file_sha256(runtime)
         checker_hash = file_sha256(checker)
+        variant_root = worktree / ".dpf-output/harness/variants"
+        variants = {}
+        if variant_root.is_symlink():
+            raise CodexOutputError("runtime variants directory must not be a symlink")
+        for path in sorted(variant_root.rglob("*")):
+            if path.is_symlink():
+                raise CodexOutputError("runtime variants must be regular files")
+            if path.is_file():
+                ref = project.record_artifact(stage, FileArtifact(MigrationArtifact.RUNTIME_VARIANT, path))
+                variants[str(path.relative_to(worktree))] = ref.to_dict()
         attempt_dir = project.control / "artifact-preparation" / str(uuid.uuid4())
         command = CommandRunner(attempt_dir).run(
             script_command(checker),
@@ -59,6 +69,7 @@ class ArtifactPreparationService:
             and command.exit_code == 0
             and file_sha256(runtime) == runtime_hash
             and file_sha256(checker) == checker_hash
+            and all(file_sha256(worktree / path) == ref["digest"] for path, ref in variants.items())
         )
         attempt = {
             "schema_version": 1,
@@ -67,6 +78,7 @@ class ArtifactPreparationService:
             "checker_sha256": checker_hash,
             "runtime_sha256": runtime_hash,
             "implementation_sha256": bundle_ref.digest,
+            "variants": variants,
         }
         attempt_ref = project.record_artifact(
             stage,
@@ -99,6 +111,7 @@ class ArtifactPreparationService:
                 "sha256": file_sha256(report_path),
             },
             "runtime_status": "NOT_RUN",
+            "variants": variants,
         }
         project.finalize_stage(
             stage,
@@ -127,6 +140,12 @@ def validate_artifact_bundle(context: BundleValidationContext) -> None:
         raise WorkflowError("runtime artifact has no matching preparation attempt")
     attempt_ref, attempt_data = matches[-1]
     attempt = json_object(attempt_data, "artifact attempt")
+    variants = identity.get("variants", {})
+    current_variants = {ref.digest for ref, _ in context.current_stage_artifacts
+                        if ref.kind == MigrationArtifact.RUNTIME_VARIANT.value}
+    if variants != attempt.get("variants", {}) or any(
+            ref["digest"] not in current_variants for ref in variants.values()):
+        raise WorkflowError("runtime variants are detached from their preparation evidence")
     implementation_ref, _ = context.one_dependency(MigrationArtifact.IMPLEMENTATION_BUNDLE)
     presence = identity.get("driver_presence", {})
     command = attempt.get("presence_check", {})

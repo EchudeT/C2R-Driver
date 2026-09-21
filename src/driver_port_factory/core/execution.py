@@ -4,6 +4,7 @@ import hashlib
 import json
 import os
 import shlex
+import shutil
 import signal
 import subprocess
 import time
@@ -22,6 +23,26 @@ def script_command(path: Path) -> list[str]:
     if not interpreter:
         raise ValueError(f"empty script interpreter: {path}")
     return [*interpreter, str(path.resolve())]
+
+
+def observed_script_command(script: Path, trace: Path) -> list[str]:
+    """Instrumentation is optional; absence is evidence, never a fabricated exec."""
+    tracer = shutil.which("strace")
+    trace.touch(exist_ok=False)
+    probe = None
+    if tracer:
+        probe = CommandRunner(trace.parent / "collector-probe").run(
+            [tracer, "-f", "-qq", "-e", "trace=execve", "-o",
+             str(trace.parent / "collector-probe.log"), "/bin/true"],
+            cwd=script.parent, timeout_seconds=10)
+    usable = probe is not None and probe.launched and not probe.timed_out and probe.exit_code == 0
+    trace.with_suffix(".collector.json").write_text(json.dumps({
+        "collector": "strace", "available": usable,
+        "probe": asdict(probe) if probe else None,
+        "limitation": None if usable else "strace unavailable or unusable; exec observation not collected",
+    }) + "\n")
+    prefix = [tracer, "-f", "-qq", "-s", "65535", "-e", "trace=execve", "-o", str(trace)] if usable else []
+    return [*prefix, *script_command(script)]
 
 
 @dataclass(frozen=True, slots=True)

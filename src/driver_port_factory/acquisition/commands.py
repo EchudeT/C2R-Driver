@@ -12,6 +12,7 @@ from .repository_role import RepositoryRole
 
 
 class RepositoryCommandKind(StrEnum):
+    BASELINE_CACHE_IMPORT = "baseline_cache_import"
     BASELINE_INITIALIZATION = "baseline_initialization"
     ORIGIN_CONFIGURATION = "origin_configuration"
     BASELINE_FETCH = "baseline_fetch"

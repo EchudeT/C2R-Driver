@@ -117,3 +117,15 @@ it cannot support a behavioral claim.
 
 `dpf acquire repositories-verify` rechecks origin, commit, tree and clean state for all baselines.
 It does not require the later writable target worktree to remain clean.
+# Reusing supplied upstream sources
+
+Pass `--baseline-repository /absolute/upstream/repository` to `port run` or `init`
+(repeat for Linux, target and QEMU). Paths are frozen in the new run configuration;
+resume uses that configuration. Supply upstream repositories only, not old migration
+workspaces. The worker can inspect these sources and select available versions.
+
+The controller matches the selected origin, imports committed Git objects locally,
+and performs its ordinary upstream fetch to confirm the chosen revision. Dirty
+worktree content is not copied, the supplied repository is not modified, and the new
+run does not depend on shared Git alternates. Missing/mismatched caches fall back to
+normal acquisition. This reduces redundant transfer; it is not an offline mode.

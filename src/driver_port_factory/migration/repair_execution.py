@@ -15,20 +15,6 @@ from .implementation import worktree_files
 from .public_qemu import PublicQemuService
 
 
-OBJECTIVE = """Resolve the recorded repair as one continuous worker task. First verify each
-finding against the frozen scope, current code and original evidence; explain unsupported or
-out-of-scope findings rather than implementing them blindly. Repair only evidenced functional
-or safety defects, preserving unaffected coverage and prior conclusions. Complete affected
-checks and the Skill self-check, rebuild the runtime artifact when its inputs changed, and
-prepare the existing public-QEMU runner for affected regressions. Reuse builds and tests;
-do not execute the full suite before the controller. Deliver .dpf-output/runtime-artifact,
-.dpf-output/check-presence.sh and .dpf-output/public-qemu.sh with required helper inputs.
-Return one delta report ending DPF_SELF_REVIEW: PASS for the repair and preparation checks,
-not for unexecuted QEMU results. The controller will validate/capture these files and execute
-the suite without another packaging/planning model turn, then return observations to this
-worker for final self-check. Keep unchanged coverage by reference; no new handoff documents."""
-
-
 def active(project, stage):
     feedback = project.retry_feedback(stage)
     return bool(stage in (S.DRIVER_IMPLEMENTATION, S.ARTIFACT_PREPARATION)

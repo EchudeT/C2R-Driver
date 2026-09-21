@@ -69,15 +69,17 @@ class PrerequisiteRepair(WorkflowError):
 
 
 def repair_target(text: str) -> StageKey:
-    markers = [line.strip().removeprefix("DPF_REPAIR_STAGE:").strip()
-               for line in text.splitlines() if line.strip().startswith("DPF_REPAIR_STAGE:")]
-    if len(markers) != 1 or markers[0] not in ROUTES:
+    lines = [line.strip() for line in text.splitlines() if line.strip()]
+    target = (lines[-2].removeprefix("DPF_REPAIR_STAGE:").strip()
+              if len(lines) >= 2 and lines[-1] == "DPF_REVIEW: REWORK"
+              and lines[-2].startswith("DPF_REPAIR_STAGE:") else None)
+    if target not in ROUTES:
         raise CodexOutputError(
-            "REWORK requires exactly one DPF_REPAIR_STAGE: followed by "
+            "Immediately before DPF_REVIEW: REWORK, name DPF_REPAIR_STAGE: with one of "
             + ", ".join(ROUTES) + ". "
             "Choose the earliest actually affected stage: reviewed-source defect requires "
             "implementation; image/guest entrypoint requires packaging; "
             "harness/oracle/evidence with unchanged artifact requires public validation. "
             "Explain the cause in Markdown; do not reopen unaffected review conclusions."
         )
-    return ROUTES[markers[0]]
+    return ROUTES[target]

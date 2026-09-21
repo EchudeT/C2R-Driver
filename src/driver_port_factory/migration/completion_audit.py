@@ -117,9 +117,11 @@ class CompletionAuditService:
             "stage_results": stages,
             "artifact_snapshot": artifacts,
             "artifact_snapshot_sha256": snapshot_digest,
-            "contract_results": [],
-            "test_results": [],
             "work_products": {
+                "contract_and_test_results": _reference(
+                    project, MigrationStage.PUBLIC_QEMU_VALIDATION,
+                    MigrationArtifact.PUBLIC_QEMU_WORK_REPORT,
+                ),
                 "runtime_evidence_review": repair.get("review"),
                 "review_mode": repair["review_mode"],
                 "review_decision": repair["decision"],
@@ -247,14 +249,6 @@ def validate_completion_audit_bundle(context: BundleValidationContext) -> None:
         or "verified" not in audit.get("artifact_lineage", {})
     ):
         raise WorkflowError("completion audit is incomplete or detached from frozen evidence")
-    for field, key in (("contract_results", "id"), ("test_results", "test_id")):
-        results = audit.get(field)
-        if not isinstance(results, list) or len({item.get(key) for item in results}) != len(
-            results
-        ):
-            raise WorkflowError("completion audit result identities are incomplete")
-        for item in results:
-            ContractExecutionStatus(item.get("execution_status"))
 
 
 def _snapshot(project: Project) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:

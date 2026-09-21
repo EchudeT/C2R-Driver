@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import json
 import os
-import shutil
 import stat
 import uuid
 from dataclasses import asdict, dataclass
@@ -13,7 +12,7 @@ from ..acquisition.repository import load_repository_acquisition
 from ..codex.contracts import CodexOutputError
 from ..core.contracts import ArtifactKey
 from ..core.container_trace import ContainerTrace
-from ..core.execution import CommandResult, CommandRunner, script_command
+from ..core.execution import CommandResult, CommandRunner, observed_script_command
 from ..core.models import FileArtifact, GeneratedArtifact, StageStatus, WorkflowError, utc_now
 from ..core.project import Project
 from ..core.trace import successful_execs
@@ -120,9 +119,6 @@ def run_public_harness(
 ) -> QemuHarnessResult:
     """Run a public harness and mechanically prove its QEMU/runtime/log boundary."""
 
-    strace = shutil.which("strace")
-    if strace is None:
-        raise WorkflowError("strace is required to prove that the public harness executed QEMU")
     attempt_dir.mkdir(parents=True, exist_ok=True)
     trace_path = attempt_dir / "execve.log"
     log_root = worktree / ".dpf-output" / "qemu-runs"
@@ -132,18 +128,7 @@ def run_public_harness(
     }
     with ContainerTrace(worktree, attempt_dir / "container-processes.json") as containers:
         result = CommandRunner(attempt_dir / "command").run(
-            [
-                strace,
-                "-f",
-                "-qq",
-                "-s",
-                "65535",
-                "-e",
-                "trace=execve",
-                "-o",
-                str(trace_path),
-                *script_command(script_path),
-            ],
+            observed_script_command(script_path, trace_path),
             cwd=worktree,
             environment={
                 "DPF_RUNTIME_ARTIFACT": str(runtime_path),
@@ -216,16 +201,27 @@ class PublicQemuService:
         script_digest = file_sha256(script_path)
         inputs = {kind.value: self._input(project, kind).to_dict() for kind in PUBLIC_QEMU_INPUTS}
         helpers = self._helper_inputs(worktree)
+        identity = project.load_json_artifact(MigrationStage.ARTIFACT_PREPARATION,
+                                              MigrationArtifact.ARTIFACT_IDENTITY)
+        variants = identity["variants"]
+        for path, ref in variants.items():
+            if helpers.get(path, {}).get("sha256") != ref["digest"]:
+                raise CodexOutputError("Packaged runtime variant changed; refresh artifact preparation.")
+        request_job = max((ref.ordinal for ref in project.current_artifact_refs(
+            stage=MigrationStage.PUBLIC_QEMU_VALIDATION)
+            if ref.kind == "codex_job_result"), default=-1)
         previous = self._latest_attempt(project)
         if previous is not None:
             ref, saved = previous
             run = saved["runs"][0]
             if (saved.get("schema_version") == 4
-                    and saved.get("execution_status") == "PASS" and saved["inputs"] == inputs
+                    and saved["inputs"] == inputs
                     and run["script"]["sha256"] == script_digest
                     and run.get("helper_inputs") == helpers
-                    and run["request_report"]["sha256"] == file_sha256(work_report_path)):
-                return {"status": "PASS", "attempt": str(project.artifacts.path_for_digest(ref.digest))}
+                    and (saved["execution_status"] == "PASS"
+                         or run.get("request_job") == request_job)):
+                return {"status": saved["execution_status"],
+                        "attempt": str(project.artifacts.path_for_digest(ref.digest))}
         attempt_dir = project.control / "public-qemu" / uuid.uuid4().hex
         observed = run_public_harness(
             attempt_dir=attempt_dir,
@@ -242,11 +238,19 @@ class PublicQemuService:
             "script": {"path": str(script_path), "sha256": script_digest},
             "runtime_artifact": {"path": str(runtime_path), "sha256": runtime.digest},
             "helper_inputs": helpers,
+            "runtime_variants": {
+                path: {"sha256": ref["digest"], "artifact": ref,
+                       "observed_boot": any(runtime_in_qemu_arguments(line, (worktree / path).resolve())
+                                            for line in observed.qemu_execs)}
+                for path, ref in variants.items()
+            },
+            "request_job": request_job,
             "request_report": {
                 "path": str(work_report_path.relative_to(project.root)),
                 "sha256": file_sha256(work_report_path),
             },
             "exec_trace": {
+                "collector": json.loads(observed.trace_path.with_suffix(".collector.json").read_text()),
                 "path": str(observed.trace_path.relative_to(project.root)),
                 "sha256": file_sha256(observed.trace_path),
                 "executed_programs": list(observed.executed_programs),

@@ -24,7 +24,8 @@ def test_single_download_selection_to_frozen_baselines(tmp_path, interrupt):
     from dataclasses import replace
     from tests.repository_support import project_config
 
-    config = replace(project_config(), skill_root=str(tmp_path / "skills"))
+    config = replace(project_config(), skill_root=str(tmp_path / "skills"),
+                     baseline_repositories=(str(tmp_path / "upstream-cache"),))
     with (
         patch("tests.repository_support.select_revisions"),
         patch("tests.repository_support.project_config", return_value=config),
@@ -32,6 +33,9 @@ def test_single_download_selection_to_frozen_baselines(tmp_path, interrupt):
         project, source, target, qemu = ready_project(tmp_path)
     # Exercise the actual annotated-tag SHA that broke the old split workflow.
     git("tag", "-a", "v2.0.0", "-m", "annotated", cwd=source)
+    cache = tmp_path / "upstream-cache"
+    git("clone", str(source), str(cache), cwd=tmp_path)
+    (cache / "drivers/example.c").write_text("uncommitted cache edit must not be imported\n")
     selection = {
         "repositories": [
             {
@@ -81,7 +85,61 @@ def test_single_download_selection_to_frozen_baselines(tmp_path, interrupt):
     assert "revision_selection" not in project.workflow.stage_values
     frozen = project.load_json_artifact(S.REPOSITORY_ACQUISITION, A.REVISION_MANIFEST)
     assert frozen["source"]["revision"] == git("rev-parse", "v2.0.0^{commit}", cwd=source)
+    manifest = project.load_json_artifact(S.REPOSITORY_ACQUISITION, A.REPOSITORY_MANIFEST)
+    assert any(row["operation"] == K.BASELINE_CACHE_IMPORT.value and "fetch" in row["result"]["argv"]
+               for row in manifest["commands"])
+    checkout = next(row for row in manifest["checkouts"] if row["role"] == "source")
+    assert (project.root / checkout["checkout_path"] / "drivers/example.c").read_text() == "/* source driver */\n"
+    assert "uncommitted" in (cache / "drivers/example.c").read_text()
     assert not (project.control / "revision-probes").exists()
+    open_project(project.root).verify_integrity()
+
+
+def test_selection_can_change_before_acquisition_is_frozen(tmp_path):
+    from driver_port_factory.acquisition.repository import RepositoryAcquirer
+    from driver_port_factory.acquisition.revision_proposal import RevisionProposalImporter
+    from driver_port_factory.codex.contracts import CodexArtifact
+    from driver_port_factory.core.models import GeneratedArtifact, WorkflowError
+
+    project, source, target, qemu = ready_project(tmp_path)
+    from driver_port_factory.acquisition.git_execution import RepositorySelectionError
+    from driver_port_factory.acquisition.repository_storage import BareRepositoryStore
+    from types import SimpleNamespace
+    store = BareRepositoryStore(project.root, project.control,
+                                RepositoryGit(project.root, project.control))
+    missing = SimpleNamespace(role=RepositoryRole.SOURCE, url=str(source),
+                              requested_ref="v-does-not-exist")
+    with pytest.raises(RepositorySelectionError):
+        store.fetch(store.prepare(missing), missing)
+    missing.requested_ref = "1" * 40
+    with pytest.raises(RepositorySelectionError):
+        store.fetch(store.prepare(missing), missing)
+    # Ambiguous transport failure can be explicitly returned to the worker,
+    # without discarding the existing selection/download or restarting a phase.
+    from driver_port_factory.core.checker_decision import resume_recovery, pending_decision, clear_pending
+    RepositoryAcquirer._record_attempt(project, RepositoryFetchError("fixture unavailable origin"))
+    resume_recovery(project, S.REPOSITORY_ACQUISITION, "check whether selected origin is incorrect")
+    assert pending_decision(open_project(project.root), S.REPOSITORY_ACQUISITION) is not None
+    clear_pending(project, S.REPOSITORY_ACQUISITION)
+    with patch("driver_port_factory.acquisition.repository.SourceIdentityVerifier.verify",
+               side_effect=WorkflowError("selected version does not support confirmed scope")):
+        with pytest.raises(WorkflowError):
+            RepositoryAcquirer().acquire(project)
+    old_locks = {p: p.read_bytes() for p in (project.control / "manifests/repository-locks").glob("*.json")}
+    for path in (source, target):
+        (path / "version.txt").write_text("corrected version\n")
+        git("add", "version.txt", cwd=path)
+        git("commit", "-m", "correct selection", cwd=path)
+    selection = {"repositories": [
+        {"role": role.value, "url": str(path), "ref": git("rev-parse", "HEAD", cwd=path)}
+        for role, path in zip(RepositoryRole, (source, target, qemu), strict=True)]}
+    job = project.record_artifact(S.REPOSITORY_ACQUISITION, GeneratedArtifact(
+        CodexArtifact.JOB_RESULT, json.dumps(selection).encode(), "fixture:corrected-selection"))
+    imported = RevisionProposalImporter().import_job_result(
+        project, job_digest=job.digest, job_ordinal=job.ordinal)
+    acquisition = RepositoryAcquirer().acquire(project, proposal=imported)
+    assert acquisition.target_worktree.base_commit == git("rev-parse", "HEAD", cwd=target)
+    assert all(path.read_bytes() == content for path, content in old_locks.items())
     open_project(project.root).verify_integrity()
 
 

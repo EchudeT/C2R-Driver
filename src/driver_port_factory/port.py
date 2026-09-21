@@ -53,6 +53,7 @@ from .migration.public_qemu import PublicQemuService
 from .migration.public_repair import PublicRepairService
 from .migration.repair_routing import PrerequisiteRepair, WorkerBlocked, repair_target, retry_prerequisite
 from .target_study.contracts import TargetStudyArtifact, TargetStudyStage
+from .orchestration.protocol import terminal_line
 
 
 @dataclass(frozen=True, slots=True)
@@ -66,6 +67,7 @@ class PortOptions:
     backend: CodexBackend
     codex_bin: str
     model: str | None
+    baseline_repositories: tuple[Path, ...] = ()
 
 
 @dataclass(frozen=True, slots=True)
@@ -182,6 +184,9 @@ class PortRunner:
             )
             if actual != expected:
                 raise WorkflowError("run inputs differ from the persisted migration request")
+            if self.options.baseline_repositories and tuple(str(path.resolve()) for path in
+                    self.options.baseline_repositories) != project.config.baseline_repositories:
+                raise WorkflowError("supplied baseline repositories differ from the persisted run configuration")
             return project
         return initialize_project(
             workspace,
@@ -193,11 +198,12 @@ class PortRunner:
                 evaluation_mode=EvaluationMode.DEVELOPER_EVIDENCE,
                 actor_role=ActorRole.DEVELOPER,
                 skill_root=str(self.options.skill_root.resolve()),
+                baseline_repositories=tuple(str(path.resolve()) for path in self.options.baseline_repositories),
             ),
         )
 
     def _checker_decision(self, project: Project, stage: StageKey, error) -> None:
-        from .core.checker_decision import accept_decision, clear_pending
+        from .core.checker_decision import accept_decision, clear_pending, capture_is_current
         from .core.models import StageOwner
         payload = json.loads(error.path.read_text())
         job = self._latest_job_occurrence(project, stage)
@@ -223,11 +229,14 @@ class PortRunner:
             # Let the normal model-stage adapter apply the same routing and
             # sealed-phase rules as it does for any other deliverable.
             report = None
-        if report is not None and report.read_text().rstrip().endswith("\nDPF_CHECKER_DECISION: ACCEPT"):
+        if (report is not None
+                and terminal_line(report.read_text()) == "DPF_CHECKER_DECISION: ACCEPT"
+                and capture_is_current(project, stage, payload)):
             accept_decision(project, stage, error.path, report)
         else:
-            # The response IS the repaired deliverable. Existing adapters consume
-            # its persisted job directly; static operations rerun without another AI.
+            # Missing/stale captures must go through the normal adapter, even if
+            # the worker calls its response ACCEPT. Reuse the persisted response;
+            # never ask another model turn to correct a routing-only distinction.
             clear_pending(project, stage)
             self._actions[stage](project)
 
@@ -367,9 +376,10 @@ class PortRunner:
                 target = project.stage(error.target)
                 if (target.status is not StageStatus.PASS or target.position >= project.stage(stage).position
                         or stage.value not in project.workflow.descendants(error.target)):
-                    feedback = "Repair locally; DPF_REPAIR_STAGE must name a passed actual data prerequisite in instructions.repair_targets within the current phase."
-                    pending = None
-                    continue
+                    raise CodexOutputError(
+                        "Repair locally; DPF_REPAIR_STAGE must name a passed actual data "
+                        "prerequisite in instructions.repair_targets within the current phase."
+                    ) from error
                 retry_prerequisite(project, error.target, trigger=stage, reason=str(error))
                 return False
             except CodexContinuation as progress:
@@ -460,9 +470,9 @@ class PortRunner:
     @staticmethod
     def _report_outcome(path: Path) -> None:
         text = path.read_text(encoding="utf-8").rstrip()
-        if text.endswith("\nDPF_STATUS: BLOCKED"):
+        if terminal_line(text) == "DPF_STATUS: BLOCKED":
             raise WorkerBlocked(f"worker reported a prerequisite blocker; frozen report: {path}")
-        if text.endswith("\nDPF_REVIEW: REWORK"):
+        if terminal_line(text) == "DPF_REVIEW: REWORK":
             raise PrerequisiteRepair(repair_target(text), str(path))
 
     def _intake(self, project: Project) -> None:
@@ -484,7 +494,8 @@ class PortRunner:
         self._codex_gate(
             project,
             AcquisitionStage.REPOSITORY_ACQUISITION,
-            {"migration_envelope": envelope},
+            {"migration_envelope": envelope,
+             "supplied_upstream_baselines": list(project.config.baseline_repositories)},
             self._accept_revision_result,
         )
 
@@ -751,16 +762,12 @@ class PortRunner:
             acquisition = load_repository_acquisition(project)
             worktree = project.root / acquisition.target_worktree.path
             service = PublicQemuService()
-            previous = service._latest_attempt(project)
-            if previous is not None and previous[1].get("execution_status") != "PASS":
-                result = {"status": "FAIL", "attempt": str(project.artifacts.path_for_digest(previous[0].digest))}
-            else:
-                try:
-                    result = service.run_script(project,
-                        script_path=worktree / ".dpf-output/public-qemu.sh",
-                        work_report_path=project.artifacts.path_for_digest(request.digest))
-                except CodexOutputError as error:
-                    result = {"status": "FAIL", "error": str(error)}
+            try:
+                result = service.run_script(project,
+                    script_path=worktree / ".dpf-output/public-qemu.sh",
+                    work_report_path=project.artifacts.path_for_digest(request.digest))
+            except CodexOutputError as error:
+                result = {"status": "FAIL", "error": str(error)}
             execution = {"controller_execution": result,
                          "repair_report": str(prepared_report)}
         artifact = project.artifact(
@@ -863,8 +870,7 @@ class PortRunner:
 
     def _accept_runtime_review(self, project: Project, job: ArtifactOccurrence) -> None:
         report = self._materialize_codex_report(project, MigrationStage.PUBLIC_REPAIR, job)
-        lines = report.read_text().strip().splitlines()
-        verdict = lines[-1] if lines else ""
+        verdict = terminal_line(report.read_text())
         if verdict != "DPF_REVIEW: PASS":
             raise CodexOutputError("review must end with DPF_REVIEW: PASS or DPF_REVIEW: REWORK")
         PublicRepairService().finalize(project, review_path=report)
@@ -940,6 +946,7 @@ def command_port_run(arguments: argparse.Namespace) -> None:
             backend=arguments.backend,
             codex_bin=arguments.codex_bin,
             model=arguments.model,
+            baseline_repositories=tuple(Path(path).resolve() for path in arguments.baseline_repository),
         )
     ).run()
     print(json.dumps(outcome.to_dict(), ensure_ascii=False, sort_keys=True, indent=2))
@@ -955,6 +962,8 @@ def register_commands(commands: CommandRegistry) -> None:
     run.add_argument("--driver-name", required=True)
     run.add_argument("--skill-root", default=str(_default_skill_root()))
     run.add_argument("--catalog", action="append", default=[])
+    run.add_argument("--baseline-repository", action="append", default=[],
+                     help="read-only upstream checkout/bare cache to reuse (repeatable; frozen on run creation)")
     run.add_argument(
         "--backend", type=CodexBackend, choices=list(CodexBackend), default=CodexBackend.EXEC
     )

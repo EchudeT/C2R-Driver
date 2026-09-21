@@ -15,7 +15,9 @@ evidence still requires a replacement run. Reuse build caches even when a fresh 
 The container collector recognizes fresh docker runs mounting the execution directory. This is
 a collection limit, not a requirement to replace another valid route. Never add dummy invocations.
 
-Public tests must exercise the delivered DPF_RUNTIME_ARTIFACT, not a different image. Configure
+Public tests exercise the delivered production DPF_RUNTIME_ARTIFACT and, when needed, packaged
+variants in .dpf-output/harness/variants/. Keep their inputs frozen and results separately attributed;
+instrumented variants do not substitute for production regressions. Configure
 boot settings and guest test payload during packaging. The collector recognizes -kernel/-bios/
 -pflash/-cdrom/-hd[a-d]/-fd[a-b] and -drive file=<path>; a log/name argument is not a boot binding.
 Other valid boot mechanisms can be accepted by worker judgment with evidence; command spelling

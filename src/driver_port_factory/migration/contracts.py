@@ -20,6 +20,7 @@ class MigrationArtifact(StrEnum):
     COMPLIANCE_REPORT = "compliance_report"
     ARTIFACT_PREPARATION_ATTEMPT = "artifact_preparation_attempt"
     RUNTIME_ARTIFACT = "runtime_artifact"
+    RUNTIME_VARIANT = "runtime_variant"
     ARTIFACT_IDENTITY = "artifact_identity"
     PUBLIC_QEMU_ATTEMPT = "public_qemu_attempt"
     PUBLIC_QEMU_REPORT = "public_qemu_report"

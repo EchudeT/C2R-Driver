@@ -2,14 +2,13 @@ from __future__ import annotations
 
 import hashlib
 import json
-import shutil
 import uuid
 from dataclasses import asdict, dataclass
 from pathlib import Path
 
 from ..core.container_trace import ContainerTrace
 from ..codex.contracts import CodexOutputError
-from ..core.execution import CommandRunner, script_command
+from ..core.execution import CommandRunner, observed_script_command
 from ..core.models import (
     ActorRole,
     ArtifactDirection,
@@ -62,9 +61,6 @@ class ExperimentExecutor:
             encoding="utf-8"
         ).strip():
             raise CodexOutputError("environment work report is missing or blank")
-        strace = shutil.which("strace")
-        if strace is None:
-            raise WorkflowError("strace is required to prove that the smoke harness executed QEMU")
 
         script_digest = file_sha256(script_path)
         attempt_dir = project.control / "environment" / "codex-harness" / str(uuid.uuid4())
@@ -72,18 +68,7 @@ class ExperimentExecutor:
         trace_path = attempt_dir / "execve.log"
         with ContainerTrace(script_path.parent, attempt_dir / "container-processes.json") as containers:
             result = CommandRunner(attempt_dir / "command").run(
-                [
-                    strace,
-                    "-f",
-                    "-qq",
-                    "-s",
-                    "65535",
-                    "-e",
-                    "trace=execve",
-                    "-o",
-                    str(trace_path),
-                    *script_command(script_path),
-                ],
+                observed_script_command(script_path, trace_path),
                 cwd=script_path.parent,
                 environment={
                     "DPF_PROJECT_ROOT": str(project.root),
@@ -125,6 +110,7 @@ class ExperimentExecutor:
                 "sha256": file_sha256(work_report_path),
             },
             "exec_trace": {
+                "collector": json.loads(trace_path.with_suffix(".collector.json").read_text()),
                 "path": str(trace_path.relative_to(project.root)),
                 "sha256": file_sha256(trace_path),
                 "executed_programs": executed,

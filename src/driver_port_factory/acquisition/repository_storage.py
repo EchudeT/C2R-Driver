@@ -17,15 +17,23 @@ from .repository_spec import RepositorySpec
 class BareRepositoryStore:
     """Publish verified bare repositories and immutable identity locks."""
 
-    def __init__(self, project_root: Path, control_root: Path, git: RepositoryGit) -> None:
+    def __init__(self, project_root: Path, control_root: Path, git: RepositoryGit, *, caches=()) -> None:
         self.project_root = project_root.resolve()
         self.control_root = control_root.resolve()
         self.git = git
+        self.caches = tuple(Path(path).resolve() for path in caches)
+
+    @staticmethod
+    def repository_name(spec) -> str:
+        return f"{spec.role.value}-{hashlib.sha256(spec.url.encode()).hexdigest()[:16]}"
+
+    def path(self, spec) -> Path:
+        return self.control_root / "git" / f"{self.repository_name(spec)}.git"
 
     def prepare(self, spec: RepositorySpec) -> Path:
         repositories = self.control_root / "git"
         repositories.mkdir(parents=True, exist_ok=True)
-        bare = repositories / f"{spec.role.value}.git"
+        bare = self.path(spec)
         if bare.is_symlink():
             raise WorkflowError(f"managed repository path cannot be a symlink: {bare}")
         if bare.exists() and not self._valid(bare, spec):
@@ -61,12 +69,55 @@ class BareRepositoryStore:
                 observed = self.git.optional(["-C", str(bare), "rev-parse", "FETCH_HEAD^{commit}"],
                     operation=RepositoryCommandKind.BASELINE_COMMIT, role=spec.role)
                 if observed is not None:
+                    self._reuse_cache_receipt(bare)
                     self.git.reuse(record)
                     return
+        self._seed_from_cache(bare, spec)
         result = self.git.run(argv, operation=RepositoryCommandKind.BASELINE_FETCH, role=spec.role)
         temporary = receipt.with_suffix(".tmp")
         temporary.write_text(json.dumps(result.record.to_dict()) + "\n")
         temporary.replace(receipt)
+
+    def _seed_from_cache(self, bare, spec):
+        """Import committed objects only; origin fetch still pins the public revision.
+
+        No alternates/shared object dependency and no copying dirty worktree files.
+        The normal fetch negotiates using these objects instead of downloading them.
+        """
+        if self._reuse_cache_receipt(bare):
+            return
+        first_record = len(self.git.records)
+        for cache in self.caches:
+            if not cache.is_dir() or cache == bare:
+                continue
+            origin = self.git.optional(["-C", str(cache), "remote", "get-url", "origin"],
+                operation=RepositoryCommandKind.ORIGIN_VERIFICATION, role=spec.role)
+            if origin is None or origin.stdout != spec.url:
+                continue
+            commit = self.git.optional(["-C", str(cache), "rev-parse", f"{spec.requested_ref}^{{commit}}"],
+                operation=RepositoryCommandKind.BASELINE_CACHE_IMPORT, role=spec.role)
+            if commit is None:
+                continue
+            imported = self.git.optional(
+                ["-C", str(bare), "fetch", "--depth=1", "--no-tags", str(cache),
+                 f"{commit.stdout}:refs/dpf-cache/seed"],
+                operation=RepositoryCommandKind.BASELINE_CACHE_IMPORT, role=spec.role)
+            if imported is not None:
+                receipt = bare / "dpf-cache.json"
+                temporary = receipt.with_suffix(".tmp")
+                temporary.write_text(json.dumps([
+                    record.to_dict() for record in self.git.records[first_record:]
+                ]) + "\n")
+                temporary.replace(receipt)
+                return
+
+    def _reuse_cache_receipt(self, bare):
+        receipt = bare / "dpf-cache.json"
+        if not receipt.is_file():
+            return False
+        for value in json.loads(receipt.read_text()):
+            self.git.reuse(RepositoryCommandRecord.from_dict(value))
+        return True
 
     def publish_lock(
         self,
@@ -84,7 +135,7 @@ class BareRepositoryStore:
         }
         data = canonical_json(lock).encode("utf-8")
         digest = hashlib.sha256(data).hexdigest()
-        path = self.control_root / "manifests" / "repository-locks" / f"{spec.role.value}.json"
+        path = self.control_root / "manifests" / "repository-locks" / f"{digest}.json"
         path.parent.mkdir(parents=True, exist_ok=True)
         if path.exists():
             if path.read_bytes() != data:

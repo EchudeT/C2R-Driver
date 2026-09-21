@@ -14,23 +14,23 @@ from .repository_storage import BareRepositoryStore
 class BaselineRepositoryAcquirer:
     """Acquire one immutable, detached repository baseline."""
 
-    def __init__(self, project_root: Path, control_root: Path, git: RepositoryGit) -> None:
+    def __init__(self, project_root: Path, control_root: Path, git: RepositoryGit, *, caches=()) -> None:
         self.project_root = project_root.resolve()
         self.control_root = control_root.resolve()
         self.git = git
-        self.store = BareRepositoryStore(self.project_root, self.control_root, git)
+        self.store = BareRepositoryStore(self.project_root, self.control_root, git, caches=caches)
 
     def acquire(self, spec: RepositorySpec, checkout_name: str) -> CheckoutRecord:
         bare = self.store.prepare(spec)
         checkouts = self.control_root / "worktrees"
         checkouts.mkdir(parents=True, exist_ok=True)
-        checkout = checkouts / checkout_name
         self.store.fetch(bare, spec)
         fetched_commit = self.git.run(
             ["-C", str(bare), "rev-parse", "FETCH_HEAD^{commit}"],
             operation=RepositoryCommandKind.BASELINE_COMMIT,
             role=spec.role,
         ).stdout.lower()
+        checkout = checkouts / f"{checkout_name}-{self.store.repository_name(spec)}-{fetched_commit}"
         if getattr(spec, "resolved_commit", fetched_commit) != fetched_commit:
             raise WorkflowError(
                 f"fetched {spec.role.value} commit {fetched_commit} does not match "

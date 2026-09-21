@@ -241,8 +241,7 @@ class SkillPromptComposer:
                      else (self._read_document("open-kernel-driver-port/SKILL.md"),)
                      if deciding else self.documents_for_stage(stage))
         if (context or {}).get("repair_execution"):
-            from ..migration.repair_execution import OBJECTIVE
-            objective = objective or OBJECTIVE
+            objective = objective or (self.prompt_pack.root / "repair.md").read_text(encoding="utf-8")
             extra = "knowledge-guided-driver-port/references/qemu-evidence.md"
             if all(d.relative_path != extra for d in documents):
                 documents = (*documents, self._read_document(extra))

@@ -46,6 +46,10 @@ os.unlink(path)
 
 
 def write_plan(root: Path, route_id: str, executable: Path) -> Path:
+    from driver_port_factory.composition import open_project
+    from driver_port_factory.acquisition.repository import load_repository_acquisition
+    from driver_port_factory.acquisition.repository_role import RepositoryRole
+    qemu_source = load_repository_acquisition(open_project(root)).checkout(RepositoryRole.QEMU).checkout_path
     path = root / f"{route_id}.json"
     path.write_text(
         json.dumps(
@@ -63,7 +67,7 @@ def write_plan(root: Path, route_id: str, executable: Path) -> Path:
                 "environment": {},
                 "timeout_seconds": 2,
                 "accepted_exit_codes": [0],
-                "runner_evidence_paths": [".dpf/worktrees/qemu-baseline"],
+                "runner_evidence_paths": [qemu_source],
                 "relevance_evidence": "frozen QEMU model source",
                 "driver_insertion_or_packaging_path": None,
             }

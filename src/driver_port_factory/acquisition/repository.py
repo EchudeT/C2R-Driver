@@ -69,7 +69,8 @@ class RepositoryAcquirer:
         if envelope_ref.digest != selection.proposal.migration_envelope_sha256:
             raise WorkflowError("migration envelope changed after revision selection")
         git = RepositoryGit(project.root, project.control)
-        baselines = BaselineRepositoryAcquirer(project.root, project.control, git)
+        baselines = BaselineRepositoryAcquirer(project.root, project.control, git,
+                                               caches=project.config.baseline_repositories)
         expected = {RepositoryRole.SOURCE: project.config.source_platform,
                     RepositoryRole.TARGET: project.config.target_platform, RepositoryRole.QEMU: "qemu"}
         for candidate in selection.proposal.repositories:

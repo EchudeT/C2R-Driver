@@ -23,7 +23,8 @@ TASKS = {
         "Finish implementation and affected checks; end DPF_SELF_REVIEW: PASS.", executable=True),
     "artifact_preparation": TaskProtocol(completion=
         "Prepare artifact and checker covering payloads and reachable entrypoints for every retained "
-        "runtime scenario without artifact changes. If packaging changed source/configuration, "
+        "runtime scenario using the production artifact and any necessary packaged variants. "
+        "If packaging changed source/configuration, "
         "self-check affected changes and end DPF_SELF_REVIEW: PASS; the controller refreshes "
         "the implementation snapshot without another implementation turn.", executable=True),
     "public_qemu_validation": TaskProtocol(("PUBLIC_QEMU",),
@@ -42,6 +43,7 @@ def describe(stage):
     if task is None:
         return None
     return {
+        "report_action": "The final nonblank line is the current action; earlier markers are report history. Append execution observations and self-checks to the existing report. For REWORK place its DPF_REPAIR_STAGE line immediately before DPF_REVIEW: REWORK.",
         "input_authority": "Current frozen_inputs supersede older versions in conversation or reports. "
             "repair_state OPEN is actionable; RESOLVED is history, not a new repair request.",
         "operations": [f"DPF_RUN: {op}" for op in task.operations],
@@ -49,26 +51,30 @@ def describe(stage):
                                if task.operations else "No worker-requested controller operations in this task; submit the deliverable directly."),
         "completion": task.completion,
         "repair": "Within the current phase choose from instructions.repair_targets. End DPF_REPAIR_STAGE: <affected prerequisite> then DPF_REVIEW: REWORK; explain the causal defect. Completed earlier phases are sealed. If a frozen earlier premise must change, report the concrete blocker and impact; never silently reopen it.",
-        "blocked": "Explain external prerequisite and alternatives; end DPF_STATUS: BLOCKED.",
+        "blocked": "Continue repairing build, dependency, configuration and script failures within your current authority in this stage; an unsuccessful attempt or an identified next repair is not a blocker. Use DPF_STATUS: BLOCKED only when further progress requires unavailable external access/resources, user authority/decision, a change to a sealed premise, or exhausted causal repairs with no meaningful progress. Explain the evidence, alternatives attempted and exact condition needed to resume; end DPF_STATUS: BLOCKED.",
     }
 
 
+def terminal_line(text):
+    """Shared action boundary; report content never dispatches an action."""
+    lines = text.rstrip().splitlines()
+    return lines[-1].strip() if lines else ""
+
+
 def operation(stage, text):
-    lines = [line.strip() for line in text.splitlines()]
-    if any(line.startswith("DPF_OPERATION_REQUEST:")
-           or (line.lstrip("`*- ").startswith("DPF_RUN:")
-               and not line.startswith("DPF_RUN:")) for line in lines):
+    # Reports accumulate receipts and self-checks. Only the terminal line is
+    # actionable; earlier operation markers are evidence, not new requests.
+    terminal = terminal_line(text)
+    if (terminal.startswith("DPF_OPERATION_REQUEST:")
+            or (terminal.lstrip("`*- ").startswith("DPF_RUN:")
+                and not terminal.startswith("DPF_RUN:"))):
         raise WorkflowError("Malformed operation request: end the report with exactly DPF_RUN: "
                             "<available operation>, without a prefix or code fence; "
                             "do not request prerequisite repair for a missing operation receipt.")
-    markers = [line.strip()[8:].strip() for line in text.splitlines()
-               if line.strip().startswith("DPF_RUN:")]
-    if not markers:
+    if not terminal.startswith("DPF_RUN:"):
         return None
+    requested = terminal[len("DPF_RUN:"):].strip()
     task = TASKS.get(stage)
-    if (len(markers) != 1 or task is None or markers[0] not in task.operations
-            or text.rstrip().splitlines()[-1].strip() != f"DPF_RUN: {markers[0]}"
-            or any(line.startswith(("DPF_REPAIR_STAGE:", "DPF_REVIEW:",
-                                    "DPF_SELF_REVIEW:", "DPF_STATUS:")) for line in lines)):
+    if task is None or requested not in task.operations:
         raise WorkflowError(f"Invalid operation for {stage}; allowed: {task.operations if task else ()}")
-    return markers[0]
+    return requested

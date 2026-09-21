@@ -4,13 +4,19 @@ from __future__ import annotations
 from pathlib import Path
 
 from ..codex.contracts import CodexOutputError
+from ..orchestration.protocol import terminal_line
 
 SELF_PASS = "DPF_SELF_REVIEW: PASS"
 REQUEST = "DPF_INDEPENDENT_REVIEW:"
 
 
 def require_self_review(text: str) -> None:
-    if not text.rstrip().endswith("\n" + SELF_PASS):
+    # Recapture may consume a self-checked deliverable with an appended checker
+    # decision. Preserve that explicit self-check without inventing one.
+    lines = [line.strip() for line in text.splitlines()]
+    accepted_self_check = (terminal_line(text) == "DPF_CHECKER_DECISION: ACCEPT"
+                           and SELF_PASS in lines)
+    if terminal_line(text) != SELF_PASS and not accepted_self_check:
         raise CodexOutputError(
             "Complete the Skill's self-check in the existing work report and end it with "
             "DPF_SELF_REVIEW: PASS only after required current-stage checks pass. "

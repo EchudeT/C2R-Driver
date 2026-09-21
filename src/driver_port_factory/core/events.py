@@ -2,6 +2,7 @@ from enum import StrEnum
 
 
 class RunEvent(StrEnum):
+    RECOVERY_RESUMED = "run.recovery_resumed"
     CHECKER_DECISION = "run.checker_decision"
     CREATED = "run.created"
     TASK_REUSE = "run.task_reuse"

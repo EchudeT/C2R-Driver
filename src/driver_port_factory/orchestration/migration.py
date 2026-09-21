@@ -280,7 +280,7 @@ def _migration_rows(config: ProjectConfig) -> tuple[StageRow, ...]:
             "Build or inject the runtime artifact and prove its identity.",
             StageOwner.HYBRID,
             (MigrationArtifact.RUNTIME_ARTIFACT, MigrationArtifact.ARTIFACT_IDENTITY),
-            (MigrationArtifact.ARTIFACT_PREPARATION_ATTEMPT,),
+            (MigrationArtifact.ARTIFACT_PREPARATION_ATTEMPT, MigrationArtifact.RUNTIME_VARIANT),
             prerequisites=(
                 MigrationStage.HANDOFF,
                 MigrationStage.DRIVER_IMPLEMENTATION,

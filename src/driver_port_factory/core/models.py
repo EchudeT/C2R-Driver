@@ -90,6 +90,7 @@ class ProjectConfig:
     actor_role: ActorRole
     skill_root: str | None = None
     prompt_pack: str | None = None
+    baseline_repositories: tuple[str, ...] = ()
     created_at: str = field(default_factory=utc_now)
 
     def to_dict(self) -> dict[str, Any]:
@@ -103,6 +104,7 @@ class ProjectConfig:
         data = dict(value)
         data["evaluation_mode"] = EvaluationMode(data["evaluation_mode"])
         data["actor_role"] = ActorRole(data["actor_role"])
+        data["baseline_repositories"] = tuple(data.get("baseline_repositories", ()))
         return cls(**data)
 
 

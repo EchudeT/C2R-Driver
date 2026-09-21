@@ -9,6 +9,7 @@ from .git_execution import RepositoryGit
 from .repository_checkout import WritableTargetObservation, WritableTargetTree
 from .repository_role import RepositoryRole
 from .repository_spec import RepositorySpec
+from .repository_storage import BareRepositoryStore
 
 
 class TargetWorktreeManager:
@@ -22,11 +23,12 @@ class TargetWorktreeManager:
     def create(self, spec: RepositorySpec, project_id: str) -> WritableTargetTree:
         if spec.role is not RepositoryRole.TARGET:
             raise WorkflowError("a writable worktree can only be created for the target repository")
-        bare = self.control_root / "git" / f"{spec.role.value}.git"
-        target = self.project_root / "work" / "target-working"
+        store = BareRepositoryStore(self.project_root, self.control_root, self.git)
+        bare = store.path(spec)
+        target = self.project_root / "work" / f"{store.repository_name(spec)}-{spec.resolved_commit}"
         target.parent.mkdir(parents=True, exist_ok=True)
         safe_id = re.sub(r"[^A-Za-z0-9._-]+", "-", project_id).strip("-") or "run"
-        branch = f"dpf/{safe_id}"
+        branch = f"dpf/{safe_id}/{spec.resolved_commit}"
         if not target.exists():
             branch_commit = self.git.optional(
                 ["-C", str(bare), "rev-parse", f"refs/heads/{branch}^{{commit}}"],
