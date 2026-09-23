@@ -2,9 +2,11 @@ from __future__ import annotations
 
 import argparse
 import json
+import shlex
 import subprocess
 import sys
 import time
+import uuid
 from pathlib import Path
 
 from ..cli_support import CommandRegistry, command_registry
@@ -26,6 +28,12 @@ from .policy import CodexExecutionPolicy
 from .prompts import RenderedPrompt, SkillPromptComposer
 from .sessions import compact_token_limit, input_changes, save_session, stage_session
 from .accounting import estimate, latest_usage, model_settings, usage_delta
+from .submission import (
+    load_submission,
+    receipt_path,
+    submission_artifact,
+    write_submission,
+)
 
 
 def _render_prompt(
@@ -44,7 +52,7 @@ def _render_prompt(
             stage is MigrationStage.ARTIFACT_PREPARATION and context.get("controller_validation_error")):
         context["repair_execution"] = {
             "mode": "prepare-once-controller-validates",
-            "completion": "Repair, affected checks, runtime artifact and public runner ready; DPF_SELF_REVIEW: PASS.",
+            "completion": "Repair, affected checks, runtime artifact and public runner ready; submit the completed report with the tool's pass decision.",
             "next": "Controller captures artifact and executes QEMU, then returns observations for worker self-check.",
         }
     if not project.config.skill_root:
@@ -97,9 +105,32 @@ def run_codex_stage(
     elif stage.status is not StageStatus.RUNNING:
         raise WorkflowError(f"Codex stage must be READY or RUNNING, got {stage.status.value}")
     grant = CodexExecutionPolicy().grant(project, stage_key)
-    key, session = stage_session(project, stage_key, grant, model, backend.value,
-                                 worker_decision=bool((context or {}).get("checker_decision")))
+    key, session = stage_session(project, stage_key, grant, model, backend.value)
     thread_id = thread_id or session.get("thread_id")
+    job_id = str(uuid.uuid4())
+    codex_dir = project.control / "codex"
+    codex_dir.mkdir(parents=True, exist_ok=True)
+    output_path = codex_dir / f"{stage_key.value}-{job_id}.result"
+    submission = receipt_path(project, job_id)
+    submit_parts = (
+        sys.executable,
+        "-m",
+        "driver_port_factory.cli",
+        "codex",
+        "submit",
+        str(project.root),
+        stage_key.value,
+        "--job-id",
+        job_id,
+        "--file",
+        "<DELIVERABLE_PATH>",
+        "--kind",
+        "<proposal|report>",
+        "--decision",
+        "<submit|pass|rework|blocked|operation>",
+    )
+    submit_command = " ".join(shlex.quote(part) for part in submit_parts)
+    submit_command += " [--operation OPERATION] [--repair-stage STAGE]"
     context = {
         **(context or {}),
         "tool_runtime": {
@@ -107,6 +138,16 @@ def run_codex_stage(
             "workflow_cli": [sys.executable, "-m", "driver_port_factory.cli"],
             "execution_root": str(grant.execution_root),
             "sandbox": grant.sandbox.value,
+            "evidence_locator": [sys.executable, "-m", "driver_port_factory.review_evidence"],
+            "project_root": str(project.root),
+            "stage": stage_key.value,
+            "job_id": job_id,
+            "submission_receipt": str(submission),
+            "submission_command": submit_command,
+            "submission_rule": (
+                "Write the deliverable first, then invoke submission_command. The controller "
+                "trusts only the tool receipt; the final chat response is informational."
+            ),
         },
         "available_inputs": [d.value for d in project.workflow.spec(stage_key).dependencies],
     }
@@ -170,8 +211,6 @@ def run_codex_stage(
         ),
         direction=ArtifactDirection.INPUT,
     )
-    codex_dir = project.control / "codex"
-    codex_dir.mkdir(parents=True, exist_ok=True)
     job = CodexJob(
         stage=stage_key,
         actor_role=project.config.actor_role,
@@ -179,12 +218,11 @@ def run_codex_stage(
         prompt=prompt,
         execution_root=grant.execution_root,
         sandbox=grant.sandbox,
-        output_schema=(rendered.output_schema.path if rendered.output_schema else None),
         model=model,
         thread_id=thread_id,
+        job_id=job_id,
         compact_token_limit=compact_token_limit(project, stage_key, thread_id),
     )
-    output_path = codex_dir / f"{stage_key.value}-{job.job_id}.result"
     known_documents = session.get("documents", {}) if thread_id == session.get("thread_id") else {}
     documents = {
         **known_documents,
@@ -200,6 +238,14 @@ def run_codex_stage(
         "usage_baseline": latest_usage(codex_dir, thread_id),
         "resumed": bool(thread_id), "prompt_bytes": len(prompt.encode()),
         "auto_compact_token_limit": job.compact_token_limit,
+        "policy_sha256": rendered.policy_digest,
+        "call_reason": (
+            "recovery" if context.get("checker_decision") or follow_up else
+            "review_followup" if stage_key.value in {"public_repair", "analysis_review"} and thread_id else
+            "independent_review" if stage_key.value in {"public_repair", "analysis_review"} else
+            "execution_self_check" if context.get("controller_execution") else
+            "repair" if repair and repair["status"] == "OPEN" else "stage_work"
+        ),
         "usage_semantics": "cumulative thread counters; subtract usage_baseline",
     }
 
@@ -246,7 +292,6 @@ def run_codex_stage(
         documents if not result.error else known_documents,
         supplied_inputs if not result.error else known_inputs,
     )
-    output_path.write_text(result.final_response, encoding="utf-8")
     if result.events:
         event_data = "\n".join(json.dumps(event, sort_keys=True) for event in result.events) + "\n"
         project.record_artifact(
@@ -259,17 +304,29 @@ def run_codex_stage(
         )
     if result.error:
         raise ModelInvocationError(result.error)
-    if rendered.output_schema:
-        try:
-            json.loads(result.final_response)
-        except json.JSONDecodeError as error:
-            raise CodexOutputError(
-                "Codex output is not valid JSON despite an output schema"
-            ) from error
-    project.record_artifact(
-        stage_key,
-        FileArtifact(CodexArtifact.JOB_RESULT, output_path),
-    )
+    receipt = load_submission(project, stage_key, job.job_id)
+    if receipt is None:
+        raise CodexOutputError(
+            "Codex did not submit a deliverable; write the file and invoke "
+            "the supplied tool_runtime.submission_command"
+        )
+    deliverable = Path(receipt["file"])
+    output_path.write_bytes(deliverable.read_bytes())
+    submission_value = receipt
+    job_ref = project.record_artifact(stage_key, FileArtifact(CodexArtifact.JOB_RESULT, output_path))
+    if submission_value is not None and job_ref.ordinal is not None:
+        project.record_artifact(
+            stage_key,
+            GeneratedArtifact(
+                CodexArtifact.SUBMISSION,
+                submission_artifact(
+                    submission_value,
+                    job_digest=job_ref.digest,
+                    job_ordinal=job_ref.ordinal,
+                ),
+                f"generated:codex-submission:{job.job_id}",
+            ),
+        )
     return result, rendered, output_path
 
 
@@ -332,6 +389,22 @@ def command_codex_run(arguments: argparse.Namespace) -> None:
     )
 
 
+def command_codex_submit(arguments: argparse.Namespace) -> None:
+    project = open_project(Path(arguments.path))
+    stage = project.workflow.parse_stage(arguments.stage)
+    receipt = write_submission(
+        project,
+        stage,
+        job_id=arguments.job_id,
+        file_path=arguments.file,
+        kind=arguments.kind,
+        decision=arguments.decision,
+        operation=arguments.operation,
+        repair_stage=arguments.repair_stage,
+    )
+    print(f"submitted {stage.value} {arguments.kind} via {receipt}")
+
+
 def command_codex_transcript(arguments: argparse.Namespace) -> None:
     project = open_project(Path(arguments.path))
     stage = project.workflow.parse_stage(arguments.stage)
@@ -385,6 +458,21 @@ def register_commands(commands: CommandRegistry) -> None:
     run.add_argument("--codex-bin", default="codex")
     run.add_argument("--model")
     run.set_defaults(handler=command_codex_run)
+
+    submit = codex_commands.add_parser(
+        "submit", help="submit a file-backed worker deliverable and state decision"
+    )
+    submit.add_argument("path")
+    submit.add_argument("stage")
+    submit.add_argument("--job-id", required=True)
+    submit.add_argument("--file", required=True)
+    submit.add_argument("--kind", choices=("proposal", "report"), required=True)
+    submit.add_argument(
+        "--decision", choices=("submit", "pass", "rework", "blocked", "operation"), required=True
+    )
+    submit.add_argument("--operation")
+    submit.add_argument("--repair-stage")
+    submit.set_defaults(handler=command_codex_submit)
 
     transcript = codex_commands.add_parser(
         "transcript", help="inspect persisted Codex prompts, responses, and event logs"

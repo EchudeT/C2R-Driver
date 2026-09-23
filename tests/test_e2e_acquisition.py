@@ -17,6 +17,7 @@ from driver_port_factory.composition import open_project
 from tests.acquisition_support import git
 from tests.repository_support import ready_project
 from tests.workflow_support import runner
+from tests.submission_support import submit
 
 
 @pytest.mark.parametrize("interrupt", [False, True])
@@ -67,7 +68,10 @@ def test_single_download_selection_to_frozen_baselines(tmp_path, interrupt):
 
     def worker(job):
         assert job.stage is S.REPOSITORY_ACQUISITION
-        return CodexResult(job.job_id, json.dumps(selection), "worker")
+        proposal = job.execution_root / "repository-selection.json"
+        proposal.write_text(json.dumps(selection))
+        submit(project, job, proposal, kind="proposal", decision="submit")
+        return CodexResult(job.job_id, "", "worker")
 
     with (
         patch("driver_port_factory.codex.cli.CodexExecGateway.run", side_effect=worker) as model,
@@ -81,7 +85,7 @@ def test_single_download_selection_to_frozen_baselines(tmp_path, interrupt):
     assert model.call_count == 1
     assert fetches == list(RepositoryRole)
     assert project.stage(S.REPOSITORY_ACQUISITION).status.value == "PASS"
-    assert len(project.stages()) == 16
+    assert len(project.stages()) == 17
     assert "revision_selection" not in project.workflow.stage_values
     frozen = project.load_json_artifact(S.REPOSITORY_ACQUISITION, A.REVISION_MANIFEST)
     assert frozen["source"]["revision"] == git("rev-parse", "v2.0.0^{commit}", cwd=source)

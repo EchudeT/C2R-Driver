@@ -19,12 +19,13 @@ from driver_port_factory.migration.contracts import MigrationArtifact as A, Migr
 
 
 from tests.workflow_support import ready_implementation, runner
+from tests.submission_support import submit
 
 
 @pytest.mark.parametrize("risk", [False, True])
 @pytest.mark.parametrize("append_decision", [False, True])
-def test_worker_to_completion_has_final_authority_over_risk_checker(tmp_path, risk, append_decision):
-    project = ready_implementation(tmp_path)
+def test_two_conversations_complete_with_independent_review(tmp_path, risk, append_decision):
+    project = ready_implementation(tmp_path, reviewed=False)
     port = runner(project)
     calls = []
 
@@ -35,7 +36,14 @@ def test_worker_to_completion_has_final_authority_over_risk_checker(tmp_path, ri
         output.mkdir(exist_ok=True)
         report = output / "report.md"
         text = "Synthetic controller fixture, not real driver evidence.\n"
-        if stage is S.DRIVER_IMPLEMENTATION:
+        if stage is S.ANALYSIS_REVIEW:
+            assert job.thread_id is None
+            assert job.sandbox.value == "danger-full-access"
+            report.write_text("Synthetic analysis evidence checked.\n")
+            submit(project, job, report, kind="report", decision="pass")
+            return CodexResult(job.job_id, "", "reviewer")
+        elif stage is S.DRIVER_IMPLEMENTATION:
+            assert project.stage(S.ANALYSIS_REVIEW).status.value == "PASS"
             (job.execution_root / "driver.rs").write_text(
                 "pub unsafe fn init() {}\n" if risk else "pub fn init() {}\n"
             )
@@ -63,47 +71,210 @@ def test_worker_to_completion_has_final_authority_over_risk_checker(tmp_path, ri
                 f'"{qemu}" -kernel "{output / "harness/variants/fault-image"}"\n'
                 "echo synthetic > .dpf-output/qemu-runs/serial.log\n"
             )
+        elif stage is S.PUBLIC_REPAIR:
+            assert job.thread_id == "reviewer"
+            assert job.sandbox.value == "danger-full-access"
+            assert "original scope/contracts/test plan" in job.prompt
+            report.write_text("Synthetic independent review of fixtures, not driver certification.\n")
+            submit(project, job, report, kind="report", decision="pass")
+            return CodexResult(job.job_id, "", "reviewer")
         else:
             raise AssertionError(f"unexpected paid stage: {stage}")
         if stage is S.PUBLIC_QEMU_VALIDATION and "controller_execution" not in ctx:
-            text += "Prior local self-check.\nDPF_SELF_REVIEW: PASS\n"
-            text += "DPF_RUN: PUBLIC_QEMU\n"
+            text += "Prior local self-check.\n"
         elif stage in (S.DRIVER_IMPLEMENTATION, S.PUBLIC_QEMU_VALIDATION):
             if stage is S.PUBLIC_QEMU_VALIDATION:
                 from driver_port_factory.migration.public_qemu import PublicQemuService
-                report.write_text("Report-only clarification.\nDPF_RUN: PUBLIC_QEMU\n")
+                report.write_text("Report-only clarification.\n")
                 service = PublicQemuService()
                 previous = service._latest_attempt(project)[0].digest
                 service.run_script(project, script_path=output / "public-qemu.sh",
                                    work_report_path=report)
                 assert service._latest_attempt(project)[0].digest == previous
-                text += "Previous request:\nDPF_RUN: PUBLIC_QEMU\nCaptured receipt inspected.\n"
-            text += "DPF_SELF_REVIEW: PASS\n"
-            if stage is S.PUBLIC_QEMU_VALIDATION and append_decision:
-                text += "Existing evidence accepted.\nDPF_CHECKER_DECISION: ACCEPT\n"
+                text += "Previous request captured and inspected.\n"
         report.write_text(text)
         thread = "worker"
         assert job.thread_id in (None, thread)
-        return CodexResult(job.job_id, f"REPORT_PATH: {report}\n", thread)
+        if stage is S.PUBLIC_QEMU_VALIDATION:
+            decision = "pass" if "controller_execution" in ctx else "operation"
+            submit(project, job, report, kind="report", decision=decision,
+                   operation=None if decision == "pass" else "PUBLIC_QEMU")
+        elif stage in (S.DRIVER_IMPLEMENTATION, S.ARTIFACT_PREPARATION):
+            submit(project, job, report, kind="report", decision="pass")
+        return CodexResult(job.job_id, "", thread)
 
     with patch("driver_port_factory.codex.cli.CodexExecGateway.run", side_effect=gateway):
         # Use the real controller loop, stage finalizers, script execution, CAS and ledger.
         outcome = port._run_project(project)
     assert outcome.status.value == "PASS"
+    assert outcome.stage == S.PUBLIC_REPAIR.value
+    from pathlib import Path
+    assert Path(outcome.report_path).read_text().strip()
     assert [job.stage for job in calls].count(S.DRIVER_IMPLEMENTATION) == 1
-    assert S.PUBLIC_REPAIR.value not in project.workflow.stage_values
-    worker = [job for job in calls if job.stage is not S.PUBLIC_REPAIR]
+    assert S.COMPLETION_AUDIT.value not in project.workflow.stage_values
+    assert [job.stage for job in calls].count(S.PUBLIC_REPAIR) == 1
+    assert calls[0].stage is S.ANALYSIS_REVIEW
+    worker = [job for job in calls if job.stage not in {S.PUBLIC_REPAIR, S.ANALYSIS_REVIEW}]
     assert len(worker) == 4
+    from driver_port_factory.control.statistics import project_statistics
+    stats = project_statistics(project)
+    groups = stats["by_call_reason"]
+    assert groups["stage_work"]["codex_calls"] == 3
+    assert groups["execution_self_check"]["codex_calls"] == 1
+    assert groups["independent_review"]["codex_calls"] == 1
+    assert groups["review_followup"]["codex_calls"] == 1
+    assert sum(g["codex_calls"] for g in groups.values()) == stats["totals"]["codex_calls"]
+    metric_path = next((project.control / 'codex').glob('*.metrics.json'))
+    original_metric = metric_path.read_text()
+    old_metric = json.loads(original_metric)
+    old_metric.pop('call_reason')
+    metric_path.write_text(json.dumps(old_metric))
+    assert project_statistics(project)['by_call_reason']['unknown']['codex_calls'] == 1
+    metric_path.write_text(original_metric)
     assert worker[0].thread_id is None
     assert all(job.thread_id == "worker" for job in worker[1:])
     reopened = open_project(project.root)
-    audit = reopened.load_json_artifact(S.COMPLETION_AUDIT, A.EVIDENCE_AUDIT)
-    assert audit["work_products"]["review_mode"] == "worker_self_check"
-    assert not audit["worker_acceptances"]
-    assert audit["failure_attribution"] == []
-    assert audit["scope_limits"]["real_hardware"] == "NOT_RUN"
-    variants = audit["public_runs"][0]["runtime_variants"]
+    review = reopened.load_json_artifact(S.PUBLIC_REPAIR, A.PUBLIC_REPAIR_REPORT)
+    assert review["review_mode"] == "independent"
+    public = reopened.load_json_artifact(S.PUBLIC_QEMU_VALIDATION, A.PUBLIC_QEMU_REPORT)
+    assert public["runs"][0]["attribution"] == "PUBLIC_HARNESS"
+    variants = public["runs"][0]["runtime_variants"]
     assert variants[".dpf-output/harness/variants/fault-image"]["observed_boot"] is True
     variant = variants[".dpf-output/harness/variants/fault-image"]["artifact"]
     assert reopened.artifacts.path_for_digest(variant["digest"]).read_bytes() == b"synthetic instrumented image"
     reopened.verify_integrity()
+
+
+@pytest.mark.parametrize("blocked", [False, True])
+def test_reviewer_keeps_its_thread_and_returns_defects_to_worker(tmp_path, blocked):
+    from tests.migration_support import public_run
+    from driver_port_factory.core.models import StageStatus
+    project, worktree, _ = public_run(tmp_path)
+    port = runner(project)
+    calls = []
+    reviews = 0
+    prior = [(s.name, s.status) for s in project.stages()
+             if s.position < project.stage(S.PUBLIC_QEMU_VALIDATION).position]
+
+    def gateway(job):
+        nonlocal reviews
+        calls.append(job)
+        report = job.execution_root / "review.md" if job.stage is S.PUBLIC_REPAIR else worktree / ".dpf-output/repair.md"
+        if job.stage is S.PUBLIC_REPAIR:
+            assert job.thread_id == (None if reviews == 0 else "reviewer")
+            reviews += 1
+            if blocked:
+                text = "Required external resource unavailable; no functional pass.\n"
+            elif reviews == 1:
+                text = "Synthetic oracle defect; fix the public harness only.\n"
+            else:
+                assert "previous_review" in job.prompt
+                text = "Synthetic repaired evidence inspected; no new requirements.\n"
+            thread = "reviewer"
+        else:
+            assert job.stage is S.PUBLIC_QEMU_VALIDATION
+            ctx = json.loads(job.prompt.split("<job>")[1].split("</job>")[0])["reference_material"]
+            assert job.thread_id in (None, "worker")
+            if "controller_execution" not in ctx:
+                script = worktree / ".dpf-output/public-qemu.sh"
+                script.write_text(script.read_text() + "echo repaired > .dpf-output/qemu-runs/repair.log\n")
+                text = "Synthetic harness repaired.\n"
+            else:
+                text = "Synthetic execution inspected.\n"
+            thread = "worker"
+        report.write_text(text)
+        if job.stage is S.PUBLIC_REPAIR:
+            if blocked:
+                submit(project, job, report, kind="report", decision="blocked")
+            elif reviews == 1:
+                submit(project, job, report, kind="report", decision="rework",
+                       repair_stage="public_qemu_validation")
+            else:
+                submit(project, job, report, kind="report", decision="pass")
+        else:
+            decision = "pass" if "controller_execution" in ctx else "operation"
+            submit(project, job, report, kind="report", decision=decision,
+                   operation=None if decision == "pass" else "PUBLIC_QEMU")
+        return CodexResult(job.job_id, "", thread)
+
+    with patch("driver_port_factory.codex.cli.CodexExecGateway.run", side_effect=gateway):
+        outcome = port._run_project(project)
+    assert outcome.status is (StageStatus.BLOCKED if blocked else StageStatus.PASS)
+    assert reviews == (1 if blocked else 2)
+    from driver_port_factory.control.statistics import project_statistics
+    groups = project_statistics(project)["by_call_reason"]
+    assert groups["independent_review"]["codex_calls"] == 1
+    if not blocked:
+        assert groups["review_followup"]["codex_calls"] == 1
+        assert groups["repair"]["codex_calls"] == 1
+    assert len(calls) == (1 if blocked else 4)
+    assert [(project.stage(s).name, project.stage(s).status) for s, _ in prior] == prior
+    assert S.COMPLETION_AUDIT.value not in project.workflow.stage_values
+    open_project(project.root).verify_integrity()
+
+
+def test_public_qemu_repair_progress_tracks_current_harness(tmp_path):
+    from driver_port_factory.migration.repair_routing import retry_prerequisite
+    from tests.migration_support import public_run
+
+    project, worktree, _ = public_run(tmp_path)
+    script = worktree / ".dpf-output/public-qemu.sh"
+
+    with patch.object(project, "retry_from") as retry:
+        retry_prerequisite(
+            project,
+            S.PUBLIC_QEMU_VALIDATION,
+            trigger=S.PUBLIC_REPAIR,
+            reason="synthetic review finding",
+        )
+    before = retry.call_args.kwargs["progress"]
+
+    script.write_text(script.read_text() + "echo substantive-harness-repair\n")
+    with patch.object(project, "retry_from") as retry:
+        retry_prerequisite(
+            project,
+            S.PUBLIC_QEMU_VALIDATION,
+            trigger=S.PUBLIC_REPAIR,
+            reason="same synthetic review finding",
+        )
+    after = retry.call_args.kwargs["progress"]
+
+    assert before["script"] == after["script"]
+    assert before["current_script"] != after["current_script"]
+    assert before["current_helpers"] == after["current_helpers"]
+
+
+def test_review_reuse_requires_current_rules(tmp_path):
+    import shutil
+    from pathlib import Path
+    from driver_port_factory.codex.prompts import default_prompt_pack_path
+    from driver_port_factory.migration.public_repair import PublicRepairService
+    from driver_port_factory.core.models import WorkflowError
+    from tests.migration_support import accepted
+
+    pack = tmp_path / 'prompt-pack'
+    shutil.copytree(default_prompt_pack_path(), pack)
+    (tmp_path / 'run').mkdir()
+    with patch('driver_port_factory.codex.prompts.default_prompt_pack_path', return_value=pack):
+        project, _, report = accepted(tmp_path / 'run')
+        service = PublicRepairService()
+        original_policy = service.policy_digest(project)
+        assert service.reusable_review(project) is not None
+        manifest = pack / 'manifest.json'
+        value = json.loads(manifest.read_text())
+        value['stages']['driver_implementation']['objective'] += ' Unrelated clarification.'
+        manifest.write_text(json.dumps(value))
+        assert service.reusable_review(project) is not None
+        value['stages']['public_repair']['objective'] += ' Additional required evidence.'
+        manifest.write_text(json.dumps(value))
+        assert service.reusable_review(project) is None
+        with pytest.raises(WorkflowError, match='rules changed'):
+            service.finalize(project, review_path=report, policy_digest=original_policy)
+        value['stages']['public_repair']['objective'] = value['stages']['public_repair']['objective'].removesuffix(' Additional required evidence.')
+        manifest.write_text(json.dumps(value))
+        assert service.reusable_review(project) is not None
+        skill = Path(project.config.skill_root) / 'knowledge-guided-driver-port/references/qemu-evidence.md'
+        skill.write_text(skill.read_text() + '\nChanged evidence requirements.\n')
+        assert service.reusable_review(project) is None
+        # Rule edits invalidate future reuse, not the integrity of historical evidence.
+        open_project(project.root).verify_integrity()

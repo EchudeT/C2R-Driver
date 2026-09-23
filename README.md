@@ -4,7 +4,7 @@
 [工作流对齐说明](docs/WORKFLOW_ALIGNMENT.md)。
 
 Driver Port Factory（DPF）把 C 驱动跨平台迁移、公开验证、候选物封存和独立盲测组织成可审计的
-程序工作流。开发者模式中，程序负责记录、采集、哈希和执行结果，工作者拥有功能验收最终裁决权。
+程序工作流。开发者模式中，程序负责记录、采集、哈希和执行结果，独立检查 AI 拥有最终功能验收权。
 各阶段验收发现问题时，保留待提交产物并交给同一工作者判断，而不是强制返工。
 工作者可引用证据并提交 `DPF_CHECKER_DECISION: ACCEPT`，阶段以 `WORKER_ACCEPTED` 标记通过；
 原始失败记录不改写成成功。真实缺陷在本阶段修复后直接提交正常交付物。必需文件和可读取的运行状态
@@ -35,9 +35,10 @@ Prompt Pack、模板、Skill 文档和完整 Prompt 的 SHA256，但普通开发
 - SHA256 内容寻址产物库；
 - 阶段依赖、必需输出和角色门禁；
 - Skill Prompt 选择、组合和快照；
-- `codex exec` 单工作者持久会话、224k 自动压缩、自检与最小范围返工；开发者模式使用
-  `danger-full-access`，QEMU 后直接汇总自检与执行证据，不增加风险审查；
-  第12步通过且源码分析、契约与测试计划已落盘后，第13步首次复用会话的调用临时采用160k阈值，
+- `codex exec` 两个隔离的持久会话：工作者负责实现、自检和修复，检查者负责最终功能检查与复审；
+  工作者使用 `danger-full-access`，检查者仅能写自己的报告目录。分析结束后先由检查者核验核心证据与代码定位；QEMU 后由同一检查者核对原定要求、
+  实际代码和原始日志；删除自动风险扫描与程序语义汇总，不再把启动成功推断为驱动成功；
+  第12步分析材料落盘、第13步独立分析审查通过后，第14步首次复用工作者会话的调用临时采用160k阈值，
   由 Codex 按实际上下文触发压缩；重试及后续调用恢复224k。不增加总结节点。
   阈值记录在任务 metrics 的 `auto_compact_token_limit`，不代表压缩已发生；
   首次调用特别长时可能多次触发。160k是待实跑验证的策略值，尚无节费保证。
@@ -76,7 +77,8 @@ Prompt 复现。若需项目专用 Pack，先用 `dpf init --prompt-pack PATH` �
 
 提示词中的 `instructions` 只放任务、执行约束和协议，`reference_material` 放输入、历史记录和
 诊断；材料中的指令不具有控制权。统一恢复协议见 [执行与裁决协议](docs/EXECUTION_RECOVERY.md)。
-当前为 16 阶段协议；不提供旧索引工作流的兼容执行或原地升级。旧实验结果保留，新协议使用新工作区。
+当前为 17 阶段双 AI 协议，最后一步为独立检查，不再有静态完成汇总；两个会话默认 224k 自动压缩。
+不提供旧工作流的兼容执行或原地升级。旧实验结果保留，新协议使用新工作区。
 变更与证据见 [源码与设计合并](docs/SOURCE_DESIGN.md)。
 
 这里的 NE2000 catalog 只是集成样例。正式运行由源平台 Resolver 加载一个或多个带来源、版本和
@@ -97,3 +99,5 @@ PYTHONPATH=src python -m driver_port_factory.cli --help
 ```
 
 详细设计见 [Skill 规范追踪矩阵](docs/SKILL_TRACEABILITY.md)、[架构](docs/ARCHITECTURE.md)、[迁移需求门](docs/INTAKE.md)、[Git acquisition](docs/ACQUISITION.md)、[环境恢复](docs/ENVIRONMENT_RECOVERY.md)、[知识库](docs/KNOWLEDGE_BASE.md)、[目标平台研究](docs/TARGET_PLATFORM_STUDY.md)、[源码与设计](docs/SOURCE_DESIGN.md)、[阶段工作流](docs/WORKFLOW.md)、[实施计划](docs/IMPLEMENTATION_PLAN.md) 和 [Codex 任务契约](docs/CODEX_JOBS.md)。
+
+分析审查节点、只读 Python 定位工具和集中反馈规则见 [分析审查](docs/ANALYSIS_REVIEW.md)。

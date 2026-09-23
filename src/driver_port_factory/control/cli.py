@@ -90,6 +90,10 @@ def command_status(arguments: argparse.Namespace) -> None:
           f"USD~{cost_text(total)} "
           f"unpriced={total['unpriced_calls']}")
     print(stats["note"])
+    for reason, group in stats["by_call_reason"].items():
+        print(f"CALL_REASON {reason}: codex={group['codex_calls']} "
+              f"time={duration(group['codex_seconds'])} USD~{cost_text(group)} "
+              f"unknown_usage={group['unknown_usage_calls']}")
     print(f"Prices ({stats['price_date']}): {stats['price_source']}")
 
 

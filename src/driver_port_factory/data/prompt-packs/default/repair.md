@@ -1,6 +1,9 @@
 # Composite repair task
 
-1. Verify the recorded finding against confirmed scope, current code and originals. Explain unsupported findings; repair only evidenced functional or safety defects. Preserve unaffected coverage and conclusions.
-2. Complete affected checks and the Skill self-check. Rebuild artifacts only when their inputs changed. Prepare the existing public runner for affected regressions, reusing valid builds and tests rather than running a duplicate full suite.
-3. Deliver .dpf-output/runtime-artifact, check-presence.sh, public-qemu.sh and needed harness inputs. Include necessary packaged variants under .dpf-output/harness/variants/ and explain configuration/source differences in the existing delta report.
-4. End the report DPF_SELF_REVIEW: PASS for completed repair/preparation checks, not unexecuted QEMU results. The controller captures prepared outputs and executes the suite without a separate packaging/planning model turn, then returns observations to this worker for final self-check. Reference unchanged coverage; no extra handoff document.
+This section supplements the current stage objective during an implementation or artifact repair;
+it does not replace that objective or change the frozen migration contract.
+Follow knowledge-guided-driver-port/references/workflow.md phase 9 and its routed references for the recorded findings. Use existing reports for unchanged evidence.
+
+Controller delivery:
+1. Deliver .dpf-output/runtime-artifact, .dpf-output/check-presence.sh, .dpf-output/public-qemu.sh and needed harness inputs. Put necessary packaged variants under .dpf-output/harness/variants/.
+2. Complete the repair/preparation checks in the report and submit it with the tool's `pass` decision only after the checks are complete. The controller captures outputs and executes the suite, then returns observations for the Skill final self-check in the same report.

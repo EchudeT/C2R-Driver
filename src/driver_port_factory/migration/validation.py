@@ -14,12 +14,14 @@ from .handoff import validate_handoff_bundle
 from .implementation import validate_implementation_bundle
 from .public_qemu import validate_public_qemu_bundle
 from .public_repair import validate_public_repair_bundle
+from .analysis_review import validate_analysis_review
 
 VALIDATORS = MappingProxyType[MigrationArtifact, ArtifactValidator](
     {
         MigrationArtifact.HANDOFF: json_object_document,
         MigrationArtifact.CONTRACTS: utf8_document,
         MigrationArtifact.TEST_PORT_MATRIX: utf8_document,
+        MigrationArtifact.ANALYSIS_REVIEW_REPORT: json_object_document,
         MigrationArtifact.IMPLEMENTATION_BUNDLE: json_object_document,
         MigrationArtifact.COMPLIANCE_REPORT: utf8_document,
         MigrationArtifact.TARGET_CHANGE_INVENTORY: json_object_document,
@@ -38,6 +40,7 @@ VALIDATORS = MappingProxyType[MigrationArtifact, ArtifactValidator](
 BUNDLE_VALIDATORS = MappingProxyType[MigrationStage, BundleValidator](
     {
         MigrationStage.HANDOFF: validate_handoff_bundle,
+        MigrationStage.ANALYSIS_REVIEW: validate_analysis_review,
         MigrationStage.DRIVER_IMPLEMENTATION: validate_implementation_bundle,
         MigrationStage.ARTIFACT_PREPARATION: validate_artifact_bundle,
         MigrationStage.PUBLIC_QEMU_VALIDATION: validate_public_qemu_bundle,

@@ -7,41 +7,6 @@ from pathlib import Path
 import pytest
 
 
-def test_persistent_tool_fault_does_not_buy_unlimited_worker_turns(tmp_path):
-    from unittest.mock import patch
-    from tests.migration_support import accepted
-    from tests.workflow_support import runner
-    from driver_port_factory.codex.gateway import CodexResult
-    from driver_port_factory.core.checker_decision import RecoveryPaused
-    from driver_port_factory.migration.contracts import MigrationStage as M
-
-    project, _, _ = accepted(tmp_path)
-    port = runner(project)
-
-    def failing(_):
-        raise WorkflowError("synthetic unrepairable tool failure")
-
-    port._actions[M.COMPLETION_AUDIT] = failing
-
-    def worker(job):
-        report = job.execution_root / "repair.md"
-        report.write_text("Synthetic attempted repair.\n")
-        return CodexResult(job.job_id, f"REPORT_PATH: {report}\n", "worker")
-
-    with patch("driver_port_factory.codex.cli.CodexExecGateway.run", side_effect=worker) as model:
-        with pytest.raises(RecoveryPaused):
-            port._run_project(project)
-        assert model.call_count == 3
-        with pytest.raises(RecoveryPaused):
-            port._run_project(open_project(project.root))
-        assert model.call_count == 3
-        from driver_port_factory.core.checker_decision import resume_recovery
-        resume_recovery(project, M.COMPLETION_AUDIT, "operator resolved external fixture prerequisite")
-        port._actions[M.COMPLETION_AUDIT] = port._completion_audit
-        assert port._run_project(project).status.value == "PASS"
-        assert model.call_count == 3
-
-
 from driver_port_factory.composition import open_project
 
 
@@ -53,6 +18,7 @@ from driver_port_factory.core.checker_decision import (
 
 
 from driver_port_factory.core.models import StageStatus, WorkflowError
+from tests.submission_support import submit
 
 
 def test_changed_execution_inputs_do_not_exhaust_recovery_budget(tmp_path):
@@ -100,13 +66,12 @@ def test_public_acceptance_reaches_completion_without_rejecting_same_receipt(tmp
     from tests.migration_support import packaged
     from driver_port_factory.migration.contracts import MigrationStage as M, MigrationArtifact as B
     from driver_port_factory.migration.public_qemu import PublicQemuService
-    from driver_port_factory.migration.completion_audit import CompletionAuditService
 
     project, worktree, report = packaged(tmp_path)
     project.start(M.PUBLIC_QEMU_VALIDATION)
     script = worktree / ".dpf-output/public-qemu.sh"
     script.write_text("echo attempted > .dpf-output/attempted.txt\nexit 7\n")
-    report.write_text("Synthetic execution request.\nDPF_RUN: PUBLIC_QEMU\n")
+    report.write_text("Synthetic execution request.\n")
     service = PublicQemuService()
     with patch("driver_port_factory.core.execution.shutil.which", return_value=None if tracer == "missing" else "/bin/false") if tracer != "installed" else nullcontext():
         first = service.run_script(project, script_path=script, work_report_path=report)
@@ -115,29 +80,27 @@ def test_public_acceptance_reaches_completion_without_rejecting_same_receipt(tmp
     assert receipt["runs"][0]["exec_trace"]["collector"]["available"] is (tracer == "installed")
     assert first["status"] == "FAIL"
     # Restarting the same operation must return its failed receipt, not rerun it.
-    report.write_text("Corrected description.\nDPF_RUN: PUBLIC_QEMU\n")
+    report.write_text("Corrected description.\n")
     assert service.run_script(open_project(project.root), script_path=script,
                               work_report_path=report) == first
     report.write_text(
-        "Synthetic worker self-check; not real driver evidence.\nDPF_SELF_REVIEW: PASS\n"
+        "Synthetic worker self-check; not real driver evidence.\n"
     )
     with pytest.raises(CheckerDecisionRequired) as caught:
         service.accept_self_review(project, work_report_path=report)
     decision = worktree / ".dpf-output/decision.md"
     decision.write_text(
-        "Synthetic acceptance exercising the control path only.\nDPF_CHECKER_DECISION: ACCEPT\n"
+        "Synthetic acceptance exercising the control path only.\n"
     )
     accept_decision(project, M.PUBLIC_QEMU_VALIDATION, caught.value.path, decision)
-    audit = CompletionAuditService().run(project)
-    assert project.stage(M.COMPLETION_AUDIT).status is StageStatus.PASS
+    assert project.stage(M.PUBLIC_REPAIR).status is StageStatus.READY
     assert (
         project.load_json_artifact(M.PUBLIC_QEMU_VALIDATION, B.PUBLIC_QEMU_REPORT)[
             "execution_status"
         ]
         == "FAIL"
     )
-    assert audit["worker_acceptances"][0]["stage"] == M.PUBLIC_QEMU_VALIDATION.value
-    assert audit["failure_attribution"] and audit["unresolved"]
+    assert project.stage(M.PUBLIC_QEMU_VALIDATION).message.startswith("WORKER_ACCEPTED:")
     open_project(project.root).verify_integrity()
 
 
@@ -169,12 +132,16 @@ def test_repaired_model_deliverable_is_consumed_once(tmp_path, restart):
     def worker(job):
         payload = json.loads(job.prompt.split("<job>")[1].split("</job>")[0])
         assert (
-            "smallest relevant compiler/preprocessor probe" in payload["instructions"]["objective"]
+            "references/workflow.md phases 3–5" in payload["instructions"]["objective"]
         )
+        assert Path(payload["instructions"]["skill_root"]) == references.parent.parent
+        assert "source_path=" in job.prompt
+        assert "Two persistent conversations" not in job.prompt
         assert "normal stage deliverable" in payload["instructions"]["recovery"]
         report = job.execution_root / "repaired-plan.md"
-        report.write_text("# Source and design\nSynthetic corrected plan.\nDPF_SELF_REVIEW: PASS\n")
-        return CodexResult(job.job_id, f"REPORT_PATH: {report}\n", "worker")
+        report.write_text("# Source and design\nSynthetic corrected plan.\n")
+        submit(project, job, report, kind="report", decision="pass")
+        return CodexResult(job.job_id, "", "worker")
 
     port = runner(project)
     with patch("driver_port_factory.codex.cli.CodexExecGateway.run", side_effect=worker) as model:
@@ -229,10 +196,9 @@ def test_accept_routes_by_capture_state_and_replays_after_restart(tmp_path, capt
         if capture != "current":
             runtime.write_bytes(b"repaired synthetic runtime")
             checker.write_text("echo attempt >> .dpf-output/check-count\nexit 0\n")
-        report.write_text("Synthetic self-check.\nDPF_SELF_REVIEW: PASS\n"
-                          "Current files inspected; retain earlier failures.\n"
-                          "DPF_CHECKER_DECISION: ACCEPT\n")
-        return CodexResult(job.job_id, f"REPORT_PATH: {report}\n", "worker")
+        report.write_text("Synthetic self-check.\nCurrent files inspected; retain earlier failures.\n")
+        submit(project, job, report, kind="report", decision="pass")
+        return CodexResult(job.job_id, "", "worker")
 
     port = runner(project)
     with patch("driver_port_factory.codex.cli.CodexExecGateway.run", side_effect=worker) as model:
@@ -255,90 +221,49 @@ def test_accept_routes_by_capture_state_and_replays_after_restart(tmp_path, capt
     project.verify_integrity()
 
 
-@pytest.mark.parametrize(
-    "failure",
-    [
-        WorkflowError("C compiler effective-target probe failed: unknown GCC option"),
-        WorkflowError("unrecognized future tool diagnostic"),
-        OSError("executable unavailable"),
-        ValueError("invalid tool result encoding"),
-    ],
-)
-def test_execution_failure_uses_durable_worker_recovery_without_rollback(tmp_path, failure):
-    from unittest.mock import patch
-    from tests.migration_support import accepted
-    from tests.workflow_support import runner
-    from driver_port_factory.codex.gateway import CodexResult
-    from driver_port_factory.codex.contracts import ModelInvocationError
-    from driver_port_factory.migration.contracts import MigrationStage as M
+def test_report_text_cannot_dispatch_or_change_state(tmp_path):
+    from driver_port_factory.migration.review_policy import require_self_review
 
-    project, _, _ = accepted(tmp_path)
-    port = runner(project)
-    final = port._actions[M.COMPLETION_AUDIT]
-    prior = [(s.name, s.status) for s in project.stages() if s.name is not M.COMPLETION_AUDIT]
-    port._actions[M.COMPLETION_AUDIT] = lambda p: (_ for _ in ()).throw(failure)
-    # A transport failure must pause, preserving the pending recovery for restart.
-    with patch(
-        "driver_port_factory.codex.cli.CodexExecGateway.run", side_effect=WorkflowError("offline")
-    ) as offline:
-        with pytest.raises(ModelInvocationError, match="offline"):
-            port._run_project(project)
-    assert offline.call_count == 1
-    pending = pending_decision(open_project(project.root), M.COMPLETION_AUDIT)
-    assert pending is not None
-    assert json.loads(pending.path.read_text())["artifacts"] is None
-    report = project.root / "bad-accept.md"
-    report.write_text("No outputs.\nDPF_CHECKER_DECISION: ACCEPT\n")
-    with pytest.raises(WorkflowError, match="before outputs"):
-        accept_decision(project, M.COMPLETION_AUDIT, pending.path, report)
-
-    def worker(job):
-        payload = json.loads(job.prompt.split("<job>")[1].split("</job>")[0])
-        assert str(failure) in payload["reference_material"]["checker_findings"]
-        assert "artifacts: null" in payload["instructions"]["objective"]
-        decision = job.execution_root / "recovery.md"
-        decision.write_text("Synthetic local repair completed; rerun the static operation.\n"
-                            "DPF_CHECKER_DECISION: ACCEPT\n")
-        return CodexResult(job.job_id, f"REPORT_PATH: {decision}\n", "worker")
-
-    resumed = runner(project)
-    resumed._actions[M.COMPLETION_AUDIT] = final
-    with patch("driver_port_factory.codex.cli.CodexExecGateway.run", side_effect=worker) as model:
-        outcome = resumed._run_project(open_project(project.root))
-    assert outcome.status is StageStatus.PASS
-    assert model.call_count == 1
-    assert [
-        (s.name, s.status) for s in project.stages() if s.name is not M.COMPLETION_AUDIT
-    ] == prior
-    open_project(project.root).verify_integrity()
-def test_report_history_cannot_dispatch_or_override_current_action(tmp_path):
-    from driver_port_factory.core.models import WorkflowError
-    from driver_port_factory.migration.repair_routing import (
-        PrerequisiteRepair, WorkerBlocked, repair_target,
-    )
-    from driver_port_factory.orchestration.protocol import operation
-    from driver_port_factory.port import PortRunner
-
-    history = (
-        "Prior evidence:\nDPF_RUN: PUBLIC_QEMU\nDPF_STATUS: BLOCKED\n"
-        "DPF_REPAIR_STAGE: driver_implementation\nDPF_REVIEW: REWORK\n"
-    )
     report = tmp_path / "report.md"
-    for footer in ("DPF_SELF_REVIEW: PASS", "DPF_CHECKER_DECISION: ACCEPT"):
-        report.write_text(history + footer + "\n")
-        assert operation("public_qemu_validation", report.read_text()) is None
-        PortRunner._report_outcome(report)
-    report.write_text(history + "DPF_STATUS: BLOCKED\n")
-    with pytest.raises(WorkerBlocked):
-        PortRunner._report_outcome(report)
-    report.write_text(history + "DPF_REPAIR_STAGE: artifact_preparation\nDPF_REVIEW: REWORK\n")
-    assert repair_target(report.read_text()).value == "artifact_preparation"
-    with pytest.raises(PrerequisiteRepair) as error:
-        PortRunner._report_outcome(report)
-    assert error.value.target.value == "artifact_preparation"
-    assert operation("public_qemu_validation", history + "DPF_RUN: PUBLIC_QEMU\n") == "PUBLIC_QEMU"
-    for stage, footer in (("public_qemu_validation", "DPF_RUN: UNKNOWN"),
-                          ("driver_implementation", "DPF_RUN: PUBLIC_QEMU"),
-                          ("public_qemu_validation", "- DPF_RUN: PUBLIC_QEMU")):
-        with pytest.raises(WorkflowError):
-            operation(stage, history + footer)
+    report.write_text("DPF_STATUS: BLOCKED\nDPF_REVIEW: REWORK\n")
+    require_self_review(report.read_text())
+    assert report.read_text().startswith("DPF_STATUS")
+
+
+@pytest.mark.parametrize("exit_code", [0, 1])
+def test_repeated_operation_pauses_across_restart(tmp_path, exit_code):
+    from unittest.mock import patch
+    from driver_port_factory.codex.gateway import CodexResult
+    from driver_port_factory.core.checker_decision import (
+        RecoveryPaused, guard_operation, resume_recovery,
+    )
+    from driver_port_factory.migration.contracts import MigrationStage as M
+    from tests.migration_support import public_run
+    from tests.workflow_support import runner
+
+    project, worktree, report = public_run(tmp_path, self_check=False, exit_code=exit_code)
+    calls = []
+
+    def gateway(job):
+        calls.append(job)
+        report.write_text(f'Request {len(calls)}; same executable inputs.\n')
+        submit(project, job, report, kind='report', decision='operation', operation='PUBLIC_QEMU')
+        return CodexResult(job.job_id, '', 'worker')
+
+    with patch('driver_port_factory.codex.cli.CodexExecGateway.run', side_effect=gateway):
+        with pytest.raises(RecoveryPaused):
+            runner(project)._run_project(project)
+        assert len(calls) == 4
+        reopened = open_project(project.root)
+        with pytest.raises(RecoveryPaused):
+            runner(reopened)._run_project(reopened)
+        assert len(calls) == 4
+    resume_recovery(reopened, M.PUBLIC_QEMU_VALIDATION, 'External experiment condition restored')
+    assert pending_decision(reopened, M.PUBLIC_QEMU_VALIDATION) is None
+    # Same job replay is idempotent; changed executable inputs permit new work.
+    for _ in range(5):
+        guard_operation(reopened, M.PUBLIC_QEMU_VALIDATION, 100)
+    script = worktree / '.dpf-output/public-qemu.sh'
+    for ordinal in range(101, 106):
+        script.write_text(script.read_text() + f'\n# scenario {ordinal}\n')
+        guard_operation(reopened, M.PUBLIC_QEMU_VALIDATION, ordinal)

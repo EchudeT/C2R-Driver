@@ -38,26 +38,39 @@ Sol/Terra/Luna。例如 Sol Standard 小上下文的输入/缓存输入/输出�
 计数或未知服务档位，不擅自套用相似模型价格。金额不含地域附加费、工具费用或中转商折扣，
 不代表中转商实际账单。未来调用自动记录模型，不需要工作者填写表格。
 
+## 调用原因
+
+控制器在现有 metrics 中写入 `call_reason`：`stage_work`（正常工作）、
+`execution_self_check`（执行后检查）、`repair`（返修）、`recovery`（错误恢复）、
+`independent_review`（首次独立审查）、`review_followup`（审查会话后续调用）。
+恢复优先于其他分类，执行后检查优先于返修。`status` 显示分组次数、耗时和估价；
+`status --json` 的 `by_call_reason` 同时提供 token 和未知计数。历史缺失值归为 `unknown`，
+不由模型补填，不增加模型调用。金额仍是估算，不代表实际账单。
+
 ## Prompt 组成
 
 阶段 Prompt 由 Prompt Pack 组合。默认 Pack 位于
 `src/driver_port_factory/data/prompt-packs/default/`，包含：
 
-- `manifest.json`：阶段到 Skill/reference、交付目标及可选输出 Schema 的映射；
-- `job.md`：共享的职责、Skill 适配、报告和修复协议；
-- `execution.md`：仅环境、实现、包装、运行和条件审查阶段加载的执行边界；
+- `manifest.json`：阶段到 Skill 原文及章节的路由，不另写一套技术标准；
+- `job.md`：共享的 Skill 加载、执行适配和提交约定，不介绍流程拓扑；
+- `execution.md`：仅可执行阶段加载的脚本、路径和采集接口；
+- `review.md`：仅审查阶段加载的 Skill 核验重点、定位工具接口、核心结论行号与集中反馈要求；
 - `correction.md`：统一包装 `controller_feedback`，一次处理整批问题，保留有效工作。
 
 自动流程不得在 Python 常量中另藏阶段目标来覆盖 Pack。`--objective` 仅作为显式调用选项。
-成功自检和返工结论写入报告文件；最终聊天回复只交 `REPORT_PATH`。JSON 选择任务不需要
-报告文件或结论标记。实现/运行成功使用 `DPF_SELF_REVIEW: PASS`；任一 Markdown 任务发现
-缺少已通过的前置条件，可用 `DPF_REPAIR_STAGE` 加 `DPF_REVIEW: REWORK` 请求最小回退。
-真正的外部阻塞用 `DPF_STATUS: BLOCKED`，不会自动要求重写 PASS。解决后由操作者执行
-`dpf stage reopen PROJECT STAGE --reason '实际解决内容'`，再恢复 port；保留旧证据但不重放旧答复。
+技术要求直接采用 Skill 原文及其引用；每份注入文档携带原文路径，未注入的引用按该路径读取。
+`orchestration/protocol.py` 集中定义选择文件、交付路径和工具提交动作，不替代 Skill 验收要求。
+Skill 要求的证据内容和表格可以合并在阶段报告中，但不能因简化格式而删掉。
+盲测开关、会话数量和调度由程序控制，不在阶段任务中重复说明。必要的 Skill 执行差异集中在共享约定中。
+模型把选择或报告写入工作区普通文件，然后调用作业提供的 `dpf codex submit` 命令。
+该工具的提交收据是唯一的状态接口：选择使用 `--kind proposal --decision submit`，报告使用
+`--kind report --decision pass`，控制器操作使用 `operation`，返工使用 `rework --repair-stage`，
+外部阻塞使用 `blocked`。最终聊天回复只作活动说明；报告正文不再承载状态标记或路径协议。
 
-public runtime 先写好 harness，报告结尾使用 `DPF_RUN: PUBLIC_QEMU` 请求控制器执行。
-控制器保存哈希绑定的 receipt 并把结果交回同一 worker；worker 检查观察和 oracle 后完成
-原报告的最终自检。不为了写报告再跑一次完整套件。源代码/镜像、脚本或 harness helper
+public runtime 先写好 harness，使用工具的 `operation --operation PUBLIC_QEMU` 请求控制器执行。
+控制器保存哈希绑定的 receipt 并把结果交回同一 worker；worker 检查观察和 oracle 后再次提交
+同一报告的 `pass` 决策。不为了写报告再跑一次完整套件。源代码/镜像、脚本或 harness helper
 输入变化会使 receipt 失效。开发用探针及合同要求的重复运行仍保留。
 
 报告、scratch/runtime 脚本放在 target worktree 的 `.dpf-output/`；其他阶段报告放在其 cwd。
@@ -85,7 +98,7 @@ public runtime 先写好 harness，报告结尾使用 `DPF_RUN: PUBLIC_QEMU` 请
 
 公共提示词从本轮开始的 12,681 字节缩到 6,469 字节（约 49%）；详细审查规范仅放在
 条件审查目标中。未改动上游 Skill 原文。该比例不是整次输入 token 或实际费用降幅。
-工作报告由控制器冻结进 CAS，恢复与返工读取报告正文，不追随可能被重写的 REPORT_PATH。
+工作报告由控制器冻结进 CAS，恢复与返工读取提交收据绑定的报告正文。
 当前回退原因从已有 ledger 取出并随下一次任务传入，不增加模型表格或新审查节点。
 最终收窄审查触发条件后，只复跑受影响的提示词、审查与路由场景，28 项通过；未再次运行
 无关模块。包含普通已有 safe Rust 接线不启动审查模型、unsafe 边界触发一次审查、包装返工
@@ -100,7 +113,7 @@ public runtime 先写好 harness，报告结尾使用 `DPF_RUN: PUBLIC_QEMU` 请
 
 ```text
 job_id, stage, actor_role, objective, prompt,
-execution_root, sandbox, output_schema?, model?, thread_id?
+execution_root, sandbox, model?, thread_id?
 ```
 
 调用者不能通过 CLI 指定 sandbox、可写目录或 thread ID。`CodexExecutionPolicy` 从 typed stage 和
@@ -112,20 +125,14 @@ repository manifest 推导唯一 grant：
 | 开发模式：环境、研究、源码与设计 | `danger-full-access` | `work/stage-work/<stage>` |
 | revision/evidence acquisition | `danger-full-access` | 项目根 |
 | 开发模式：静态阶段恢复 | `danger-full-access` | 项目根 |
+| 分析审查、最终审查 | `workspace-write` | `work/stage-work/<review-stage>`，仅报告目录可写 |
 | 非开发模式 | 按角色与阶段限制 | 角色专属工作区 |
 
-开发流程没有 `public_repair`：公开 QEMU 后由原工作者自检，再直接静态汇总证据。
-以下风险策略仅属于单独的盲测候选路径，不参与开发流程，也不因开发优化自动启动：
-`public_repair` 无风险时冻结自检证据；触发时处理列出的风险和相关路径。
-触发依据是 Rust 语法单元的实质变化及其与 unsafe/extern 边界的名称依赖，或工作者的明确请求
-（含仓库明确要求）。分析冻结基线和当前源码，也检查未改文件中的调用者；不把同文件旧 unsafe
-自动当成当前风险。注释、格式和字符串中的 unsafe 不构成风险关键字。风险上下文包含变化
-scope/行号、关联 boundary 和触发依据，审查者无需自行猜测整文件为何被送审。
-这是保守的语法/名称索引，不是编译器完整调用图；同名符号不强行消歧，impl 块仍作为整体。
-变更单元包含宏调用、通配导入或解析错误时保守标为未解析影响；源码超过 16 MiB、依赖索引
-超过 500,000 条边或有未解析 Rust symlink 时明确回退审查，不静默跳过。
-触发不等于缺陷；没有触发也不是功能正确性的证明，自检和测试仍必需。
-工作者自检不冒充独立审查；输出记录实际 `review_mode`。旧独立合规节点已删除，不做兼容迁移。
+开发流程固定使用两个持久对话：worker 完成实现、自检和修复，reviewer 在 `analysis_review` 核验分析证据，随后在 `public_repair` 独立检查功能；两处及复审共用审查会话。
+检查者只写自己的报告目录，读取原始需求、源码、公开计划与实际日志；无自动风险扫描、无程序语义汇总。
+收集器只记录脚本执行，不推断驱动运行或合同覆盖。检查者一次反馈全部已知实质问题，修复沿用原工作者，
+复审沿用原检查者；保留有效测试、已关闭问题与用户确认范围，不做风格返工。检查者的报告就是最终结论。
+检查阶段发生机械恢复仍使用 reviewer 会话，worker 无权代签最终检查。
 
 非开发模式的 workspace-write grant 必须位于当前项目内，且不能等于或包含项目根、`.dpf`、source baseline、target baseline
 或 QEMU baseline，也不能位于这些目录之下。策略在启动 Gateway 前 fail closed。CLI 不提供提权参数。
@@ -145,9 +152,8 @@ CLI 不提供把模型响应转换为 required output 或直接 finalize 的通�
 交付同一 Markdown。没有全量 C 索引、强制查询或 `SOURCE_ANALYSIS` 往返协议。
 用户批准的按需证据策略在统一工作协议中明确覆盖上游全量导出要求；其余 Skill 自检和 QEMU 职责保留。
 
-默认 Prompt Pack 不启用 `output_schema`。版本/证据选择返回简洁 JSON，由领域 importer
-解析并校验；工作报告通过唯一的绝对 `REPORT_PATH` 交付真实 Markdown 文件，不接受聊天正文降级。
-通用自定义 pack 支持声明输出 schema，但这不是默认流程已经具备的保护。
+版本/证据选择由提交工具从普通文件读取并由领域 importer 解析校验；工作报告也由提交工具
+读取并冻结。Codex 最终聊天正文不再作为交付或状态输入，prompt pack 不再声明输出 schema。
 
 `evidence_closure` 是已实现的领域 adapter：importer 校验提议外形，并按
 `codex_job_result` 的 digest+ordinal 精确绑定并执行 Python typed validator；静态 materializer 再验证

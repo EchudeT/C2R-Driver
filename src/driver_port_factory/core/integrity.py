@@ -22,6 +22,7 @@ class _LedgerProjection:
         self.run_projects: list[Any] = []
         self.handlers: dict[str, Callable[[dict[str, Any]], None]] = {
             RunEvent.CREATED.value: self._run_created,
+            RunEvent.WORKER_SUBMISSION.value: self._worker_submission,
             StageEvent.READY.value: self._ready,
             StageEvent.STARTED.value: self._running,
             StageEvent.RETRIED.value: self._retried,
@@ -45,6 +46,14 @@ class _LedgerProjection:
 
     def _run_created(self, payload: dict[str, Any]) -> None:
         self.run_projects.append(payload.get("project"))
+
+    def _worker_submission(self, payload: dict[str, Any]) -> None:
+        stage = payload.get("stage")
+        job_id = payload.get("job_id")
+        receipt = payload.get("receipt")
+        if not isinstance(stage, str) or not isinstance(job_id, str) or not isinstance(receipt, str):
+            raise WorkflowError("worker submission event has incomplete identity")
+        self.workflow.parse_stage(stage)
 
     def _ready(self, payload: dict[str, Any]) -> None:
         self.status[self._stage(payload)] = StageStatus.READY

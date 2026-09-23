@@ -3,7 +3,6 @@ from __future__ import annotations
 import argparse
 import json
 import os
-import re
 import subprocess
 from collections.abc import Callable
 from dataclasses import dataclass
@@ -20,7 +19,6 @@ from .acquisition.git_execution import RepositoryFetchError
 from .cli_support import CommandRegistry, command_registry
 from .codex.cli import run_codex_stage
 from .codex.contracts import CodexArtifact, CodexBackend, CodexContinuation, CodexOutputError, ModelInvocationError
-from .codex.policy import CodexExecutionPolicy
 from .composition import initialize_project, open_project
 from .core.contracts import ArtifactKey, StageKey
 from .core.checker_decision import CheckerDecisionRequired, RecoveryPaused
@@ -45,15 +43,18 @@ from .intake.service import IntakeService
 from .knowledge.bootstrap import KnowledgeBootstrapper
 from .knowledge.contracts import KnowledgeArtifact, KnowledgeStage
 from .migration.artifact_preparation import ArtifactPreparationService
-from .migration.completion_audit import CompletionAuditService
 from .migration.contracts import MigrationArtifact, MigrationStage
 from .migration.handoff import MigrationHandoff
 from .migration.implementation import DriverImplementationService, ImplementationChanged
 from .migration.public_qemu import PublicQemuService
 from .migration.public_repair import PublicRepairService
-from .migration.repair_routing import PrerequisiteRepair, WorkerBlocked, repair_target, retry_prerequisite
+from .migration.repair_routing import (
+    ROUTES,
+    PrerequisiteRepair,
+    WorkerBlocked,
+    retry_prerequisite,
+)
 from .target_study.contracts import TargetStudyArtifact, TargetStudyStage
-from .orchestration.protocol import terminal_line
 
 
 @dataclass(frozen=True, slots=True)
@@ -75,19 +76,19 @@ class PortOutcome:
     stage: str
     status: StageStatus
     next_action: str
-    audit_path: str | None = None
+    report_path: str | None = None
 
     def to_dict(self) -> dict[str, object]:
         return {
             "stage": self.stage,
             "status": self.status.value,
             "next_action": self.next_action,
-            "audit_path": self.audit_path,
+            "report_path": self.report_path,
         }
 
 
 class PortRunner:
-    """Resume and execute the sole developer workflow up to its completion audit."""
+    """Run the worker and independent reviewer through functional delivery."""
 
     def __init__(self, options: PortOptions) -> None:
         self.options = options
@@ -100,11 +101,11 @@ class PortRunner:
             TargetStudyStage.STUDY: self._target_study,
             MigrationStage.HANDOFF: self._handoff,
             MigrationStage.CONTRACTS: self._contracts,
+            MigrationStage.ANALYSIS_REVIEW: self._analysis_review,
             MigrationStage.DRIVER_IMPLEMENTATION: self._implementation,
             MigrationStage.ARTIFACT_PREPARATION: self._artifact_preparation,
             MigrationStage.PUBLIC_QEMU_VALIDATION: self._public_qemu,
             MigrationStage.PUBLIC_REPAIR: self._public_repair,
-            MigrationStage.COMPLETION_AUDIT: self._completion_audit,
         }
 
     def run(self) -> PortOutcome:
@@ -116,14 +117,13 @@ class PortRunner:
         while True:
             stage = self._current(project)
             if stage is None:
-                audit = project.artifact(
-                    MigrationStage.COMPLETION_AUDIT, MigrationArtifact.EVIDENCE_AUDIT
-                )
+                review = project.artifact(MigrationStage.PUBLIC_REPAIR, MigrationArtifact.PUBLIC_REPAIR_REPORT)
+                report = json.loads(project.artifacts.read(review))["review"]
                 return PortOutcome(
-                    MigrationStage.COMPLETION_AUDIT.value,
+                    MigrationStage.PUBLIC_REPAIR.value,
                     StageStatus.PASS,
                     "complete",
-                    str(project.artifacts.path_for_digest(audit.digest)),
+                    str(project.artifacts.path_for_digest(report["sha256"])),
                 )
             if stage.status is StageStatus.WAITING_FOR_USER:
                 return PortOutcome(
@@ -214,11 +214,25 @@ class PortRunner:
                  "captured_outputs": str(error.path)},
             )
             job = self._job_occurrence(project, stage, response)
-        reply = project.artifacts.path_for_digest(job.digest).read_text().strip()
+        submission = self._submission_for_job(project, stage, job)
         try:
-            report = (self._materialize_codex_report(project, stage, job)
-                      if reply.startswith("REPORT_PATH:")
-                      or project.stage(stage).owner is StageOwner.STATIC else None)
+            if submission is None:
+                raise CodexOutputError(
+                    "checker response must be submitted as a report through the submission tool"
+                )
+            if submission.get("kind") == "report":
+                report = self._materialize_codex_report(project, stage, job)
+            elif submission.get("kind") == "proposal":
+                # A recovery worker may have repaired the captured proposal
+                # and resubmitted it through the stage's normal proposal
+                # interface.  Re-enter the ordinary adapter so it can import
+                # and validate that proposal; do not treat it as a checker
+                # acceptance report.
+                report = None
+            else:
+                raise CodexOutputError(
+                    "checker response must be submitted as a report or repaired proposal"
+                )
         except WorkerBlocked as blocker:
             clear_pending(project, stage)
             project.complete(stage, StageStatus.BLOCKED, message=str(blocker))
@@ -230,7 +244,8 @@ class PortRunner:
             # sealed-phase rules as it does for any other deliverable.
             report = None
         if (report is not None
-                and terminal_line(report.read_text()) == "DPF_CHECKER_DECISION: ACCEPT"
+                and submission is not None
+                and submission.get("decision") == "pass"
                 and capture_is_current(project, stage, payload)):
             accept_decision(project, stage, error.path, report)
         else:
@@ -367,6 +382,24 @@ class PortRunner:
                 thread_id = result.thread_id
                 pending = self._job_occurrence(project, stage, response)
             try:
+                submission = self._submission_for_job(project, stage, pending)
+                if submission is not None:
+                    decision = submission.get("decision")
+                    if decision == "blocked":
+                        raise WorkerBlocked(
+                            f"worker reported a prerequisite blocker; submitted file: "
+                            f"{submission.get('file')}"
+                        )
+                    if decision == "rework":
+                        target_name = submission.get("repair_stage")
+                        target = ROUTES.get(target_name)
+                        if target is None:
+                            raise CodexOutputError(
+                                "submitted rework decision names no valid repair stage"
+                            )
+                        raise PrerequisiteRepair(
+                            target, str(submission.get("file"))
+                        )
                 accept(project, pending)
                 return True
             except WorkerBlocked as error:
@@ -377,7 +410,7 @@ class PortRunner:
                 if (target.status is not StageStatus.PASS or target.position >= project.stage(stage).position
                         or stage.value not in project.workflow.descendants(error.target)):
                     raise CodexOutputError(
-                        "Repair locally; DPF_REPAIR_STAGE must name a passed actual data "
+                        "Repair locally; --repair-stage must name a passed actual data "
                         "prerequisite in instructions.repair_targets within the current phase."
                     ) from error
                 retry_prerequisite(project, error.target, trigger=stage, reason=str(error))
@@ -419,8 +452,6 @@ class PortRunner:
             if len(frozen) != 1:
                 raise WorkflowError("Codex work report was not persisted uniquely")
             path = project.artifacts.path_for_digest(frozen[0].digest)
-            PortRunner._validate_report_action(project, stage, path.read_text())
-            PortRunner._report_outcome(path)
             return path
         data = project.artifacts.read(matches[0])
         try:
@@ -428,52 +459,47 @@ class PortRunner:
         except UnicodeDecodeError as error:
             raise CodexOutputError("Codex work report is not UTF-8") from error
         if not text.strip():
-            raise CodexOutputError("Codex work report is blank; write the report and return REPORT_PATH")
-        report_paths = re.findall(r"^REPORT_PATH:\s*(.+\.md)\s*$", text, re.MULTILINE)
-        if len(report_paths) != 1:
-            raise CodexOutputError("Return exactly one REPORT_PATH: <absolute .md path> naming your completed report file.")
-        if len(report_paths) == 1:
-            root = CodexExecutionPolicy().grant(project, stage).execution_root.resolve()
-            submitted = Path(report_paths[0].strip())
-            if not submitted.is_absolute():
-                raise CodexOutputError("REPORT_PATH must be absolute")
-            report_path = submitted.resolve()
-            if root not in report_path.parents or not report_path.is_file():
-                raise CodexOutputError(
-                    "report path must name a Markdown file in the stage workspace"
-                )
-            if stage in CodexExecutionPolicy.WRITABLE_STAGES and root / ".dpf-output" not in report_path.parents:
-                raise CodexOutputError(
-                    "Move the report into .dpf-output/ and return its absolute REPORT_PATH; "
-                    "reports and runtime scripts must not become implementation changes."
-                )
-            data = report_path.read_bytes()
-            try:
-                report_text = data.decode("utf-8")
-            except UnicodeDecodeError as error:
-                raise CodexOutputError("report file must be UTF-8 Markdown") from error
-            if not report_text.strip():
-                raise CodexOutputError("report file is empty")
-        frozen = project.record_artifact(stage, GeneratedArtifact(CodexArtifact.WORK_REPORT, data, source))
-        path = project.artifacts.path_for_digest(frozen.digest)
-        PortRunner._validate_report_action(project, stage, report_text)
-        PortRunner._report_outcome(path)
-        return path
+            raise CodexOutputError("Codex work report is blank; write the report and submit it with the tool")
+        submission = PortRunner._submission_for_job(project, stage, job)
+        if submission is not None and submission.get("kind") == "report":
+            report_path = Path(str(submission["file"])).resolve()
+            report_data = report_path.read_bytes()
+            report_text = report_data.decode("utf-8")
+            report_data = report_text.encode("utf-8")
+            frozen = project.record_artifact(
+                stage, GeneratedArtifact(CodexArtifact.WORK_REPORT, report_data, source)
+            )
+            path = project.artifacts.path_for_digest(frozen.digest)
+            if submission.get("decision") == "blocked":
+                raise WorkerBlocked(f"worker reported a blocker; submitted file: {submission.get('file')}")
+            if submission.get("decision") == "rework":
+                target = ROUTES.get(submission.get("repair_stage"))
+                if target is None:
+                    raise CodexOutputError("submitted rework decision names no valid repair stage")
+                raise PrerequisiteRepair(target, str(submission.get("file")))
+            return path
+        raise CodexOutputError(
+            "Codex report has no validated submission receipt; submit the report through the tool"
+        )
 
     @staticmethod
-    def _validate_report_action(project: Project, stage: StageKey, text: str) -> None:
-        from .orchestration.protocol import operation
-        try:
-            operation(stage.value, text)
-        except WorkflowError as error:
-            raise CodexOutputError(str(error)) from error
-    @staticmethod
-    def _report_outcome(path: Path) -> None:
-        text = path.read_text(encoding="utf-8").rstrip()
-        if terminal_line(text) == "DPF_STATUS: BLOCKED":
-            raise WorkerBlocked(f"worker reported a prerequisite blocker; frozen report: {path}")
-        if terminal_line(text) == "DPF_REVIEW: REWORK":
-            raise PrerequisiteRepair(repair_target(text), str(path))
+    def _submission_for_job(project: Project, stage: StageKey, job: ArtifactOccurrence):
+        matches = [
+            ref for ref in project.current_artifact_refs(stage=stage)
+            if ref.kind == CodexArtifact.SUBMISSION.value
+        ]
+        candidates = []
+        for ref in matches:
+            try:
+                value = json.loads(project.artifacts.read(ref))
+            except (UnicodeDecodeError, json.JSONDecodeError):
+                continue
+            if (value.get("job_result_digest") == job.digest
+                    and value.get("job_result_ordinal") == job.ordinal):
+                candidates.append(value)
+        if len(candidates) > 1:
+            raise CodexOutputError("multiple submissions are bound to one Codex result")
+        return candidates[0] if candidates else None
 
     def _intake(self, project: Project) -> None:
         IntakeService().analyze(
@@ -598,6 +624,9 @@ class PortRunner:
                 project, KnowledgeStage.KNOWLEDGE_BASE, KnowledgeArtifact.GENERATED_SKILL
             ),
         }
+        review = self._previous_review(project, MigrationStage.ANALYSIS_REVIEW)
+        if review:
+            context["analysis_review"] = review
         self._codex_gate(
             project,
             TargetStudyStage.STUDY,
@@ -642,6 +671,70 @@ class PortRunner:
                 FileArtifact(MigrationArtifact.TEST_PORT_MATRIX, report),
             ),
         )
+
+    @staticmethod
+    def _previous_review(project: Project, stage: StageKey):
+        if stage.value not in project.workflow.stage_values:
+            return None
+        all_refs = project.artifact_refs(stage=stage)
+        refs = [ref for ref in all_refs if ref.kind == CodexArtifact.WORK_REPORT.value]
+        if not refs:
+            # A rejected review may be outside the current artifact boundary.
+            # Recover its immutable job result through the bound submission
+            # receipt so the next reviewer sees the prior findings.
+            jobs = {
+                ref.ordinal: ref for ref in all_refs
+                if ref.kind == CodexArtifact.JOB_RESULT.value and ref.ordinal is not None
+            }
+            rejected = []
+            for receipt in all_refs:
+                if receipt.kind != CodexArtifact.SUBMISSION.value:
+                    continue
+                try:
+                    value = json.loads(project.artifacts.read(receipt))
+                except (UnicodeDecodeError, json.JSONDecodeError):
+                    continue
+                if value.get("decision") == "rework" and value.get("job_result_ordinal") in jobs:
+                    rejected.append(jobs[value["job_result_ordinal"]])
+            refs = rejected or [ref for ref in all_refs
+                                if ref.kind == CodexArtifact.JOB_RESULT.value]
+        if not refs:
+            return None
+        ref = max(refs, key=lambda item: item.ordinal)
+        return {"path": str(project.artifacts.path_for_digest(ref.digest)),
+                "digest": ref.digest, "kind": ref.kind,
+                "status": "historical findings; compare with current inputs and repair evidence"}
+
+    @staticmethod
+    def _review_job_policy(project: Project, stage: StageKey, job: ArtifactOccurrence):
+        occurrence = next(ref for ref in project.current_artifact_refs(stage=stage)
+                          if ref.kind == CodexArtifact.JOB_RESULT.value and ref.ordinal == job.ordinal)
+        metrics = json.loads(Path(occurrence.source).with_suffix(".metrics.json").read_text())
+        policy = metrics.get("policy_sha256")
+        if not policy:
+            raise CodexOutputError("Review has no recorded rule identity; review current rules before acceptance")
+        return policy
+
+    def _analysis_review(self, project: Project) -> None:
+        from .migration.analysis_review import AnalysisReviewService, INPUTS
+        service = AnalysisReviewService()
+        reused = service.reusable(project, self.options.skill_root)
+        if reused is not None:
+            service.finalize(project, text=reused,
+                policy_digest=service.policy(project, self.options.skill_root),
+                skill_root=self.options.skill_root)
+            return
+        self._codex_gate(project, MigrationStage.ANALYSIS_REVIEW,
+            self._migration_context(project, INPUTS, extra={
+                "previous_review": self._previous_review(project, MigrationStage.ANALYSIS_REVIEW)}),
+            self._accept_analysis_review)
+
+    def _accept_analysis_review(self, project: Project, job: ArtifactOccurrence) -> None:
+        from .migration.analysis_review import AnalysisReviewService
+        report = self._materialize_codex_report(project, MigrationStage.ANALYSIS_REVIEW, job)
+        AnalysisReviewService.finalize(project, text=report.read_text(),
+            policy_digest=self._review_job_policy(project, MigrationStage.ANALYSIS_REVIEW, job),
+            skill_root=self.options.skill_root)
 
     def _implementation(self, project: Project) -> None:
         from .migration.repair_execution import active, prepared
@@ -757,7 +850,7 @@ class PortRunner:
             if project.stage(MigrationStage.PUBLIC_QEMU_VALIDATION).status is StageStatus.READY:
                 project.start(MigrationStage.PUBLIC_QEMU_VALIDATION)
             request = project.artifacts.put_bytes(
-                (f"Prepared repair: {prepared_report}\nDPF_RUN: PUBLIC_QEMU\n").encode(),
+                (f"Prepared repair: {prepared_report}\n").encode(),
                 kind=CodexArtifact.WORK_REPORT.value)
             acquisition = load_repository_acquisition(project)
             worktree = project.root / acquisition.target_worktree.path
@@ -811,8 +904,11 @@ class PortRunner:
         worktree = (project.root / acquisition.target_worktree.path).resolve()
         try:
             service = PublicQemuService()
-            from .orchestration.protocol import operation
-            if operation(MigrationStage.PUBLIC_QEMU_VALIDATION.value, report.read_text()) == "PUBLIC_QEMU":
+            submission = self._submission_for_job(project, MigrationStage.PUBLIC_QEMU_VALIDATION, job)
+            if (submission and submission.get("decision") == "operation"
+                    and submission.get("operation") == "PUBLIC_QEMU"):
+                from .core.checker_decision import guard_operation
+                guard_operation(project, MigrationStage.PUBLIC_QEMU_VALIDATION, job.ordinal)
                 result = service.run_script(
                     project, script_path=worktree / ".dpf-output" / "public-qemu.sh",
                     work_report_path=report,
@@ -821,8 +917,8 @@ class PortRunner:
                     f"Controller execution completed: {result['attempt']}. Inspect the frozen "
                     "observations against the agreed oracles and complete the Skill's final "
                     "self-check in your existing report. Do not rerun an unchanged passing "
-                    "suite. End with DPF_SELF_REVIEW: PASS only if requirements are met; "
-                    "otherwise repair the cause or report a concrete blocker."
+                    "suite. Submit pass only if requirements are met; otherwise repair the "
+                    "cause or submit a concrete blocker."
                 )
             service.accept_self_review(project, work_report_path=report)
         except ImplementationChanged as error:
@@ -830,23 +926,15 @@ class PortRunner:
                 trigger=MigrationStage.PUBLIC_QEMU_VALIDATION, reason=str(error))
 
     def _public_repair(self, project: Project) -> None:
-        try:
-            decision = PublicRepairService.decision(project)
-        except ImplementationChanged as error:
-            if project.stage(MigrationStage.PUBLIC_REPAIR).status is StageStatus.READY:
-                project.start(MigrationStage.PUBLIC_REPAIR)
-            retry_prerequisite(project, MigrationStage.DRIVER_IMPLEMENTATION,
-                trigger=MigrationStage.PUBLIC_REPAIR, reason=str(error))
+        if PublicRepairService.reusable_review(project, skill_root=self.options.skill_root) is not None:
+            PublicRepairService().finalize(project, reuse=True, skill_root=self.options.skill_root)
             return
-        if not decision["independent_required"]:
-            PublicRepairService().finalize(project)
-            return
-        if PublicRepairService.reusable_review(project) is not None:
-            PublicRepairService().finalize(project, reuse=True)
-            return
-        review_context = {"review_decision": decision}
+        review_context = {}
         previous = [r for r in project.artifact_refs(stage=MigrationStage.PUBLIC_REPAIR)
                     if r.kind == CodexArtifact.WORK_REPORT.value]
+        if not previous:
+            previous = [r for r in project.artifact_refs(stage=MigrationStage.PUBLIC_REPAIR)
+                        if r.kind == CodexArtifact.JOB_RESULT.value]
         if previous:
             ref = max(previous, key=lambda r: r.ordinal)
             review_context["previous_review"] = {
@@ -858,6 +946,8 @@ class PortRunner:
             self._migration_context(project, (
                     (MigrationStage.HANDOFF, MigrationArtifact.HANDOFF),
                     (MigrationStage.DRIVER_IMPLEMENTATION, MigrationArtifact.IMPLEMENTATION_BUNDLE),
+                    (MigrationStage.DRIVER_IMPLEMENTATION, MigrationArtifact.TARGET_CHANGE_INVENTORY),
+                    (TargetStudyStage.STUDY, TargetStudyArtifact.REPORT),
                     (MigrationStage.CONTRACTS, MigrationArtifact.CONTRACTS),
                     (MigrationStage.CONTRACTS, MigrationArtifact.TEST_PORT_MATRIX),
                     (MigrationStage.DRIVER_IMPLEMENTATION, MigrationArtifact.COMPLIANCE_REPORT),
@@ -870,14 +960,12 @@ class PortRunner:
 
     def _accept_runtime_review(self, project: Project, job: ArtifactOccurrence) -> None:
         report = self._materialize_codex_report(project, MigrationStage.PUBLIC_REPAIR, job)
-        verdict = terminal_line(report.read_text())
-        if verdict != "DPF_REVIEW: PASS":
-            raise CodexOutputError("review must end with DPF_REVIEW: PASS or DPF_REVIEW: REWORK")
-        PublicRepairService().finalize(project, review_path=report)
-
-    @staticmethod
-    def _completion_audit(project: Project) -> None:
-        CompletionAuditService().run(project)
+        submission = self._submission_for_job(project, MigrationStage.PUBLIC_REPAIR, job)
+        if not submission or submission.get("decision") != "pass":
+            raise CodexOutputError("independent review must be submitted with the pass decision")
+        policy = self._review_job_policy(project, MigrationStage.PUBLIC_REPAIR, job)
+        PublicRepairService().finalize(project, review_path=report, policy_digest=policy,
+                                      skill_root=self.options.skill_root)
 
     def _migration_context(
         self,
@@ -892,7 +980,8 @@ class PortRunner:
                 "project_root": str(project.root),
                 "target_worktree": str(project.root / acquisition.target_worktree.path),
                 "frozen_baselines": {
-                    record.role.value: str(project.root / record.checkout_path)
+                    record.role.value: {"path": str(project.root / record.checkout_path),
+                                        "revision": record.resolved_commit}
                     for record in acquisition.checkouts
                 },
                 "knowledge_skill": self._artifact_context(
@@ -914,7 +1003,8 @@ class PortRunner:
         if project.stage(MigrationStage.DRIVER_IMPLEMENTATION).status is StageStatus.PASS:
             context["frozen_inputs"][MigrationArtifact.IMPLEMENTATION_BUNDLE.value] = self._artifact_context(
                 project, MigrationStage.DRIVER_IMPLEMENTATION, MigrationArtifact.IMPLEMENTATION_BUNDLE)
-        for stage, key in ((MigrationStage.PUBLIC_QEMU_VALIDATION, "runtime_work_report_path"),
+        for stage, key in ((MigrationStage.ANALYSIS_REVIEW, "analysis_review_path"),
+                           (MigrationStage.PUBLIC_QEMU_VALIDATION, "runtime_work_report_path"),
                            (MigrationStage.PUBLIC_REPAIR, "runtime_review_path")):
             if stage.value not in project.workflow.stage_values:
                 continue

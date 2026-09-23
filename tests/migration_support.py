@@ -15,7 +15,7 @@ def implemented(root, *, source="pub fn init() -> u32 { 1 }\n", request=""):
     output = worktree / ".dpf-output"
     output.mkdir()
     report = output / "report.md"
-    report.write_text(f"# Synthetic fixture\n{request}\nDPF_SELF_REVIEW: PASS\n")
+    report.write_text(f"# Synthetic fixture\n{request}\n")
     project.start(S.DRIVER_IMPLEMENTATION)
     DriverImplementationService().snapshot_worktree(project, report)
     return project, worktree, report
@@ -47,7 +47,7 @@ def public_run(root, *, exit_code=0, self_check=True, **implementation):
         f"exit {exit_code}\n"
     )
     project.start(S.PUBLIC_QEMU_VALIDATION)
-    report.write_text("# Harness ready\nDPF_RUN: PUBLIC_QEMU\n")
+    report.write_text("# Harness ready\n")
     if exit_code:
         result = PublicQemuService().run_script(
             project, script_path=script, work_report_path=report
@@ -56,7 +56,7 @@ def public_run(root, *, exit_code=0, self_check=True, **implementation):
         assert project.stage(S.PUBLIC_QEMU_VALIDATION).status.value == "RUNNING"
     else:
         PublicQemuService().run_script(project, script_path=script, work_report_path=report)
-        report.write_text("# Captured synthetic run inspected\nDPF_SELF_REVIEW: PASS\n")
+        report.write_text("# Captured synthetic run inspected\n")
         if self_check:
             PublicQemuService().accept_self_review(project, work_report_path=report)
     return project, worktree, report
@@ -67,5 +67,6 @@ def accepted(root):
     if S.PUBLIC_REPAIR.value in project.workflow.stage_values:
         from driver_port_factory.migration.public_repair import PublicRepairService
 
-        PublicRepairService().finalize(project)
+        report.write_text("Synthetic independent fixture review.\n")
+        PublicRepairService().finalize(project, review_path=report)
     return project, worktree, report

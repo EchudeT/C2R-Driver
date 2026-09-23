@@ -16,13 +16,17 @@
 | 10 | target_platform_study | Codex+Gate | target profile、API evidence、analog trace、target-change plan |
 | 11 | migration_handoff | 静态 | 复用已有证据生成交接身份 |
 | 12 | migration_contracts | 混合 | 一份源码分析、迁移合同与测试计划 |
-| 13 | driver_implementation | Codex+静态 | 实现、测试适配、合规自检和源码快照 |
-| 14 | artifact_preparation | 混合 | 可运行产物、测试入口和身份检查；必要源码调整自检后原地刷新快照 |
-| 15 | public_qemu_validation | 混合 | worker 准备 harness → 控制器执行并冻结 receipt → 原 worker 归因与自检 |
-| 16 | completion_audit | 静态 | 直接汇总 QEMU、自检证据与未覆盖范围，不增加风险审查 |
+| 13 | analysis_review | 独立检查 AI | 合并审查目标研究、源码分析、契约与测试计划；核心结论附精确原文定位，集中反馈全部问题 |
+| 14 | driver_implementation | Codex+静态 | 实现、测试适配、合规自检和源码快照 |
+| 15 | artifact_preparation | 混合 | 可运行产物、测试入口和身份检查；必要源码调整自检后原地刷新快照 |
+| 16 | public_qemu_validation | 混合 | worker 准备 harness → 控制器执行并冻结 receipt → 原 worker 归因与自检 |
+| 17 | public_repair | 独立检查 AI | 直接核对原定功能、代码、测试 oracle 和原始日志；最终报告或完整返修反馈 |
 
 上表为 `DEVELOPER_EVIDENCE`，检查点数量不是模型调用数量。研究、实现和验证使用同一工作者。
-仅 blind mode 保留 public_repair，并在 completion audit 前增加 candidate sealing 和 digest export / candidate transfer。
+第 13 步在设计阶段封存前完成，可返回目标研究或契约阶段窄修复。审查者主动调用只读定位工具，程序不自动匹配报告或裁定引用含义。
+开发模式到独立检查结束，无程序语义汇总。工作者与检查者各自保持一个会话；实质缺陷交回原工作者，
+修复后原检查者复审。所有已知问题一次反馈，保留正确代码和有效测试；不为风格、可选覆盖返修。
+单独的 blind mode 在检查后增加 candidate sealing 和 digest export / candidate transfer；本次不运行。
 `MIGRATION_OPERATOR` 在前瞻盲测中必须先导入 `public_bundle` 和 `curator_commitment`。
 事后封存模式在候选封存后只导出 opaque digest；迁移域不负责创建私有测试。
 `request_intake` 至 `migration_envelope_freeze` 全部通过前，acquisition 不得 clone 内核、镜像或工具链。
@@ -47,16 +51,19 @@ observation -> classification -> evidence query -> hypothesis
             -> narrow patch -> affected checks -> regression
 ```
 
-不同回退路径不共用“审查三次”预算；同一目标/触发及阶段实质输入的修复次数记录在 ledger，
-允许三次回退，第四次 BLOCKED，不会因重启、新报告路径或原因改写归零。报告正文仍作为反馈保留；
-编译参数、代码等实质输入改变后使用新的计数。真实 blocker 明确停止。每次真正执行产生不可覆盖 run；恢复后复用同一
-未变化的成功 receipt，不制造重复运行。只有公开阶段允许修复；私有反馈后的修复须创建新实验。
+同一目标、触发阶段和实质输入的重复前置回退会被拒绝，历史记录保留在 ledger。
+工具或交付协议恢复沿用三次停滞保护；重复 PUBLIC_QEMU 请求另按实质输入计数，
+三个不同工作者请求后，第四个无变化请求进入 PAUSED。计数落盘，重启和报告改字不会清零；
+同一已落盘请求重放不重复计数。输入改变后允许继续；外部条件改变可通过
+`stage recovery-resume --reason` 记录原因并恢复。需要重复实验时，在 harness 中明确实验次数，
+或记录外部条件变化，不把同一成功 receipt 的重放当成新的实验。
+每次真正执行产生不可覆盖 run；未变化的成功 receipt 可复用。私有反馈后的修复须创建新实验。
 
 公开执行失败留在原工作会话分类，不默认启动审查者或重开实现。源码变化才回实现；
 镜像/客体入口问题回包装；同镜像的 harness/oracle 问题留在运行。当前回退原因和冻结报告正文
 随任务恢复，修复后只做受影响检查。补报告不触发实现或 QEMU 重跑。
 
-以下 Rust 风险审查只属于盲测候选路径，不参与开发流程。Rust 审查按变化语法单元
-及跨文件名称依赖定位，不因无关旧 unsafe、注释或格式修改触发。宏/通配导入、语法错误和
-分析超限明确保守回退；不是完整类型/动态调用分析。代码、计划、镜像与
-harness 输入不变的已通过独立审查可复用。历史证据保留在 CAS 与 ledger，不增加旧执行协议。
+代码、计划、镜像、harness、运行证据及最终工作报告一致，且审查规则摘要一致时，
+已通过的独立审查才可复用。摘要覆盖审查阶段目标、共享模板、协议和加载的 Skill 文档；
+其他阶段目标修改不触发重审。缺少规则摘要的旧审查不自动复用。
+规则修改不重写历史证据，也不会自动重开已经完成的项目；此约束用于下一次进入审查阶段。

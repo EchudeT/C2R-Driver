@@ -38,7 +38,6 @@ def compact_token_limit(project: Project, stage: StageKey, thread_id: str | None
 
 def session_key(
     project: Project, stage: StageKey, grant: CodexExecutionGrant, model: str | None, backend: str,
-    *, worker_decision: bool = False,
 ) -> str:
     home = Path(os.environ.get("CODEX_HOME", Path.home() / ".codex")).resolve()
     config = home / "config.toml"
@@ -50,11 +49,10 @@ def session_key(
         "model": model or settings.get("model"),
         "base_url": settings.get("openai_base_url"),
     }
-    if (project.config.evaluation_mode is EvaluationMode.DEVELOPER_EVIDENCE
-            and (stage is not MigrationStage.PUBLIC_REPAIR or worker_decision)):
-        conversation = "worker"
-    elif stage is MigrationStage.PUBLIC_REPAIR:
+    if stage in {MigrationStage.PUBLIC_REPAIR, MigrationStage.ANALYSIS_REVIEW}:
         conversation = "reviewer"
+    elif project.config.evaluation_mode is EvaluationMode.DEVELOPER_EVIDENCE:
+        conversation = "worker"
     else:
         conversation = stage.value
     identity = [
@@ -74,8 +72,8 @@ def read_session(project: Project, key: str) -> dict:
 
 
 def stage_session(project: Project, stage: StageKey, grant: CodexExecutionGrant,
-                  model: str | None, backend: str, *, worker_decision: bool = False) -> tuple[str, dict]:
-    key = session_key(project, stage, grant, model, backend, worker_decision=worker_decision)
+                  model: str | None, backend: str) -> tuple[str, dict]:
+    key = session_key(project, stage, grant, model, backend)
     return key, read_session(project, key)
 
 

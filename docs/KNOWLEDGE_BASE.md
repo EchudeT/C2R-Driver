@@ -28,7 +28,7 @@ dpf knowledge rebuild RUN
 Search returns compact locators; inspect selected originals to support actual decisions. Each query
 checks its corpus/index, not unrelated runtime images; a separate status call before every search is
 unnecessary. If originals are missing, inspect the pinned tree and explain the exact paths needed in
-the current work report, ending with `DPF_REPAIR_STAGE: evidence_closure` then `DPF_REVIEW: REWORK`.
+the current work report, then submit it with `--decision rework --repair-stage evidence_closure`.
 The controller reopens acquisition and rebuilds downstream evidence. This explicit prerequisite
 route replaces the upstream template's manual manifest edits; workers must not modify frozen files
 or controller state. An empty search is never evidence that the target lacks a capability.

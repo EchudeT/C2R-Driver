@@ -4,6 +4,7 @@ from enum import StrEnum
 class MigrationStage(StrEnum):
     HANDOFF = "migration_handoff"
     CONTRACTS = "migration_contracts"
+    ANALYSIS_REVIEW = "analysis_review"
     DRIVER_IMPLEMENTATION = "driver_implementation"
     ARTIFACT_PREPARATION = "artifact_preparation"
     PUBLIC_QEMU_VALIDATION = "public_qemu_validation"
@@ -15,6 +16,7 @@ class MigrationArtifact(StrEnum):
     HANDOFF = "migration_handoff"
     CONTRACTS = "migration_contracts"
     TEST_PORT_MATRIX = "test_port_matrix"
+    ANALYSIS_REVIEW_REPORT = "analysis_review_report"
     IMPLEMENTATION_BUNDLE = "driver_implementation_bundle"
     TARGET_CHANGE_INVENTORY = "target_change_inventory"
     COMPLIANCE_REPORT = "compliance_report"

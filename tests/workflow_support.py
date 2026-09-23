@@ -19,7 +19,7 @@ from driver_port_factory.port import PortOptions, PortRunner
 from tests.design_support import ready_project
 
 
-def ready_implementation(root: Path, *, plan=True):
+def ready_implementation(root: Path, *, plan=True, reviewed=True):
     # This fixture validates the controller; its simulator is explicitly synthetic.
     project, checkouts = ready_project(root)
     skill = Path(project.config.skill_root) / "knowledge-guided-driver-port"
@@ -34,7 +34,7 @@ def ready_implementation(root: Path, *, plan=True):
     report = project.root / "migration-plan.md"
     report.write_text(
         "# Fixture plan\nPreserve example_init returning shared_value.\n"
-        "Test with one operation and a wrong-device control.\nDPF_SELF_REVIEW: PASS\n"
+        "Test with one operation and a wrong-device control.\n"
     )
     project.finalize_stage(
         MigrationStage.CONTRACTS,
@@ -44,8 +44,16 @@ def ready_implementation(root: Path, *, plan=True):
         ),
     )
     references = Path(project.config.skill_root) / "knowledge-guided-driver-port/references"
-    for name in ("workflow.md", "test-porting.md", "target-changes.md", "qemu-evidence.md"):
+    for name in ("workflow.md", "test-porting.md", "target-changes.md", "qemu-evidence.md",
+                 "target-platform-study.md"):
         (references / name).write_text("# Fixture rule\n" + "Inspect original evidence.\n" * 80)
+    (skill / "assets").mkdir(exist_ok=True)
+    (skill / "assets/target-platform-profile.md").write_text("# Fixture target profile\n")
+    if reviewed:
+        from driver_port_factory.migration.analysis_review import AnalysisReviewService
+        AnalysisReviewService.finalize(project,
+            text="Synthetic analysis review fixture; not real evidence.\n",
+            policy_digest=AnalysisReviewService.policy(project))
     return project
 
 

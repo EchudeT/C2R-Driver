@@ -51,20 +51,8 @@ class CompletionAuditService:
         public = self._document(
             project, MigrationStage.PUBLIC_QEMU_VALIDATION, MigrationArtifact.PUBLIC_QEMU_REPORT
         )
-        if project.config.evaluation_mode is EvaluationMode.DEVELOPER_EVIDENCE:
-            # Public validation already contains the worker's post-runtime self-check.
-            # Summarize it without a new risk scan or a second acceptance stage.
-            worker_ref = project.artifact(
-                MigrationStage.PUBLIC_QEMU_VALIDATION, MigrationArtifact.PUBLIC_QEMU_WORK_REPORT)
-            repair = {
-                "review": {"text": project.artifacts.read(worker_ref).decode(),
-                           "sha256": worker_ref.digest},
-                "review_mode": "worker_self_check",
-                "decision": None,
-            }
-        else:
-            repair = self._document(
-                project, MigrationStage.PUBLIC_REPAIR, MigrationArtifact.PUBLIC_REPAIR_REPORT)
+        repair = self._document(
+            project, MigrationStage.PUBLIC_REPAIR, MigrationArtifact.PUBLIC_REPAIR_REPORT)
         runs = list(public.get("runs", []))
         target_driver_ran = any(
             run.get("execution_status") == ContractExecutionStatus.PASS.value
@@ -124,7 +112,7 @@ class CompletionAuditService:
                 ),
                 "runtime_evidence_review": repair.get("review"),
                 "review_mode": repair["review_mode"],
-                "review_decision": repair["decision"],
+                "review_decision": repair.get("decision"),
                 "contracts": _reference(
                     project, MigrationStage.CONTRACTS, MigrationArtifact.CONTRACTS
                 ),

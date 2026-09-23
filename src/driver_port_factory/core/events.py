@@ -7,6 +7,7 @@ class RunEvent(StrEnum):
     CREATED = "run.created"
     TASK_REUSE = "run.task_reuse"
     REPAIR_PREPARED = "run.repair_prepared"
+    WORKER_SUBMISSION = "run.worker_submission"
 
 
 class StageEvent(StrEnum):

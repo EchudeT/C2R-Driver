@@ -43,30 +43,19 @@ def migration_workflow(config: ProjectConfig) -> tuple[StageSpec, ...]:
         previous = EvaluationStage.BLIND_BINDING
 
     previous = append_linear(specs, _migration_rows(config), previous, MIGRATION_ROLES)
-    if config.evaluation_mode is EvaluationMode.DEVELOPER_EVIDENCE:
-        specs.append(
-            stage_spec(
-                MigrationStage.COMPLETION_AUDIT,
-                "Audit contract, implementation, test, and runtime coverage.",
-                StageOwner.STATIC,
-                previous,
-                (MigrationArtifact.EVIDENCE_AUDIT,),
-                MIGRATION_ROLES,
-            )
-        )
-        return _data_dependencies(tuple(specs))
-
     specs.append(
         stage_spec(
             MigrationStage.PUBLIC_REPAIR,
-            "Close evidence for the separately scoped blind-candidate workflow.",
-            StageOwner.HYBRID,
+            "Independent AI checks functional completion against original requirements and actual evidence.",
+            StageOwner.CODEX,
             previous,
             (MigrationArtifact.PUBLIC_REPAIR_REPORT,),
             MIGRATION_ROLES,
             prerequisites=(MigrationStage.DRIVER_IMPLEMENTATION, MigrationStage.CONTRACTS),
         )
     )
+    if config.evaluation_mode is EvaluationMode.DEVELOPER_EVIDENCE:
+        return _data_dependencies(tuple(specs))
     specs.append(
         stage_spec(
             SealingStage.CANDIDATE_SEALING,
@@ -259,6 +248,15 @@ def _migration_rows(config: ProjectConfig) -> tuple[StageRow, ...]:
                 AcquisitionStage.EVIDENCE_CLOSURE,
             ),
         ),
+        *((StageRow(
+            MigrationStage.ANALYSIS_REVIEW,
+            "Independently review analysis evidence, contracts and test provenance before implementation.",
+            StageOwner.INDEPENDENT,
+            (MigrationArtifact.ANALYSIS_REVIEW_REPORT,),
+            prerequisites=(TargetStudyStage.STUDY, MigrationStage.HANDOFF,
+                           AcquisitionStage.EVIDENCE_CLOSURE,
+                           EnvironmentStage.RECOVERY),
+        ),) if config.evaluation_mode is EvaluationMode.DEVELOPER_EVIDENCE else ()),
         StageRow(
             MigrationStage.DRIVER_IMPLEMENTATION,
             "Reconstruct the Rust driver, public tests, coverage, and minimal integration.",

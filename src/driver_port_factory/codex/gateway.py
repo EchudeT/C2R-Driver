@@ -27,7 +27,6 @@ class CodexJob:
     prompt: str
     execution_root: Path
     sandbox: CodexSandbox
-    output_schema: Path | None = None
     model: str | None = None
     thread_id: str | None = None
     job_id: str = field(default_factory=lambda: str(uuid.uuid4()))
@@ -105,8 +104,9 @@ class CodexExecGateway:
                 "-c", f"shell_environment_policy.set.CARGO_HOME={json.dumps(str(cargo_home))}",
             ])
         command.extend(relay_overrides())
-        if job.output_schema:
-            command.extend(["--output-schema", str(job.output_schema.resolve())])
+        # Structured data is exchanged through the file-backed submission
+        # command.  The final agent message is only an activity transcript;
+        # never ask Codex to serialize workflow data into it.
         if job.thread_id:
             command.append(job.thread_id)
         command.append("-")
@@ -158,6 +158,4 @@ class CodexExecGateway:
             failure = "Codex turn failed; inspect preserved event log"
         if not failure and not any(event.get("type") == "turn.completed" for event in events):
             failure = "Codex stream ended without a completed turn; resume the preserved conversation"
-        if not failure and not final_response.strip():
-            failure = "Codex completed without a final response; resume the preserved conversation"
         return CodexResult(job.job_id, final_response, thread_id, tuple(events), failure)

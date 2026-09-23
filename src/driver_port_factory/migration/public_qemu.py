@@ -185,8 +185,6 @@ class PublicQemuService:
 
         if project.stage(MigrationStage.PUBLIC_QEMU_VALIDATION).status is not StageStatus.RUNNING:
             raise WorkflowError("public_qemu_validation must be RUNNING")
-        if not work_report_path.read_text(encoding="utf-8").rstrip().endswith("\nDPF_RUN: PUBLIC_QEMU"):
-            raise CodexOutputError("Prepare the harness and end the report with DPF_RUN: PUBLIC_QEMU; do not claim an unexecuted PASS.")
         if not script_path.is_file():
             raise CodexOutputError("public QEMU work did not create .dpf-output/public-qemu.sh")
         acquisition = load_repository_acquisition(project)
@@ -271,7 +269,7 @@ class PublicQemuService:
                 else ContractExecutionStatus.FAIL.value
             ),
             "attribution": (
-                PublicRunAttribution.TARGET_DRIVER_ON_QEMU.value
+                PublicRunAttribution.PUBLIC_HARNESS.value
                 if passed
                 else PublicRunAttribution.INCONCLUSIVE.value
             ),
@@ -282,7 +280,7 @@ class PublicQemuService:
             "runs": [run],
             "status": StageStatus.PASS.value if passed else StageStatus.FAIL.value,
             "execution_status": run["execution_status"],
-            "integration_boundary": None if passed else "BLOCKED_FULL_INTEGRATION",
+            "semantic_verdict": "REQUIRES_INDEPENDENT_AI_REVIEW",
             "recorded_at": utc_now(),
         }
         attempt_path = attempt_dir / "attempt.json"
@@ -328,7 +326,7 @@ class PublicQemuService:
             project.note_check(str(error))
         previous = self._latest_attempt(project)
         if previous is None:
-            raise CodexOutputError("No controller execution receipt. Request DPF_RUN: PUBLIC_QEMU before final self-check.")
+            raise CodexOutputError("No controller execution receipt. Submit the operation decision before final self-check.")
         attempt_ref, report = previous
         acquisition = load_repository_acquisition(project)
         worktree = workspace_path(project, acquisition.target_worktree.path)
@@ -419,6 +417,6 @@ def validate_public_qemu_bundle(context: BundleValidationContext) -> None:
             or not trace.get("qemu_execs")
             or trace.get("runtime_bound") is not True
             or not run.get("logs")
-            or run.get("attribution") != PublicRunAttribution.TARGET_DRIVER_ON_QEMU.value
+            or run.get("attribution") != PublicRunAttribution.PUBLIC_HARNESS.value
         ):
             raise WorkflowError("a passing public run lacks observed QEMU/runtime/log evidence")

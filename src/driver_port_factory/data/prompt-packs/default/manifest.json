@@ -27,7 +27,7 @@
         "open-kernel-driver-port/SKILL.md",
         "open-kernel-driver-port/references/acquisition.md"
       ],
-      "objective": "Select maintained source, target and QEMU repositories and suitable release tags or full commits for the confirmed driver. Inspect supplied_upstream_baselines first for available origins and versions; inspect Git metadata and originals only, never historical migration answers. Return only {repositories:[{role,url,ref}]} with one source, target and qemu entry, using the original upstream URL. Do not clone or fetch to prove a revision. The controller reuses matching supplied cache objects, confirms the selected revision with upstream, resolves annotated tags and retains the checkout. It records hashes and provenance; do not duplicate those fields or perform another acceptance exercise."
+      "objective": "Follow open-kernel-driver-port/references/acquisition.md for version selection. Choose exactly one source, target and QEMU upstream repository/ref for the frozen envelope, inspecting supplied_upstream_baselines and metadata only. Do not clone, fetch, resolve tags or write provenance; the controller performs acquisition, revision resolution and identity recording. Return the selection through the controller protocol."
     },
     "evidence_closure": {
       "documents": [
@@ -35,14 +35,14 @@
         "open-kernel-driver-port/references/acquisition.md",
         "open-kernel-driver-port/references/handoff.md"
       ],
-      "objective": "Select task-relevant evidence from frozen originals. Return {facets:[{lane,facet,rationale,repository_paths?:[{repository,path}],external_documents?:[{url,publisher_url,basis}|{url,corroboration_urls:[url]}],external_urls?:[url],gap?:{impact,repair_trigger}}]}. Cover source, target, qemu, hardware, test and tooling; the controller adds source/driver_entry. Facet is a descriptive semantic name, not a hidden enum. Source/target/qemu lanes use their matching repository; test/source_tests uses source; other test/tooling facets may use any repository. Hardware cannot use repository_paths: keep implementation observations in source/qemu. For an official original, supply its document URL, publisher homepage URL and a short basis explaining why this is the original publisher. Do not seek an extra mirror for an official original. For a mirror, supply independently published corroboration URLs. The controller downloads once, records content identity and your source assessment; it does not infer authority merely from a URL. If authority or content is unavailable, use actually checked external_urls plus gap, never invent evidence. No hashes, revisions or material tables in the reply. On prerequisite repair preserve valid selections, add the requested originals, and address all reported errors together."
+      "objective": "Follow open-kernel-driver-port/references/acquisition.md and handoff.md to choose the task-relevant evidence facets. This stage owns the material selection, rationale, source/provenance requirements and explicit gaps; the controller acquires content and records hashes and provenance. Do not use this stage for compiler/layout probes, C semantic closure, target API study, migration contracts, implementation or QEMU execution. Submit selections through the controller protocol and preserve valid selections on repair."
     },
     "environment_recovery": {
       "documents": [
         "open-kernel-driver-port/SKILL.md",
         "open-kernel-driver-port/references/environment-recovery.md"
       ],
-      "objective": "Establish the Skill's least-cost executable environment route from frozen repositories and inventory.local_probes. Check supplied installed-tool/container observations and pinned target runner/CI commands before building tools; a version or syntax probe is not runtime readiness. Prefer an existing usable route over rebuilding QEMU. If only device-model smoke is immediately available, establish EXPERIMENT_READY and separately identify the target packaging route and unresolved prerequisites; never claim migrated-driver readiness from model smoke. Fix the causal prerequisite before retrying failed configuration; do not invoke builds after configure failure or modify frozen sources to fetch submodules. Leave a self-contained environment-smoke.sh in cwd with meaningful oracles. Submit one Markdown report with route, commands, observations, failures and limits. Submission automatically invokes the controller acceptance smoke; no DPF_RUN marker or mandatory duplicate full smoke. No JSON schema or extra table."
+      "objective": "Follow open-kernel-driver-port/references/environment-recovery.md using frozen repositories and inventory.local_probes. This stage owns the artifact mode, executable experiment route and environment entrypoint; it does not perform target API study, source-contract design or driver implementation. Submit the environment report and entrypoint through the controller protocol."
     },
     "knowledge_base": {
       "documents": [
@@ -53,11 +53,13 @@
     "target_platform_study": {
       "documents": [
         "knowledge-guided-driver-port/SKILL.md",
+        "knowledge-guided-driver-port/references/workflow.md",
         "knowledge-guided-driver-port/references/target-platform-study.md",
         "knowledge-guided-driver-port/references/knowledge-contract.md",
+        "knowledge-guided-driver-port/references/target-changes.md",
         "knowledge-guided-driver-port/assets/target-platform-profile.md"
       ],
-      "objective": "Complete the embedded Skill's target-platform study from pinned target originals, the generated KB Skill and accepted environment evidence. Study the profile, APIs, analogous path, knowledge-quality probes, gaps and minimum target-change boundary in one Markdown report. Reuse the accepted environment route; do not repeat tool installation, environment smoke or driver implementation here. Weak search results require focused original inspection, not proof that evidence is absent. Request evidence repair only for concrete missing originals needed to resolve a claim; supported design constraints belong in this report for implementation. On changed inputs update affected conclusions only. No response schema or separate tables."
+      "objective": "Complete knowledge-guided-driver-port/references/target-platform-study.md, including its referenced profile, using the supplied originals and project KB Skill. This stage owns target API definitions and call sites, the analogous target path, initialization/ownership/context facts, packaging route evidence and the necessity of any target change. It does not implement Rust, close the C translation contracts or test provenance, prepare the final runtime artifact, or run the public QEMU ladder. Optional aid for Linux-to-Asterinas tasks: if useful and available, you may consult linux-asterinas-driver-map/SKILL.md under instructions.skill_root, selecting Asterinas pages for relevant bus/device/mechanism questions. These are guides to the original kernels, not evidence of the current migration implementation. Reading or recording use of this optional guide is not required for stage acceptance; rely on this run's frozen originals for conclusions. Do not load the whole collection."
     },
     "migration_contracts": {
       "documents": [
@@ -68,7 +70,7 @@
         "knowledge-guided-driver-port/references/test-porting.md",
         "knowledge-guided-driver-port/references/qemu-evidence.md"
       ],
-      "objective": "Read the pinned driver and its behaviorally required shared cores, headers, configuration, callbacks and framework originals. In this same task, turn source understanding into migration contracts and a feasible public test plan using the accepted target study and environment route. Resolve concrete uncertainty about macros, layouts, conditional compilation or call targets with the smallest relevant compiler/preprocessor probe; record commands, results and implications in the existing report. Do not build a full semantic index or compile the source kernel merely to satisfy a stage. Write ONE Markdown plan covering source scope/configuration, behavior and safety obligations, target API mappings, source-test triage, and each retained test’s supported guest entrypoint, stimulus, oracle and packaging needs. Keep evidence, inference and unverified claims distinct. Reuse valid existing work; resolve unknowns rather than guessing. Complete source and design self-check before implementation, ending DPF_SELF_REVIEW: PASS. No extra reports or tool-owned tables."
+      "objective": "Complete knowledge-guided-driver-port/references/workflow.md phases 3–5, following translation.md, knowledge-contract.md and test-porting.md. This stage owns source closure, bounded compiler/preprocessor/layout/effect evidence, migration contracts and test stimulus/assertion provenance; use the accepted target study as an input. It does not implement Rust, change the target tree, prepare the runtime artifact or run public QEMU. Submit source analysis, contracts and test selection in the stage report. Do not end with DPF_SELF_REVIEW: PASS while a required compiler/configuration/layout/effect fact, translation contract, or test assertion provenance is explicitly left as a future gate; complete the bounded check or report a concrete blocker. Optional aid for Linux-to-Asterinas tasks: if useful and available, you may consult linux-asterinas-driver-map/SKILL.md under instructions.skill_root, selecting Linux pages for source paths and comparison pages for migration mappings. These are guides to the original kernels, not evidence of the current migration implementation. Reading or recording use of this optional guide is not required for stage acceptance; rely on this run's frozen originals for conclusions. Do not load the whole collection."
     },
     "driver_implementation": {
       "documents": [
@@ -79,29 +81,37 @@
         "knowledge-guided-driver-port/references/knowledge-contract.md",
         "knowledge-guided-driver-port/references/test-porting.md"
       ],
-      "objective": "Complete the Skill's Rust implementation, public test adaptation and pre-artifact compliance self-check in one worker turn. Implement the driver and only necessary integration changes; reuse the target study, plan and original evidence already inspected. Build/test incrementally and preserve working commands and evidence. Include the agreed runtime observability and test hooks. Review your actual changes against applicable target rules as required by the Skill; this is part of the existing work, not another agent, persona sweep or separate report. Return ONE concise Markdown implementation report covering decisions, source/test coverage, affected check results and genuine limits. End the report with DPF_SELF_REVIEW: PASS when current-stage requirements are met. Explain any residual uncertainty and decide which additional checks are necessary. The controller records inventories and hashes; do not reproduce them."
+      "objective": "Complete knowledge-guided-driver-port/references/workflow.md phases 6–7, following translation.md, target-changes.md and test-porting.md. Use the existing target study and migration contracts as frozen design inputs. This stage owns the Rust driver, necessary target changes, adapted or newly designed public tests, compliance self-check and implementation snapshot; do not silently revise the scope, target study, contracts or test provenance. If a required premise is missing, request the earliest permitted prerequisite instead of inventing an API or changing the contract. On the normal path submit code, tests and the implementation report; runtime artifact preparation and public QEMU execution belong to the following stages."
     },
     "artifact_preparation": {
       "documents": [
         "knowledge-guided-driver-port/SKILL.md",
-        "knowledge-guided-driver-port/references/qemu-evidence.md"
+        "knowledge-guided-driver-port/references/workflow.md",
+        "knowledge-guided-driver-port/references/qemu-evidence.md",
+        "knowledge-guided-driver-port/references/target-changes.md"
       ],
-      "objective": "Prepare the Skill's runnable artifact in the writable target worktree using the existing build recipe, contracts and test matrix. Default to one production artifact. If agreed tests require different build configurations or fault-instrumented images, prepare only those necessary variants under .dpf-output/harness/variants/ as regular files. Explain each variant’s source/configuration delta, insertion proof and intended tests in the same report. Do not redesign functional code merely to force all scenarios into one image. Each delivered scenario needs a supported invocation path; payload presence alone is insufficient. Package the self-checked driver, test dependencies and required observability. Reuse valid builds/caches. Resolve packaging/integration gaps here and self-check affected changes; do not defer known unreachable scenarios to public_qemu_validation. Preserve the prior implementation report for unchanged coverage and explain only the delta. If source/configuration changed, end DPF_SELF_REVIEW: PASS after affected checks; the controller refreshes its snapshot without another implementation turn. Copy the final artifact to .dpf-output/runtime-artifact. Create .dpf-output/check-presence.sh using supported artifact inspection to check the production artifact and each supplied variant for the current driver, required payloads and supported scenario entrypoints. The controller reruns this checker. Resolve uncertain entrypoint reachability with a bounded packaging smoke; leave full contract execution to public_qemu_validation. Return one concise Markdown report with build/check commands, the actual scenario invocation protocol, evidence and limits. The controller owns artifact hashes and identity records."
+      "objective": "Prepare and identify the runtime artifact under knowledge-guided-driver-port/references/qemu-evidence.md. Use the existing implementation, contracts and test plan. This stage owns packaging/injection, the presence checker and artifact identity; keep source changes limited to necessary packaging or integration wiring and route behavioral changes back to driver_implementation. Do not perform the public QEMU evidence ladder here. Submit through the controller protocol."
     },
     "public_qemu_validation": {
       "documents": [
         "knowledge-guided-driver-port/SKILL.md",
+        "knowledge-guided-driver-port/references/workflow.md",
         "knowledge-guided-driver-port/references/qemu-evidence.md"
       ],
-      "objective": "Complete the Skill public QEMU evidence ladder and final self-check.\n1. Execution: reuse the packaged guest entrypoint, boot recipe and frozen plan. Create .dpf-output/public-qemu.sh for the agreed functional, negative, boundary/recovery and repeated checks; return zero only when required oracles succeed. Boot the production $DPF_RUNTIME_ARTIFACT unchanged. Necessary packaged variants are in .dpf-output/harness/variants/; use their absolute paths and attribute each result to its image/configuration. Run production regressions after instrumented tests; instrumented success alone does not prove production behavior. Keep executable helpers and all oracle inputs in .dpf-output/harness/, observations in .dpf-output/qemu-runs. Run only necessary development probes, not an obligatory duplicate full suite.\n2. Request: describe the intended checks in one Markdown report, ending DPF_RUN: PUBLIC_QEMU for captured controller execution. Changed behavior, thresholds or other oracle inputs belong in the script/helpers, not only report prose.\n3. Results: inspect controller_execution and update that same report. For each agreed contract and retained test, reference its existing ID or section and record actual result, supporting observation, failure attribution or reason not run. Distinguish evidence from execution status; include unsupported scope and real-hardware limits. No extra table or JSON is required.\n4. Completion: perform the Skill final self-check and end DPF_SELF_REVIEW: PASS only when stage requirements are satisfied. Fix harness defects here; use the shared REWORK protocol for source/image prerequisites. Reuse unchanged passing executions for report-only edits."
+      "objective": "Consume the artifact and identity fixed by artifact_preparation and complete knowledge-guided-driver-port/references/workflow.md phase 8's public QEMU evidence ladder plus phase 9's narrow failure attribution under qemu-evidence.md. This stage owns the public runner, harness/oracles and interpretation of controller receipts; it does not rebuild or redesign the driver artifact on the normal path. Update the same report with each required result, attribution and limit, then complete the worker self-check. The independent final evidence audit is public_repair, not a second artifact-preparation task."
     },
     "public_repair": {
       "documents": [
         "knowledge-guided-driver-port/SKILL.md",
+        "knowledge-guided-driver-port/references/workflow.md",
         "knowledge-guided-driver-port/references/qemu-evidence.md",
-        "knowledge-guided-driver-port/references/test-porting.md"
+        "knowledge-guided-driver-port/references/test-porting.md",
+        "knowledge-guided-driver-port/references/knowledge-contract.md",
+        "knowledge-guided-driver-port/references/target-platform-study.md",
+        "knowledge-guided-driver-port/references/translation.md",
+        "knowledge-guided-driver-port/references/target-changes.md"
       ],
-      "objective": "Review only the risks listed in review_decision and their affected paths, not the entire migration again. Inspect the relevant source, callers, target guarantees and associated tests/runtime oracles against the frozen plan. Reuse valid evidence; run a focused check only when needed to decide a finding. Target access is read-only; write only ONE concise Markdown report. Cover all listed risks in this first pass and return all evidenced functional/safety blockers in one batch. For each blocker explain the requirement, reachable triggering sequence, violated invariant/consequence, original/code evidence and smallest resolving check. Static proof is sufficient; generic risks and unverified premises are questions, not blockers. Do not add style polishing, optional coverage, new requirements, extra personas or worker-owned tasks. On re-review assess fixes and affected paths, resolve worker counterevidence and retain closed findings unless code or evidence changed. Explain whether a new blocker was introduced by repair, exposed by new evidence or missed previously. End the report with DPF_REVIEW: PASS when no evidenced blocker remains. Otherwise put exactly one DPF_REPAIR_STAGE: <earliest actually affected prerequisite from the shared protocol> line before the final DPF_REVIEW: REWORK; choose the smallest affected gate. A trigger alone is not a defect."
+      "objective": "Independently perform knowledge-guided-driver-port/references/workflow.md phase 11 (Final evidence audit) against the original scope/contracts/test plan and actual code, tests, artifacts and logs. Apply the shared review rules, cite precise evidence for core conclusions and return all substantive findings together. Accept only complete agreed functionality, otherwise request the smallest evidenced repair or report a genuine external blocker."
     },
     "completion_audit": {
       "documents": [
@@ -245,6 +255,19 @@
         "blind-c2rust-driver-evaluation/references/protocol.md",
         "blind-c2rust-driver-evaluation/references/reporting.md"
       ]
+    },
+    "analysis_review": {
+      "documents": [
+        "knowledge-guided-driver-port/SKILL.md",
+        "knowledge-guided-driver-port/references/workflow.md",
+        "knowledge-guided-driver-port/references/knowledge-contract.md",
+        "knowledge-guided-driver-port/references/target-platform-study.md",
+        "knowledge-guided-driver-port/references/translation.md",
+        "knowledge-guided-driver-port/references/target-changes.md",
+        "knowledge-guided-driver-port/references/test-porting.md",
+        "knowledge-guided-driver-port/references/qemu-evidence.md"
+      ],
+      "objective": "Independently review the completed target-platform study, source analysis, migration contracts and test plan before implementation and before sealing the evidence/design phase. Apply the shared review rules. Verify key evidence locations and whether originals actually support core behavior, API availability/blocker claims and existing test coverage. Use the read-only Python locator explicitly for source references. Check the intended target architecture/artifact route separately from any standalone QEMU model smoke. Review all assigned materials, then return all findings together with precise report/source line references and reasons. Judge readiness for implementation; planned implementation and runtime tests are not missing analysis deliverables. Request the earliest affected permitted prerequisite for substantive defects; use BLOCKED only for a genuine external prerequisite or sealed premise."
     }
   }
 }

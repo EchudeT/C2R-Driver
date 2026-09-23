@@ -19,6 +19,7 @@ class CodexArtifact(StrEnum):
     PROMPT = "codex_prompt"
     JOB_RESULT = "codex_job_result"
     WORK_REPORT = "codex_work_report"
+    SUBMISSION = "codex_submission"
     EVENT_LOG = "codex_event_log"
 
 

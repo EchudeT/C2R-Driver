@@ -86,7 +86,8 @@ def workflow_for(config: ProjectConfig) -> WorkflowDefinition:
     if config.evaluation_mode is EvaluationMode.DEVELOPER_EVIDENCE:
         # Static stages call the same worker only when a checker needs a decision.
         specs = tuple(replace(spec, auxiliary_outputs=(*spec.auxiliary_outputs,
-                      CodexArtifact.JOB_RESULT, CodexArtifact.WORK_REPORT, CodexArtifact.EVENT_LOG))
+                      CodexArtifact.JOB_RESULT, CodexArtifact.WORK_REPORT,
+                      CodexArtifact.SUBMISSION, CodexArtifact.EVENT_LOG))
                       if spec.owner is StageOwner.STATIC else spec for spec in specs)
     return WorkflowDefinition.build(specs, ARTIFACT_VALIDATORS)
 

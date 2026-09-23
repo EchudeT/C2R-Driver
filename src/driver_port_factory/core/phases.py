@@ -8,7 +8,7 @@ GROUPS = {
         "migration_envelope_freeze", "repository_acquisition"),
     "evidence_and_design": (
         "evidence_closure", "environment_recovery", "knowledge_base", "target_platform_study",
-        "migration_handoff", "migration_contracts"),
+        "migration_handoff", "migration_contracts", "analysis_review"),
     "delivery": (
         "driver_implementation", "artifact_preparation", "public_qemu_validation", "public_repair"),
     "completion": ("completion_audit",),

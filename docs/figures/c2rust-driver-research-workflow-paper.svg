@@ -1,0 +1,215 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="2200" height="1000" viewBox="0 0 2200 1000" role="img" aria-labelledby="title desc">
+  <title id="title">证据门控的 C2Rust 内核驱动迁移方法</title>
+  <desc id="desc">面向科研论文的简化流程图，突出范围冻结、证据与设计、两次独立审查、Rust 实现、运行制品和 QEMU 验证。</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M0 0L10 5L0 10Z" fill="#475467"/>
+    </marker>
+    <marker id="loop-arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M0 0L10 5L0 10Z" fill="#B54708"/>
+    </marker>
+    <symbol id="i-input" viewBox="0 0 24 24"><path fill="currentColor" d="M13 21V23H11V21H3C2.44772 21 2 20.5523 2 20V4C2 3.44772 2.44772 3 3 3H9C10.1947 3 11.2671 3.52375 12 4.35418C12.7329 3.52375 13.8053 3 15 3H21C21.5523 3 22 3.44772 22 4V20C22 20.5523 21.5523 21 21 21H13ZM20 19V5H15C13.8954 5 13 5.89543 13 7V19H20ZM11 19V7C11 5.89543 10.1046 5 9 5H4V19H11Z"/></symbol>
+    <symbol id="i-lock" viewBox="0 0 24 24"><path fill="currentColor" d="M19 10H20C20.5523 10 21 10.4477 21 11V21C21 21.5523 20.5523 22 20 22H4C3.44772 22 3 21.5523 3 21V11C3 10.4477 3.44772 10 4 10H5V9C5 5.13401 8.13401 2 12 2C15.866 2 19 5.13401 19 9V10ZM5 12V20H19V12H5ZM11 14H13V18H11V14ZM17 10V9C17 6.23858 14.7614 4 12 4C9.23858 4 7 6.23858 7 9V10H17Z"/></symbol>
+    <symbol id="i-evidence" viewBox="0 0 24 24"><path fill="currentColor" d="M4 5H20V3H4V5ZM20 9H4V7H20V9ZM3 11H10V13H14V11H21V20C21 20.5523 20.5523 21 20 21H4C3.44772 21 3 20.5523 3 20V11ZM16 13V15H8V13H5V19H19V13H16Z"/></symbol>
+    <symbol id="i-contract" viewBox="0 0 24 24"><path fill="currentColor" d="M21 8V12H19V9H14V4H5V20H11V22H3.9934C3.44495 22 3 21.556 3 21.0082V2.9918C3 2.45531 3.4487 2 4.00221 2H14.9968L21 8ZM13.7857 15.3269C13.8246 14.5997 14.3858 14.0083 15.11 13.9313L15.9807 13.8389C16.0841 13.8279 16.1815 13.7845 16.2589 13.715L16.9102 13.1299C17.4519 12.6431 18.2669 12.6218 18.8334 13.0795L19.5145 13.6298C19.5954 13.6951 19.6949 13.7333 19.7988 13.7389L20.6731 13.7857C21.4003 13.8246 21.9917 14.3858 22.0687 15.11L22.1611 15.9807C22.1721 16.0841 22.2155 16.1815 22.285 16.2589L22.8701 16.9102C23.3569 17.4519 23.3782 18.2669 22.9205 18.8334L22.3702 19.5145C22.3049 19.5954 22.2667 19.6949 22.2611 19.7988L22.2143 20.6731C22.1754 21.4003 21.6142 21.9917 20.89 22.0687L20.0193 22.1611C19.9159 22.1721 19.8185 22.2155 19.7411 22.285L19.0898 22.8701C18.5481 23.3569 17.7331 23.3782 17.1666 22.9205L16.4855 22.3702C16.4046 22.3049 16.3051 22.2667 16.2012 22.2611L15.3269 22.2143C14.5997 22.1754 14.0083 21.6142 13.9313 20.89L13.8389 20.0193C13.8279 19.9159 13.7845 19.8185 13.715 19.7411L13.1299 19.0898C12.6431 18.5481 12.6218 17.733 13.0795 17.1666L13.6298 16.4855C13.6951 16.4046 13.7333 16.3051 13.7389 16.2012L13.7857 15.3269ZM21.0303 17.0303L19.9697 15.9697L17.5 18.4393L16.0303 16.9697L14.9697 18.0303L17.5 20.5607L21.0303 17.0303Z"/></symbol>
+    <symbol id="i-review" viewBox="0 0 24 24"><path fill="currentColor" d="M12.0003 3C17.3924 3 21.8784 6.87976 22.8189 12C21.8784 17.1202 17.3924 21 12.0003 21C6.60812 21 2.12215 17.1202 1.18164 12C2.12215 6.87976 6.60812 3 12.0003 3ZM12.0003 19C16.2359 19 19.8603 16.052 20.7777 12C19.8603 7.94803 16.2359 5 12.0003 5C7.7646 5 4.14022 7.94803 3.22278 12C4.14022 16.052 7.7646 19 12.0003 19ZM12.0003 16.5C9.51498 16.5 7.50026 14.4853 7.50026 12C7.50026 9.51472 9.51498 7.5 12.0003 7.5C14.4855 7.5 16.5003 9.51472 16.5003 12C16.5003 14.4853 14.4855 16.5 12.0003 16.5ZM12.0003 14.5C13.381 14.5 14.5003 13.3807 14.5003 12C14.5003 10.6193 13.381 9.5 12.0003 9.5C10.6196 9.5 9.50026 10.6193 9.50026 12C9.50026 13.3807 10.6196 14.5 12.0003 14.5Z"/></symbol>
+    <symbol id="i-code" viewBox="0 0 24 24"><path fill="currentColor" d="M17.7134 10.1281L17.4668 10.6938C17.2864 11.1079 16.7136 11.1079 16.5331 10.6938L16.2866 10.1281C15.8471 9.11947 15.0555 8.31641 14.0677 7.87708L13.308 7.53922C12.8973 7.35653 12.8973 6.75881 13.308 6.57612L14.0252 6.25714C15.0384 5.80651 15.8442 4.97373 16.2761 3.93083L16.5293 3.31953C16.7058 2.89349 17.2942 2.89349 17.4706 3.31953L17.7238 3.93083C18.1558 4.97373 18.9616 5.80651 19.9748 6.25714L20.6919 6.57612C21.1027 6.75881 21.1027 7.35653 20.6919 7.53922L19.9323 7.87708C18.9445 8.31641 18.1529 9.11947 17.7134 10.1281ZM2.82843 12.0001L7.07107 16.2428L5.65685 17.657L0 12.0001L5.65685 6.34326L7.07107 7.75748L2.82843 12.0001ZM18.3429 17.6572L23.9998 12.0003L21.1714 9.17188L19.7571 10.5861L21.1714 12.0003L16.9287 16.2429L18.3429 17.6572Z"/></symbol>
+    <symbol id="i-test" viewBox="0 0 24 24"><path fill="currentColor" d="M17 2V4H16V18C16 20.2091 14.2091 22 12 22C9.79086 22 8 20.2091 8 18V4H7V2H17ZM14 10H10V18C10 19.1046 10.8954 20 12 20C13.1046 20 14 19.1046 14 18V10ZM13 15C13.5523 15 14 15.4477 14 16C14 16.5523 13.5523 17 13 17C12.4477 17 12 16.5523 12 16C12 15.4477 12.4477 15 13 15ZM11 12C11.5523 12 12 12.4477 12 13C12 13.5523 11.5523 14 11 14C10.4477 14 10 13.5523 10 13C10 12.4477 10.4477 12 11 12ZM14 4H10V8H14V4Z"/></symbol>
+    <style>
+      text { font-family: "Noto Sans CJK SC", "Droid Sans Fallback", sans-serif; fill: #101828; letter-spacing: 0; }
+      .title { font-size: 36px; font-weight: 700; }
+      .subtitle { font-size: 17px; fill: #667085; }
+      .phase { font-size: 16px; font-weight: 700; fill: #344054; }
+      .phase-en { font-size: 13px; fill: #667085; }
+      .node-title { font-size: 20px; font-weight: 700; }
+      .node-stage { font-size: 13px; font-weight: 700; fill: #667085; }
+      .node-body { font-size: 15px; fill: #344054; }
+      .node-note { font-size: 13px; fill: #667085; }
+      .gate-title { font-size: 17px; font-weight: 700; fill: #93440A; }
+      .gate-body { font-size: 14px; fill: #69410D; }
+      .flow { fill: none; stroke: #475467; stroke-width: 2.2; marker-end: url(#arrow); }
+      .repair { fill: none; stroke: #B54708; stroke-width: 2; stroke-dasharray: 8 6; marker-end: url(#loop-arrow); }
+      .control-title { font-size: 16px; font-weight: 700; fill: #05603A; }
+      .control-body { font-size: 14px; fill: #344054; }
+    </style>
+  </defs>
+
+  <rect width="2200" height="1000" fill="#FFFFFF"/>
+
+  <text x="70" y="67" class="title">证据门控的 C2Rust 内核驱动迁移方法</text>
+  <text x="70" y="101" class="subtitle">Evidence-gated C-to-Rust kernel driver migration with independent AI review and executable validation</text>
+
+  <!-- Compact legend -->
+  <circle cx="1550" cy="62" r="7" fill="#2E90FA"/><text x="1568" y="68" class="subtitle">工作者 AI</text>
+  <circle cx="1715" cy="62" r="7" fill="#EAAA08"/><text x="1733" y="68" class="subtitle">独立审查 AI</text>
+  <circle cx="1930" cy="62" r="7" fill="#12B76A"/><text x="1948" y="68" class="subtitle">程序化验证</text>
+
+  <line x1="70" y1="132" x2="2130" y2="132" stroke="#D0D5DD" stroke-width="1.5"/>
+
+  <!-- Inputs -->
+  <rect x="70" y="257" width="205" height="390" rx="6" fill="#F9FAFB" stroke="#98A2B3" stroke-width="1.6"/>
+  <use href="#i-input" x="92" y="280" width="31" height="31" style="color:#475467"/>
+  <text x="136" y="304" class="node-title">研究输入</text>
+  <text x="92" y="349" class="node-body">
+    <tspan x="92" dy="0">源 C 驱动</tspan>
+    <tspan x="92" dy="34">目标内核原版源码</tspan>
+    <tspan x="92" dy="34">QEMU 设备模型</tspan>
+    <tspan x="92" dy="34">硬件与测试材料</tspan>
+    <tspan x="92" dy="34">迁移 Skill 与工具</tspan>
+  </text>
+  <line x1="92" y1="535" x2="252" y2="535" stroke="#D0D5DD"/>
+  <text x="92" y="568" class="node-note">全部输入保留来源、版本</text>
+  <text x="92" y="591" class="node-note">和内容哈希</text>
+
+  <!-- Phase I -->
+  <rect x="325" y="192" width="330" height="455" rx="6" fill="#FFFFFF" stroke="#98A2B3" stroke-width="1.5"/>
+  <rect x="325" y="192" width="330" height="52" rx="6" fill="#F2F4F7"/>
+  <path d="M325 238H655" stroke="#98A2B3" stroke-width="1.2"/>
+  <text x="345" y="219" class="phase">I　范围与基线</text>
+  <text x="536" y="219" class="phase-en">SCOPE</text>
+  <use href="#i-lock" x="466" y="278" width="48" height="48" style="color:#475467"/>
+  <text x="490" y="360" class="node-title" text-anchor="middle">范围冻结与版本固定</text>
+  <text x="490" y="390" class="node-stage" text-anchor="middle">STAGES 01–06</text>
+  <text x="352" y="438" class="node-body">
+    <tspan x="352" dy="0">• 唯一化设备、驱动与总线</tspan>
+    <tspan x="352" dy="32">• 固定包含范围与排除项</tspan>
+    <tspan x="352" dy="32">• 锁定 source / target / QEMU commit</tspan>
+    <tspan x="352" dy="32">• 建立可复现的迁移 envelope</tspan>
+  </text>
+  <rect x="352" y="566" width="276" height="48" rx="4" fill="#F9FAFB" stroke="#D0D5DD"/>
+  <text x="490" y="596" class="node-note" text-anchor="middle">输出：不可变范围与上游基线</text>
+
+  <!-- Phase II -->
+  <rect x="705" y="192" width="735" height="455" rx="6" fill="#FFFFFF" stroke="#84ADFF" stroke-width="1.5"/>
+  <rect x="705" y="192" width="735" height="52" rx="6" fill="#F5F8FF"/>
+  <path d="M705 238H1440" stroke="#B2CCFF" stroke-width="1.2"/>
+  <text x="725" y="219" class="phase">II　证据与设计</text>
+  <text x="932" y="219" class="phase-en">EVIDENCE &amp; DESIGN</text>
+
+  <rect x="730" y="270" width="210" height="310" rx="5" fill="#FFFFFF" stroke="#B2CCFF" stroke-width="1.3"/>
+  <use href="#i-evidence" x="813" y="293" width="44" height="44" style="color:#2E90FA"/>
+  <text x="835" y="365" class="node-title" text-anchor="middle">证据基础设施</text>
+  <text x="835" y="393" class="node-stage" text-anchor="middle">STAGES 07–09</text>
+  <text x="750" y="432" class="node-body">
+    <tspan x="750" dy="0">最小证据闭包</tspan>
+    <tspan x="750" dy="29">来源与缺口登记</tspan>
+    <tspan x="750" dy="29">可执行 QEMU 路线</tspan>
+    <tspan x="750" dy="29">可追溯知识库</tspan>
+  </text>
+
+  <rect x="965" y="270" width="255" height="310" rx="5" fill="#FFFFFF" stroke="#84ADFF" stroke-width="1.3"/>
+  <use href="#i-contract" x="1071" y="293" width="44" height="44" style="color:#2E90FA"/>
+  <text x="1093" y="365" class="node-title" text-anchor="middle">行为与验证设计</text>
+  <text x="1093" y="393" class="node-stage" text-anchor="middle">STAGES 10–12</text>
+  <text x="987" y="432" class="node-body">
+    <tspan x="987" dy="0">目标 API 与完整调用链</tspan>
+    <tspan x="987" dy="29">C 语义与硬件行为契约</tspan>
+    <tspan x="987" dy="29">Rust 设计与安全义务</tspan>
+    <tspan x="987" dy="29">公开测试与 oracle 映射</tspan>
+  </text>
+
+  <rect x="1245" y="270" width="168" height="310" rx="5" fill="#FFFCF5" stroke="#EAAA08" stroke-width="1.5"/>
+  <use href="#i-review" x="1307" y="294" width="44" height="44" style="color:#DC6803"/>
+  <text x="1329" y="365" class="gate-title" text-anchor="middle">独立审查 I</text>
+  <text x="1329" y="391" class="node-stage" text-anchor="middle">STAGE 13</text>
+  <text x="1263" y="432" class="gate-body">
+    <tspan x="1263" dy="0">核验原始证据</tspan>
+    <tspan x="1263" dy="29">检查契约与测试</tspan>
+    <tspan x="1263" dy="29">精确引用位置</tspan>
+    <tspan x="1263" dy="29">一次列全问题</tspan>
+  </text>
+  <text x="1329" y="552" class="node-note" text-anchor="middle">设计就绪关口</text>
+
+  <!-- Phase III -->
+  <rect x="1490" y="192" width="640" height="455" rx="6" fill="#FFFFFF" stroke="#84ADFF" stroke-width="1.5"/>
+  <rect x="1490" y="192" width="640" height="52" rx="6" fill="#F5F8FF"/>
+  <path d="M1490 238H2130" stroke="#B2CCFF" stroke-width="1.2"/>
+  <text x="1510" y="219" class="phase">III　实现与交付</text>
+  <text x="1715" y="219" class="phase-en">TRANSLATION &amp; VALIDATION</text>
+
+  <rect x="1515" y="270" width="180" height="310" rx="5" fill="#FFFFFF" stroke="#84ADFF" stroke-width="1.3"/>
+  <use href="#i-code" x="1583" y="293" width="44" height="44" style="color:#2E90FA"/>
+  <text x="1605" y="365" class="node-title" text-anchor="middle">Rust 实现</text>
+  <text x="1605" y="393" class="node-stage" text-anchor="middle">STAGE 14</text>
+  <text x="1533" y="432" class="node-body">
+    <tspan x="1533" dy="0">驱动状态与数据路径</tspan>
+    <tspan x="1533" dy="29">IRQ、并发与恢复</tspan>
+    <tspan x="1533" dy="29">测试适配与最小接线</tspan>
+    <tspan x="1533" dy="29">目标规范自检</tspan>
+  </text>
+
+  <rect x="1720" y="270" width="235" height="310" rx="5" fill="#FFFFFF" stroke="#84ADFF" stroke-width="1.3"/>
+  <use href="#i-test" x="1815" y="293" width="44" height="44" style="color:#2E90FA"/>
+  <text x="1838" y="365" class="node-title" text-anchor="middle">制品与 QEMU 验证</text>
+  <text x="1838" y="393" class="node-stage" text-anchor="middle">STAGES 15–16</text>
+  <text x="1742" y="432" class="node-body">
+    <tspan x="1742" dy="0">绑定运行制品身份</tspan>
+    <tspan x="1742" dy="29">probe → I/O → IRQ</tspan>
+    <tspan x="1742" dy="29">边界、恢复与冷启动</tspan>
+    <tspan x="1742" dy="29">保存命令、日志和 receipt</tspan>
+  </text>
+
+  <rect x="1980" y="270" width="125" height="310" rx="5" fill="#FFFCF5" stroke="#EAAA08" stroke-width="1.5"/>
+  <use href="#i-review" x="2021" y="294" width="44" height="44" style="color:#DC6803"/>
+  <text x="2043" y="365" class="gate-title" text-anchor="middle">独立审查 II</text>
+  <text x="2043" y="391" class="node-stage" text-anchor="middle">STAGE 17</text>
+  <text x="1996" y="432" class="gate-body">
+    <tspan x="1996" dy="0">代码</tspan>
+    <tspan x="1996" dy="29">制品</tspan>
+    <tspan x="1996" dy="29">运行证据</tspan>
+    <tspan x="1996" dy="29">逐契约结论</tspan>
+  </text>
+  <text x="2043" y="552" class="node-note" text-anchor="middle">交付关口</text>
+
+  <!-- Main flow -->
+  <path d="M275 452H317" class="flow"/>
+  <path d="M655 452H697" class="flow"/>
+  <path d="M940 425H957" class="flow"/>
+  <path d="M1220 425H1237" class="flow"/>
+  <path d="M1440 452H1482" class="flow"/>
+  <path d="M1695 425H1712" class="flow"/>
+  <path d="M1955 425H1972" class="flow"/>
+
+  <!-- Review outcomes and bounded repair -->
+  <text x="1459" y="437" class="node-note" text-anchor="middle">PASS</text>
+  <path d="M1329 580V676H1093V588" class="repair"/>
+  <text x="1211" y="701" class="node-note" text-anchor="middle">REWORK：仅返回证据与设计阶段</text>
+  <path d="M2043 580V676H1838V588" class="repair"/>
+  <text x="1940" y="701" class="node-note" text-anchor="middle">REWORK：仅返回交付阶段</text>
+
+  <!-- Research outputs -->
+  <rect x="325" y="744" width="1805" height="72" rx="5" fill="#F9FAFB" stroke="#D0D5DD" stroke-width="1.3"/>
+  <text x="350" y="776" class="phase">研究输出</text>
+  <text x="350" y="798" class="phase-en">AUDITABLE OUTPUTS</text>
+  <line x1="500" y1="757" x2="500" y2="803" stroke="#D0D5DD"/>
+  <text x="540" y="787" class="node-body">Rust 驱动与目标改动</text>
+  <circle cx="760" cy="782" r="3.5" fill="#98A2B3"/>
+  <text x="790" y="787" class="node-body">可复现运行制品</text>
+  <circle cx="1000" cy="782" r="3.5" fill="#98A2B3"/>
+  <text x="1030" y="787" class="node-body">公开 QEMU 证据</text>
+  <circle cx="1250" cy="782" r="3.5" fill="#98A2B3"/>
+  <text x="1280" y="787" class="node-body">逐契约能力矩阵</text>
+  <circle cx="1515" cy="782" r="3.5" fill="#98A2B3"/>
+  <text x="1545" y="787" class="node-body">独立审查报告与适用边界</text>
+
+  <!-- Deterministic control layer -->
+  <rect x="70" y="855" width="2060" height="79" rx="5" fill="#F6FEF9" stroke="#75E0A7" stroke-width="1.4"/>
+  <circle cx="104" cy="894" r="14" fill="#12B76A"/>
+  <path d="M98 894L102 898L110 889" fill="none" stroke="#FFFFFF" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+  <text x="136" y="890" class="control-title">确定性控制层</text>
+  <text x="136" y="913" class="phase-en">DETERMINISTIC CONTROLLER</text>
+  <line x1="325" y1="872" x2="325" y2="918" stroke="#A6F4C5"/>
+  <text x="360" y="901" class="control-body">状态仅由工具改变</text>
+  <circle cx="570" cy="896" r="3.5" fill="#12B76A"/>
+  <text x="595" y="901" class="control-body">工件、输入与规则哈希绑定</text>
+  <circle cx="910" cy="896" r="3.5" fill="#12B76A"/>
+  <text x="935" y="901" class="control-body">程序执行构建、QEMU、超时和进程清理</text>
+  <circle cx="1400" cy="896" r="3.5" fill="#12B76A"/>
+  <text x="1425" y="901" class="control-body">失败 attempt 不可改写</text>
+  <circle cx="1715" cy="896" r="3.5" fill="#12B76A"/>
+  <text x="1740" y="901" class="control-body">同输入无进展循环自动暂停</text>
+
+  <text x="70" y="972" class="node-note">注：大阶段开始后，较早大阶段自动封闭；跨阶段缺陷需要显式重开。公开开发者验证不等同于真实硬件或隐藏测试结论。</text>
+  <text x="2130" y="972" class="node-note" text-anchor="end">Driver Port Factory · developer-evidence</text>
+</svg>

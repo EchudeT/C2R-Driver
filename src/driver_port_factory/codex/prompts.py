@@ -21,16 +21,8 @@ class PromptDocument:
 
 
 @dataclass(frozen=True, slots=True)
-class PromptOutputSchema:
-    relative_path: str
-    path: Path
-    digest: str
-
-
-@dataclass(frozen=True, slots=True)
 class PromptStage:
     documents: tuple[str, ...]
-    output_schema: PromptOutputSchema | None
     objective: str | None
 
 
@@ -55,7 +47,7 @@ class RenderedPrompt:
     prompt_pack_name: str
     prompt_pack_manifest_digest: str
     prompt_template_digest: str
-    output_schema: PromptOutputSchema | None
+    policy_digest: str
 
 
 def default_prompt_pack_path() -> Path:
@@ -97,11 +89,7 @@ def _prompt_stages(
             raise WorkflowError("prompt pack stage names must be non-empty strings")
         if not catalog.contains(stage):
             raise WorkflowError(f"prompt pack contains an unknown stage: {stage}")
-        if not isinstance(specification, dict) or set(specification) - {
-            "documents",
-            "objective",
-            "output_schema",
-        }:
+        if not isinstance(specification, dict) or set(specification) - {"documents", "objective"}:
             raise WorkflowError(f"prompt pack stage {stage} must be a stage specification")
         documents = specification.get("documents")
         if (
@@ -110,23 +98,6 @@ def _prompt_stages(
             or not all(isinstance(document, str) and document for document in documents)
         ):
             raise WorkflowError(f"prompt pack stage {stage} needs a non-empty document list")
-        output_schema = None
-        if "output_schema" in specification:
-            relative_path = specification["output_schema"]
-            schema_path, schema_raw = _pack_file(root, relative_path, "output schema")
-            try:
-                schema_document = json.loads(schema_raw)
-            except (UnicodeDecodeError, json.JSONDecodeError) as error:
-                raise WorkflowError(
-                    f"prompt pack output schema is not valid UTF-8 JSON: {schema_path}"
-                ) from error
-            if not isinstance(schema_document, dict):
-                raise WorkflowError("prompt pack output schema must be a JSON object")
-            output_schema = PromptOutputSchema(
-                relative_path,
-                schema_path,
-                hashlib.sha256(schema_raw).hexdigest(),
-            )
         objective = specification.get("objective")
         if objective is not None and (
             not isinstance(objective, str) or not objective.strip()
@@ -134,7 +105,7 @@ def _prompt_stages(
             raise WorkflowError(
                 f"prompt pack stage {stage} objective must be a non-empty string"
             )
-        stages[stage] = PromptStage(tuple(documents), output_schema, objective)
+        stages[stage] = PromptStage(tuple(documents), objective)
     return stages
 
 
@@ -240,8 +211,12 @@ class SkillPromptComposer:
         documents = (self.documents_for_stage(stage) if stage.value in self.prompt_pack.stages
                      else (self._read_document("open-kernel-driver-port/SKILL.md"),)
                      if deciding else self.documents_for_stage(stage))
+        repair_task = None
         if (context or {}).get("repair_execution"):
-            objective = objective or (self.prompt_pack.root / "repair.md").read_text(encoding="utf-8")
+            # Composite repair is an additional delivery section. Keep the
+            # stage objective visible so an implementation repair does not
+            # look like a packaging-only task.
+            repair_task = (self.prompt_pack.root / "repair.md").read_text(encoding="utf-8")
             extra = "knowledge-guided-driver-port/references/qemu-evidence.md"
             if all(d.relative_path != extra for d in documents):
                 documents = (*documents, self._read_document(extra))
@@ -260,16 +235,17 @@ class SkillPromptComposer:
             "stage": stage.value,
             "actor_role": actor_role.value,
             "objective": effective_objective,
+            "skill_root": str(self.skill_root),
         }
         from ..orchestration.protocol import describe
         instructions["protocol"] = describe(stage.value)
-        if deciding:
-            if effective_objective != recovery:
-                instructions["recovery"] = recovery
-            if stage_specification and stage_specification.output_schema:
-                instructions["output_schema"] = json.loads(stage_specification.output_schema.path.read_text())
+        if deciding and effective_objective != recovery:
+            instructions["recovery"] = recovery
         if prompt_context.get("repair_execution"):
-            instructions["protocol"]["completion"] = prompt_context["repair_execution"]["completion"]
+            instructions["protocol"]["completion"] = (
+                prompt_context["repair_execution"]["completion"]
+            )
+            instructions["repair_task"] = repair_task
         for key in ("tool_runtime", "phase", "repair_targets", "repair_scope", "repair_execution"):
             if key in prompt_context:
                 instructions[key] = prompt_context.pop(key)
@@ -279,7 +255,8 @@ class SkillPromptComposer:
             )
         header = {"instructions": instructions, "reference_material": prompt_context}
         embedded_documents = "\n\n".join(
-            (f'<skill_document path="{document.relative_path}">\n'
+            (f'<skill_document path="{document.relative_path}" '
+             f'source_path="{escape(str(self.skill_root / document.relative_path), quote=True)}">\n'
              f"{document.content}\n</skill_document>"
              if (known_documents or {}).get(document.relative_path) != document.digest
              else f'<skill_document_unchanged path="{document.relative_path}" '
@@ -295,9 +272,10 @@ class SkillPromptComposer:
                 (self.prompt_pack.root / "execution.md").read_text(encoding="utf-8")
                 if "{{execution_rules}}" in text and self._executable(stage.value) else ""
             ),
+            "{{review_rules}}": self.review_rules(stage),
         }
         # Substitute only the template, never placeholders appearing inside supplied content.
-        text = re.sub(r"\{\{(?:job_json|skill_documents|execution_rules)\}\}",
+        text = re.sub(r"\{\{(?:job_json|skill_documents|execution_rules|review_rules)\}\}",
                       lambda match: substitutions[match.group()], text)
         if not text.endswith("\n"):
             text += "\n"
@@ -310,8 +288,30 @@ class SkillPromptComposer:
             prompt_pack_name=self.prompt_pack.name,
             prompt_pack_manifest_digest=self.prompt_pack.manifest_digest,
             prompt_template_digest=self.prompt_pack.template_digest,
-            output_schema=stage_specification.output_schema if stage_specification and not deciding else None,
+            policy_digest=self.policy_digest(stage),
         )
+
+    def review_rules(self, stage: StageKey) -> str:
+        if stage.value not in {"analysis_review", "public_repair"}:
+            return ""
+        return (self.prompt_pack.root / "review.md").read_text(encoding="utf-8")
+
+    def policy_digest(self, stage: StageKey) -> str:
+        """Hash this stage's rules, excluding runtime context and unrelated stages."""
+        from ..orchestration.protocol import describe
+        specification = self.prompt_pack.stages.get(stage.value)
+        documents = self.documents_for_stage(stage) if specification else ()
+        recovery = self.prompt_pack.root / "checker-decision.md"
+        value = {
+            "objective": specification.objective if specification else None,
+            "template": self.prompt_pack.template,
+            "correction": self.prompt_pack.correction_template,
+            "protocol": describe(stage.value),
+            "documents": {d.relative_path: d.digest for d in documents},
+            "recovery": recovery.read_text() if recovery.is_file() else None,
+            "review_rules": self.review_rules(stage),
+        }
+        return hashlib.sha256(json.dumps(value, sort_keys=True).encode()).hexdigest()
 
     def render_correction(self, error: str) -> str:
         return self.prompt_pack.correction_template.replace("{{error}}", escape(error, quote=False))

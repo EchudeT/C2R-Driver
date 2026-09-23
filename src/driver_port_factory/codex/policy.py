@@ -42,6 +42,7 @@ class CodexExecutionPolicy:
             TargetStudyStage.STUDY,
             MigrationStage.CONTRACTS,
             MigrationStage.PUBLIC_REPAIR,
+            MigrationStage.ANALYSIS_REVIEW,
         }
     )
 
@@ -59,6 +60,10 @@ class CodexExecutionPolicy:
                 for record in acquisition.checkouts
             )
             self._validate_writable_root(project, execution_root, frozen)
+            # Developer runs need to invoke the controller submission tool, which
+            # writes an immutable receipt under the project control directory.
+            # Keep the restricted workspace grant for evaluation workers, while
+            # preserving the developer-mode unrestricted grant selected above.
             return CodexExecutionGrant(execution_root, writable)
         if stage not in self.WRITABLE_STAGES:
             return CodexExecutionGrant(project.root, CodexSandbox.UNRESTRICTED if developer else CodexSandbox.READ_ONLY)

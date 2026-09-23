@@ -7,7 +7,6 @@ from uuid import uuid4
 
 from .models import ArtifactContent, ArtifactRef, WorkflowError
 from .recovery_state import fingerprint
-from ..orchestration.protocol import terminal_line
 
 
 class CheckerDecisionRequired(WorkflowError):
@@ -45,7 +44,23 @@ def request_recovery(project, stage, error) -> None:
     _request(project, stage, payload)
 
 
-def _request(project, stage, payload) -> None:
+def guard_operation(project, stage, job_ordinal: int) -> None:
+    """Bound unchanged execution requests, including successful receipt replays."""
+    payload = {"stage": stage.value, "inputs": stage_inputs(project, stage),
+               "artifacts": None, "findings": ["Repeated execution requests with unchanged inputs"]}
+    identity = fingerprint(project, stage, payload)
+    directory = project.control / "operation-requests"
+    directory.mkdir(exist_ok=True)
+    path = directory / f"{stage.value}-{identity}.json"
+    jobs = json.loads(path.read_text()) if path.exists() else []
+    if job_ordinal not in jobs:
+        if len(jobs) >= 3:
+            _request(project, stage, payload, force_pause=True)
+        jobs.append(job_ordinal)
+        _replace_text(path, json.dumps(jobs))
+
+
+def _request(project, stage, payload, *, force_pause=False) -> None:
     # A newer durable job result is the repair response, even if the controller
     # stopped before submitting it. Reuse it instead of paying for another turn.
     payload["after_job"] = max((r.ordinal for r in project.current_artifact_refs(stage=stage)
@@ -54,7 +69,7 @@ def _request(project, stage, payload) -> None:
     directory.mkdir(exist_ok=True)
     previous = [json.loads(path.read_text()) for path in directory.glob(f"{stage.value}-*.json")]
     payload["repair_fingerprint"] = fingerprint(project, stage, payload)
-    payload["paused"] = sum(item["repair_fingerprint"] == payload["repair_fingerprint"]
+    payload["paused"] = force_pause or sum(item["repair_fingerprint"] == payload["repair_fingerprint"]
                             and not item["paused"] for item in previous) >= 3
     path = directory / f"{stage.value}-{uuid4().hex}.json"
     path.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n")
@@ -147,8 +162,8 @@ def accept_decision(project, stage, path: Path, report: Path) -> None:
     if payload["stage"] != stage.value or payload["inputs"] != stage_inputs(project, stage):
         raise WorkflowError("checker decision inputs changed; re-evaluate the current outputs")
     text = report.read_text()
-    if terminal_line(text) != "DPF_CHECKER_DECISION: ACCEPT":
-        raise WorkflowError("worker acceptance report must end DPF_CHECKER_DECISION: ACCEPT")
+    if not text.strip():
+        raise WorkflowError("worker acceptance report is empty")
     if payload["artifacts"] is None:
         raise WorkflowError("execution stopped before outputs were captured; submit repaired normal deliverables")
     if not capture_is_current(project, stage, payload):

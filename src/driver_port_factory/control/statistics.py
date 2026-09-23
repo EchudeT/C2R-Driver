@@ -89,7 +89,7 @@ def project_statistics(project, *, pricing_model=None, pricing_tier=None) -> dic
             "unpriced_calls": 0,
             "usd": 0.0,
         }
-    previous, jobs = {}, []
+    previous, jobs, reasons = {}, [], {}
     for job in read_jobs(project.control / "codex"):
         row = rows.get(job.get("stage"))
         if row is None:
@@ -124,10 +124,23 @@ def project_statistics(project, *, pricing_model=None, pricing_tier=None) -> dic
             row["unpriced_calls"] += 1
         else:
             row["usd"] += quote["usd"]
+        reason = job.get("call_reason") or "unknown"
+        group = reasons.setdefault(reason, {"codex_calls": 0, "codex_seconds": 0.0,
+            "usd": 0.0, "unknown_usage_calls": 0, "unpriced_calls": 0,
+            "usage": dict.fromkeys(FIELDS, 0)})
+        group["codex_calls"] += 1
+        group["codex_seconds"] += elapsed
+        group["unknown_usage_calls"] += usage is None
+        group["unpriced_calls"] += quote is None
+        group["usd"] += quote["usd"] if quote else 0
+        if usage is not None:
+            for field in FIELDS:
+                group["usage"][field] += usage[field]
         jobs.append(
             {
                 "stage": job["stage"],
                 "job_id": job["job_id"],
+                "call_reason": reason,
                 "thread_id": thread,
                 "usage": usage,
                 "estimate": quote,
@@ -154,6 +167,7 @@ def project_statistics(project, *, pricing_model=None, pricing_tier=None) -> dic
         "stages": list(rows.values()),
         "totals": totals,
         "jobs": jobs,
+        "by_call_reason": reasons,
         "price_source": PRICE_SOURCE,
         "price_date": PRICE_DATE,
         "pricing_model_for_missing_metadata": pricing_model,

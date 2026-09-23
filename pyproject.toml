@@ -10,7 +10,7 @@ readme = "README.md"
 requires-python = ">=3.11"
 license = { text = "Proprietary" }
 authors = [{ name = "C2R Driver Project" }]
-dependencies = ["tree-sitter>=0.25,<0.26", "tree-sitter-rust>=0.24,<0.25"]
+dependencies = []
 
 [project.optional-dependencies]
 codex = ["openai-codex"]

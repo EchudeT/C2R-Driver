@@ -1,11 +1,15 @@
 """Explicit minimal repair routing, never inferred from prose or exit status."""
+from ..acquisition.contracts import AcquisitionStage
+from ..acquisition.repository import load_repository_acquisition
 from ..codex.contracts import CodexOutputError
 from ..core.contracts import StageKey
 from ..core.models import WorkflowError
-from ..acquisition.contracts import AcquisitionStage
 from ..environment.contracts import EnvironmentStage
+from ..knowledge.index import file_sha256
+from ..orchestration.protocol import REPAIR_TARGETS
 from ..target_study.contracts import TargetStudyStage
 from .contracts import MigrationStage
+from .public_qemu import PublicQemuService
 
 
 def retry_prerequisite(project, target, *, trigger, reason):
@@ -25,8 +29,19 @@ def retry_prerequisite(project, target, *, trigger, reason):
         from .contracts import MigrationArtifact
         report = project.load_json_artifact(target, MigrationArtifact.PUBLIC_QEMU_REPORT)
         run = report["runs"][0]
+        acquisition = load_repository_acquisition(project)
+        worktree = project.root / acquisition.target_worktree.path
+        script_path = worktree / ".dpf-output" / "public-qemu.sh"
         progress = {"runtime": run["runtime_artifact"]["sha256"],
                     "script": run["script"]["sha256"], "helpers": run["helper_inputs"]}
+        # A reviewer may return an unchanged receipt after the worker has
+        # already repaired the current harness. Include live execution inputs
+        # so the persisted retry guard recognizes that substantive progress.
+        # The frozen receipt remains part of the identity for auditability.
+        progress["current_script"] = (
+            file_sha256(script_path) if script_path.is_file() else None
+        )
+        progress["current_helpers"] = PublicQemuService._helper_inputs(worktree)
     elif target.value == "environment_recovery":
         from ..environment.contracts import EnvironmentArtifact
         attempt = project.load_json_artifact(target, EnvironmentArtifact.EXPERIMENT_READY_RUN)
@@ -54,7 +69,7 @@ ROUTES = {stage.value: stage for stage in (
     MigrationStage.ARTIFACT_PREPARATION,
     MigrationStage.PUBLIC_QEMU_VALIDATION,
 )}
-from ..orchestration.protocol import REPAIR_TARGETS
+
 assert set(ROUTES) == REPAIR_TARGETS
 
 
@@ -66,20 +81,3 @@ class PrerequisiteRepair(WorkflowError):
     def __init__(self, target: StageKey, report: str) -> None:
         super().__init__(f"worker requested {target.value}; frozen report: {report}")
         self.target = target
-
-
-def repair_target(text: str) -> StageKey:
-    lines = [line.strip() for line in text.splitlines() if line.strip()]
-    target = (lines[-2].removeprefix("DPF_REPAIR_STAGE:").strip()
-              if len(lines) >= 2 and lines[-1] == "DPF_REVIEW: REWORK"
-              and lines[-2].startswith("DPF_REPAIR_STAGE:") else None)
-    if target not in ROUTES:
-        raise CodexOutputError(
-            "Immediately before DPF_REVIEW: REWORK, name DPF_REPAIR_STAGE: with one of "
-            + ", ".join(ROUTES) + ". "
-            "Choose the earliest actually affected stage: reviewed-source defect requires "
-            "implementation; image/guest entrypoint requires packaging; "
-            "harness/oracle/evidence with unchanged artifact requires public validation. "
-            "Explain the cause in Markdown; do not reopen unaffected review conclusions."
-        )
-    return ROUTES[target]
