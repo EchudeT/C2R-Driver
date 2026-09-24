@@ -55,6 +55,8 @@ def test_two_conversations_complete_with_independent_review(tmp_path, risk, appe
             # Ordinary preexisting integration changes do not create a second audit.
             integration = job.execution_root / "src/driver-api.rs"
             integration.write_text(integration.read_text() + "pub fn register_driver() {}\n")
+            from tests.migration_support import smoke_fixture
+            smoke_fixture(job.execution_root)
         elif stage is S.ARTIFACT_PREPARATION:
             variants = output / "harness/variants"
             variants.mkdir(parents=True, exist_ok=True)

@@ -795,8 +795,13 @@ class PortRunner:
         if report is not None:
             if project.stage(MigrationStage.DRIVER_IMPLEMENTATION).status is StageStatus.READY:
                 project.start(MigrationStage.DRIVER_IMPLEMENTATION)
-            DriverImplementationService().snapshot_worktree(project, report)
-            return
+            try:
+                DriverImplementationService().snapshot_worktree(project, report)
+                return
+            except CodexContinuation:
+                # A prepared repair still needs the current functional self-test.
+                # Resume the implementation worker to create/fix its harness.
+                pass
         self._codex_gate(
             project,
             MigrationStage.DRIVER_IMPLEMENTATION,

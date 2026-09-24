@@ -183,6 +183,9 @@ def test_accept_routes_by_capture_state_and_replays_after_restart(tmp_path, capt
     checker.write_text("echo attempt >> .dpf-output/check-count\nexit 7\n")
     service = ArtifactPreparationService()
     if capture == "missing":
+        # Implementation now produces a smoke image; model a genuinely missing
+        # packaging input explicitly rather than relying on the old fixture.
+        runtime.unlink()
         with pytest.raises(WorkflowError) as failure:
             service.capture_codex_artifact(project, report)
         with pytest.raises(CheckerDecisionRequired):

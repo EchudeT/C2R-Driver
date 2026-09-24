@@ -57,8 +57,21 @@ TASKS = {
         "tool_runtime.submission_command with --kind report --decision pass. Do not edit the "
         "migrated driver or invent a fallback path."),
     "driver_implementation": TaskProtocol(completion=
-        "Finish implementation and affected checks, then invoke tool_runtime.submission_command "
-        "with --kind report --decision pass.", executable=True),
+        "Finish implementation and affected checks. Build the current driver into "
+        ".dpf-output/runtime-artifact and write .dpf-output/check-presence.sh plus "
+        ".dpf-output/implementation-smoke.sh. The controller runs presence and a bounded "
+        "functional QEMU smoke before accepting implementation. Use $DPF_RUNTIME_ARTIFACT, "
+        "put helpers in .dpf-output/harness and fresh logs under .dpf-output/qemu-runs. "
+        "Keep the smoke under 300 seconds; return zero only when all smoke assertions pass. "
+        "Check component initialization, exact device identity, registration, successful "
+        "probe/binding/readiness and one applicable data operation (network: one TX and RX "
+        "with externally checked payloads). For NE2000 use ne2k_pci, PCI 10ec:8029. "
+        "Use the pinned official Asterinas Docker for Asterinas builds and QEMU execution. "
+        "Save command, image identity, logs, actual exit/timeout and oracle results; an "
+        "expected guest timeout is acceptable only after the assertions pass. Inspect and "
+        "repair failures in this stage before resubmitting; this does not replace the full "
+        "public ladder. Describe assertions and results in the report, then invoke "
+        "tool_runtime.submission_command with --kind report --decision pass.", executable=True),
     "artifact_preparation": TaskProtocol(completion=
         "Write .dpf-output/runtime-artifact and executable .dpf-output/check-presence.sh. "
         "Put necessary variants under .dpf-output/harness/variants/ as regular files. "

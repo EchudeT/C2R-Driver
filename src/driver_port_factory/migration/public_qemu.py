@@ -159,6 +159,7 @@ def run_public_harness(
     worktree: Path,
     runtime_path: Path,
     target_platform: str,
+    timeout_seconds: int = 3600,
 ) -> QemuHarnessResult:
     """Run a public harness and mechanically prove its QEMU/runtime/log boundary."""
 
@@ -176,7 +177,7 @@ def run_public_harness(
                 "DPF_RUNTIME_ARTIFACT": str(runtime_path),
                 "DPF_TARGET_WORKTREE": str(worktree),
             },
-            timeout_seconds=3600,
+            timeout_seconds=timeout_seconds,
         )
     lines = (
         trace_path.read_text(encoding="utf-8", errors="replace").splitlines()

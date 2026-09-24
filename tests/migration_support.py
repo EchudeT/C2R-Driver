@@ -8,6 +8,23 @@ from driver_port_factory.migration.public_qemu import PublicQemuService
 from tests.workflow_support import ready_implementation
 
 
+def smoke_fixture(worktree):
+    """Synthetic execution only; never evidence of real driver functionality."""
+    output = worktree / ".dpf-output"
+    (output / "runtime-artifact").write_bytes((worktree / "driver.rs").read_bytes())
+    (output / "check-presence.sh").write_text(
+        'cmp "$DPF_RUNTIME_ARTIFACT" "$DPF_TARGET_WORKTREE/driver.rs"\n'
+    )
+    qemu = output / "qemu-system-smoke-fixture"
+    if not qemu.exists():
+        qemu.symlink_to("/bin/true")
+    (output / "implementation-smoke.sh").write_text(
+        f'"{qemu}" -kernel "$DPF_RUNTIME_ARTIFACT"\n'
+        'mkdir -p .dpf-output/qemu-runs\n'
+        'echo synthetic-smoke > .dpf-output/qemu-runs/smoke.log\n'
+    )
+
+
 def implemented(root, *, source="pub fn init() -> u32 { 1 }\n", request=""):
     project = ready_implementation(root)
     worktree = project.root / load_repository_acquisition(project).target_worktree.path
@@ -17,6 +34,7 @@ def implemented(root, *, source="pub fn init() -> u32 { 1 }\n", request=""):
     report = output / "report.md"
     report.write_text(f"# Synthetic fixture\n{request}\n")
     project.start(S.DRIVER_IMPLEMENTATION)
+    smoke_fixture(worktree)
     DriverImplementationService().snapshot_worktree(project, report)
     return project, worktree, report
 
@@ -36,7 +54,7 @@ def packaged(root, **implementation):
 def public_run(root, *, exit_code=0, self_check=True, **implementation):
     project, worktree, report = packaged(root, **implementation)
     output = worktree / ".dpf-output"
-    (output / "qemu-runs").mkdir()
+    (output / "qemu-runs").mkdir(exist_ok=True)
     # Controller-only simulator; this fixture never establishes real driver behavior.
     qemu = output / "qemu-system-fixture"
     qemu.symlink_to("/bin/true")

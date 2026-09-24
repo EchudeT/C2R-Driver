@@ -90,9 +90,10 @@
         "knowledge-guided-driver-port/references/translation.md",
         "knowledge-guided-driver-port/references/target-changes.md",
         "knowledge-guided-driver-port/references/knowledge-contract.md",
-        "knowledge-guided-driver-port/references/test-porting.md"
+        "knowledge-guided-driver-port/references/test-porting.md",
+        "knowledge-guided-driver-port/references/qemu-evidence.md"
       ],
-      "objective": "Complete knowledge-guided-driver-port/references/workflow.md phases 6–7, following translation.md, target-changes.md and test-porting.md. Use the existing target study and migration contracts as frozen design inputs. This stage owns the Rust driver, necessary target changes, adapted or newly designed public tests, compliance self-check and implementation snapshot; do not silently revise the scope, target study, contracts or test provenance. If a required premise is missing, request the earliest permitted prerequisite instead of inventing an API or changing the contract. On the normal path submit code, tests and the implementation report; runtime artifact preparation and public QEMU execution belong to the following stages."
+      "objective": "Complete knowledge-guided-driver-port/references/workflow.md phases 6–7, following translation.md, target-changes.md and test-porting.md. Use the existing target study and migration contracts as frozen design inputs. This stage owns the Rust driver, necessary target changes, public tests, compliance self-check and implementation snapshot. Before submission, build the current implementation and run a bounded target functional smoke under qemu-evidence.md: component initialization, exact device identity, registration, probe/binding/readiness and one applicable data operation, including externally observed TX/RX for network drivers. Prepare implementation-smoke.sh, runtime-artifact and check-presence.sh under .dpf-output for controller execution. Diagnose and repair smoke failures locally until passing; use prerequisite repair only for an evidenced earlier defect. Do not silently revise scope, target study, contracts or test provenance. Artifact preparation reuses the resulting image when valid; the full public QEMU ladder remains in public_qemu_validation."
     },
     "artifact_preparation": {
       "documents": [

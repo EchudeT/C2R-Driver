@@ -113,6 +113,8 @@ class DriverImplementationService:
         except WorkflowError as error:
             raise ImplementationChanged(str(error)) from error
         all_files = worktree_files(worktree, acquisition.target_worktree.base_commit)
+        from .implementation_smoke import implementation_smoke
+        smoke = implementation_smoke(project, worktree, acquisition.target_worktree.base_commit)
         files = [item for item in all_files if item["path"] not in framework_paths]
         if not files:
             project.note_check("implementation has no changes relative to frozen upstream")
@@ -124,6 +126,7 @@ class DriverImplementationService:
         bundle = {
             "schema_version": 1,
             "inputs": inputs,
+            "functional_smoke": smoke,
             "target_worktree": {
                 "path": acquisition.target_worktree.path,
                 "base_commit": acquisition.target_worktree.base_commit,
