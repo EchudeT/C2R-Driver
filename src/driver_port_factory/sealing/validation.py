@@ -114,7 +114,7 @@ class _CandidateGate:
             raise WorkflowError("candidate bundle is reference-only or an entity hash changed")
         if any(EvaluationArtifact.PRIVATE_ASSERTIONS.value in path for path in actual):
             raise WorkflowError("NON_INDEPENDENT")
-        self._public_attempts(actual)
+        self._public_qemu_attempts(actual)
         self._ledger_event()
         self._transfer(digest)
 
@@ -147,12 +147,12 @@ class _CandidateGate:
             raise WorkflowError("candidate entity manifest differs from the seal")
         return members, internal
 
-    def _public_attempts(self, actual: dict[str, tuple[int, str]]) -> None:
+    def _public_qemu_attempts(self, actual: dict[str, tuple[int, str]]) -> None:
         connection = sqlite3.connect(self.context.project_root / ".dpf" / "run.sqlite3")
         try:
             rows = connection.execute(
-                "SELECT digest, kind FROM stage_artifacts WHERE kind IN (?, ?)",
-                ("public_qemu_attempt", "public_repair_attempt"),
+                "SELECT digest, kind FROM stage_artifacts WHERE kind = ?",
+                ("public_qemu_attempt",),
             ).fetchall()
         finally:
             connection.close()

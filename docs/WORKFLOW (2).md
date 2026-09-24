@@ -1,4 +1,4 @@
-当前 developer-evidence 模式一共有 17 个阶段。它把 Skill 中较粗的 0～11 阶段拆成了更容易检查、回退和留存证据的步骤。阶段定义见 src/driver_port_factory/orchestration/migration.py:127，Skill 原始流程见 /home/unix/.codex/skills/knowledge-guided-driver-port/references/workflow.md:5。
+当前 developer-evidence 模式一共有 18 个阶段。它把 Skill 中较粗的 0～11 阶段拆成了更容易检查、回退和留存证据的步骤。阶段定义见 src/driver_port_factory/orchestration/migration.py:127，Skill 原始流程见 /home/unix/.codex/skills/knowledge-guided-driver-port/references/workflow.md:5。
 
 先解释四种执行者：
 
@@ -164,7 +164,18 @@ Luna在写 Rust 前完成三类工作。
 
   ## 第三大阶段：实现与交付
 
-  ### 14. driver_implementation：实现 Rust 驱动和公开测试
+  ### 14. target_framework_enablement：补齐目标框架能力
+
+目标研究阶段只记录“实现驱动所需、但目标框架没有”的能力缺口。第 14 步消费已冻结的目标研究和
+迁移合同，只实现合同确认的最小目标 API/框架能力，并完成目标检查和受影响回归。它必须记录
+必要性、直接目标源码证据、替代方案、安全影响、精确文件/符号、回滚方法和验证结果，生成独立的
+目标框架 bundle、报告和 change inventory。
+
+这一步不实现 Rust 驱动、不改公开测试、不准备运行制品、不运行 QEMU，也不引入 fallback、兼容
+分支或 MMIO/PIO 双路径。目标框架快照一旦通过，后续驱动阶段只能消费它；若驱动快照和目标框架
+快照路径重叠，或目标文件在封存后漂移，控制器拒绝交付并回到第 14 步。
+
+  ### 15. driver_implementation：实现 Rust 驱动和公开测试
 
 Luna根据已冻结的目标研究和契约：
 
@@ -181,7 +192,7 @@ Luna根据已冻结的目标研究和契约：
 
 编译、测试或实现缺陷由同一个 Luna 在本阶段修复。若发现前一大阶段的契约根本错误，程序不会自动回退，必须显式重新打开已经封闭的大阶段。
 
-  ### 15. artifact_preparation：把代码变成 QEMU 真能使用的制品
+  ### 16. artifact_preparation：把代码变成 QEMU 真能使用的制品
 
 Luna按阶段 8 选定的模式完成构建、注入、overlay、组件打包或镜像重打包，并创建：
 
@@ -193,9 +204,9 @@ Luna按阶段 8 选定的模式完成构建、注入、overlay、组件打包或
 
 控制器执行 presence checker、检查普通文件和权限、记录制品身份，并确认当前实现而非旧缓存进入了制品。
 
-打包或身份问题在本阶段修复；行为代码确实改变时回到阶段 14。若只是同一 Luna 已完成并自检过的打包接线修改，控制器可重新绑定实现快照，避免再付一次实现模型调用。
+打包或身份问题在本阶段修复；行为代码确实改变时回到阶段 15。若只是同一 Luna 已完成并自检过的打包接线修改，控制器可重新绑定实现快照，避免再付一次实现模型调用。
 
-  ### 16. public_qemu_validation：运行公开 QEMU 验证阶梯
+  ### 17. public_qemu_validation：运行公开 QEMU 验证阶梯
 
 Luna 编写 public-qemu.sh、辅助脚本、刺激和 oracle，并通过工具请求控制器执行。控制器负责实际运行、超时、进程跟踪、QEMU 命令捕获、运行制品绑定、日志和退出状态。
 
@@ -214,26 +225,28 @@ Luna 编写 public-qemu.sh、辅助脚本、刺激和 oracle，并通过工具�
 控制器执行后把不可修改的 receipt 返回给同一 Luna。Luna必须查看实际日志，更新同一报告并完成自审。运行失败通常保持阶段 RUNNING：先判断是驱动、测试、harness、打包、目标
 API、QEMU 模型还是环境问题，然后最小修复并产生新 attempt。旧的 FAIL attempt 不会被改成 PASS。
 
-  ### 17. public_repair：最终独立证据审查
+  ### 18. final_evidence_review：最终独立证据审查
 
-名字保留为 public_repair，实际职责是最终审查，不是自己修改代码。独立审查会话重新对照：
+第 18 步只负责交付阶段的最终证据审查，不修改代码，也不重新审查第二大阶段的设计产物。独立审查会话对照：
 
-  - 原始范围；
-  - C 行为和迁移契约；
-  - 测试矩阵；
   - 当前 Rust 代码；
+  - 第 14 步目标框架快照、change inventory 和漂移检查；
   - 目标修改；
   - 制品身份；
   - QEMU 脚本、日志、抓包和 receipt；
-  - 每个能力的实际状态和限制。
+  - 每个冻结 contract/test ID 的实际状态和限制。
+
+合同和测试矩阵只以冻结 ID/digest 形式作为验收 oracle；目标平台研究、handoff、source closure
+和合同 provenance 由第 13 步及其前置阶段负责，不在第 18 步重新评价。
 
 审查者必须一次给出全部问题并引用报告、源码和日志位置。缺陷按最小责任范围回退：
 
-  - 代码问题回阶段 14；
-  - 打包和制品身份回阶段 15；
-  - 未改制品的 harness、oracle 或运行证据回阶段 16。
+  - 目标框架能力或目标快照问题回阶段 14；
+  - 代码问题回阶段 15；
+  - 打包和制品身份回阶段 16；
+  - 未改制品的 harness、oracle 或运行证据回阶段 17。
 
-修复后阶段 17重新审查。若代码、测试、制品、运行证据和审查规则均未变化，可以复用先前通过的审查；任一绑定哈希变化都要重新审查。通过后当前开发者流程结束。
+修复后阶段 18重新审查。若代码、测试、制品、运行证据和审查规则均未变化，可以复用先前通过的审查；任一绑定哈希变化都要重新审查。通过后当前开发者流程结束。
 
   ## 验证关系
 
@@ -257,7 +270,7 @@ API、QEMU 模型还是环境问题，然后最小修复并产生新 attempt。�
      AI通过提交工具指定 rework 和明确阶段。只允许回到同一大阶段内、已经通过且确实是数据前置的阶段。目标阶段变为 READY，受影响的下游阶段变为 PENDING，未受影响证据保留。
 
   4. 跨大阶段问题
-     自动回退被拒绝，并进入 WAITING_FOR_USER，说明需要重新打开哪个已封闭大阶段及原因。不会发生阶段 17 自动跳回阶段 7 的情况。边界规则见 src/driver_port_factory/core/
+     自动回退被拒绝，并进入 WAITING_FOR_USER，说明需要重新打开哪个已封闭大阶段及原因。不会发生阶段 18 自动跳回阶段 7 的情况。边界规则见 src/driver_port_factory/core/
      phases.py:35。
 
   5. 真正外部阻塞

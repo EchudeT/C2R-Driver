@@ -18,6 +18,7 @@ class PromptDocument:
     relative_path: str
     digest: str
     content: str
+    source_path: Path
 
 
 @dataclass(frozen=True, slots=True)
@@ -170,10 +171,16 @@ class SkillPromptComposer:
 
     def _read_document(self, relative_path: str) -> PromptDocument:
         path = (self.skill_root / relative_path).resolve()
-        if self.skill_root not in path.parents:
-            raise WorkflowError(f"Skill document escapes root: {relative_path}")
+        if self.skill_root not in path.parents or not path.is_file():
+            # A prompt-pack-local protocol is useful for controller-owned
+            # duties that are not part of the user-supplied Skill.  Keep the
+            # manifest path stable while still rejecting escapes and missing
+            # files; Skill documents continue to take precedence when present.
+            path = (self.prompt_pack.root / relative_path).resolve()
+            if self.prompt_pack.root not in path.parents:
+                raise WorkflowError(f"document escapes both Skill and prompt pack roots: {relative_path}")
         if not path.is_file():
-            raise WorkflowError(f"required Skill document is missing: {path}")
+            raise WorkflowError(f"required prompt document is missing: {path}")
         raw = path.read_bytes()
         try:
             content = raw.decode("utf-8")
@@ -183,6 +190,7 @@ class SkillPromptComposer:
             relative_path=relative_path,
             digest=hashlib.sha256(raw).hexdigest(),
             content=content,
+            source_path=path,
         )
 
     def documents_for_stage(self, stage: StageKey) -> tuple[PromptDocument, ...]:
@@ -256,12 +264,12 @@ class SkillPromptComposer:
         header = {"instructions": instructions, "reference_material": prompt_context}
         embedded_documents = "\n\n".join(
             (f'<skill_document path="{document.relative_path}" '
-             f'source_path="{escape(str(self.skill_root / document.relative_path), quote=True)}">\n'
+             f'source_path="{escape(str(document.source_path), quote=True)}">\n'
              f"{document.content}\n</skill_document>"
              if (known_documents or {}).get(document.relative_path) != document.digest
              else f'<skill_document_unchanged path="{document.relative_path}" '
                   f'sha256="{document.digest}" '
-                  f'source_path="{escape(str(self.skill_root / document.relative_path), quote=True)}" />')
+                  f'source_path="{escape(str(document.source_path), quote=True)}" />')
             for document in documents
         )
         text = self.prompt_pack.template
@@ -292,9 +300,13 @@ class SkillPromptComposer:
         )
 
     def review_rules(self, stage: StageKey) -> str:
-        if stage.value not in {"analysis_review", "public_repair"}:
+        if stage.value not in {"analysis_review", "final_evidence_review"}:
             return ""
-        return (self.prompt_pack.root / "review.md").read_text(encoding="utf-8")
+        filename = {
+            "analysis_review": "review.md",
+            "final_evidence_review": "final-evidence-review.md",
+        }[stage.value]
+        return (self.prompt_pack.root / filename).read_text(encoding="utf-8")
 
     def policy_digest(self, stage: StageKey) -> str:
         """Hash this stage's rules, excluding runtime context and unrelated stages."""

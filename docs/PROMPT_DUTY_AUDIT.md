@@ -1,6 +1,6 @@
 # 阶段职责与 Prompt 复核
 
-复核范围是当前 `DEVELOPER_EVIDENCE` 的 17 个迁移阶段。核对了 Prompt Pack、
+复核范围是当前 `DEVELOPER_EVIDENCE` 的 18 个迁移阶段。核对了 Prompt Pack、
 `orchestration/protocol.py`、`PortRunner` 的实际调用与产物验收，并沿着每个阶段
 注入的原版 Skill 文档阅读了对应的工作流章节。这里记录控制器职责和提示边界，
 不复制 Skill 的硬件、API、语义或测试规则。
@@ -27,10 +27,11 @@ AI；那只是判断已有失败记录或恢复当前操作，不能代替该阶
 | 11 | `migration_handoff` | 正常无；异常可 checker-decision | 无模型任务 | 绑定前置 artifact 并生成 handoff | 清楚；不让 AI 重复整理控制器已有身份记录 |
 | 12 | `migration_contracts` | 是，报告 | 同一报告完成 source closure、按需 compiler/preprocessor/layout/effect 取证、contracts 和 test provenance | 把同一报告绑定到 contracts 与 test matrix 两个视图 | 清楚；Prompt 已明确不实现、不改 target、不准备 artifact、不跑 QEMU；独立审查仍负责实质验收 |
 | 13 | `analysis_review` | 是，独立审查 | 只读核对研究、分析、契约和测试来源，一次返回全部问题，精确引用行号/原文 | 只有 reviewer PASS 才进入实现；REWORK 路由到最早受影响的同阶段前置 | 与 review Skill 对齐；实现和运行结果不是本阶段缺口 |
-| 14 | `driver_implementation` | 是，代码/测试/报告 | 使用已冻结研究和契约，完成 Rust、必要 target change、公共测试、合规自检和快照 | 控制器检查快照、测试和 implementation bundle | 原 Prompt 未明确“不得自行改契约”；现已补边界。正常路径不负责 artifact/QEMU，缺失前提走 REWORK |
-| 15 | `artifact_preparation` | 是，脚本/产物/报告 | 使用现有实现准备 runtime、variants、presence checker 和身份；行为变化回实现阶段 | 控制器运行 checker、记录 identity，并在必要的包装改动后刷新实现快照 | 已明确这是包装/注入/身份节点，不是公共 QEMU；仍遵守 Skill 的 target-change 规则 |
-| 16 | `public_qemu_validation` | 是，脚本/同一报告复核 | 消费第 15 阶段固定的 artifact；写 public runner，申请执行，读取 receipt，完成 phase 8/9 的运行与归因自检 | 控制器执行一次绑定脚本并把观察结果交回同一 worker | 原 Prompt 把“准备 runtime artifact”也归给第 16 阶段，造成与第 15 阶段重叠；现已改为消费固定产物。最终独立审计归第 17 阶段 |
-| 17 | `public_repair` | 是，独立审查 | 只读核对原始 scope、contracts、代码、测试 oracle、artifact 和运行日志；一次返回全部发现 | reviewer PASS 才完成交付；REWORK 按问题类型回到允许的交付前置 | 与 final evidence audit 和 review Skill 对齐；不让 reviewer 代写修复 |
+| 14 | `target_framework_enablement` | 是，目标文件/检查/报告 | 消费目标研究和冻结合同，实现最小目标 API/框架能力，写必要性、替代方案、安全影响和回滚；不改驱动或引入 fallback | 控制器校验目标快照、报告、change inventory 和文件漂移 | 新增独立能力门；后续驱动只能消费该快照，重叠路径直接拒绝 |
+| 15 | `driver_implementation` | 是，代码/测试/报告 | 只消费第 14 步目标框架快照，完成 Rust、公共测试、合规自检和快照 | 控制器检查快照、测试和 implementation bundle | 目标框架改动与驱动改动职责分离；正常路径不负责 artifact/QEMU |
+| 16 | `artifact_preparation` | 是，脚本/产物/报告 | 使用现有实现准备 runtime、variants、presence checker 和身份；行为变化回实现阶段 | 控制器运行 checker、记录 identity，并在必要的包装改动后刷新实现快照 | 已明确这是包装/注入/身份节点，不是公共 QEMU |
+| 17 | `public_qemu_validation` | 是，脚本/同一报告复核 | 消费第 16 阶段固定的 artifact；写 public runner，申请执行，读取 receipt，完成 phase 8/9 的运行与归因自检 | 控制器执行一次绑定脚本并把观察结果交回同一 worker | 只负责未变制品的 harness、oracle 和运行证据；最终独立审计归第 18 阶段 |
+| 18 | `final_evidence_review` | 是，独立审查 | 只读核对当前代码、target framework、target change、冻结 contract/test oracle、artifact 和运行日志；不重审第二阶段设计材料，一次返回全部发现 | reviewer PASS 才完成交付；REWORK 只回到 14/15/16/17 | 与 final evidence audit 和专用 final-review prompt 对齐；不让 reviewer 代写修复 |
 
 ## Skill 路由结论
 
@@ -42,14 +43,14 @@ AI；那只是判断已有失败记录或恢复当前操作，不能代替该阶
 - 第 12 阶段加载 workflow、translation、knowledge-contract、test-porting 和
   qemu-evidence；按需编译器取证是本工作流对原 Skill 的已批准执行适配，不是删掉
   语义要求。
-- 第 14–17 阶段分别加载 translation/target-changes/test-porting、qemu-evidence
+- 第 14–18 阶段分别加载 target-framework-enablement、translation/target-changes/test-porting、qemu-evidence
   和独立 review 规则。`review.md` 负责精确行号、定位工具和集中反馈，不重复写入
   Skill 的技术标准。
 
 ## 仍需保留的边界
 
 阶段本地 `PASS` 只证明本地产物和协议被接受。第 12 阶段自检不是独立实质审查，
-第 13 阶段的 reviewer PASS 才允许实现；第 17 阶段再审查最终代码和运行证据。
+第 13 阶段的 reviewer PASS 才允许进入目标框架和驱动实现；第 18 阶段再审查最终代码、目标框架和运行证据。
 这三个层次不能由一个更长的阶段 Prompt 互相替代。
 
 `target_platform_study` 当前的确定性 validator 仍主要检查报告是可读 UTF-8，

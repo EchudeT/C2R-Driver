@@ -1,7 +1,10 @@
 """One worker repair, followed by validated mechanical evidence refreshes.
 
-The receipt is bound to source, report, runtime and harness bytes. It authorizes
-no PASS: normal snapshot, presence, execution and final self-check still apply.
+The reuse receipt is bound to substantive source, runtime and harness bytes.
+Worker prose and human-readable receipt text remain audit metadata; changing
+them must not manufacture a new implementation or QEMU repair.  Reuse still
+authorizes no PASS: normal snapshot, presence, execution and final self-check
+still apply.
 """
 import json
 import sqlite3
@@ -62,7 +65,10 @@ def prepared(project):
     value = json.loads(row[1])
     report = (project.root / value["report"]).resolve()
     try:
-        if (project.root not in report.parents or file_sha256(report) != value["report_sha256"]
+        # The report is retained for audit context, but its prose/hash is not a
+        # substantive repair input.  A refreshed receipt must not invalidate a
+        # prepared repair when the source/runtime/harness identity is unchanged.
+        if (project.root not in report.parents or not report.is_file()
                 or identity(project) != value["identity"]):
             return None
     except (OSError, WorkflowError):

@@ -10,7 +10,8 @@ GROUPS = {
         "evidence_closure", "environment_recovery", "knowledge_base", "target_platform_study",
         "migration_handoff", "migration_contracts", "analysis_review"),
     "delivery": (
-        "driver_implementation", "artifact_preparation", "public_qemu_validation", "public_repair"),
+        "target_framework_enablement", "driver_implementation", "artifact_preparation",
+        "public_qemu_validation", "final_evidence_review"),
     "completion": ("completion_audit",),
 }
 PHASES = {stage: phase for phase, stages in GROUPS.items() for stage in stages}

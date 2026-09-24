@@ -224,7 +224,7 @@ class CandidateSealer:
         MigrationArtifact.COMPLIANCE_REPORT,
         MigrationArtifact.RUNTIME_ARTIFACT,
         MigrationArtifact.ARTIFACT_IDENTITY,
-        MigrationArtifact.PUBLIC_REPAIR_REPORT,
+        MigrationArtifact.FINAL_EVIDENCE_REVIEW_REPORT,
     )
     PRIVATE_ARTIFACTS = frozenset({EvaluationArtifact.PRIVATE_ASSERTIONS.value})
 
@@ -472,7 +472,7 @@ class CandidateSealer:
             if item["kind"] in {
                 MigrationArtifact.PUBLIC_QEMU_ATTEMPT.value,
                 MigrationArtifact.PUBLIC_QEMU_REPORT.value,
-                MigrationArtifact.PUBLIC_REPAIR_REPORT.value,
+                MigrationArtifact.FINAL_EVIDENCE_REVIEW_REPORT.value,
             }:
                 public_documents.append(json.loads(data))
 

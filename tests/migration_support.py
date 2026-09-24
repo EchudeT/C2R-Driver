@@ -64,9 +64,9 @@ def public_run(root, *, exit_code=0, self_check=True, **implementation):
 
 def accepted(root):
     project, worktree, report = public_run(root)
-    if S.PUBLIC_REPAIR.value in project.workflow.stage_values:
-        from driver_port_factory.migration.public_repair import PublicRepairService
+    if S.FINAL_EVIDENCE_REVIEW.value in project.workflow.stage_values:
+        from driver_port_factory.migration.final_evidence_review import FinalEvidenceReviewService
 
         report.write_text("Synthetic independent fixture review.\n")
-        PublicRepairService().finalize(project, review_path=report)
+        FinalEvidenceReviewService().finalize(project, review_path=report)
     return project, worktree, report

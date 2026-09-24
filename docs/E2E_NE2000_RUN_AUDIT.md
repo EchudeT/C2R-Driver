@@ -39,7 +39,7 @@
 | 18 | target_compliance | 新一轮 `VIOLATION` 确认三个真实实现缺陷并已回到阶段 17 修复。修复后的复查仍读取工厂校验器/测试并累计约 315 万 token，已在产出响应前停止。 | 合规只保留 Skill Phase 7；Phase 8 计划移到阶段 19；见 O11、O12。 |
 | 19 | artifact_preparation | 等待。 | 必须证明 artifact 含当前实现，不能只证明编译命令成功。 |
 | 20 | public_qemu_validation | 未运行。 | 之后须按 Skill evidence ladder 记录适用/不适用/阻塞项；执行命令必须由 harness 实际判定预声明 oracle，不能把单纯退出码当作 oracle。 |
-| 21 | public_repair | 等待。 | 仅对公开失败证据作一次有归因的最小修复。 |
+| 21 | final_evidence_review | 等待。 | 仅对公开失败证据作一次有归因的最小修复。 |
 | 22 | completion_audit | 等待。 | 静态汇总各 contract/test 状态，不生成乐观总 PASS。 |
 
 ## 优化记录

@@ -8,7 +8,7 @@ from ..core.models import GeneratedArtifact, StageStatus, WorkflowError
 from ..core.validation import json_object
 from ..target_study.contracts import TargetStudyArtifact, TargetStudyStage
 from .contracts import MigrationArtifact as A, MigrationStage as S
-from .public_repair import PublicRepairService
+from .review_policy import review_policy_digest
 
 
 INPUTS = (
@@ -30,7 +30,7 @@ class AnalysisReviewService:
 
     @staticmethod
     def policy(project, skill_root=None):
-        return PublicRepairService.policy_digest(project, skill_root, S.ANALYSIS_REVIEW)
+        return review_policy_digest(project, skill_root, S.ANALYSIS_REVIEW)
 
     @classmethod
     def reusable(cls, project, skill_root=None):

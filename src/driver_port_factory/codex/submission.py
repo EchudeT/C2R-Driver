@@ -62,7 +62,8 @@ def _workspace_file(project: Project, stage: StageKey, value: str, *, kind: str)
     if (kind == "report" and stage in CodexExecutionPolicy.WRITABLE_STAGES
             and root / ".dpf-output" not in path.parents):
         raise WorkflowError(
-            "reports for implementation, artifact and public-runtime stages must be under .dpf-output"
+            "reports for target-framework, implementation, artifact and public-runtime stages "
+            "must be under .dpf-output"
         )
     try:
         mode = path.lstat().st_mode

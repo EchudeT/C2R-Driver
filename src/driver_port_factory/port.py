@@ -47,7 +47,8 @@ from .migration.contracts import MigrationArtifact, MigrationStage
 from .migration.handoff import MigrationHandoff
 from .migration.implementation import DriverImplementationService, ImplementationChanged
 from .migration.public_qemu import PublicQemuService
-from .migration.public_repair import PublicRepairService
+from .migration.final_evidence_review import FinalEvidenceReviewService
+from .migration.target_framework import TargetFrameworkEnablementService
 from .migration.repair_routing import (
     ROUTES,
     PrerequisiteRepair,
@@ -69,6 +70,8 @@ class PortOptions:
     codex_bin: str
     model: str | None
     baseline_repositories: tuple[Path, ...] = ()
+    enable_analysis_review: bool | None = None
+    enable_final_evidence_review: bool | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -102,10 +105,11 @@ class PortRunner:
             MigrationStage.HANDOFF: self._handoff,
             MigrationStage.CONTRACTS: self._contracts,
             MigrationStage.ANALYSIS_REVIEW: self._analysis_review,
+            MigrationStage.TARGET_FRAMEWORK_ENABLEMENT: self._target_framework_enablement,
             MigrationStage.DRIVER_IMPLEMENTATION: self._implementation,
             MigrationStage.ARTIFACT_PREPARATION: self._artifact_preparation,
             MigrationStage.PUBLIC_QEMU_VALIDATION: self._public_qemu,
-            MigrationStage.PUBLIC_REPAIR: self._public_repair,
+            MigrationStage.FINAL_EVIDENCE_REVIEW: self._final_evidence_review,
         }
 
     def run(self) -> PortOutcome:
@@ -117,13 +121,19 @@ class PortRunner:
         while True:
             stage = self._current(project)
             if stage is None:
-                review = project.artifact(MigrationStage.PUBLIC_REPAIR, MigrationArtifact.PUBLIC_REPAIR_REPORT)
-                report = json.loads(project.artifacts.read(review))["review"]
+                final_stage = project.stages()[-1]
+                report_path = None
+                if MigrationStage.FINAL_EVIDENCE_REVIEW.value in project.workflow.stage_values:
+                    review = project.artifact(
+                        MigrationStage.FINAL_EVIDENCE_REVIEW, MigrationArtifact.FINAL_EVIDENCE_REVIEW_REPORT
+                    )
+                    report = json.loads(project.artifacts.read(review))["review"]
+                    report_path = str(project.artifacts.path_for_digest(report["sha256"]))
                 return PortOutcome(
-                    MigrationStage.PUBLIC_REPAIR.value,
+                    final_stage.name.value,
                     StageStatus.PASS,
                     "complete",
-                    str(project.artifacts.path_for_digest(report["sha256"])),
+                    report_path,
                 )
             if stage.status is StageStatus.WAITING_FOR_USER:
                 return PortOutcome(
@@ -187,6 +197,16 @@ class PortRunner:
             if self.options.baseline_repositories and tuple(str(path.resolve()) for path in
                     self.options.baseline_repositories) != project.config.baseline_repositories:
                 raise WorkflowError("supplied baseline repositories differ from the persisted run configuration")
+            for option_name, option_value, config_value in (
+                ("analysis_review", self.options.enable_analysis_review,
+                 project.config.enable_analysis_review),
+                ("final_evidence_review", self.options.enable_final_evidence_review,
+                 project.config.enable_final_evidence_review),
+            ):
+                if option_value is not None and option_value != config_value:
+                    raise WorkflowError(
+                        f"supplied {option_name} setting differs from the persisted run configuration"
+                    )
             return project
         return initialize_project(
             workspace,
@@ -199,6 +219,14 @@ class PortRunner:
                 actor_role=ActorRole.DEVELOPER,
                 skill_root=str(self.options.skill_root.resolve()),
                 baseline_repositories=tuple(str(path.resolve()) for path in self.options.baseline_repositories),
+                enable_analysis_review=(
+                    True if self.options.enable_analysis_review is None
+                    else self.options.enable_analysis_review
+                ),
+                enable_final_evidence_review=(
+                    True if self.options.enable_final_evidence_review is None
+                    else self.options.enable_final_evidence_review
+                ),
             ),
         )
 
@@ -736,6 +764,31 @@ class PortRunner:
             policy_digest=self._review_job_policy(project, MigrationStage.ANALYSIS_REVIEW, job),
             skill_root=self.options.skill_root)
 
+    def _target_framework_enablement(self, project: Project) -> None:
+        self._codex_gate(
+            project,
+            MigrationStage.TARGET_FRAMEWORK_ENABLEMENT,
+            self._migration_context(
+                project,
+                (
+                    (MigrationStage.HANDOFF, MigrationArtifact.HANDOFF),
+                    (MigrationStage.CONTRACTS, MigrationArtifact.CONTRACTS),
+                    (MigrationStage.CONTRACTS, MigrationArtifact.TEST_PORT_MATRIX),
+                    (TargetStudyStage.STUDY, TargetStudyArtifact.REPORT),
+                    (KnowledgeStage.KNOWLEDGE_BASE, KnowledgeArtifact.QUERY_CONTRACT),
+                ),
+            ),
+            self._accept_target_framework_enablement,
+        )
+
+    def _accept_target_framework_enablement(
+        self, project: Project, job: ArtifactOccurrence
+    ) -> None:
+        report = self._materialize_codex_report(
+            project, MigrationStage.TARGET_FRAMEWORK_ENABLEMENT, job
+        )
+        TargetFrameworkEnablementService().snapshot_worktree(project, report)
+
     def _implementation(self, project: Project) -> None:
         from .migration.repair_execution import active, prepared
         report = prepared(project) if active(project, MigrationStage.DRIVER_IMPLEMENTATION) else None
@@ -753,6 +806,8 @@ class PortRunner:
                     (MigrationStage.HANDOFF, MigrationArtifact.HANDOFF),
                     (MigrationStage.CONTRACTS, MigrationArtifact.CONTRACTS),
                     (MigrationStage.CONTRACTS, MigrationArtifact.TEST_PORT_MATRIX),
+                    (MigrationStage.TARGET_FRAMEWORK_ENABLEMENT,
+                     MigrationArtifact.TARGET_FRAMEWORK_BUNDLE),
                     (KnowledgeStage.KNOWLEDGE_BASE, KnowledgeArtifact.QUERY_CONTRACT),
                     (KnowledgeStage.KNOWLEDGE_BASE, KnowledgeArtifact.GENERATED_SKILL),
                     (TargetStudyStage.STUDY, TargetStudyArtifact.REPORT),
@@ -799,6 +854,10 @@ class PortRunner:
                     (MigrationStage.CONTRACTS, MigrationArtifact.TEST_PORT_MATRIX),
                     (MigrationStage.DRIVER_IMPLEMENTATION, MigrationArtifact.IMPLEMENTATION_BUNDLE),
                     (MigrationStage.DRIVER_IMPLEMENTATION, MigrationArtifact.COMPLIANCE_REPORT),
+                    (MigrationStage.TARGET_FRAMEWORK_ENABLEMENT,
+                     MigrationArtifact.TARGET_FRAMEWORK_BUNDLE),
+                    (MigrationStage.TARGET_FRAMEWORK_ENABLEMENT,
+                     MigrationArtifact.TARGET_FRAMEWORK_CHANGE_INVENTORY),
                     (EnvironmentStage.RECOVERY, EnvironmentArtifact.MODE_RECORD),
                     (EnvironmentStage.RECOVERY, EnvironmentArtifact.EXPERIMENT_ROUTE),
                     (TargetStudyStage.STUDY, TargetStudyArtifact.REPORT),
@@ -925,15 +984,15 @@ class PortRunner:
             retry_prerequisite(project, MigrationStage.DRIVER_IMPLEMENTATION,
                 trigger=MigrationStage.PUBLIC_QEMU_VALIDATION, reason=str(error))
 
-    def _public_repair(self, project: Project) -> None:
-        if PublicRepairService.reusable_review(project, skill_root=self.options.skill_root) is not None:
-            PublicRepairService().finalize(project, reuse=True, skill_root=self.options.skill_root)
+    def _final_evidence_review(self, project: Project) -> None:
+        if FinalEvidenceReviewService.reusable_review(project, skill_root=self.options.skill_root) is not None:
+            FinalEvidenceReviewService().finalize(project, reuse=True, skill_root=self.options.skill_root)
             return
         review_context = {}
-        previous = [r for r in project.artifact_refs(stage=MigrationStage.PUBLIC_REPAIR)
+        previous = [r for r in project.artifact_refs(stage=MigrationStage.FINAL_EVIDENCE_REVIEW)
                     if r.kind == CodexArtifact.WORK_REPORT.value]
         if not previous:
-            previous = [r for r in project.artifact_refs(stage=MigrationStage.PUBLIC_REPAIR)
+            previous = [r for r in project.artifact_refs(stage=MigrationStage.FINAL_EVIDENCE_REVIEW)
                         if r.kind == CodexArtifact.JOB_RESULT.value]
         if previous:
             ref = max(previous, key=lambda r: r.ordinal)
@@ -942,29 +1001,42 @@ class PortRunner:
                 "digest": ref.digest, "kind": ref.kind,
                 "status": "historical findings; compare with current repair evidence"}
         self._codex_gate(
-            project, MigrationStage.PUBLIC_REPAIR,
+            project, MigrationStage.FINAL_EVIDENCE_REVIEW,
             self._migration_context(project, (
-                    (MigrationStage.HANDOFF, MigrationArtifact.HANDOFF),
-                    (MigrationStage.DRIVER_IMPLEMENTATION, MigrationArtifact.IMPLEMENTATION_BUNDLE),
+                    (MigrationStage.TARGET_FRAMEWORK_ENABLEMENT,
+                     MigrationArtifact.TARGET_FRAMEWORK_BUNDLE),
+                    (MigrationStage.TARGET_FRAMEWORK_ENABLEMENT,
+                     MigrationArtifact.TARGET_FRAMEWORK_REPORT),
+                    (MigrationStage.TARGET_FRAMEWORK_ENABLEMENT,
+                     MigrationArtifact.TARGET_FRAMEWORK_CHANGE_INVENTORY),
                     (MigrationStage.DRIVER_IMPLEMENTATION, MigrationArtifact.TARGET_CHANGE_INVENTORY),
-                    (TargetStudyStage.STUDY, TargetStudyArtifact.REPORT),
-                    (MigrationStage.CONTRACTS, MigrationArtifact.CONTRACTS),
-                    (MigrationStage.CONTRACTS, MigrationArtifact.TEST_PORT_MATRIX),
                     (MigrationStage.DRIVER_IMPLEMENTATION, MigrationArtifact.COMPLIANCE_REPORT),
                     (MigrationStage.ARTIFACT_PREPARATION, MigrationArtifact.ARTIFACT_IDENTITY),
                     (MigrationStage.PUBLIC_QEMU_VALIDATION, MigrationArtifact.PUBLIC_QEMU_REPORT),
                     (MigrationStage.PUBLIC_QEMU_VALIDATION, MigrationArtifact.PUBLIC_QEMU_WORK_REPORT),
-            ), extra=review_context),
+            ), extra={
+                **review_context,
+                "implementation_snapshot": self._implementation_review_context(project),
+                "frozen_acceptance_oracles": {
+                    "contracts": self._artifact_digest_context(
+                        project, MigrationStage.CONTRACTS, MigrationArtifact.CONTRACTS
+                    ),
+                    "test_matrix": self._artifact_digest_context(
+                        project, MigrationStage.CONTRACTS, MigrationArtifact.TEST_PORT_MATRIX
+                    ),
+                },
+            }, include_implementation_bundle=False, include_review_history=False,
+            include_knowledge_skill=False),
             self._accept_runtime_review,
         )
 
     def _accept_runtime_review(self, project: Project, job: ArtifactOccurrence) -> None:
-        report = self._materialize_codex_report(project, MigrationStage.PUBLIC_REPAIR, job)
-        submission = self._submission_for_job(project, MigrationStage.PUBLIC_REPAIR, job)
+        report = self._materialize_codex_report(project, MigrationStage.FINAL_EVIDENCE_REVIEW, job)
+        submission = self._submission_for_job(project, MigrationStage.FINAL_EVIDENCE_REVIEW, job)
         if not submission or submission.get("decision") != "pass":
             raise CodexOutputError("independent review must be submitted with the pass decision")
-        policy = self._review_job_policy(project, MigrationStage.PUBLIC_REPAIR, job)
-        PublicRepairService().finalize(project, review_path=report, policy_digest=policy,
+        policy = self._review_job_policy(project, MigrationStage.FINAL_EVIDENCE_REVIEW, job)
+        FinalEvidenceReviewService().finalize(project, review_path=report, policy_digest=policy,
                                       skill_root=self.options.skill_root)
 
     def _migration_context(
@@ -973,6 +1045,9 @@ class PortRunner:
         inputs: tuple[tuple[StageKey, ArtifactKey], ...],
         *,
         extra: dict[str, object] | None = None,
+        include_implementation_bundle: bool = True,
+        include_review_history: bool = True,
+        include_knowledge_skill: bool = True,
     ) -> dict[str, object]:
         acquisition = load_repository_acquisition(project)
         context: dict[str, object] = {
@@ -984,14 +1059,15 @@ class PortRunner:
                                         "revision": record.resolved_commit}
                     for record in acquisition.checkouts
                 },
-                "knowledge_skill": self._artifact_context(
-                    project, KnowledgeStage.KNOWLEDGE_BASE, KnowledgeArtifact.GENERATED_SKILL
-                )["path"],
             },
             "frozen_inputs": {
                 kind.value: self._artifact_context(project, owner, kind) for owner, kind in inputs
             }
         }
+        if include_knowledge_skill:
+            context["workspace_paths"]["knowledge_skill"] = self._artifact_context(
+                project, KnowledgeStage.KNOWLEDGE_BASE, KnowledgeArtifact.GENERATED_SKILL
+            )["path"]
         context.update(extra or {})
         from .migration.repair_execution import active
         if any(active(project, stage) for stage in (
@@ -1000,12 +1076,15 @@ class PortRunner:
                 project, EnvironmentStage.RECOVERY, EnvironmentArtifact.MODE_RECORD)
         # Every downstream migration task gets the current implementation identity,
         # not only a prose coverage report or a stale reference in session history.
-        if project.stage(MigrationStage.DRIVER_IMPLEMENTATION).status is StageStatus.PASS:
+        if (include_implementation_bundle
+                and project.stage(MigrationStage.DRIVER_IMPLEMENTATION).status is StageStatus.PASS):
             context["frozen_inputs"][MigrationArtifact.IMPLEMENTATION_BUNDLE.value] = self._artifact_context(
                 project, MigrationStage.DRIVER_IMPLEMENTATION, MigrationArtifact.IMPLEMENTATION_BUNDLE)
+        if not include_review_history:
+            return context
         for stage, key in ((MigrationStage.ANALYSIS_REVIEW, "analysis_review_path"),
                            (MigrationStage.PUBLIC_QEMU_VALIDATION, "runtime_work_report_path"),
-                           (MigrationStage.PUBLIC_REPAIR, "runtime_review_path")):
+                           (MigrationStage.FINAL_EVIDENCE_REVIEW, "runtime_review_path")):
             if stage.value not in project.workflow.stage_values:
                 continue
             repair = project.retry_feedback(stage)
@@ -1017,6 +1096,28 @@ class PortRunner:
                 latest = max(reports, key=lambda ref: ref.ordinal or 0)
                 context[key] = str(project.artifacts.path_for_digest(latest.digest))
         return context
+
+    @staticmethod
+    def _artifact_digest_context(
+        project: Project, stage: StageKey, kind: ArtifactKey,
+    ) -> dict[str, object]:
+        reference = project.artifact(stage, kind)
+        return {"kind": reference.kind, "digest": reference.digest, "size_bytes": reference.size}
+
+    @staticmethod
+    def _implementation_review_context(project: Project) -> dict[str, object]:
+        bundle = project.load_json_artifact(
+            MigrationStage.DRIVER_IMPLEMENTATION, MigrationArtifact.IMPLEMENTATION_BUNDLE
+        )
+        reference = project.artifact(
+            MigrationStage.DRIVER_IMPLEMENTATION, MigrationArtifact.IMPLEMENTATION_BUNDLE
+        )
+        return {
+            "bundle_digest": reference.digest,
+            "target_worktree": bundle["target_worktree"],
+            "files": bundle["files"],
+            "work_report": bundle["work_report"],
+        }
 
 
 def _default_skill_root() -> Path:
@@ -1037,6 +1138,8 @@ def command_port_run(arguments: argparse.Namespace) -> None:
             codex_bin=arguments.codex_bin,
             model=arguments.model,
             baseline_repositories=tuple(Path(path).resolve() for path in arguments.baseline_repository),
+            enable_analysis_review=arguments.analysis_review,
+            enable_final_evidence_review=arguments.final_evidence_review,
         )
     ).run()
     print(json.dumps(outcome.to_dict(), ensure_ascii=False, sort_keys=True, indent=2))
@@ -1059,4 +1162,12 @@ def register_commands(commands: CommandRegistry) -> None:
     )
     run.add_argument("--codex-bin", default="codex")
     run.add_argument("--model")
+    run.add_argument(
+        "--analysis-review", action=argparse.BooleanOptionalAction, default=None,
+        help="enable or disable stage 13 analysis review (default: enabled)",
+    )
+    run.add_argument(
+        "--final-evidence-review", action=argparse.BooleanOptionalAction, default=None,
+        help="enable or disable stage 18 final evidence review (default: enabled; required for blind mode)",
+    )
     run.set_defaults(handler=command_port_run)

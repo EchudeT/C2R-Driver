@@ -5,10 +5,11 @@ class MigrationStage(StrEnum):
     HANDOFF = "migration_handoff"
     CONTRACTS = "migration_contracts"
     ANALYSIS_REVIEW = "analysis_review"
+    TARGET_FRAMEWORK_ENABLEMENT = "target_framework_enablement"
     DRIVER_IMPLEMENTATION = "driver_implementation"
     ARTIFACT_PREPARATION = "artifact_preparation"
     PUBLIC_QEMU_VALIDATION = "public_qemu_validation"
-    PUBLIC_REPAIR = "public_repair"
+    FINAL_EVIDENCE_REVIEW = "final_evidence_review"
     COMPLETION_AUDIT = "completion_audit"
 
 
@@ -17,6 +18,9 @@ class MigrationArtifact(StrEnum):
     CONTRACTS = "migration_contracts"
     TEST_PORT_MATRIX = "test_port_matrix"
     ANALYSIS_REVIEW_REPORT = "analysis_review_report"
+    TARGET_FRAMEWORK_BUNDLE = "target_framework_enablement_bundle"
+    TARGET_FRAMEWORK_REPORT = "target_framework_enablement_report"
+    TARGET_FRAMEWORK_CHANGE_INVENTORY = "target_framework_change_inventory"
     IMPLEMENTATION_BUNDLE = "driver_implementation_bundle"
     TARGET_CHANGE_INVENTORY = "target_change_inventory"
     COMPLIANCE_REPORT = "compliance_report"
@@ -27,7 +31,7 @@ class MigrationArtifact(StrEnum):
     PUBLIC_QEMU_ATTEMPT = "public_qemu_attempt"
     PUBLIC_QEMU_REPORT = "public_qemu_report"
     PUBLIC_QEMU_WORK_REPORT = "public_qemu_work_report"
-    PUBLIC_REPAIR_REPORT = "public_repair_report"
+    FINAL_EVIDENCE_REVIEW_REPORT = "final_evidence_review_report"
     EVIDENCE_AUDIT = "evidence_audit"
 
 

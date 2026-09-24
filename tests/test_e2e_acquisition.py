@@ -85,7 +85,7 @@ def test_single_download_selection_to_frozen_baselines(tmp_path, interrupt):
     assert model.call_count == 1
     assert fetches == list(RepositoryRole)
     assert project.stage(S.REPOSITORY_ACQUISITION).status.value == "PASS"
-    assert len(project.stages()) == 17
+    assert len(project.stages()) == 18
     assert "revision_selection" not in project.workflow.stage_values
     frozen = project.load_json_artifact(S.REPOSITORY_ACQUISITION, A.REVISION_MANIFEST)
     assert frozen["source"]["revision"] == git("rev-parse", "v2.0.0^{commit}", cwd=source)

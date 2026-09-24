@@ -43,17 +43,22 @@ def migration_workflow(config: ProjectConfig) -> tuple[StageSpec, ...]:
         previous = EvaluationStage.BLIND_BINDING
 
     previous = append_linear(specs, _migration_rows(config), previous, MIGRATION_ROLES)
-    specs.append(
-        stage_spec(
-            MigrationStage.PUBLIC_REPAIR,
-            "Independent AI checks functional completion against original requirements and actual evidence.",
-            StageOwner.CODEX,
-            previous,
-            (MigrationArtifact.PUBLIC_REPAIR_REPORT,),
-            MIGRATION_ROLES,
-            prerequisites=(MigrationStage.DRIVER_IMPLEMENTATION, MigrationStage.CONTRACTS),
+    if config.enable_final_evidence_review:
+        specs.append(
+            stage_spec(
+                MigrationStage.FINAL_EVIDENCE_REVIEW,
+                "Independent AI checks functional completion against original requirements and actual evidence.",
+                StageOwner.CODEX,
+                previous,
+                (MigrationArtifact.FINAL_EVIDENCE_REVIEW_REPORT,),
+                MIGRATION_ROLES,
+                prerequisites=(MigrationStage.DRIVER_IMPLEMENTATION,
+                               MigrationStage.CONTRACTS,
+                               MigrationStage.TARGET_FRAMEWORK_ENABLEMENT,
+                               MigrationStage.ARTIFACT_PREPARATION),
+            )
         )
-    )
+        previous = MigrationStage.FINAL_EVIDENCE_REVIEW
     if config.evaluation_mode is EvaluationMode.DEVELOPER_EVIDENCE:
         return _data_dependencies(tuple(specs))
     specs.append(
@@ -61,7 +66,7 @@ def migration_workflow(config: ProjectConfig) -> tuple[StageSpec, ...]:
             SealingStage.CANDIDATE_SEALING,
             "Seal an immutable candidate manifest and digest.",
             StageOwner.STATIC,
-            MigrationStage.PUBLIC_REPAIR,
+            previous,
             (
                 SealingArtifact.CANDIDATE_MANIFEST,
                 SealingArtifact.CANDIDATE_BUNDLE,
@@ -256,7 +261,26 @@ def _migration_rows(config: ProjectConfig) -> tuple[StageRow, ...]:
             prerequisites=(TargetStudyStage.STUDY, MigrationStage.HANDOFF,
                            AcquisitionStage.EVIDENCE_CLOSURE,
                            EnvironmentStage.RECOVERY),
-        ),) if config.evaluation_mode is EvaluationMode.DEVELOPER_EVIDENCE else ()),
+        ),) if (
+            config.evaluation_mode is EvaluationMode.DEVELOPER_EVIDENCE
+            and config.enable_analysis_review
+        ) else ()),
+        StageRow(
+            MigrationStage.TARGET_FRAMEWORK_ENABLEMENT,
+            "Implement and validate the minimal target framework interfaces required by the frozen migration contracts.",
+            StageOwner.CODEX,
+            (
+                MigrationArtifact.TARGET_FRAMEWORK_BUNDLE,
+                MigrationArtifact.TARGET_FRAMEWORK_REPORT,
+                MigrationArtifact.TARGET_FRAMEWORK_CHANGE_INVENTORY,
+            ),
+            prerequisites=(
+                MigrationStage.HANDOFF,
+                MigrationStage.CONTRACTS,
+                TargetStudyStage.STUDY,
+                KnowledgeStage.KNOWLEDGE_BASE,
+            ),
+        ),
         StageRow(
             MigrationStage.DRIVER_IMPLEMENTATION,
             "Reconstruct the Rust driver, public tests, coverage, and minimal integration.",
@@ -269,6 +293,7 @@ def _migration_rows(config: ProjectConfig) -> tuple[StageRow, ...]:
             prerequisites=(
                 MigrationStage.HANDOFF,
                 MigrationStage.CONTRACTS,
+                MigrationStage.TARGET_FRAMEWORK_ENABLEMENT,
                 TargetStudyStage.STUDY,
                 KnowledgeStage.KNOWLEDGE_BASE,
             ),
@@ -282,6 +307,7 @@ def _migration_rows(config: ProjectConfig) -> tuple[StageRow, ...]:
             prerequisites=(
                 MigrationStage.HANDOFF,
                 MigrationStage.DRIVER_IMPLEMENTATION,
+                MigrationStage.TARGET_FRAMEWORK_ENABLEMENT,
                 EnvironmentStage.RECOVERY,
             ),
         ),

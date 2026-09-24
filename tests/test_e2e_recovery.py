@@ -93,7 +93,7 @@ def test_public_acceptance_reaches_completion_without_rejecting_same_receipt(tmp
         "Synthetic acceptance exercising the control path only.\n"
     )
     accept_decision(project, M.PUBLIC_QEMU_VALIDATION, caught.value.path, decision)
-    assert project.stage(M.PUBLIC_REPAIR).status is StageStatus.READY
+    assert project.stage(M.FINAL_EVIDENCE_REVIEW).status is StageStatus.READY
     assert (
         project.load_json_artifact(M.PUBLIC_QEMU_VALIDATION, B.PUBLIC_QEMU_REPORT)[
             "execution_status"

@@ -54,6 +54,19 @@ def ready_implementation(root: Path, *, plan=True, reviewed=True):
         AnalysisReviewService.finalize(project,
             text="Synthetic analysis review fixture; not real evidence.\n",
             policy_digest=AnalysisReviewService.policy(project))
+    # The target framework gate is a real prerequisite of implementation. This
+    # fixture represents a target with no framework edits while preserving the
+    # same immutable enablement snapshot and report contract. When the analysis
+    # review is intentionally left open, the runner owns this stage later.
+    if reviewed:
+        project.start(MigrationStage.TARGET_FRAMEWORK_ENABLEMENT)
+        framework_report = project.root / "target-framework-report.md"
+        framework_report.write_text(
+            "Synthetic target framework enablement fixture; no target edits required.\n"
+            "DPF_SELF_REVIEW: PASS\n"
+        )
+        from driver_port_factory.migration.target_framework import TargetFrameworkEnablementService
+        TargetFrameworkEnablementService().snapshot_worktree(project, framework_report)
     return project
 
 

@@ -52,7 +52,7 @@
   <rect width="2400" height="1900" fill="#FCFCFD"/>
 
   <text x="70" y="72" class="title">C2Rust 内核驱动迁移科研流程</text>
-  <text x="70" y="112" class="subtitle">Developer-evidence 模式 · 17 个阶段 · Skill 原文指导 + 工具化状态控制 + 两个独立审查关口</text>
+  <text x="70" y="112" class="subtitle">Developer-evidence 模式 · 18 个阶段 · Skill 原文指导 + 工具化状态控制 + 两个独立审查关口</text>
 
   <!-- Legend -->
   <rect x="70" y="145" width="18" height="18" rx="3" fill="#D1FADF" stroke="#039855"/>
@@ -355,7 +355,7 @@
     <rect width="550" height="285" class="box" stroke="#FDB022"/>
     <rect width="550" height="8" rx="4" fill="#DC6803"/>
     <use href="#icon-verified" x="508" y="14" width="24" height="24" style="color:#DC6803"/>
-    <text x="20" y="42" class="stage-title">17　最终独立证据审查</text>
+    <text x="20" y="42" class="stage-title">18　最终独立证据审查</text>
     <text x="458" y="42" class="owner" fill="#B54708">审查 AI</text>
     <text x="20" y="80" class="body">
       <tspan x="20" dy="0">• 对照范围、契约、测试和实际代码</tspan>

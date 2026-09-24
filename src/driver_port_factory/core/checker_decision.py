@@ -7,6 +7,7 @@ from uuid import uuid4
 
 from .models import ArtifactContent, ArtifactRef, WorkflowError
 from .recovery_state import fingerprint
+from .artifact_identity import substantive_artifact_identity_digest
 
 
 class CheckerDecisionRequired(WorkflowError):
@@ -19,10 +20,44 @@ class RecoveryPaused(WorkflowError):
     """Do not turn a stalled stage into an unlimited sequence of paid turns."""
 
 
+_DERIVED_RECEIPT_INPUTS = frozenset({
+    "artifact_preparation_attempt",
+    "public_qemu_attempt",
+    "target_framework_enablement_report",
+    "compliance_report",
+    "public_qemu_work_report",
+})
+
+
+def _substantive_input(project, ref) -> dict | None:
+    """Return the input identity that can invalidate executable work.
+
+    Human-readable reports and execution attempts are audit metadata.  The
+    artifact identity is retained, but its attempt/report pointers are removed
+    so refreshing a receipt cannot reset the unchanged-input recovery guard.
+    """
+    if ref.kind in _DERIVED_RECEIPT_INPUTS:
+        return None
+    value = ref.to_dict()
+    if ref.kind == "artifact_identity":
+        identity = json.loads(project.artifacts.read(ref))
+        value = {
+            "kind": ref.kind,
+            "semantic_sha256": substantive_artifact_identity_digest(identity),
+        }
+    return value
+
+
 def stage_inputs(project, stage) -> list[dict]:
-    return [ref.to_dict() for dependency in project.workflow.spec(stage).dependencies
-            for ref in project.current_artifact_refs(stage=dependency)
-            if not ref.kind.startswith("codex_")]
+    result = []
+    for dependency in project.workflow.spec(stage).dependencies:
+        for ref in project.current_artifact_refs(stage=dependency):
+            if ref.kind.startswith("codex_"):
+                continue
+            identity = _substantive_input(project, ref)
+            if identity is not None:
+                result.append(identity)
+    return result
 
 
 def request_decision(project, stage, refs, findings) -> None:

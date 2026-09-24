@@ -71,12 +71,13 @@ WorkflowDefinition   ValidationRegistry
 | 4 编码前迁移合同 | `migration_contracts` |
 | 5 公开测试筛选与映射 | 同一个 `migration_contracts` 调用和报告 |
 | 2–5 分析证据核验 | `analysis_review`：封存设计阶段前由独立审查者合并核对原文、契约与测试断言 |
-| 6 Rust 设计与实现 | `driver_implementation`，含测试适配 |
-| 7 目标合规复核 | 工作者在实现阶段自检，无独立模型节点 |
-| 8 runtime artifact 与公开 QEMU ladder | `artifact_preparation` → `public_qemu_validation` |
-| 9 归因与窄修复 | 原工作者归因、自检与窄修复；独立检查者核对功能和原始证据，最终报告替代程序汇总 |
-| 10 盲测候选封存 | 仅 blind mode 增加 candidate sealing 与 export/transfer |
-| 11 最终证据审计 | 开发模式为 `public_repair` 独立功能审查；blind mode 另保留 `completion_audit` |
+| 6 目标框架能力补齐 | `target_framework_enablement`：实现合同确认的缺失接口，封存目标快照 |
+| 7 Rust 设计与实现 | `driver_implementation`，只消费目标框架快照，含测试适配 |
+| 8 目标合规复核 | 工作者在实现阶段自检，无独立模型节点 |
+| 9 runtime artifact 与公开 QEMU ladder | `artifact_preparation` → `public_qemu_validation` |
+| 10 归因与窄修复 | 原工作者归因、自检与窄修复；独立检查者核对功能和原始证据，最终报告替代程序汇总 |
+| 11 盲测候选封存 | 仅 blind mode 增加 candidate sealing 与 export/transfer |
+| 12 最终证据审计 | 开发模式为 `final_evidence_review` 独立功能审查；blind mode 另保留 `completion_audit` |
 
 `PROSPECTIVE_BLIND` 在迁移前增加 public bundle/commitment binding；
 `POST_HOC_SEALED_BLIND` 只在候选封存后导出 opaque digest。curator、evaluator、auditor 使用

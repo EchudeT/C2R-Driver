@@ -26,10 +26,11 @@ Skill 和各阶段已有输入为准。
 | 11 `migration_handoff` | evidence_and_design | 绑定前置证据并生成下游交接 | 受影响的交接记录 |
 | 12 `migration_contracts` | evidence_and_design | 形成源码分析、迁移契约和测试来源记录 | 编译/预处理/布局/ABI/效果事实、契约或测试断言来源 |
 | 13 `analysis_review` | evidence_and_design | 独立审查目标研究、分析、契约和测试计划 | 按问题类型回到第 7、10 或 12 阶段 |
-| 14 `driver_implementation` | delivery | 生成 Rust 实现、适配测试和源快照 | 改动源码或实现快照 |
-| 15 `artifact_preparation` | delivery | 构建、打包并证明运行产物身份 | 打包、镜像、入口或产物身份 |
-| 16 `public_qemu_validation` | delivery | 执行公开 QEMU harness 并保存 receipt | 未变更产物的 harness、oracle 或运行证据 |
-| 17 `public_repair` | delivery | 独立审查最终代码、产物、测试和运行证据 | 按交付阶段归属回退；不自动回到已封存的设计阶段 |
+| 14 `target_framework_enablement` | delivery | 实现并验证合同所需的最小目标框架/API 能力，封存目标改动 | 目标框架能力、接口或其验证；不改驱动 |
+| 15 `driver_implementation` | delivery | 生成 Rust 实现、适配测试和源快照；只消费第 14 步快照 | 改动源码或实现快照 |
+| 16 `artifact_preparation` | delivery | 构建、打包并证明运行产物身份 | 打包、镜像、入口或产物身份 |
+| 17 `public_qemu_validation` | delivery | 执行公开 QEMU harness 并保存 receipt | 未变更产物的 harness、oracle 或运行证据 |
+| 18 `final_evidence_review` | delivery | 独立审查最终代码、目标框架、产物、测试和运行证据 | 按交付阶段归属回退；不自动回到已封存的设计阶段 |
 
 第 7、10、12 阶段的边界必须区分：
 
@@ -37,6 +38,9 @@ Skill 和各阶段已有输入为准。
 - 缺少目标 API 定义、类比调用点、初始化/选择顺序或目标修改必要性证据，回第 10 阶段。
 - 缺少 C 编译配置、生成定义、预处理输出、结构体布局、ABI、volatile I/O 效果、
   翻译契约或测试刺激/断言来源，回第 12 阶段。
+
+目标研究只记录能力缺口；第 14 步才实现已由合同确认的目标框架能力。第 15 步不得再次修改
+第 14 步封存的目标文件；若两者路径重叠或目标快照漂移，必须回到第 14 步处理。
 
 阶段状态 `PASS` 只表示该阶段的本地产物和自检被接受。第 12 阶段的 `PASS` 不等于
 设计已经通过；在第 13 阶段独立审查通过并以提交工具提交 `pass` 前，不能进入实现。

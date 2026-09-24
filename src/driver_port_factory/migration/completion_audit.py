@@ -52,7 +52,7 @@ class CompletionAuditService:
             project, MigrationStage.PUBLIC_QEMU_VALIDATION, MigrationArtifact.PUBLIC_QEMU_REPORT
         )
         repair = self._document(
-            project, MigrationStage.PUBLIC_REPAIR, MigrationArtifact.PUBLIC_REPAIR_REPORT)
+            project, MigrationStage.FINAL_EVIDENCE_REVIEW, MigrationArtifact.FINAL_EVIDENCE_REVIEW_REPORT)
         runs = list(public.get("runs", []))
         target_driver_ran = any(
             run.get("execution_status") == ContractExecutionStatus.PASS.value

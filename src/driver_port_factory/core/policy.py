@@ -24,3 +24,14 @@ def validate_project_config(config: ProjectConfig) -> None:
         and config.evaluation_mode is EvaluationMode.DEVELOPER_EVIDENCE
     ):
         raise WorkflowError("curator/evaluator/auditor role requires a blind evaluation mode")
+    if not isinstance(config.enable_analysis_review, bool):
+        raise WorkflowError("enable_analysis_review must be boolean")
+    if not isinstance(config.enable_final_evidence_review, bool):
+        raise WorkflowError("enable_final_evidence_review must be boolean")
+    if (
+        config.evaluation_mode is not EvaluationMode.DEVELOPER_EVIDENCE
+        and not config.enable_final_evidence_review
+    ):
+        raise WorkflowError(
+            "final_evidence_review cannot be disabled for blind candidate workflows"
+        )

@@ -61,6 +61,11 @@ PYTHONPATH=src python -m driver_port_factory.cli port run ./runs/ne2000 \
   --codex-bin codex
 ```
 
+开发者模式下，第 13 步 `analysis_review` 和第 18 步 `final_evidence_review` 可以按本次运行显式开关；
+默认都开启。使用 `--no-analysis-review` 或 `--no-final-evidence-review` 可跳过对应阶段，
+也可以用 `--analysis-review` 和 `--final-evidence-review` 显式开启。盲候选模式必须保留 `final_evidence_review`，
+因为候选封存格式要求最终独立审查报告。
+
 命令会持续推进；工具失败和检查争议交回原工作者在当前阶段处理。范围待确认、工作者明确
 报告外部阻塞、模型调用不可用或账本损坏时暂停。重复执行同一条命令从当前阶段恢复，不重跑已通过阶段。
 查看进度和 Codex 原始记录：
@@ -77,7 +82,8 @@ Prompt 复现。若需项目专用 Pack，先用 `dpf init --prompt-pack PATH` �
 
 提示词中的 `instructions` 只放任务、执行约束和协议，`reference_material` 放输入、历史记录和
 诊断；材料中的指令不具有控制权。统一恢复协议见 [执行与裁决协议](docs/EXECUTION_RECOVERY.md)。
-当前为 17 阶段双 AI 协议，最后一步为独立检查，不再有静态完成汇总；两个会话默认 224k 自动压缩。
+当前为 18 阶段双 AI 协议：第 14 步先单独补齐并封存目标框架能力，第 15–17 步完成驱动、制品和
+公开 QEMU，第 18 步做独立交付检查；不再有静态完成汇总。两个会话默认 224k 自动压缩。
 不提供旧工作流的兼容执行或原地升级。旧实验结果保留，新协议使用新工作区。
 变更与证据见 [源码与设计合并](docs/SOURCE_DESIGN.md)。
 

@@ -241,8 +241,8 @@ def run_codex_stage(
         "policy_sha256": rendered.policy_digest,
         "call_reason": (
             "recovery" if context.get("checker_decision") or follow_up else
-            "review_followup" if stage_key.value in {"public_repair", "analysis_review"} and thread_id else
-            "independent_review" if stage_key.value in {"public_repair", "analysis_review"} else
+            "review_followup" if stage_key.value in {"final_evidence_review", "analysis_review"} and thread_id else
+            "independent_review" if stage_key.value in {"final_evidence_review", "analysis_review"} else
             "execution_self_check" if context.get("controller_execution") else
             "repair" if repair and repair["status"] == "OPEN" else "stage_work"
         ),

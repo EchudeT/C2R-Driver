@@ -20,6 +20,7 @@ IMPLEMENTATION_INPUTS = (
     MigrationArtifact.HANDOFF,
     MigrationArtifact.CONTRACTS,
     MigrationArtifact.TEST_PORT_MATRIX,
+    MigrationArtifact.TARGET_FRAMEWORK_BUNDLE,
     KnowledgeArtifact.QUERY_CONTRACT,
     KnowledgeArtifact.GENERATED_SKILL,
     TargetStudyArtifact.REPORT,
@@ -75,6 +76,8 @@ def validate_worktree_snapshot(root: Path, bundle: dict) -> Path:
         raise WorkflowError("implementation worktree escapes project")
     try:
         files = worktree_files(worktree, bundle["target_worktree"]["base_commit"])
+        excluded = set(bundle.get("target_framework_files", ()))
+        files = [item for item in files if item["path"] not in excluded]
     except CodexOutputError as error:
         raise ImplementationChanged(str(error)) from error
     if files != bundle["files"]:
@@ -94,7 +97,23 @@ class DriverImplementationService:
             project.note_check(str(error))
         acquisition = load_repository_acquisition(project)
         worktree = (project.root / acquisition.target_worktree.path).resolve()
-        files = worktree_files(worktree, acquisition.target_worktree.base_commit)
+        framework = project.load_json_artifact(
+            MigrationStage.TARGET_FRAMEWORK_ENABLEMENT,
+            MigrationArtifact.TARGET_FRAMEWORK_BUNDLE,
+        )
+        framework_paths = {item["path"] for item in framework.get("files", ())}
+        # The target worktree contains both snapshots after enablement.  Validate
+        # the framework snapshot before filtering it; checking path names alone
+        # would reject every legitimate framework change as an overlap, while
+        # filtering without validation would let a driver edit a sealed target
+        # API file pass silently.
+        from .target_framework import _validate_files
+        try:
+            _validate_files(project.root, framework["target_worktree"], framework["files"])
+        except WorkflowError as error:
+            raise ImplementationChanged(str(error)) from error
+        all_files = worktree_files(worktree, acquisition.target_worktree.base_commit)
+        files = [item for item in all_files if item["path"] not in framework_paths]
         if not files:
             project.note_check("implementation has no changes relative to frozen upstream")
         inputs = self._inputs(project)
@@ -110,6 +129,7 @@ class DriverImplementationService:
                 "base_commit": acquisition.target_worktree.base_commit,
             },
             "files": files,
+            "target_framework_files": sorted(framework_paths),
             "work_report": report,
         }
         inventory = {

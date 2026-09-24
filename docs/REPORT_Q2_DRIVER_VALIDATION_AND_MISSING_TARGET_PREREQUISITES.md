@@ -379,7 +379,7 @@ status
 
 模型只能把报告和脚本写入工作区，再通过 `dpf codex submit` 提交；状态、CAS、hash、receipt、ledger 和阶段结果由程序处理。这样可以阻止模型用聊天中的 JSON、`PASS` 字样或改写旧报告来创建不存在的证据。
 
-### 5.2 DPF 17 个阶段的逐阶段验证表
+### 5.2 DPF 18 个阶段的逐阶段验证表
 
 下表是开发模式的实际阶段边界。它描述“该阶段应该验证什么”，不是要求每一行都启动一个独立模型。
 
@@ -398,10 +398,11 @@ status
 | 11 | `migration_handoff` | 把前置证据绑定成下游不可变 handoff | handoff 绑定当前 attempt 的 upstream artifacts、artifact mode、QEMU route、target profile、KB status、source tests、target changes 和 gaps；不读取过期历史替代当前依赖 | 交接绑定错误；修正静态组装，不重做上游 |
 | 12 | `migration_contracts` | 完成源码闭包、C 语义事实、硬件/源/目标/QEMU 合同和测试来源 | 每个行为有 source span/structured fact/contract/oracle；测试有 taxonomy/provenance；缺失事实为 `BLOCKED` 而非猜测；合同与 target evidence 一致 | 源材料回 7，目标事实回 10，C/ABI/effect/合同/测试断言回 12 |
 | 13 | `analysis_review` | 实现前独立审查研究、分析、合同和测试计划 | reviewer 一次完成指定范围并返回全部实质问题；每条意见引用审查报告行和冻结原文行；明确 PASS、最早责任阶段或真实 BLOCKED | 回 7/10/12；不能直接改代码 |
-| 14 | `driver_implementation` | 按合同生成 Rust、适配公开测试、完成必要最小改动和自检 | source coverage、unsafe obligations、target-change inventory、测试 provenance、changed-file snapshot、编译/静态检查证据一致；不以 skeleton/日志冒充功能 | 源代码/实现问题回 14；目标 API 证据问题回 10/12 |
-| 15 | `artifact_preparation` | 编译、注入、包装、打包并证明当前驱动进入产物 | base/payload/final hash、insertion/presence proof、variant、入口、runner 和最终 artifact 可复现；构建命令成功但身份不明不能 PASS | packaging/image/entry/identity 回 15；代码错误回 14 |
-| 16 | `public_qemu_validation` | 运行公开 harness 并保存不可覆盖 receipt | 运行前计划、唯一 run、进程所有权、artifact identity、每级 ladder oracle、stdout/stderr/serial/capture、expected-vs-actual 和归因齐全；失败 attempt 永久保留 | 未改 artifact 的 harness/oracle 回 16；源码回 14；包装回 15；QEMU 能力标 `QEMU_MODEL_BLOCKED` |
-| 17 | `public_repair` | 独立审查最终代码、产物、测试和原始运行证据 | 从原始需求重查；只接受可追溯的 PASS/FAIL/INCONCLUSIVE/BLOCKED；所有实质问题集中反馈，按最小影响阶段路由；通过不等于盲测通过 | 按交付问题回 14/15/16；已封存设计阶段不得自动静默重开 |
+| 14 | `target_framework_enablement` | 实现合同确认的最小目标框架/API 能力并单独封存 | necessity、直接目标证据、替代方案、安全影响、回滚、目标检查和 change inventory 一致；不改驱动、不引入 fallback/双路径 | 目标框架能力或快照漂移回 14；不把能力缺口推给驱动阶段 |
+| 15 | `driver_implementation` | 按合同生成 Rust、适配公开测试、完成必要最小改动和自检 | 只消费第 14 步快照；source coverage、unsafe obligations、target-change inventory、测试 provenance、changed-file snapshot、编译/静态检查证据一致 | 源代码/实现问题回 15；目标框架问题回 14 |
+| 16 | `artifact_preparation` | 编译、注入、包装、打包并证明当前驱动进入产物 | base/payload/final hash、insertion/presence proof、variant、入口、runner 和最终 artifact 可复现；构建命令成功但身份不明不能 PASS | packaging/image/entry/identity 回 16；代码错误回 15 |
+| 17 | `public_qemu_validation` | 运行公开 harness 并保存不可覆盖 receipt | 运行前计划、唯一 run、进程所有权、artifact identity、每级 ladder oracle、stdout/stderr/serial/capture、expected-vs-actual 和归因齐全；失败 attempt 永久保留 | 未改 artifact 的 harness/oracle 回 17；源码回 15；包装回 16；QEMU 能力标 `QEMU_MODEL_BLOCKED` |
+| 18 | `final_evidence_review` | 独立审查最终代码、目标框架、产物、冻结 contract/test oracle 和原始运行证据 | 只核对交付阶段证据；只接受可追溯的 PASS/FAIL/INCONCLUSIVE/BLOCKED；所有实质问题集中反馈，按最小影响阶段路由；通过不等于盲测通过 | 按交付问题回 14/15/16/17；不重新审查或静默重开已封存设计阶段 |
 
 ### 5.3 哪些是程序化、单 AI 和双 AI 验证
 
@@ -428,16 +429,17 @@ DPF 中的 `DEVELOPER_EVIDENCE` 不是“每个阶段都双 AI”。它采用成
 | 11 `migration_handoff` | P | 无 | 否 | 控制器按当前 attempt 绑定上游 artifact、KB、环境、target study 和缺口；不重新判断技术语义。 |
 | 12 `migration_contracts` | P + A1，随后在 13 被 A2 审查 | 有 | **与第 13 阶段合计是** | worker 形成 source closure、C 事实、迁移合同和测试矩阵；程序检查 bundle、依赖和 schema，独立 reviewer 检查合同和测试来源。 |
 | 13 `analysis_review` | A2 + P | 有独立 reviewer | **是** | reviewer 同时审查第 10、12 阶段材料，必须一次反馈全部实质问题、精确行号和回退阶段；程序保存输入 digest、规则摘要和审查结论。 |
-| 14 `driver_implementation` | P + A1 | 有 | 否（直到第 17） | worker 编写 Rust、测试适配、必要集成改动并自检；程序验证快照、changed paths、产物格式和适用静态检查。worker 的 compliance 自检不是独立复核。 |
-| 15 `artifact_preparation` | P + A1 | 通常有 | 否（直到第 17） | worker 准备 artifact 和 presence checker；控制器实际构建/注入/检查 base、payload、final identity。哈希和构建结果是程序证据，不能替代语义审查。 |
-| 16 `public_qemu_validation` | P + A1 | 有 | 否（直到第 17） | worker 编写 harness、声明 oracle、解释 receipt；控制器执行 QEMU、冻结不可覆盖 run 和原始日志。运行器不是第二个 AI，退出码也不是语义 PASS。 |
-| 17 `public_repair` | A2 + P | 有独立 reviewer | **是** | reviewer 从原始需求重新检查第 14–16 阶段的代码、artifact、测试和原始 QEMU 证据；程序验证输入仍是当前 artifact、receipt 和规则摘要。 |
+| 14 `target_framework_enablement` | P + A1 | 有 | 否（直到第 18） | worker 实现并检查目标框架能力；程序验证 target-framework bundle、change inventory、文件哈希和 report 输入绑定。 |
+| 15 `driver_implementation` | P + A1 | 有 | 否（直到第 18） | worker 只消费第 14 步快照，编写 Rust、测试适配和合规自检；程序验证快照与 changed paths。 |
+| 16 `artifact_preparation` | P + A1 | 通常有 | 否（直到第 18） | worker 准备 artifact 和 presence checker；控制器实际构建/注入/检查 base、payload、final identity。 |
+| 17 `public_qemu_validation` | P + A1 | 有 | 否（直到第 18） | worker 编写 harness、声明 oracle、解释 receipt；控制器执行 QEMU、冻结不可覆盖 run 和原始日志。 |
+| 18 `final_evidence_review` | A2 + P | 有独立 reviewer | **是** | reviewer 从原始需求重新检查第 14–17 阶段的目标框架、代码、artifact、测试和原始 QEMU 证据；程序验证输入仍是当前 artifact、receipt 和规则摘要。 |
 
 按类别直接汇总：
 
 - **程序化为主**：第 1、2、3、5、9、11 阶段；第 4 阶段是程序化确认加用户确认门。它们不需要工作 AI 来做技术语义判断。
 - **单 AI + 程序**：第 6、7、8、10、12、14、15、16 阶段。一个 worker AI 负责相应的语义工作，程序负责确定性验收；这些阶段自身没有独立第二 AI。
-- **双 AI + 程序**：第 13、17 阶段。第 13 阶段把第 10、12 阶段的 worker 结论交给独立 reviewer；第 17 阶段把第 14–16 阶段的 worker 结论、代码、产物和运行证据交给独立 reviewer。
+- **双 AI + 程序**：第 13、18 阶段。第 13 阶段把第 10、12 阶段的 worker 结论交给独立 reviewer；第 18 阶段把第 14–17 阶段的 worker 结论、目标框架、代码、产物和运行证据交给独立 reviewer。
 
 所以设计上的双 AI 覆盖面是：
 
@@ -446,7 +448,7 @@ DPF 中的 `DEVELOPER_EVIDENCE` 不是“每个阶段都双 AI”。它采用成
 实现/产物/QEMU 运行：worker（14、15、16） -> independent reviewer（17）
 ```
 
-第 13 阶段的 reviewer 会在第 17 阶段复用同一个审查会话，但它始终与 worker 会话和职责分离；这仍然是两个 AI 角色，不是三个 AI。复用会话是成本控制，不会把 worker 的自检升级成独立复核。
+第 13 阶段的 reviewer 会在第 18 阶段复用同一个审查会话，但它始终与 worker 会话和职责分离；这仍然是两个 AI 角色，不是三个 AI。复用会话是成本控制，不会把 worker 的自检升级成独立复核。
 
 因此可以用下面的简化图向汇报对象解释：
 
@@ -460,7 +462,7 @@ worker AI（第 6、7、8、10、12、14、15、16 阶段按需参与）
 
 独立 reviewer AI
   ├─ 第 13 阶段：重新审查目标研究 + 合同 + 测试计划
-  └─ 第 17 阶段：重新审查代码 + artifact + 测试 + QEMU 证据
+  └─ 第 18 阶段：重新审查目标框架 + 代码 + artifact + 测试 + QEMU 证据
 ```
 
 ### 5.4 三种验证的边界和组合规则
@@ -474,7 +476,7 @@ worker AI（第 6、7、8、10、12、14、15、16 阶段按需参与）
 | A2 + P | worker 的材料经过独立 reviewer 的语义挑战，并且输入/结论可追溯 | 真实硬件、未运行的测试、QEMU 未建模行为或超出 reviewer 输入的事实 |
 | source baseline + A2 | 源实现和迁移设计/结果被分别检查 | 自动证明目标运行时等价或真实硬件兼容 |
 
-阶段 `PASS` 仍然只表示本阶段门禁通过。例如第 12 阶段的 `A1 + P` 通过，只表示合同材料完整且 worker 自检被接受；必须经过第 13 阶段 `A2` 才能进入实现。第 16 阶段即使程序 receipt 显示 QEMU 正常退出，也只有在预声明的外部 oracle 满足时才可把对应运行记为 PASS；第 17 阶段的 `A2` 可以否决前面的单 AI 自检和程序运行结论。
+阶段 `PASS` 仍然只表示本阶段门禁通过。例如第 12 阶段的 `A1 + P` 通过，只表示合同材料完整且 worker 自检被接受；必须经过第 13 阶段 `A2` 才能进入目标框架和驱动实现。第 17 阶段即使程序 receipt 显示 QEMU 正常退出，也只有在预声明的外部 oracle 满足时才可把对应运行记为 PASS；第 18 阶段的 `A2` 可以否决前面的单 AI 自检和程序运行结论。
 
 程序中的临时 `checker-decision AI` 只用于解释机械验收异常或已有失败记录。它没有阶段产物所有权，不能创建缺失输出，也不属于独立功能审查；否则会把“程序规则有异常”和“驱动语义经过第二 AI 复核”混为一谈。
 
@@ -497,22 +499,22 @@ worker AI（第 6、7、8、10、12、14、15、16 阶段按需参与）
 
 当前 DPF 还提供了只读 `review_evidence` Python locator：它读取指定 Git commit 的原始 blob、返回编号原文和 hash，并明确把 `LOCATED` 与语义裁决分开，避免程序用模糊匹配替审查 AI 做语义判断。
 
-#### 第 16 阶段：receipt 是运行事实，不是乐观解释
+#### 第 17 阶段：receipt 是运行事实，不是乐观解释
 
 控制器执行 harness、记录进程和输出、冻结不可覆盖 receipt；worker 只能依据该 receipt 解释 oracle 和归因。失败 run 不得被后续追加文字、`ACCEPT` 或改写状态提升为 PASS。`ACCEPT` 只表示工作者接受当前候选进入后续检查，不是把失败测试变成成功。
 
-#### 第 17 阶段：最终审查要回到原始功能
+#### 第 18 阶段：最终审查要回到原始功能
 
 最终审查应同时看原始需求、实际 Rust/target diff、最终 artifact 身份、公开测试矩阵、QEMU 原始日志和所有失败 attempt。它不能把 source baseline、model-only、driver log、compile success 或“未执行测试”合并为迁移驱动 PASS。若失败原因是目标能力或 QEMU 模型，报告应保留 `BLOCKED` 类别，不把它写成 driver bug；若是代码/包装/harness 问题，才回到对应交付阶段做窄修复。
 
 ### 5.6 大阶段封存与回退验证
 
-开发模式的 17 个阶段实际跨越三个执行大阶段；控制器另外定义了一个只在盲测封存/完成审计流程中使用的 `completion` 组：
+开发模式的 18 个阶段实际跨越三个执行大阶段；控制器另外定义了一个只在盲测封存/完成审计流程中使用的 `completion` 组：
 
 1. `scope_and_baselines`：1–6；
 2. `evidence_and_design`：7–13；
-3. `delivery`：14–17；
-4. `completion`：盲测候选封存后的 `completion_audit`，不属于普通 `DEVELOPER_EVIDENCE` 的 17 个阶段。
+3. `delivery`：14–18；
+4. `completion`：盲测候选封存后的 `completion_audit`，不属于普通 `DEVELOPER_EVIDENCE` 的 18 个阶段。
 
 自动回退只能在当前尚未封存的大阶段内进行。进入 delivery 后，不能因为实现遇到问题就静默重开已经封存的 evidence/design；需要改变冻结前提时，必须有显式 `phase-reopen`，记录原因、影响、旧证据和新 attempt。阶段历史以 ledger 和 artifact occurrence 保存，不能通过重启、把状态写回 `PENDING` 或修改旧报告绕过封存。
 
@@ -521,8 +523,9 @@ worker AI（第 6、7、8、10、12、14、15、16 阶段按需参与）
 - 原始文件/文档/来源/hash 缺失 → 7；
 - Asterinas API、调用链、初始化顺序、目标 change 证据缺失 → 10；
 - C 编译/预处理/布局/ABI/effect、合同或测试断言来源缺失 → 12；
-- Rust 源码/unsafe/实现 coverage → 14；
-- 镜像、入口、payload、artifact identity → 15；
+- 目标框架能力/目标快照 → 14；
+- Rust 源码/unsafe/实现 coverage → 15；
+- 镜像、入口、payload、artifact identity → 16；
 - 未改变 artifact 的 harness/oracle → 16。
 
 不能把所有问题都退回第 7 阶段，也不能把“后续没有通过”误解为允许跨大阶段回退。回退理由必须写出观察、责任边界、所需输入变化和受影响的重新验证集合。
@@ -551,7 +554,7 @@ worker AI（第 6、7、8、10、12、14、15、16 阶段按需参与）
 - target platform study 的 profile/API/analogous trace 门；
 - 17 阶段的依赖、required/auxiliary artifact、CAS/ledger 和 phase sealing 边界；
 - 模型写文件并通过 tool submission 改变状态；
-- 第 13 阶段独立分析审查和第 17 阶段独立最终审查的协议；
+- 第 13 阶段独立分析审查和第 18 阶段独立最终审查的协议；
 - 失败 attempt 不覆盖、run ID 和基础执行恢复。
 
 **仍需谨慎称为 `PARTIAL` 或 `PLANNED` 的部分：**
@@ -582,7 +585,7 @@ worker AI（第 6、7、8、10、12、14、15、16 阶段按需参与）
 10. Rust implementation snapshot、translation coverage、unsafe obligations、compliance 和 changed-file inventory；
 11. artifact base/payload/final identities、driver-presence proof、runner/entry；
 12. 每个 QEMU run 的 plan、receipt、原始日志、oracle、expected-vs-actual、status 和 attribution；
-13. `public_repair` 的最终独立审查，以及按合同分别报告的 PASS/FAIL/BLOCKED/NOT_RUN。
+13. `final_evidence_review` 的最终独立审查，以及按合同分别报告的 PASS/FAIL/BLOCKED/NOT_RUN。
 
 这套格式使汇报者能回答“验证了什么、用什么证据验证、哪些没有验证、为什么没有验证、下一步需要什么”，而不是只给一个无法审计的迁移成功率。
 
@@ -592,7 +595,7 @@ worker AI（第 6、7、8、10、12、14、15、16 阶段按需参与）
 >
 > 当 Asterinas 缺少前置能力时，首先区分证据缺失、目标事实缺失、集成 wiring、artifact 包装、环境和 QEMU 模型问题；优先使用 Asterinas 已有扩展点，按 driver-owned、最小 integration wiring、必要且有证据的 target API/framework change 逐级处理。只有影响已确认合同且范围最小、可验证、可回滚的目标改动才允许保留；涉及公共 ABI、安全模型、调度器、allocator 或广泛 IRQ/memory 语义时应明确阻塞并请求决策。
 >
-> DPF 用 17 个阶段把这些技术要求变成可恢复的状态机。每个阶段都有自己的 required output、程序 validator、证据/执行状态、最小回退目标和大阶段封存规则；第 13 阶段独立审查设计，第 16 阶段冻结真实 QEMU receipt，第 17 阶段独立审查最终代码、产物和运行证据。这样可以兼顾成本和质量：静态事实由程序处理，复杂语义集中审查，成功证据复用，失败证据不覆盖；同时对尚未完成的 `PARTIAL/PLANNED` 门禁保持明确披露。
+> DPF 用 18 个阶段把这些技术要求变成可恢复的状态机。每个阶段都有自己的 required output、程序 validator、证据/执行状态、最小回退目标和大阶段封存规则；第 13 阶段独立审查设计，第 14 阶段封存目标框架能力，第 17 阶段冻结真实 QEMU receipt，第 18 阶段独立审查最终代码、目标框架、产物和运行证据。这样可以兼顾成本和质量：静态事实由程序处理，复杂语义集中审查，成功证据复用，失败证据不覆盖；同时对尚未完成的 `PARTIAL/PLANNED` 门禁保持明确披露。
 
 > 按验证主体划分，第 1、2、3、5、9、11 阶段主要由程序完成，第 4 阶段增加用户确认；第 6、7、8、10、12、14、15、16 阶段是一个 worker AI 加程序门禁；第 13、17 阶段是 worker AI 之后由独立 reviewer AI 重新审查的双 AI 闭环。程序验证负责结构、身份、依赖和真实运行事实，AI 验证负责证据语义、合同、实现和归因，二者不能互相替代。
 

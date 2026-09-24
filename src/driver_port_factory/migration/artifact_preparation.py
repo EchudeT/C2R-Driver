@@ -16,6 +16,7 @@ from ..environment.contracts import EnvironmentArtifact, EnvironmentStage
 from ..knowledge.index import file_sha256
 from .contracts import MigrationArtifact, MigrationStage
 from .implementation import validate_worktree_snapshot
+from .target_framework import _validate_files
 
 
 def _json(value: dict) -> bytes:
@@ -40,6 +41,18 @@ class ArtifactPreparationService:
             MigrationStage.DRIVER_IMPLEMENTATION, MigrationArtifact.IMPLEMENTATION_BUNDLE
         )
         bundle = json.loads(project.artifacts.read(bundle_ref))
+        framework = project.load_json_artifact(
+            MigrationStage.TARGET_FRAMEWORK_ENABLEMENT,
+            MigrationArtifact.TARGET_FRAMEWORK_BUNDLE,
+        )
+        # Check the separately sealed target framework before running any
+        # packaging command.  A changed framework must not be hidden by a
+        # successful presence check or a stale runtime identity.
+        _validate_files(
+            project.root,
+            framework["target_worktree"],
+            framework["files"],
+        )
         validate_worktree_snapshot(project.root, bundle)
         runtime_hash = file_sha256(runtime)
         checker_hash = file_sha256(checker)
@@ -128,6 +141,16 @@ class ArtifactPreparationService:
 
 
 def validate_artifact_bundle(context: BundleValidationContext) -> None:
+    target_framework = json.loads(
+        context.one_dependency(MigrationArtifact.TARGET_FRAMEWORK_BUNDLE)[1]
+    )
+    # Recheck the enablement snapshot at the packaging boundary so a target
+    # framework edit cannot silently drift between stages.
+    _validate_files(
+        context.project_root,
+        target_framework["target_worktree"],
+        target_framework["files"],
+    )
     runtime_ref, runtime = context.one_current(MigrationArtifact.RUNTIME_ARTIFACT)
     identity = json_object(context.one_current(MigrationArtifact.ARTIFACT_IDENTITY)[1], "identity")
     matches = [

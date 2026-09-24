@@ -28,6 +28,7 @@ class CodexExecutionPolicy:
     )
     WRITABLE_STAGES = frozenset(
         {
+            MigrationStage.TARGET_FRAMEWORK_ENABLEMENT,
             MigrationStage.DRIVER_IMPLEMENTATION,
             MigrationStage.ARTIFACT_PREPARATION,
             MigrationStage.PUBLIC_QEMU_VALIDATION,
@@ -41,7 +42,7 @@ class CodexExecutionPolicy:
             EnvironmentStage.RECOVERY,
             TargetStudyStage.STUDY,
             MigrationStage.CONTRACTS,
-            MigrationStage.PUBLIC_REPAIR,
+            MigrationStage.FINAL_EVIDENCE_REVIEW,
             MigrationStage.ANALYSIS_REVIEW,
         }
     )

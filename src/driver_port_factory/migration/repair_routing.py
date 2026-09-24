@@ -9,7 +9,7 @@ from ..knowledge.index import file_sha256
 from ..orchestration.protocol import REPAIR_TARGETS
 from ..target_study.contracts import TargetStudyStage
 from .contracts import MigrationStage
-from .public_qemu import PublicQemuService
+from .public_qemu import PublicQemuService, latest_public_qemu_run
 
 
 def retry_prerequisite(project, target, *, trigger, reason):
@@ -19,6 +19,11 @@ def retry_prerequisite(project, target, *, trigger, reason):
     selected = {
         "migration_contracts": {"migration_contracts", "test_port_matrix"},
         "target_platform_study": {"target_study_report"},
+        "target_framework_enablement": {
+            "target_framework_enablement_bundle",
+            "target_framework_enablement_report",
+            "target_framework_change_inventory",
+        },
         "artifact_preparation": {"runtime_artifact"},
     }
     if target.value == "driver_implementation":
@@ -28,7 +33,7 @@ def retry_prerequisite(project, target, *, trigger, reason):
     elif target.value == "public_qemu_validation":
         from .contracts import MigrationArtifact
         report = project.load_json_artifact(target, MigrationArtifact.PUBLIC_QEMU_REPORT)
-        run = report["runs"][0]
+        run = latest_public_qemu_run(report)
         acquisition = load_repository_acquisition(project)
         worktree = project.root / acquisition.target_worktree.path
         script_path = worktree / ".dpf-output" / "public-qemu.sh"
@@ -65,6 +70,7 @@ ROUTES = {stage.value: stage for stage in (
     EnvironmentStage.RECOVERY,
     TargetStudyStage.STUDY,
     MigrationStage.CONTRACTS,
+    MigrationStage.TARGET_FRAMEWORK_ENABLEMENT,
     MigrationStage.DRIVER_IMPLEMENTATION,
     MigrationStage.ARTIFACT_PREPARATION,
     MigrationStage.PUBLIC_QEMU_VALIDATION,

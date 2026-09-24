@@ -59,7 +59,7 @@
         "knowledge-guided-driver-port/references/target-changes.md",
         "knowledge-guided-driver-port/assets/target-platform-profile.md"
       ],
-      "objective": "Complete knowledge-guided-driver-port/references/target-platform-study.md, including its referenced profile, using the supplied originals and project KB Skill. This stage owns target API definitions and call sites, the analogous target path, initialization/ownership/context facts, packaging route evidence and the necessity of any target change. It does not implement Rust, close the C translation contracts or test provenance, prepare the final runtime artifact, or run the public QEMU ladder. Optional aid for Linux-to-Asterinas tasks: if useful and available, you may consult linux-asterinas-driver-map/SKILL.md under instructions.skill_root, selecting Asterinas pages for relevant bus/device/mechanism questions. These are guides to the original kernels, not evidence of the current migration implementation. Reading or recording use of this optional guide is not required for stage acceptance; rely on this run's frozen originals for conclusions. Do not load the whole collection."
+      "objective": "Complete knowledge-guided-driver-port/references/target-platform-study.md, including its referenced profile, using the supplied originals and project KB Skill. This stage owns target API definitions and call sites, the analogous target path, initialization/ownership/context facts, packaging route evidence and the necessity of any target change. Explicitly record every driver prerequisite whose target interface is absent or incomplete in a capability-gap register, linking each gap to direct target evidence, affected contract area, alternatives considered and the exact enablement work required; do not implement the change in this stage. It does not implement Rust, close the C translation contracts or test provenance, prepare the final runtime artifact, or run the public QEMU ladder. Optional aid for Linux-to-Asterinas tasks: if useful and available, you may consult linux-asterinas-driver-map/SKILL.md under instructions.skill_root, selecting Asterinas pages for relevant bus/device/mechanism questions. These are guides to the original kernels, not evidence of the current migration implementation. Reading or recording use of this optional guide is not required for stage acceptance; rely on this run's frozen originals for conclusions. Do not load the whole collection."
     },
     "migration_contracts": {
       "documents": [
@@ -71,6 +71,17 @@
         "knowledge-guided-driver-port/references/qemu-evidence.md"
       ],
       "objective": "Complete knowledge-guided-driver-port/references/workflow.md phases 3–5, following translation.md, knowledge-contract.md and test-porting.md. This stage owns source closure, bounded compiler/preprocessor/layout/effect evidence, migration contracts and test stimulus/assertion provenance; use the accepted target study as an input. It does not implement Rust, change the target tree, prepare the runtime artifact or run public QEMU. Submit source analysis, contracts and test selection in the stage report. Do not end with DPF_SELF_REVIEW: PASS while a required compiler/configuration/layout/effect fact, translation contract, or test assertion provenance is explicitly left as a future gate; complete the bounded check or report a concrete blocker. Optional aid for Linux-to-Asterinas tasks: if useful and available, you may consult linux-asterinas-driver-map/SKILL.md under instructions.skill_root, selecting Linux pages for source paths and comparison pages for migration mappings. These are guides to the original kernels, not evidence of the current migration implementation. Reading or recording use of this optional guide is not required for stage acceptance; rely on this run's frozen originals for conclusions. Do not load the whole collection."
+    },
+    "target_framework_enablement": {
+      "documents": [
+        "target-framework-enablement.md",
+        "knowledge-guided-driver-port/SKILL.md",
+        "knowledge-guided-driver-port/references/workflow.md",
+        "knowledge-guided-driver-port/references/target-platform-study.md",
+        "knowledge-guided-driver-port/references/target-changes.md",
+        "knowledge-guided-driver-port/references/knowledge-contract.md"
+      ],
+      "objective": "Complete the target-framework enablement stage described by target-framework-enablement.md. Consume the frozen target study and migration contracts, implement only the minimal evidenced target API/framework capabilities they require, validate the target change and affected regressions, and submit a report. Do not edit the migrated driver, runtime artifact, QEMU harness or unrelated target code; do not introduce a fallback or dual path."
     },
     "driver_implementation": {
       "documents": [
@@ -98,20 +109,15 @@
         "knowledge-guided-driver-port/references/workflow.md",
         "knowledge-guided-driver-port/references/qemu-evidence.md"
       ],
-      "objective": "Consume the artifact and identity fixed by artifact_preparation and complete knowledge-guided-driver-port/references/workflow.md phase 8's public QEMU evidence ladder plus phase 9's narrow failure attribution under qemu-evidence.md. This stage owns the public runner, harness/oracles and interpretation of controller receipts; it does not rebuild or redesign the driver artifact on the normal path. Update the same report with each required result, attribution and limit, then complete the worker self-check. The independent final evidence audit is public_repair, not a second artifact-preparation task."
+      "objective": "Consume the artifact and identity fixed by artifact_preparation and complete knowledge-guided-driver-port/references/workflow.md phase 8's public QEMU evidence ladder plus phase 9's narrow failure attribution under qemu-evidence.md. This stage owns the public runner, harness/oracles and interpretation of controller receipts; it does not rebuild or redesign the driver artifact on the normal path. Update the same report with each required result, attribution and limit, then complete the worker self-check. The independent final evidence audit is final_evidence_review, not a second artifact-preparation task."
     },
-    "public_repair": {
+    "final_evidence_review": {
       "documents": [
         "knowledge-guided-driver-port/SKILL.md",
         "knowledge-guided-driver-port/references/workflow.md",
-        "knowledge-guided-driver-port/references/qemu-evidence.md",
-        "knowledge-guided-driver-port/references/test-porting.md",
-        "knowledge-guided-driver-port/references/knowledge-contract.md",
-        "knowledge-guided-driver-port/references/target-platform-study.md",
-        "knowledge-guided-driver-port/references/translation.md",
-        "knowledge-guided-driver-port/references/target-changes.md"
+        "knowledge-guided-driver-port/references/qemu-evidence.md"
       ],
-      "objective": "Independently perform knowledge-guided-driver-port/references/workflow.md phase 11 (Final evidence audit) against the original scope/contracts/test plan and actual code, tests, artifacts and logs. Apply the shared review rules, cite precise evidence for core conclusions and return all substantive findings together. Accept only complete agreed functionality, otherwise request the smallest evidenced repair or report a genuine external blocker."
+      "objective": "Independently perform knowledge-guided-driver-port/references/workflow.md phase 11 (Final evidence audit) over the current implementation, target changes, runtime artifact and public QEMU evidence. Treat the supplied contract and test-matrix digests as frozen acceptance oracles; do not re-review target study, handoff, source closure or contract provenance. Apply the final-evidence-review rules, cite precise code and authoritative execution evidence, and return all delivery findings together. Treat human-readable artifact receipts and worker summaries as derived metadata; a receipt-only mismatch is not a packaging defect and must not trigger artifact preparation or a new QEMU run. Accept only complete agreed functionality, otherwise request the smallest evidenced repair or report a genuine external blocker."
     },
     "completion_audit": {
       "documents": [

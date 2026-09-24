@@ -88,6 +88,15 @@ def test_analysis_returns_all_findings_to_worker_before_sealing(tmp_path, repair
                 report.write_text('F1 and F2 resolved against corrected evidence.\n')
                 submit(project, job, report, kind='report', decision='pass')
             return CodexResult(job.job_id, '', 'reviewer')
+        if job.stage is S.TARGET_FRAMEWORK_ENABLEMENT:
+            report = job.execution_root / '.dpf-output' / 'report.md'
+            report.parent.mkdir(parents=True, exist_ok=True)
+            report.write_text(
+                'Synthetic target framework enablement; no target edits required.\n'
+                'DPF_SELF_REVIEW: PASS\n'
+            )
+            submit(project, job, report, kind='report', decision='pass')
+            return CodexResult(job.job_id, '', 'worker')
         assert job.stage in {S.CONTRACTS, TargetStudyStage.STUDY}
         assert job.thread_id in {None, 'worker'}
         assert 'analysis_review' in job.prompt

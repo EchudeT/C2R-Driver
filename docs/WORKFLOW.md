@@ -17,14 +17,16 @@
 | 11 | migration_handoff | 静态 | 复用已有证据生成交接身份 |
 | 12 | migration_contracts | 混合 | 一份源码分析、迁移合同与测试计划 |
 | 13 | analysis_review | 独立检查 AI | 合并审查目标研究、源码分析、契约与测试计划；核心结论附精确原文定位，集中反馈全部问题 |
-| 14 | driver_implementation | Codex+静态 | 实现、测试适配、合规自检和源码快照 |
-| 15 | artifact_preparation | 混合 | 可运行产物、测试入口和身份检查；必要源码调整自检后原地刷新快照 |
-| 16 | public_qemu_validation | 混合 | worker 准备 harness → 控制器执行并冻结 receipt → 原 worker 归因与自检 |
-| 17 | public_repair | 独立检查 AI | 直接核对原定功能、代码、测试 oracle 和原始日志；最终报告或完整返修反馈 |
+| 14 | target_framework_enablement | Codex+静态 | 实现并验证合同所需的最小目标框架/API 能力，单独封存目标变更 |
+| 15 | driver_implementation | Codex+静态 | 消费第 14 步快照，实现、测试适配、合规自检和源码快照 |
+| 16 | artifact_preparation | 混合 | 可运行产物、测试入口和身份检查；必要源码调整自检后原地刷新快照 |
+| 17 | public_qemu_validation | 混合 | worker 准备 harness → 控制器执行并冻结 receipt → 原 worker 归因与自检 |
+| 18 | final_evidence_review | 独立检查 AI | 只核对当前代码、目标框架、产物、冻结 contract/test oracle 和原始运行证据；最终报告或完整返修反馈 |
 
 上表为 `DEVELOPER_EVIDENCE`，检查点数量不是模型调用数量。研究、实现和验证使用同一工作者。
-第 13 步在设计阶段封存前完成，可返回目标研究或契约阶段窄修复。审查者主动调用只读定位工具，程序不自动匹配报告或裁定引用含义。
-开发模式到独立检查结束，无程序语义汇总。工作者与检查者各自保持一个会话；实质缺陷交回原工作者，
+第 13 步在设计阶段封存前完成，可返回目标研究或契约阶段窄修复。第 14 步把目标研究中已确认的
+能力缺口实现为单独快照，后续驱动只能消费该快照，不能再修改同一路径。审查者主动调用只读定位工具，程序不自动匹配报告或裁定引用含义。
+开发模式到第 18 步独立检查结束，无程序语义汇总。工作者与检查者各自保持一个会话；实质缺陷交回原工作者，
 修复后原检查者复审。所有已知问题一次反馈，保留正确代码和有效测试；不为风格、可选覆盖返修。
 单独的 blind mode 在检查后增加 candidate sealing 和 digest export / candidate transfer；本次不运行。
 `MIGRATION_OPERATOR` 在前瞻盲测中必须先导入 `public_bundle` 和 `curator_commitment`。

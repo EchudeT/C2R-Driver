@@ -71,7 +71,7 @@
 | 16 driver_implementation | 计划、目标研究、KB、闭包、facts/index 路径 | 代码 + 一份自检 PASS 报告；Git inventory、hash、输入绑定 | F02/F03/F04/F10；隐藏 Git 限制不符合 Skill |
 | 17 artifact_preparation | 计划、implementation/compliance、环境路线、目标 profile | runtime-artifact、check-presence.sh、报告；运行 checker 并检查快照 | F02；presence 内容仍信任 worker，见 F22 |
 | 18 public_qemu_validation | 计划、覆盖报告、冻结镜像/identity、路线、KB、材料 | harness、fresh logs、报告 PASS 或最小前置 REWORK；控制器重新执行 | F01/F02/F07/F10/F14/F22 |
-| 19 public_repair | 无风险静态关闭；有风险才给 reviewer 代码/计划/运行结果与 risks | reviewer 单份 PASS/REWORK；只允许三个后期返工目标 | 收集全部实证 blocker 的 prompt 是正确方向；F10/F11/F15 |
+| 19 final_evidence_review | 无风险静态关闭；有风险才给 reviewer 代码/计划/运行结果与 risks | reviewer 单份 PASS/REWORK；只允许三个后期返工目标 | 收集全部实证 blocker 的 prompt 是正确方向；F10/F11/F15 |
 | 20 completion_audit | 无模型；冻结产物和运行记录 | 完整性/归因汇总，状态 RECORDED | 非另一次 AI 全面审核；F22 限制需要明确 |
 
 当前默认 pack 的 `output_schema` 均未启用。revision/evidence 的 JSON 是后处理解析；其他主要是文件交付。不能把旧文档的“自动 schema”当作当前保护。
@@ -212,7 +212,7 @@ c-facts 已改为范围验证，不能继续称它每次必校验全部 runtime 
 
 ### F19：共用 prompt 的阶段无关内容和术语歧义
 
-**渲染测量 + 文本确认。** 共用模板包含运行脚本/镜像、审查、返工协议，连版本选择和早期证据选择也收到；`job.md:54` 的 “Evidence closure normally needs no model” 与实际 `evidence_closure` 必经 worker 冲突，所指显然更接近后期 public_repair。
+**渲染测量 + 文本确认。** 共用模板包含运行脚本/镜像、审查、返工协议，连版本选择和早期证据选择也收到；`job.md:54` 的 “Evidence closure normally needs no model” 与实际 `evidence_closure` 必经 worker 冲突，所指显然更接近后期 final_evidence_review。
 
 测量采用实际上游文档、空运行上下文、顺序 known_documents；单位为 UTF-8 字节，不是 token：
 

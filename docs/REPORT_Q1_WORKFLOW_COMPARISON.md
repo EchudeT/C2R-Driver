@@ -17,7 +17,7 @@
 
 - 原版 Skill 是**证据和技术工作的规范流程**。它要求先确认驱动身份和范围，再固定版本、取得最小证据闭包、建立可追溯知识库、研究目标平台、建立迁移合同、实现 Rust、准备真实产物，最后按 QEMU evidence ladder 验证并审计。
 - DPF 是**执行这些规范的控制器**。它增加了可持久化阶段、typed artifact、SQLite ledger、CAS、哈希和工具提交协议，把“模型声称完成”改成“文件、工具收据和确定性 validator 共同决定状态”。
-- DPF 把原版约 12 个逻辑阶段拆成开发模式下的 17 个控制阶段，增加了 clone 前的细粒度 intake、独立分析审查和独立最终功能审查；同时把 source closure、迁移合同和测试计划合并为一个 `migration_contracts` 任务，并在普通开发模式省略单独的 `completion_audit` 阶段。
+- DPF 把原版约 12 个逻辑阶段拆成开发模式下的 18 个控制阶段，增加了 clone 前的细粒度 intake、独立分析审查、目标框架能力补齐和独立最终功能审查；同时把 source closure、迁移合同和测试计划合并为一个 `migration_contracts` 任务，并在普通开发模式省略单独的 `completion_audit` 阶段。
 - 这些变化不是全部等价替换。当前追踪矩阵明确标出一些要求仍是 `PARTIAL` 或 `PLANNED`，尤其是完整源语义证据、证据闭包、artifact identity、QEMU ladder 和最终证据审计。因此汇报时应说“DPF 按原版 Skill 对齐并执行”，不能说“所有 Skill 门禁已经完全实现”。
 
 ## 2. 原版 Skill 的总体流程
@@ -87,7 +87,7 @@ flowchart LR
 
 ## 3. DPF 的实际流程
 
-DPF 的开发模式当前采用 17 个控制阶段，按四个大阶段组织。阶段顺序和职责见 [`docs/STAGE_GUIDE.md`](STAGE_GUIDE.md)，可执行 DAG 由 [`src/driver_port_factory/orchestration/migration.py`](../src/driver_port_factory/orchestration/migration.py) 生成。
+DPF 的开发模式当前采用 18 个控制阶段，按四个大阶段组织。阶段顺序和职责见 [`docs/STAGE_GUIDE.md`](STAGE_GUIDE.md)，可执行 DAG 由 [`src/driver_port_factory/orchestration/migration.py`](../src/driver_port_factory/orchestration/migration.py) 生成。
 
 | 序号 | 控制阶段 | 大阶段 | 执行者 | 主要职责和输出 |
 |---:|---|---|---|---|
@@ -104,12 +104,13 @@ DPF 的开发模式当前采用 17 个控制阶段，按四个大阶段组织。
 | 11 | `migration_handoff` | evidence_and_design | 静态控制器 | 把前置证据绑定成下游不可变 handoff |
 | 12 | `migration_contracts` | evidence_and_design | hybrid/worker | 在一份报告中完成源码分析、源语义问题取证、迁移合同和测试计划 |
 | 13 | `analysis_review` | evidence_and_design | 独立 AI | 在实现前一次性审查目标研究、源码分析、合同和测试 provenance；核心结论及问题都引用精确位置 |
-| 14 | `driver_implementation` | delivery | Codex worker | 生成 Rust、适配公开测试、必要最小集成改动、compliance report 和 implementation snapshot |
-| 15 | `artifact_preparation` | delivery | hybrid | 生成/注入 runtime artifact、presence checker、variants 和 artifact identity；包装问题与源代码问题分流 |
-| 16 | `public_qemu_validation` | delivery | hybrid/worker + controller | worker 编写 harness；工具请求 `PUBLIC_QEMU`；控制器保存 immutable receipt；worker 解释 oracle、归因并自检 |
-| 17 | `public_repair` | delivery | 独立 AI | 对原始需求、实际源码、产物、测试和 QEMU 日志做最终功能审查，集中返回全部实质问题 |
+| 14 | `target_framework_enablement` | delivery | Codex | 实现并验证合同所需的最小目标框架能力，封存目标快照和 change inventory |
+| 15 | `driver_implementation` | delivery | Codex | 只消费目标框架快照，完成 Rust 驱动、测试适配和实现快照 |
+| 16 | `artifact_preparation` | delivery | worker + controller | 固定运行制品身份和 presence 证据 |
+| 17 | `public_qemu_validation` | delivery | worker + controller | 执行公开 QEMU 阶梯并冻结 receipt |
+| 18 | `final_evidence_review` | delivery | 独立 AI | 对当前源码、目标框架、产物、冻结 contract/test oracle 和 QEMU 日志做最终功能审查，集中返回全部实质问题 |
 
-普通 `DEVELOPER_EVIDENCE` 流程在第 17 阶段结束；`completion_audit` 主要出现在 blind candidate 的封存后 DAG，而不是普通开发模式的额外第 18 步。
+普通 `DEVELOPER_EVIDENCE` 流程在第 18 阶段结束；`completion_audit` 主要出现在 blind candidate 的封存后 DAG，而不是普通开发模式的额外第 19 步。
 
 ### 3.1 DPF 的状态、产物和控制边界
 
@@ -125,10 +126,10 @@ DPF 与“让模型在聊天里返回一个 JSON 状态”不同：
 
 ### 3.2 DPF 的审查和修复
 
-DPF 开发模式使用两个持久角色会话：worker 负责研究、实现、执行后解释和修复；reviewer 在第 13 步做独立分析审查，在第 17 步做最终功能审查。两处不是同一阶段重复自审：
+DPF 开发模式使用两个持久角色会话：worker 负责研究、实现、执行后解释和修复；reviewer 在第 13 步做独立分析审查，在第 18 步做最终功能审查。两处不是同一阶段重复自审：
 
 - 第 13 步只审查实现前的证据和设计是否足够，发现源材料问题回 `evidence_closure`，目标 API/调用链问题回 `target_platform_study`，C 事实/合同/测试断言问题回 `migration_contracts`。
-- 第 17 步直接核对原始功能要求、实现、测试、产物和原始运行日志；它不把启动成功推断为驱动成功，也不把未执行的测试算成通过。
+- 第 18 步直接核对原始功能要求、目标框架、实现、测试、产物和原始运行日志；它不把启动成功推断为驱动成功，也不把未执行的测试算成通过。
 - 修复沿用原 worker 和 reviewer 会话，但每一次源代码、包装或 harness 改动都需要新的快照、受影响检查和新的运行证据。
 
 修复还受四个大阶段封存约束：自动回退只能在当前尚未封存的大阶段内发生；跨大阶段需要显式 `phase-reopen`。阶段进入历史会参与封存判断，不能靠重启或把状态改回 `PENDING` 绕过边界。这个约束比上游 Skill 的“返回最小受影响 gate”更严格，目的是防止已经使用过的下游输入被静默改变。
@@ -177,7 +178,8 @@ clone 前的 intake 在原版是一个硬 gate，在 DPF 被拆成 1–5，便�
 原版迁移 Skill 定义了审查内容，但普通开发流程没有要求另起一个 reviewer 节点。DPF 增加：
 
 - `analysis_review`：在设计封存前检查目标 API 原文、源分析、合同、测试断言和 QEMU/目标边界；一次集中返回全部实质问题，并使用只读 Python locator 读取冻结源码的精确行号。
-- `public_repair`：在 QEMU 运行后从原始需求和实际日志重新核对最终功能，独立决定通过、回退或真实阻塞。
+- `target_framework_enablement`：在驱动实现前补齐目标研究确认的最小目标能力，独立保存目标变更与驱动变更的边界。
+- `final_evidence_review`：在 QEMU 运行后核对当前交付证据和冻结 contract/test oracle，独立决定通过、回退或真实阻塞；不重新审查第二阶段设计。
 
 这样可以把“设计错误”和“实现/运行错误”分开，也避免 worker 在自己的报告里把计划或自检写成最终功能通过。代价是两次独立审查调用和更长的总流程；DPF 通过复用 reviewer 会话、集中反馈和只审查变更范围控制成本。
 
@@ -195,7 +197,7 @@ clone 前的 intake 在原版是一个硬 gate，在 DPF 被拆成 1–5，便�
 
 ### 5.7 普通开发模式的最终审计节点不同
 
-原版 workflow 明确列出 `final evidence audit`。DPF 的普通开发 DAG 在 `public_repair` 结束，独立 reviewer 把最终功能审查报告作为交付结论；`completion_audit` 主要给 blind candidate 的封存后时序。两者目标相近，但产物、状态和审计入口不同。汇报时应把 `public_repair` 称为“开发模式最终独立功能/证据审查”，不要把它描述成原版 `completion_audit` 的完全同名实现。
+原版 workflow 明确列出 `final evidence audit`。DPF 的普通开发 DAG 在 `final_evidence_review`（第 18 步）结束，独立 reviewer 把最终功能审查报告作为交付结论；`completion_audit` 主要给 blind candidate 的封存后时序。两者目标相近，但产物、状态和审计入口不同。汇报时应把 `final_evidence_review` 称为“开发模式最终独立功能/证据审查”，不要把它描述成原版 `completion_audit` 的完全同名实现。
 
 ### 5.8 盲测不属于普通迁移成功
 
