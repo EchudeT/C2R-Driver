@@ -77,7 +77,7 @@ def test_public_acceptance_reaches_completion_without_rejecting_same_receipt(tmp
         first = service.run_script(project, script_path=script, work_report_path=report)
     assert (worktree / ".dpf-output/attempted.txt").read_text().strip() == "attempted"
     receipt = json.loads(Path(first["attempt"]).read_text())
-    assert receipt["runs"][0]["exec_trace"]["collector"]["available"] is (tracer == "installed")
+    assert receipt["run"]["exec_trace"]["collector"]["available"] is (tracer == "installed")
     assert first["status"] == "FAIL"
     # Restarting the same operation must return its failed receipt, not rerun it.
     report.write_text("Corrected description.\n")

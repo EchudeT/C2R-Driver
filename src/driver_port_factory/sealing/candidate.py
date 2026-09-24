@@ -626,26 +626,28 @@ class CandidateSealer:
     ) -> None:
         worktree = CandidateSealer._worktree(project)
         for document_index, document in enumerate(documents):
-            for run_index, run in enumerate(document.get("runs", [])):
-                files = [(worktree / item["path"], item["sha256"])
-                         for item in run.get("logs", [])]
-                command = run.get("command", {})
-                for name in ("stdout", "stderr"):
-                    if command.get(f"{name}_path"):
-                        files.append((Path(command[f"{name}_path"]),
-                                      command[f"{name}_sha256"]))
-                trace = run.get("exec_trace", {})
-                if trace.get("path"):
-                    files.append((project.root / trace["path"], trace["sha256"]))
-                if trace.get("container_evidence"):
-                    files.append((Path(trace["container_evidence"]),
-                                  trace["container_evidence_sha256"]))
-                for index, (path, digest) in enumerate(files):
-                    path = path.resolve()
-                    if (project.root not in path.parents or not path.is_file()
-                            or file_sha256(path) != digest):
-                        raise WorkflowError("public run evidence changed before candidate sealing")
-                    entities[f"public-runs/{document_index:04d}-{run_index:04d}/{index:04d}.bin"] = path.read_bytes()
+            run = document.get("run")
+            if not isinstance(run, dict):
+                continue
+            files = [(worktree / item["path"], item["sha256"])
+                     for item in run.get("logs", [])]
+            command = run.get("command", {})
+            for name in ("stdout", "stderr"):
+                if command.get(f"{name}_path"):
+                    files.append((Path(command[f"{name}_path"]),
+                                  command[f"{name}_sha256"]))
+            trace = run.get("exec_trace", {})
+            if trace.get("path"):
+                files.append((project.root / trace["path"], trace["sha256"]))
+            if trace.get("container_evidence"):
+                files.append((Path(trace["container_evidence"]),
+                              trace["container_evidence_sha256"]))
+            for index, (path, digest) in enumerate(files):
+                path = path.resolve()
+                if (project.root not in path.parents or not path.is_file()
+                        or file_sha256(path) != digest):
+                    raise WorkflowError("public run evidence changed before candidate sealing")
+                entities[f"public-runs/{document_index:04d}-0000/{index:04d}.bin"] = path.read_bytes()
 
     @staticmethod
     def _runtime(

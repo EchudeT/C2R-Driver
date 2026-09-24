@@ -53,7 +53,8 @@ class CompletionAuditService:
         )
         repair = self._document(
             project, MigrationStage.FINAL_EVIDENCE_REVIEW, MigrationArtifact.FINAL_EVIDENCE_REVIEW_REPORT)
-        runs = list(public.get("runs", []))
+        run = public.get("run")
+        runs = [run] if isinstance(run, dict) else []
         target_driver_ran = any(
             run.get("execution_status") == ContractExecutionStatus.PASS.value
             and run.get("attribution") == PublicRunAttribution.TARGET_DRIVER_ON_QEMU.value
@@ -303,7 +304,7 @@ def _failure_attribution(public: dict[str, Any] | None) -> list[dict[str, Any]]:
             "status": run.get("execution_status"),
             "attribution": run.get("attribution"),
         }
-        for run in (public or {}).get("runs", [])
+        for run in ([public["run"]] if isinstance((public or {}).get("run"), dict) else [])
         if run.get("execution_status") != ContractExecutionStatus.PASS.value
     ]
     return failures

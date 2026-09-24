@@ -11,7 +11,7 @@ from ..core.project import Project
 from ..core.validation import BundleValidationContext, json_object
 from .contracts import MigrationArtifact as A
 from .contracts import MigrationStage as S
-from .public_qemu import latest_public_qemu_run
+from .public_qemu import current_public_qemu_run
 from .review_policy import review_policy_digest
 
 
@@ -140,7 +140,7 @@ def _review_inputs(
     target_change_inventory: str,
     artifact_identity: str,
 ) -> dict:
-    run = latest_public_qemu_run(public)
+    run = current_public_qemu_run(public)
     return {
         "files": bundle["files"],
         "upstream": bundle["target_worktree"],
@@ -170,7 +170,7 @@ def _review_inputs(
 
 def _public_evidence_digest(public: dict) -> str:
     """Hash substantive QEMU observations, excluding derived receipt text."""
-    run = deepcopy(latest_public_qemu_run(public))
+    run = deepcopy(current_public_qemu_run(public))
     run.pop("request_report", None)
     inputs = deepcopy(public.get("inputs"))
     if isinstance(inputs, dict):

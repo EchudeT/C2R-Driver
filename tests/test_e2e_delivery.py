@@ -173,8 +173,8 @@ def test_two_conversations_complete_with_independent_review(tmp_path, risk, appe
     review = reopened.load_json_artifact(S.FINAL_EVIDENCE_REVIEW, A.FINAL_EVIDENCE_REVIEW_REPORT)
     assert review["review_mode"] == "independent"
     public = reopened.load_json_artifact(S.PUBLIC_QEMU_VALIDATION, A.PUBLIC_QEMU_REPORT)
-    assert public["runs"][0]["attribution"] == "PUBLIC_HARNESS"
-    variants = public["runs"][0]["runtime_variants"]
+    assert public["run"]["attribution"] == "PUBLIC_HARNESS"
+    variants = public["run"]["runtime_variants"]
     assert variants[".dpf-output/harness/variants/fault-image"]["observed_boot"] is True
     variant = variants[".dpf-output/harness/variants/fault-image"]["artifact"]
     assert (
@@ -357,43 +357,36 @@ def test_final_review_identity_ignores_derived_qemu_receipt_fields():
         "recorded_at": "first",
         "attempt_sha256": "attempt-one",
         "self_review_sha256": "worker-one",
-        "current_run": 0,
-        "runs": [
-            {
+        "run": {
                 "request_job": 4,
                 "runtime_artifact": {"sha256": "runtime"},
                 "script": {"sha256": "script"},
                 "helper_inputs": {},
                 "request_report": {"sha256": "derived-worker-report"},
                 "exec_trace": {"qemu_execs": ["qemu"], "runtime_bound": True},
-            }
-        ],
+        },
     }
     refreshed = deepcopy(report)
     refreshed["recorded_at"] = "second"
     refreshed["attempt_sha256"] = "attempt-two"
     refreshed["self_review_sha256"] = "worker-two"
-    refreshed["runs"][0]["request_report"]["sha256"] = "new-derived-worker-report"
+    refreshed["run"]["request_report"]["sha256"] = "new-derived-worker-report"
 
     assert _public_evidence_digest(refreshed) == _public_evidence_digest(report)
 
 
-def test_latest_public_qemu_run_does_not_assume_first_run():
+def test_current_public_qemu_run_is_single_and_explicit():
     import pytest
 
     from driver_port_factory.core.models import WorkflowError
-    from driver_port_factory.migration.public_qemu import latest_public_qemu_run
+    from driver_port_factory.migration.public_qemu import current_public_qemu_run
 
     report = {
-        "current_run": 1,
-        "runs": [
-            {"request_job": 3, "runtime_artifact": {"sha256": "old"}},
-            {"request_job": 8, "runtime_artifact": {"sha256": "current"}},
-        ],
+        "run": {"request_job": 8, "runtime_artifact": {"sha256": "current"}},
     }
-    assert latest_public_qemu_run(report)["runtime_artifact"]["sha256"] == "current"
-    with pytest.raises(WorkflowError, match="explicit current_run"):
-        latest_public_qemu_run({"runs": report["runs"]})
+    assert current_public_qemu_run(report)["runtime_artifact"]["sha256"] == "current"
+    with pytest.raises(WorkflowError, match="no current run"):
+        current_public_qemu_run({"runs": [report["run"]]})
 
 
 def test_prepared_repair_ignores_report_only_refresh(tmp_path):

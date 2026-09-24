@@ -9,7 +9,7 @@ from ..knowledge.index import file_sha256
 from ..orchestration.protocol import REPAIR_TARGETS
 from ..target_study.contracts import TargetStudyStage
 from .contracts import MigrationStage
-from .public_qemu import PublicQemuService, latest_public_qemu_run
+from .public_qemu import PublicQemuService, current_public_qemu_run
 
 
 def retry_prerequisite(project, target, *, trigger, reason):
@@ -33,7 +33,7 @@ def retry_prerequisite(project, target, *, trigger, reason):
     elif target.value == "public_qemu_validation":
         from .contracts import MigrationArtifact
         report = project.load_json_artifact(target, MigrationArtifact.PUBLIC_QEMU_REPORT)
-        run = latest_public_qemu_run(report)
+        run = current_public_qemu_run(report)
         acquisition = load_repository_acquisition(project)
         worktree = project.root / acquisition.target_worktree.path
         script_path = worktree / ".dpf-output" / "public-qemu.sh"
