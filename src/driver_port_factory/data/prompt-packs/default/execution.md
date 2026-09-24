@@ -15,3 +15,12 @@ The container collector recognizes fresh docker runs mounting the execution dire
 Boot bindings recognized by the collector include -kernel/-bios/-pflash/-cdrom/-hd[a-d]/-fd[a-b]
 and -drive file=<path>. These are collection limits, not required invocation spellings.
 Use the checker-decision protocol with evidence for other valid routes; never add dummy calls.
+
+For an Asterinas target, all target experiments must execute inside the official
+`asterinas/dev:<pinned-tag>` development image. Mount the execution worktree and every
+runtime/artifact path needed by QEMU, record the exact image tag and image ID in the report,
+and invoke the QEMU binary from inside that container. A host QEMU invocation is not target
+runtime evidence; the controller rejects an Asterinas run unless it observes the QEMU process
+inside an `asterinas/dev` container. Use `--device /dev/kvm` only when the image route requires
+it; TCG is a valid bounded fallback. The model smoke and public-QEMU scripts must use the same
+container boundary as the eventual target build/run route.

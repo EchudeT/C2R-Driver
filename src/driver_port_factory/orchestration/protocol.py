@@ -33,7 +33,10 @@ TASKS = {
     "environment_recovery": TaskProtocol(completion=
         "Write environment-smoke.sh and the environment report, then invoke "
         "tool_runtime.submission_command with --kind report --decision pass. The controller "
-        "runs the acceptance smoke; the final chat response is not a submission.", executable=True),
+        "runs the acceptance smoke; for an Asterinas target, run QEMU and any target-side "
+        "probe inside the pinned official asterinas/dev Docker image and record its tag and "
+        "image ID; a host QEMU process is not accepted. The final chat response is not a "
+        "submission.", executable=True),
     "target_platform_study": TaskProtocol(completion=
         "Complete the target-platform study report, including the profile, target API evidence, "
         "one applicable analogous path and target-change/packaging evidence; write it to a file "
@@ -68,6 +71,9 @@ TASKS = {
         "the implementation snapshot without another implementation turn.", executable=True),
     "public_qemu_validation": TaskProtocol(("PUBLIC_QEMU",),
         "Write .dpf-output/public-qemu.sh, using $DPF_RUNTIME_ARTIFACT for production. "
+        "For an Asterinas target, invoke QEMU inside the pinned official asterinas/dev Docker "
+        "image with the worktree and runtime mounted; record the image identity in the run "
+        "evidence. Do not use a host QEMU as a substitute. "
         "Return zero only when its required oracles pass. Invoke tool_runtime.submission_command "
         "with --kind report --decision operation --operation PUBLIC_QEMU, then inspect "
         "controller_execution and update the same report. After the final audit invoke the "

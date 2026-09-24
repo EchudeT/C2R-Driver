@@ -14,10 +14,11 @@ from ..codex.contracts import CodexOutputError
 from ..core.artifact_identity import substantive_artifact_identity_digest
 from ..core.contracts import ArtifactKey
 from ..core.container_trace import ContainerTrace
+from ..core.container_policy import container_execution_summary
 from ..core.execution import CommandResult, CommandRunner, observed_script_command
 from ..core.models import FileArtifact, GeneratedArtifact, StageStatus, WorkflowError, utc_now
 from ..core.project import Project
-from ..core.trace import successful_execs
+from ..core.trace import qemu_experiment, successful_execs
 from ..core.validation import BundleValidationContext, json_object
 from ..environment.contracts import EnvironmentArtifact
 from ..environment.evidence import workspace_path
@@ -131,6 +132,9 @@ class QemuHarnessResult:
     trace_path: Path
     executed_programs: tuple[str, ...]
     qemu_execs: tuple[str, ...]
+    host_qemu_execs: tuple[str, ...]
+    container_qemu_execs: tuple[str, ...]
+    container_execution: dict[str, Any]
     runtime_bound: bool
     logs: tuple[dict[str, Any], ...]
 
@@ -144,6 +148,7 @@ class QemuHarnessResult:
             and bool(self.qemu_execs)
             and self.runtime_bound
             and bool(self.logs)
+            and self.container_execution["satisfied"]
         )
 
 
@@ -153,6 +158,7 @@ def run_public_harness(
     script_path: Path,
     worktree: Path,
     runtime_path: Path,
+    target_platform: str,
 ) -> QemuHarnessResult:
     """Run a public harness and mechanically prove its QEMU/runtime/log boundary."""
 
@@ -177,11 +183,24 @@ def run_public_harness(
         if trace_path.is_file()
         else []
     )
-    successful = successful_execs(lines) + containers.executions(trace_path)
+    host_successful = successful_execs(lines)
+    container_successful = containers.executions(trace_path)
+    successful = host_successful + container_successful
     # The immutable exec trace retains every call; the summary only needs program identities.
     executed = tuple(dict.fromkeys(path for path, _ in successful))
     qemu_lines = tuple(
         line for path, line in successful if Path(path).name.startswith("qemu-system-")
+    )
+    host_qemu_execs = tuple(path for path, line in host_successful
+                            if Path(path).name.startswith("qemu-system-")
+                            and qemu_experiment(line))
+    container_qemu_execs = tuple(path for path, line in container_successful
+                                 if Path(path).name.startswith("qemu-system-")
+                                 and qemu_experiment(line))
+    container_execution = container_execution_summary(
+        observations_path=attempt_dir / "container-processes.json",
+        target_platform=target_platform,
+        host_qemu_execs=host_qemu_execs,
     )
     runtime_bound = any(runtime_in_qemu_arguments(line, runtime_path) for line in qemu_lines)
     logs = (
@@ -204,6 +223,9 @@ def run_public_harness(
         trace_path,
         executed,
         qemu_lines,
+        host_qemu_execs,
+        container_qemu_execs,
+        container_execution,
         runtime_bound,
         logs,
     )
@@ -279,6 +301,7 @@ class PublicQemuService:
             script_path=script_path,
             worktree=worktree,
             runtime_path=runtime_path,
+            target_platform=project.config.target_platform,
         )
         harness_unchanged = (
             script_path.is_file()
@@ -316,6 +339,9 @@ class PublicQemuService:
                 "sha256": file_sha256(observed.trace_path),
                 "executed_programs": list(observed.executed_programs),
                 "qemu_execs": list(observed.qemu_execs),
+                "host_qemu_execs": list(observed.host_qemu_execs),
+                "container_qemu_execs": list(observed.container_qemu_execs),
+                "container_execution": observed.container_execution,
                 "runtime_bound": observed.runtime_bound,
                 "container_evidence": str(observed.trace_path.parent / "container-processes.json"),
                 "container_evidence_sha256": file_sha256(

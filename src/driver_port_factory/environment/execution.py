@@ -7,6 +7,9 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 
 from ..core.container_trace import ContainerTrace
+from ..core.container_policy import (
+    container_execution_summary,
+)
 from ..codex.contracts import CodexOutputError
 from ..core.execution import CommandRunner, observed_script_command
 from ..core.models import (
@@ -76,19 +79,33 @@ class ExperimentExecutor:
                 },
                 timeout_seconds=3600,
             )
-        executions = successful_execs(trace_path.read_text(errors="replace").splitlines()) if trace_path.is_file() else ()
-        executions += containers.executions(trace_path)
+        host_executions = (
+            successful_execs(trace_path.read_text(errors="replace").splitlines())
+            if trace_path.is_file() else ()
+        )
+        container_executions = containers.executions(trace_path)
+        executions = host_executions + container_executions
         executed = list(dict.fromkeys(path for path, _ in executions))
         qemu_programs = [
             path for path, line in executions
             if Path(path).name.startswith("qemu-system-") and qemu_experiment(line)
         ]
+        host_qemu_programs = [
+            path for path, line in host_executions
+            if Path(path).name.startswith("qemu-system-") and qemu_experiment(line)
+        ]
+        container_summary = container_execution_summary(
+            observations_path=containers.output,
+            target_platform=project.config.target_platform,
+            host_qemu_execs=tuple(host_qemu_programs),
+        )
         ready = (
             result.launched
             and result.launch_error is None
             and not result.timed_out
             and result.exit_code == 0
             and bool(qemu_programs)
+            and container_summary["satisfied"]
         )
         readiness = ExperimentReadiness.PASS if ready else ExperimentReadiness.FAIL
         route_id = f"codex-harness-{script_digest[:16]}"
@@ -115,6 +132,8 @@ class ExperimentExecutor:
                 "sha256": file_sha256(trace_path),
                 "executed_programs": executed,
                 "qemu_programs": qemu_programs,
+                "host_qemu_programs": host_qemu_programs,
+                "container_execution": container_summary,
                 "container_evidence": str(containers.output),
                 "container_evidence_sha256": file_sha256(containers.output),
             },
@@ -131,7 +150,8 @@ class ExperimentExecutor:
             project.note_check(
                 (f"smoke harness exit={result.exit_code}, timed_out={result.timed_out}, "
                  f"observed QEMU experiment execs={len(qemu_programs)} (version/help is not smoke). "
-                 "Acceptance requires successful script execution and an observed non-discovery QEMU run; "
+                 "Acceptance requires successful script execution, an observed non-discovery QEMU run, "
+                 "and for Asterinas an official asterinas/dev container execution; "
                  "no boot/device argument whitelist applies. Route assertions belong to the harness. "
                  "If QEMU ran but was not captured, diagnose the collector evidence, not the driver. "
                  f"Container observations/errors={containers.output}. "
@@ -163,6 +183,7 @@ class ExperimentExecutor:
             "command": list(result.argv),
             "attempt_sha256": hashlib.sha256(attempt_path.read_bytes()).hexdigest(),
             "qemu_programs": qemu_programs,
+            "container_execution": container_summary,
             "migrated_driver_runtime_ready": False,
             "mechanical_readiness": readiness.value,
         }
