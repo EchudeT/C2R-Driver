@@ -14,11 +14,25 @@ from .repository_storage import BareRepositoryStore
 class BaselineRepositoryAcquirer:
     """Acquire one immutable, detached repository baseline."""
 
-    def __init__(self, project_root: Path, control_root: Path, git: RepositoryGit, *, caches=()) -> None:
+    def __init__(
+        self,
+        project_root: Path,
+        control_root: Path,
+        git: RepositoryGit,
+        *,
+        caches=(),
+        local_repositories=None,
+    ) -> None:
         self.project_root = project_root.resolve()
         self.control_root = control_root.resolve()
         self.git = git
-        self.store = BareRepositoryStore(self.project_root, self.control_root, git, caches=caches)
+        self.store = BareRepositoryStore(
+            self.project_root,
+            self.control_root,
+            git,
+            caches=caches,
+            local_repositories=local_repositories or {},
+        )
 
     def acquire(self, spec: RepositorySpec, checkout_name: str) -> CheckoutRecord:
         bare = self.store.prepare(spec)

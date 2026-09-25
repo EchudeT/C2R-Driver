@@ -7,6 +7,7 @@ from pathlib import Path
 from ..codex.contracts import CodexContinuation
 from ..core.execution import CommandRunner, script_command
 from ..knowledge.index import file_sha256
+from .implementation_preflight import format_findings, inspect_implementation
 
 
 def implementation_smoke(project, worktree: Path, base: str) -> dict:
@@ -42,6 +43,26 @@ def implementation_smoke(project, worktree: Path, base: str) -> dict:
         if receipt["inputs"] == identity and receipt["status"] == "PASS":
             return receipt
     attempt = root / uuid.uuid4().hex
+    preflight = inspect_implementation(project, worktree, base)
+    if preflight["status"] != "PASS":
+        # Persist the deterministic finding before returning to the worker.  A
+        # missing runtime premise must be visible in status/audit and must not
+        # consume a QEMU invocation merely to rediscover a text marker.
+        receipt = {
+            "schema_version": 2,
+            "status": "FAIL",
+            "scope": "implementation-functional-smoke",
+            "inputs": identity,
+            "preflight": preflight,
+            "presence": None,
+            "execution": None,
+            "receipt_path": str(attempt / "receipt.json"),
+        }
+        attempt.mkdir(parents=True, exist_ok=True)
+        (attempt / "receipt.json").write_text(json.dumps(receipt, indent=2) + "\n")
+        raise CodexContinuation(
+            f"{format_findings(preflight)} Receipt: {attempt / 'receipt.json'}"
+        )
     presence = CommandRunner(attempt / "presence").run(
         script_command(paths["check-presence.sh"]), cwd=worktree,
         environment={"DPF_RUNTIME_ARTIFACT": str(paths["runtime-artifact"]),
@@ -56,8 +77,9 @@ def implementation_smoke(project, worktree: Path, base: str) -> dict:
         )
     passed = observed is not None and observed.passed and inputs() == identity
     receipt = {
-        "schema_version": 1, "status": "PASS" if passed else "FAIL",
+        "schema_version": 2, "status": "PASS" if passed else "FAIL",
         "scope": "implementation-functional-smoke", "inputs": identity,
+        "preflight": preflight,
         "presence": json.loads(json.dumps(asdict(presence))),
         "execution": json.loads(json.dumps(asdict(observed), default=str)) if observed else None,
         "receipt_path": str(attempt / "receipt.json"),

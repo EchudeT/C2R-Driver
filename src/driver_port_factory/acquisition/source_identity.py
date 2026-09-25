@@ -23,12 +23,17 @@ class ObservedSourceIdentity:
     blob: str
     sha256: str
     size_bytes: int
+    # ``blob`` is retained for schema compatibility with records written by
+    # earlier runs.  For a directory-scoped source entry it contains the Git
+    # tree object id, and object_kind makes that distinction explicit.
+    object_kind: str = "blob"
 
     @classmethod
     def from_dict(cls, value: object) -> ObservedSourceIdentity:
         candidate = exact_object(
             value,
             required={"repository", "resolved_commit", "blob", "sha256", "size_bytes"},
+            optional={"object_kind"},
             label="observed source identity",
         )
         try:
@@ -38,12 +43,16 @@ class ObservedSourceIdentity:
         size = candidate["size_bytes"]
         if not isinstance(size, int) or size <= 0:
             raise WorkflowError("observed source identity requires non-empty source bytes")
+        object_kind = candidate.get("object_kind", "blob")
+        if object_kind not in {"blob", "tree"}:
+            raise WorkflowError("observed source identity has an invalid Git object kind")
         return cls(
             repository,
             object_id(candidate["resolved_commit"], "observed source commit"),
-            object_id(candidate["blob"], "observed source blob"),
+            object_id(candidate["blob"], f"observed source {object_kind}"),
             sha256(candidate["sha256"], "observed source SHA256"),
             size,
+            object_kind,
         )
 
     def to_dict(self) -> dict[str, object]:
@@ -53,6 +62,7 @@ class ObservedSourceIdentity:
             "blob": self.blob,
             "sha256": self.sha256,
             "size_bytes": self.size_bytes,
+            "object_kind": self.object_kind,
         }
 
 
@@ -137,18 +147,65 @@ class SourceIdentityVerifier:
         root = (project_root.resolve() / source.checkout_path).resolve()
         entry = _relative_path(migration_envelope.get("source_driver_entry_or_repository_hint"))
         path = (root / entry).resolve()
-        if root not in path.parents or not path.is_file():
+        if root not in path.parents or not path.exists():
             raise WorkflowError("frozen source entry is absent from its checkout root")
-        blob = self._git(project_root, root, "rev-parse", f"{source.resolved_commit}:{entry}")
-        data = self._git_bytes(project_root, root, "cat-file", "blob", blob)
-        if data != path.read_bytes():
-            raise WorkflowError("frozen source entry bytes differ from its Git blob")
+        object_kind = self._git(
+            project_root, root, "cat-file", "-t", f"{source.resolved_commit}:{entry}"
+        )
+        object_id_value = self._git(
+            project_root, root, "rev-parse", f"{source.resolved_commit}:{entry}"
+        )
+        if object_kind == "blob":
+            if not path.is_file():
+                raise WorkflowError("frozen source file is not a regular file")
+            data = self._git_bytes(project_root, root, "cat-file", "blob", object_id_value)
+            if data != path.read_bytes():
+                raise WorkflowError("frozen source entry bytes differ from its Git blob")
+            digest = hashlib.sha256(data).hexdigest()
+            size = len(data)
+            observations = (
+                "source entry is tracked by the frozen source commit",
+                "source worktree bytes equal the frozen Git blob",
+            )
+        elif object_kind == "tree":
+            if not path.is_dir():
+                raise WorkflowError("frozen source directory is not a directory")
+            self._verify_directory_worktree(project_root, root, source.resolved_commit, entry)
+            # A Git tree has no single byte stream equivalent to a file blob.
+            # Hash the NUL-delimited recursive tree listing instead.  It binds
+            # every tracked path, mode, object kind and object id in the
+            # directory while remaining deterministic across checkout paths.
+            manifest = self._git_bytes(
+                project_root,
+                root,
+                "ls-tree",
+                "-r",
+                "-z",
+                "--full-tree",
+                source.resolved_commit,
+                "--",
+                entry,
+            )
+            if not manifest:
+                raise WorkflowError("frozen source directory has no tracked entries")
+            digest = hashlib.sha256(manifest).hexdigest()
+            size = len(manifest)
+            observations = (
+                "source entry is a tracked directory tree in the frozen source commit",
+                "source worktree files match the frozen Git checkout",
+                "source directory identity hashes its recursive Git tree listing",
+            )
+        else:
+            raise WorkflowError(
+                f"frozen source entry has unsupported Git object kind: {object_kind}"
+            )
         observed = ObservedSourceIdentity(
             RepositoryRole.SOURCE,
             source.resolved_commit,
-            object_id(blob, "source identity blob"),
-            hashlib.sha256(data).hexdigest(),
-            len(data),
+            object_id(object_id_value, f"source identity {object_kind}"),
+            digest,
+            size,
+            object_kind,
         )
         return SourceIdentityRecord(
             migration_envelope_sha256,
@@ -156,10 +213,7 @@ class SourceIdentityVerifier:
             entry,
             observed,
             SourceIdentityStatus.VERIFIED,
-            (
-                "source entry is tracked by the frozen source commit",
-                "source worktree bytes equal the frozen Git blob",
-            ),
+            observations,
             (),
             utc_now(),
         )
@@ -191,6 +245,33 @@ class SourceIdentityVerifier:
             stderr = completed.stderr.decode("utf-8", errors="replace")
             raise WorkflowError(f"source identity Git blob verification failed: {stderr.strip()}")
         return completed.stdout
+
+    @classmethod
+    def _verify_directory_worktree(
+        cls, root: Path, checkout: Path, commit: str, entry: str
+    ) -> None:
+        # Baseline acquisition normally proves the complete checkout is clean,
+        # but keep this verifier self-contained so direct validation cannot
+        # accept modified or untracked files under a directory entry.
+        status = cls._git(
+            root,
+            checkout,
+            "status",
+            "--porcelain=v1",
+            "--untracked-files=all",
+            "--",
+            entry,
+        )
+        if status:
+            raise WorkflowError("frozen source directory worktree differs from its checkout")
+        diff = subprocess.run(
+            ("git", "-C", str(checkout), "diff", "--quiet", commit, "--", entry),
+            cwd=root,
+            check=False,
+            capture_output=True,
+        )
+        if diff.returncode != 0:
+            raise WorkflowError("frozen source directory files differ from its Git tree")
 
 
 def _relative_path(value: object) -> str:

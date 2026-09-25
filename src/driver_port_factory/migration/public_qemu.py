@@ -12,9 +12,9 @@ from ..acquisition.contracts import AcquisitionArtifact
 from ..acquisition.repository import load_repository_acquisition
 from ..codex.contracts import CodexOutputError
 from ..core.artifact_identity import substantive_artifact_identity_digest
-from ..core.contracts import ArtifactKey
-from ..core.container_trace import ContainerTrace
 from ..core.container_policy import container_execution_summary
+from ..core.container_trace import ContainerTrace
+from ..core.contracts import ArtifactKey
 from ..core.execution import CommandResult, CommandRunner, observed_script_command
 from ..core.models import FileArtifact, GeneratedArtifact, StageStatus, WorkflowError, utc_now
 from ..core.project import Project
@@ -31,7 +31,8 @@ from .contracts import (
     MigrationStage,
     PublicRunAttribution,
 )
-from .implementation import validate_worktree_snapshot
+from .implementation import ImplementationChanged, validate_worktree_snapshot
+from .implementation_preflight import format_findings, inspect_implementation
 from .review_policy import require_self_review
 
 PUBLIC_QEMU_INPUTS = (
@@ -252,6 +253,11 @@ class PublicQemuService:
             MigrationStage.DRIVER_IMPLEMENTATION, MigrationArtifact.IMPLEMENTATION_BUNDLE
         )
         validate_worktree_snapshot(project.root, implementation)
+        preflight = inspect_implementation(
+            project, worktree, implementation["target_worktree"]["base_commit"]
+        )
+        if preflight["status"] != "PASS":
+            raise ImplementationChanged(format_findings(preflight))
         runtime = project.artifact(
             MigrationStage.ARTIFACT_PREPARATION, MigrationArtifact.RUNTIME_ARTIFACT
         )

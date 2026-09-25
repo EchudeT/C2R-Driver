@@ -210,6 +210,14 @@ def validate_implementation_bundle(context: BundleValidationContext) -> None:
         or inventory.get("inputs") != expected_inputs
     ):
         raise WorkflowError("implementation snapshot is detached from its frozen inputs")
+    smoke = bundle.get("functional_smoke")
+    if not isinstance(smoke, dict) or smoke.get("status") != "PASS":
+        raise WorkflowError("implementation snapshot has no passing functional smoke")
+    preflight = smoke.get("preflight")
+    if not isinstance(preflight, dict) or preflight.get("status") != "PASS":
+        raise WorkflowError("implementation snapshot has not passed the real-runtime preflight")
+    if not isinstance(preflight.get("findings"), list):
+        raise WorkflowError("implementation smoke preflight findings are malformed")
     report = bundle.get("work_report")
     if (
         not isinstance(report, dict)

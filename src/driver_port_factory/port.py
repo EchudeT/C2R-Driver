@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
+import re
 import subprocess
 from collections.abc import Callable
 from dataclasses import dataclass
@@ -10,18 +12,25 @@ from pathlib import Path
 
 from .acquisition.closure import EvidenceClosureFinalizer
 from .acquisition.contracts import AcquisitionArtifact, AcquisitionStage
+from .acquisition.git_execution import RepositoryFetchError
 from .acquisition.job import ArtifactOccurrence
 from .acquisition.proposal import EvidenceProposalImporter
 from .acquisition.repository import RepositoryAcquirer, load_repository_acquisition
 from .acquisition.repository_role import RepositoryRole
 from .acquisition.revision_proposal import RevisionProposalImporter
-from .acquisition.git_execution import RepositoryFetchError
 from .cli_support import CommandRegistry, command_registry
 from .codex.cli import run_codex_stage
-from .codex.contracts import CodexArtifact, CodexBackend, CodexContinuation, CodexOutputError, ModelInvocationError
+from .codex.contracts import (
+    CodexArtifact,
+    CodexBackend,
+    CodexContinuation,
+    CodexOutputError,
+    ModelInvocationError,
+)
 from .composition import initialize_project, open_project
-from .core.contracts import ArtifactKey, StageKey
+from .control.runtime import controller_run
 from .core.checker_decision import CheckerDecisionRequired, RecoveryPaused
+from .core.contracts import ArtifactKey, StageKey
 from .core.models import (
     ActorRole,
     ArtifactDirection,
@@ -33,7 +42,6 @@ from .core.models import (
     WorkflowError,
 )
 from .core.project import Project
-from .control.runtime import controller_run
 from .environment.contracts import EnvironmentArtifact, EnvironmentStage
 from .environment.execution import ExperimentExecutor
 from .environment.inventory import EnvironmentInspector
@@ -44,17 +52,17 @@ from .knowledge.bootstrap import KnowledgeBootstrapper
 from .knowledge.contracts import KnowledgeArtifact, KnowledgeStage
 from .migration.artifact_preparation import ArtifactPreparationService
 from .migration.contracts import MigrationArtifact, MigrationStage
+from .migration.final_evidence_review import FinalEvidenceReviewService
 from .migration.handoff import MigrationHandoff
 from .migration.implementation import DriverImplementationService, ImplementationChanged
 from .migration.public_qemu import PublicQemuService
-from .migration.final_evidence_review import FinalEvidenceReviewService
-from .migration.target_framework import TargetFrameworkEnablementService
 from .migration.repair_routing import (
     ROUTES,
     PrerequisiteRepair,
     WorkerBlocked,
     retry_prerequisite,
 )
+from .migration.target_framework import TargetFrameworkEnablementService
 from .target_study.contracts import TargetStudyArtifact, TargetStudyStage
 
 
@@ -70,6 +78,9 @@ class PortOptions:
     codex_bin: str
     model: str | None
     baseline_repositories: tuple[Path, ...] = ()
+    local_source_repository: Path | None = None
+    local_target_repository: Path | None = None
+    local_qemu_repository: Path | None = None
     enable_analysis_review: bool | None = None
     enable_final_evidence_review: bool | None = None
 
@@ -198,6 +209,24 @@ class PortRunner:
                     self.options.baseline_repositories) != project.config.baseline_repositories:
                 raise WorkflowError("supplied baseline repositories differ from the persisted run configuration")
             for option_name, option_value, config_value in (
+                (
+                    "local_source_repository",
+                    str(self.options.local_source_repository.resolve())
+                    if self.options.local_source_repository else None,
+                    project.config.local_source_repository,
+                ),
+                (
+                    "local_target_repository",
+                    str(self.options.local_target_repository.resolve())
+                    if self.options.local_target_repository else None,
+                    project.config.local_target_repository,
+                ),
+                (
+                    "local_qemu_repository",
+                    str(self.options.local_qemu_repository.resolve())
+                    if self.options.local_qemu_repository else None,
+                    project.config.local_qemu_repository,
+                ),
                 ("analysis_review", self.options.enable_analysis_review,
                  project.config.enable_analysis_review),
                 ("final_evidence_review", self.options.enable_final_evidence_review,
@@ -205,7 +234,8 @@ class PortRunner:
             ):
                 if option_value is not None and option_value != config_value:
                     raise WorkflowError(
-                        f"supplied {option_name} setting differs from the persisted run configuration"
+                        f"supplied {option_name} setting differs from the persisted "
+                        "run configuration"
                     )
             return project
         return initialize_project(
@@ -218,7 +248,21 @@ class PortRunner:
                 evaluation_mode=EvaluationMode.DEVELOPER_EVIDENCE,
                 actor_role=ActorRole.DEVELOPER,
                 skill_root=str(self.options.skill_root.resolve()),
-                baseline_repositories=tuple(str(path.resolve()) for path in self.options.baseline_repositories),
+                baseline_repositories=tuple(
+                    str(path.resolve()) for path in self.options.baseline_repositories
+                ),
+                local_source_repository=(
+                    str(self.options.local_source_repository.resolve())
+                    if self.options.local_source_repository else None
+                ),
+                local_target_repository=(
+                    str(self.options.local_target_repository.resolve())
+                    if self.options.local_target_repository else None
+                ),
+                local_qemu_repository=(
+                    str(self.options.local_qemu_repository.resolve())
+                    if self.options.local_qemu_repository else None
+                ),
                 enable_analysis_review=(
                     True if self.options.enable_analysis_review is None
                     else self.options.enable_analysis_review
@@ -231,7 +275,7 @@ class PortRunner:
         )
 
     def _checker_decision(self, project: Project, stage: StageKey, error) -> None:
-        from .core.checker_decision import accept_decision, clear_pending, capture_is_current
+        from .core.checker_decision import accept_decision, capture_is_current, clear_pending
         from .core.models import StageOwner
         payload = json.loads(error.path.read_text())
         job = self._latest_job_occurrence(project, stage)
@@ -397,6 +441,8 @@ class PortRunner:
         pending = self._latest_job_occurrence(project, stage)
         thread_id = self._latest_thread_id(project, stage)
         feedback = None
+        last_progress: str | None = None
+        unchanged_continuations = 0
         while True:
             if pending is None:
                 result, _, response = self._codex(
@@ -414,9 +460,11 @@ class PortRunner:
                 if submission is not None:
                     decision = submission.get("decision")
                     if decision == "blocked":
+                        report = str(submission.get("file"))
+                        detail = self._blocked_report_detail(report)
                         raise WorkerBlocked(
-                            f"worker reported a prerequisite blocker; submitted file: "
-                            f"{submission.get('file')}"
+                            "worker reported a prerequisite blocker; "
+                            f"report={report}; findings={detail}"
                         )
                     if decision == "rework":
                         target_name = submission.get("repair_stage")
@@ -445,9 +493,119 @@ class PortRunner:
                 return False
             except CodexContinuation as progress:
                 # Progress is deliberately not formatted as rejected output.
+                fingerprint = self._continuation_fingerprint(project, stage, progress)
+                if fingerprint == last_progress:
+                    unchanged_continuations += 1
+                else:
+                    unchanged_continuations = 0
+                last_progress = fingerprint
+                if unchanged_continuations >= 1:
+                    message = (
+                        "bounded repair stopped after two identical continuation findings; "
+                        "no implementation, runtime, harness or evidence input changed. "
+                        f"stage={stage.value}; "
+                        f"last_receipt={self._latest_receipt(project, stage)}; "
+                        f"finding={self._continuation_detail(progress)}; "
+                        f"fingerprint={fingerprint}. "
+                        "Apply the cited repair or submit an explicit "
+                        "prerequisite rework after changing the affected input, "
+                        "then reopen this stage."
+                    )
+                    project.note_check(message)
+                    project.complete(stage, StageStatus.BLOCKED, message=message)
+                    return False
                 context = {**context, "controller_execution": str(progress)}
                 feedback = None
                 pending = None
+
+    @staticmethod
+    def _latest_receipt(project: Project, stage: StageKey) -> str:
+        refs = [
+            ref for ref in project.artifact_refs(stage=stage)
+            if ref.kind == CodexArtifact.SUBMISSION.value and ref.ordinal is not None
+        ]
+        if not refs:
+            return "none"
+        ref = max(refs, key=lambda item: item.ordinal)
+        try:
+            value = json.loads(project.artifacts.read(ref))
+            return str(value.get("file") or project.artifacts.path_for_digest(ref.digest))
+        except (UnicodeDecodeError, json.JSONDecodeError, TypeError):
+            return str(project.artifacts.path_for_digest(ref.digest))
+
+    @staticmethod
+    def _blocked_report_detail(path: str) -> str:
+        """Keep the durable stage message useful without copying a whole report."""
+        try:
+            text = Path(path).read_text(encoding="utf-8").strip()
+        except (OSError, UnicodeError):
+            return "unable to read submitted blocker report"
+        if not text:
+            return "submitted blocker report is blank"
+        # Preserve the beginning because reports conventionally put the
+        # classification, exact locations and required action first. The full
+        # report remains immutable in CAS at the path shown above.
+        return " ".join(text[:2400].split())
+
+    @staticmethod
+    def _continuation_fingerprint(project: Project, stage: StageKey, error: Exception) -> str:
+        """Hash executable premises, not report prose or attempt UUIDs.
+
+        Continuation text and receipt directories change on every attempt.  They
+        must not trick the controller into paying for an identical repair.
+        """
+        normalized = PortRunner._continuation_detail(error)
+        value: dict[str, object] = {"stage": stage.value, "error": normalized, "artifacts": []}
+        try:
+            refs = [
+                ref for ref in project.current_artifact_refs(stage=stage)
+                if ref.kind not in {
+                    CodexArtifact.JOB_RESULT.value,
+                    CodexArtifact.WORK_REPORT.value,
+                    CodexArtifact.SUBMISSION.value,
+                    CodexArtifact.PROMPT.value,
+                    CodexArtifact.EVENT_LOG.value,
+                }
+            ]
+            value["artifacts"] = [(ref.kind, ref.digest) for ref in refs]
+            acquisition = load_repository_acquisition(project)
+            target = acquisition.target_worktree
+            worktree = project.root / target.path
+            from .migration.implementation import worktree_files
+            value["worktree"] = worktree_files(worktree, target.base_commit)
+            output = worktree / ".dpf-output"
+            for name in (
+                "runtime-artifact",
+                "check-presence.sh",
+                "implementation-smoke.sh",
+                "public-qemu.sh",
+            ):
+                path = output / name
+                if path.is_file() and not path.is_symlink():
+                    value.setdefault("execution", []).append(
+                        (name, hashlib.sha256(path.read_bytes()).hexdigest())
+                    )
+        except (OSError, WorkflowError, ValueError):
+            # A missing checkout is itself a stable failure premise.  Preserve
+            # the normalized error so the guard still prevents a hot loop.
+            pass
+        encoded = json.dumps(value, sort_keys=True, default=str).encode()
+        return hashlib.sha256(encoded).hexdigest()
+
+    @staticmethod
+    def _continuation_detail(error: Exception) -> str:
+        """Retain the exact finding while removing attempt-specific noise."""
+        normalized = str(error)
+        normalized = re.sub(
+            r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}",
+            "<attempt>", normalized, flags=re.IGNORECASE,
+        )
+        normalized = re.sub(
+            r"/(?:implementation-smoke|artifact-preparation|public-qemu)/[0-9a-f]{32}",
+            lambda match: match.group(0).rsplit("/", 1)[0] + "/<attempt>",
+            normalized, flags=re.IGNORECASE,
+        )
+        return " ".join(normalized[:2400].split())
 
     @staticmethod
     def _latest_thread_id(project: Project, stage: StageKey) -> str | None:
@@ -548,8 +706,19 @@ class PortRunner:
         self._codex_gate(
             project,
             AcquisitionStage.REPOSITORY_ACQUISITION,
-            {"migration_envelope": envelope,
-             "supplied_upstream_baselines": list(project.config.baseline_repositories)},
+            {
+                "migration_envelope": envelope,
+                "supplied_upstream_baselines": list(project.config.baseline_repositories),
+                "supplied_local_repositories": {
+                    role.value: path
+                    for role, path in (
+                        (RepositoryRole.SOURCE, project.config.local_source_repository),
+                        (RepositoryRole.TARGET, project.config.local_target_repository),
+                        (RepositoryRole.QEMU, project.config.local_qemu_repository),
+                    )
+                    if path
+                },
+            },
             self._accept_revision_result,
         )
 
@@ -744,7 +913,7 @@ class PortRunner:
         return policy
 
     def _analysis_review(self, project: Project) -> None:
-        from .migration.analysis_review import AnalysisReviewService, INPUTS
+        from .migration.analysis_review import INPUTS, AnalysisReviewService
         service = AnalysisReviewService()
         reused = service.reusable(project, self.options.skill_root)
         if reused is not None:
@@ -848,6 +1017,14 @@ class PortRunner:
                 # Actual failed validation needs repair work, not a fresh planning
                 # turn on a successful path. Forward the concrete failed receipt.
                 preparation_error = str(error)
+            except ImplementationChanged as error:
+                retry_prerequisite(
+                    project,
+                    MigrationStage.DRIVER_IMPLEMENTATION,
+                    trigger=MigrationStage.ARTIFACT_PREPARATION,
+                    reason=str(error),
+                )
+                return
         self._codex_gate(
             project,
             MigrationStage.ARTIFACT_PREPARATION,
@@ -923,6 +1100,14 @@ class PortRunner:
                 result = service.run_script(project,
                     script_path=worktree / ".dpf-output/public-qemu.sh",
                     work_report_path=project.artifacts.path_for_digest(request.digest))
+            except ImplementationChanged as error:
+                retry_prerequisite(
+                    project,
+                    MigrationStage.DRIVER_IMPLEMENTATION,
+                    trigger=MigrationStage.PUBLIC_QEMU_VALIDATION,
+                    reason=str(error),
+                )
+                return
             except CodexOutputError as error:
                 result = {"status": "FAIL", "error": str(error)}
             execution = {"controller_execution": result,
@@ -1126,6 +1311,21 @@ class PortRunner:
 
 
 def _default_skill_root() -> Path:
+    """Return the repository-local upstream Skill mirror by default.
+
+    A caller can still select another frozen Skill tree with ``--skill-root``
+    or ``DPF_SKILL_ROOT``.  The local mirror is preferred so a normal run is
+    self-contained and does not depend on a separate checkout under
+    ``CODEX_HOME``.
+    """
+
+    configured = os.environ.get("DPF_SKILL_ROOT")
+    if configured:
+        return Path(configured).expanduser().resolve()
+    repository_root = Path(__file__).resolve().parents[2]
+    local = repository_root / "skill"
+    if local.is_dir():
+        return local
     codex_home = Path(os.environ.get("CODEX_HOME", Path.home() / ".codex"))
     return codex_home / "skills"
 
@@ -1143,6 +1343,18 @@ def command_port_run(arguments: argparse.Namespace) -> None:
             codex_bin=arguments.codex_bin,
             model=arguments.model,
             baseline_repositories=tuple(Path(path).resolve() for path in arguments.baseline_repository),
+            local_source_repository=(
+                Path(arguments.local_source_repository).resolve()
+                if arguments.local_source_repository else None
+            ),
+            local_target_repository=(
+                Path(arguments.local_target_repository).resolve()
+                if arguments.local_target_repository else None
+            ),
+            local_qemu_repository=(
+                Path(arguments.local_qemu_repository).resolve()
+                if arguments.local_qemu_repository else None
+            ),
             enable_analysis_review=arguments.analysis_review,
             enable_final_evidence_review=arguments.final_evidence_review,
         )
@@ -1162,6 +1374,18 @@ def register_commands(commands: CommandRegistry) -> None:
     run.add_argument("--catalog", action="append", default=[])
     run.add_argument("--baseline-repository", action="append", default=[],
                      help="read-only upstream checkout/bare cache to reuse (repeatable; frozen on run creation)")
+    run.add_argument(
+        "--local-source-repository",
+        help="existing local Linux/source checkout; import the selected commit without network",
+    )
+    run.add_argument(
+        "--local-target-repository",
+        help="existing local Asterinas/target checkout; import the selected commit without network",
+    )
+    run.add_argument(
+        "--local-qemu-repository",
+        help="existing local QEMU checkout or bare repository; import the selected commit without network",
+    )
     run.add_argument(
         "--backend", type=CodexBackend, choices=list(CodexBackend), default=CodexBackend.EXEC
     )

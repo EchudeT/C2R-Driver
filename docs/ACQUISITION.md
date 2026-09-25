@@ -129,3 +129,29 @@ and performs its ordinary upstream fetch to confirm the chosen revision. Dirty
 worktree content is not copied, the supplied repository is not modified, and the new
 run does not depend on shared Git alternates. Missing/mismatched caches fall back to
 normal acquisition. This reduces redundant transfer; it is not an offline mode.
+
+## Importing existing local Linux, Asterinas, or QEMU repositories
+
+When the required repositories already exist on the same machine, pass role-specific
+paths to avoid downloading them again:
+
+```sh
+dpf port run RUN \
+  --local-source-repository /absolute/path/to/linux \
+  --local-target-repository /absolute/path/to/asterinas \
+  --local-qemu-repository /absolute/path/to/qemu
+```
+
+The equivalent `dpf init` options are available when creating a project directly. Each
+path is resolved and frozen in the project configuration. For a selected ref, the
+controller resolves the commit with `git -C PATH rev-parse REF^{commit}`, imports only
+that commit's Git objects into the managed bare repository, and creates the normal
+detached baseline worktree from those objects. It never copies files from the supplied
+worktree and never modifies the supplied repository, so uncommitted edits remain outside
+the run. A bare repository is accepted as well as a normal checkout.
+
+Role-specific local paths are strict offline sources: if the selected ref is absent, the
+stage fails with a local-revision error instead of silently trying `origin`, a cache, or
+another network source. The local fetch command and its output remain in the repository
+manifest, and the import receipt is reused after a controller restart. Omit a role's
+local option to retain the ordinary remote or cache acquisition behavior for that role.

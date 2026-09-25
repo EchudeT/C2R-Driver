@@ -17,11 +17,24 @@ from .repository_spec import RepositorySpec
 class BareRepositoryStore:
     """Publish verified bare repositories and immutable identity locks."""
 
-    def __init__(self, project_root: Path, control_root: Path, git: RepositoryGit, *, caches=()) -> None:
+    def __init__(
+        self,
+        project_root: Path,
+        control_root: Path,
+        git: RepositoryGit,
+        *,
+        caches=(),
+        local_repositories=None,
+    ) -> None:
         self.project_root = project_root.resolve()
         self.control_root = control_root.resolve()
         self.git = git
         self.caches = tuple(Path(path).resolve() for path in caches)
+        self.local_repositories = {
+            role: Path(path).resolve()
+            for role, path in (local_repositories or {}).items()
+            if path
+        }
 
     @staticmethod
     def repository_name(spec) -> str:
@@ -60,6 +73,16 @@ class BareRepositoryStore:
 
     def fetch(self, bare: Path, spec) -> None:
         """Keep a successful download and its receipt across controller restarts."""
+        local = self.local_repositories.get(spec.role)
+        if local is not None:
+            if self._reuse_local_receipt(bare, spec, local):
+                return
+            if not self._seed_from_local(bare, spec, local):
+                raise WorkflowError(
+                    f"local {spec.role.value} repository does not contain "
+                    f"requested revision {spec.requested_ref}: {local}"
+                )
+            return
         argv = ["-C", str(bare), "fetch", "--depth=1", "--no-tags", "origin", spec.requested_ref]
         receipt = bare / "dpf-fetch.json"
         if receipt.is_file():
@@ -78,6 +101,103 @@ class BareRepositoryStore:
         temporary.write_text(json.dumps(result.record.to_dict()) + "\n")
         temporary.replace(receipt)
 
+    def _seed_from_local(self, bare: Path, spec, local: Path) -> bool:
+        """Import a selected commit from a user-owned repository without copying its worktree.
+
+        The managed bare repository receives only Git objects and FETCH_HEAD.  The
+        subsequent detached worktree is always created by the normal acquisition
+        path, so dirty files in the user's checkout can never enter the run.
+        """
+        if not local.is_dir() or local.is_symlink():
+            raise WorkflowError(f"local {spec.role.value} repository is not a directory: {local}")
+        commit = self.git.optional(
+            ["-C", str(local), "rev-parse", f"{spec.requested_ref}^{{commit}}"],
+            operation=RepositoryCommandKind.BASELINE_CACHE_IMPORT,
+            role=spec.role,
+        )
+        if commit is None:
+            return False
+        resolved = commit.stdout.strip().lower()
+        fetch_argv = [
+            "-C",
+            str(bare),
+            "fetch",
+            "--depth=1",
+            "--no-tags",
+            str(local),
+            f"{resolved}:refs/dpf-cache/local",
+        ]
+        result = self.git.run(
+            fetch_argv,
+            operation=RepositoryCommandKind.BASELINE_FETCH,
+            role=spec.role,
+        )
+        receipt = bare / "dpf-local-fetch.json"
+        temporary = receipt.with_suffix(".tmp")
+        temporary.write_text(json.dumps([result.record.to_dict()]) + "\n")
+        temporary.replace(receipt)
+        return True
+
+    def _reuse_local_receipt(self, bare: Path, spec, local: Path) -> bool:
+        """Reuse a prior local import only when it still names this local commit."""
+        if not local.is_dir() or local.is_symlink():
+            raise WorkflowError(f"local {spec.role.value} repository is not a directory: {local}")
+        commit = self.git.optional(
+            ["-C", str(local), "rev-parse", f"{spec.requested_ref}^{{commit}}"],
+            operation=RepositoryCommandKind.BASELINE_CACHE_IMPORT,
+            role=spec.role,
+        )
+        if commit is None:
+            return False
+        resolved = commit.stdout.strip().lower()
+        receipt = bare / "dpf-local-fetch.json"
+        if not receipt.is_file():
+            return False
+        try:
+            records = [
+                RepositoryCommandRecord.from_dict(value)
+                for value in json.loads(receipt.read_text())
+            ]
+        except (
+            OSError,
+            UnicodeDecodeError,
+            json.JSONDecodeError,
+            TypeError,
+            ValueError,
+            WorkflowError,
+        ):
+            return False
+        expected = (
+            "git",
+            "-C",
+            str(bare),
+            "fetch",
+            "--depth=1",
+            "--no-tags",
+            str(local),
+            f"{resolved}:refs/dpf-cache/local",
+        )
+        matching = [
+            record
+            for record in records
+            if record.role is spec.role
+            and record.operation is RepositoryCommandKind.BASELINE_FETCH
+            and record.result.argv == expected
+        ]
+        if not matching:
+            return False
+        observed = self.git.optional(
+            ["-C", str(bare), "rev-parse", "FETCH_HEAD^{commit}"],
+            operation=RepositoryCommandKind.BASELINE_COMMIT,
+            role=spec.role,
+        )
+        if observed is None or observed.stdout.lower() != resolved:
+            return False
+        for record in records:
+            record.verify_evidence(self.project_root)
+            self.git.reuse(record)
+        return True
+
     def _seed_from_cache(self, bare, spec):
         """Import committed objects only; origin fetch still pins the public revision.
 
@@ -94,8 +214,11 @@ class BareRepositoryStore:
                 operation=RepositoryCommandKind.ORIGIN_VERIFICATION, role=spec.role)
             if origin is None or origin.stdout != spec.url:
                 continue
-            commit = self.git.optional(["-C", str(cache), "rev-parse", f"{spec.requested_ref}^{{commit}}"],
-                operation=RepositoryCommandKind.BASELINE_CACHE_IMPORT, role=spec.role)
+            commit = self.git.optional(
+                ["-C", str(cache), "rev-parse", f"{spec.requested_ref}^{{commit}}"],
+                operation=RepositoryCommandKind.BASELINE_CACHE_IMPORT,
+                role=spec.role,
+            )
             if commit is None:
                 continue
             imported = self.git.optional(

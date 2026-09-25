@@ -54,7 +54,7 @@ observation -> classification -> evidence query -> hypothesis
 ```
 
 同一目标、触发阶段和实质输入的重复前置回退会被拒绝，历史记录保留在 ledger。
-工具或交付协议恢复沿用三次停滞保护；重复 PUBLIC_QEMU 请求另按实质输入计数，
+实现/制品交付在每次 QEMU 前先运行通用运行前置检查，失败 receipt 保存所有精确 finding（path、line、原文和理由）；相同可执行输入的重复 continuation 由控制器熔断。工具或交付协议恢复沿用三次停滞保护；重复 PUBLIC_QEMU 请求另按实质输入计数，
 三个不同工作者请求后，第四个无变化请求进入 PAUSED。计数落盘，重启和报告改字不会清零；
 同一已落盘请求重放不重复计数。输入改变后允许继续；外部条件改变可通过
 `stage recovery-resume --reason` 记录原因并恢复。需要重复实验时，在 harness 中明确实验次数，

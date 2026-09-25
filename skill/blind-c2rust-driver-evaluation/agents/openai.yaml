@@ -1,0 +1,4 @@
+interface:
+  display_name: "Blind C2Rust Driver Evaluation"
+  short_description: "Run role-separated blind tests for C-to-Rust drivers"
+  default_prompt: "Use $blind-c2rust-driver-evaluation to prepare or run an independent blind evaluation for this C-to-Rust driver migration."

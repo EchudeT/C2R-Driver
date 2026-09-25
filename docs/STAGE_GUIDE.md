@@ -27,8 +27,8 @@ Skill 和各阶段已有输入为准。
 | 12 `migration_contracts` | evidence_and_design | 形成源码分析、迁移契约和测试来源记录 | 编译/预处理/布局/ABI/效果事实、契约或测试断言来源 |
 | 13 `analysis_review` | evidence_and_design | 独立审查目标研究、分析、契约和测试计划 | 按问题类型回到第 7、10 或 12 阶段 |
 | 14 `target_framework_enablement` | delivery | 实现并验证合同所需的最小目标框架/API 能力，封存目标改动 | 目标框架能力、接口或其验证；不改驱动 |
-| 15 `driver_implementation` | delivery | 生成 Rust 实现、适配测试和源快照；只消费第 14 步快照 | 改动源码或实现快照 |
-| 16 `artifact_preparation` | delivery | 构建、打包并证明运行产物身份 | 打包、镜像、入口或产物身份 |
+| 15 `driver_implementation` | delivery | 生成 Rust 实现、适配测试和源快照；提交前由控制器执行通用运行前置检查并记录精确 finding | 改动源码或实现快照；目标能力缺失回目标框架阶段 |
+| 16 `artifact_preparation` | delivery | 构建、打包并证明运行产物身份；重复运行前置检查拒绝 marker 制品 | 打包、镜像、入口或产物身份 |
 | 17 `public_qemu_validation` | delivery | 执行公开 QEMU harness 并保存 receipt | 未变更产物的 harness、oracle 或运行证据 |
 | 18 `final_evidence_review` | delivery | 独立审查最终代码、目标框架、产物、测试和运行证据 | 按交付阶段归属回退；不自动回到已封存的设计阶段 |
 

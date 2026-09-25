@@ -15,7 +15,8 @@ from ..core.validation import BundleValidationContext, json_object
 from ..environment.contracts import EnvironmentArtifact, EnvironmentStage
 from ..knowledge.index import file_sha256
 from .contracts import MigrationArtifact, MigrationStage
-from .implementation import validate_worktree_snapshot
+from .implementation import ImplementationChanged, validate_worktree_snapshot
+from .implementation_preflight import format_findings, inspect_implementation
 from .target_framework import _validate_files
 
 
@@ -54,6 +55,11 @@ class ArtifactPreparationService:
             framework["files"],
         )
         validate_worktree_snapshot(project.root, bundle)
+        preflight = inspect_implementation(
+            project, worktree, bundle["target_worktree"]["base_commit"]
+        )
+        if preflight["status"] != "PASS":
+            raise ImplementationChanged(format_findings(preflight))
         runtime_hash = file_sha256(runtime)
         checker_hash = file_sha256(checker)
         variant_root = worktree / ".dpf-output/harness/variants"
@@ -87,6 +93,7 @@ class ArtifactPreparationService:
         attempt = {
             "schema_version": 1,
             "status": "PASS" if passed else "FAIL",
+            "preflight": preflight,
             "presence_check": asdict(command),
             "checker_sha256": checker_hash,
             "runtime_sha256": runtime_hash,
@@ -186,5 +193,7 @@ def validate_artifact_bundle(context: BundleValidationContext) -> None:
         or command.get("timed_out")
         or command.get("exit_code") != 0
         or attempt.get("status") != "PASS"
+        or not isinstance(attempt.get("preflight"), dict)
+        or attempt["preflight"].get("status") != "PASS"
     ):
         raise WorkflowError("runtime artifact is detached from its implementation/presence check")

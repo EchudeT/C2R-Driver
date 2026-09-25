@@ -1,0 +1,24 @@
+{
+  "schema_version": 1,
+  "catalog_id": "linux-pvpanic-pci-local",
+  "catalog_version": 1,
+  "source_platform": "linux",
+  "drivers": [
+    {
+      "candidate_id": "linux-pvpanic-pci",
+      "canonical_name": "pvpanic-pci",
+      "source_entry_hint": "drivers/misc/pvpanic/pvpanic-pci.c",
+      "device_family": "QEMU paravirtualized panic notification device",
+      "bus_or_transport": "PCI",
+      "aliases": ["pvpanic PCI", "PVPANIC PCI", "pvpanic"],
+      "device_scope": ["Red Hat QEMU pvpanic PCI device"],
+      "candidate_device_ids": ["PCI vendor 0x1b36, device 0x0011"],
+      "qemu_models": ["pvpanic"],
+      "evidence_hints": [
+        "Linux drivers/misc/pvpanic/pvpanic-pci.c",
+        "Linux include/uapi/misc/pvpanic.h",
+        "QEMU pvpanic device specification and model"
+      ]
+    }
+  ]
+}

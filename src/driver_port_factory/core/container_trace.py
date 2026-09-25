@@ -10,7 +10,7 @@ import threading
 from pathlib import Path
 
 from .models import utc_now
-from .trace import successful_execs
+from .trace import exec_arguments, successful_execs
 
 
 class ContainerTrace:
@@ -85,6 +85,7 @@ class ContainerTrace:
 
     def executions(self, host_trace: Path) -> tuple[tuple[str, str], ...]:
         host = successful_execs(host_trace.read_text(errors="replace").splitlines())
+        self._diagnose_docker_runs(host)
         result = []
         for record in self.records:
             # A fresh container and workspace mount alone are insufficient: the traced
@@ -106,7 +107,94 @@ class ContainerTrace:
                     argument = self._host_path(argument, record["mounts"])
                 argv.append(argument)
             result.append((record["argv"][0], "docker-observed " + json.dumps(argv)))
+        # ``__exit__`` writes the observation file before the host exec trace is
+        # available.  Rewrite it here after adding trace-derived diagnostics so
+        # a rejected run cannot end with an empty observations/errors record.
+        self._write_output()
         return tuple(result)
+
+    def _write_output(self) -> None:
+        self.output.parent.mkdir(parents=True, exist_ok=True)
+        self.output.write_text(
+            json.dumps({"observations": self.records, "errors": self.errors}, indent=2)
+        )
+
+    def _diagnose_docker_runs(self, host: tuple[tuple[str, str], ...]) -> None:
+        """Record deterministic reasons when Docker was invoked without our bind mount.
+
+        The host ``strace`` can see the Docker client but not processes launched
+        by the daemon in the container namespace.  A container without the
+        current workspace mount is therefore never attributable to this run;
+        report that exact cause instead of leaving an unexplained empty
+        observation file.
+        """
+
+        for path, line in host:
+            if Path(path).name != "docker":
+                continue
+            argv = exec_arguments(line)
+            if not argv or "run" not in argv[1:]:
+                continue
+            run_index = argv.index("run", 1)
+            run_args = argv[run_index + 1 :]
+            if self._has_workspace_bind(run_args):
+                continue
+            rendered = json.dumps(argv, ensure_ascii=False)
+            self._append_error(
+                "docker run did not bind-mount the current execution workspace "
+                f"{self.workspace}; container QEMU cannot be attributed to this run. "
+                f"argv={rendered}"
+            )
+
+    def _append_error(self, message: str) -> None:
+        if message not in self.errors:
+            self.errors.append(message)
+
+    def _has_workspace_bind(self, arguments: list[str]) -> bool:
+        """Return whether Docker ``run`` arguments bind-mount this workspace."""
+
+        def same_source(source: str) -> bool:
+            try:
+                return Path(source).expanduser().resolve() == self.workspace
+            except (OSError, RuntimeError, ValueError):
+                return False
+
+        index = 0
+        while index < len(arguments):
+            argument = arguments[index]
+            specification = None
+            if argument in {"-v", "--volume"} and index + 1 < len(arguments):
+                specification = arguments[index + 1]
+                index += 2
+            elif argument.startswith("-v") and len(argument) > 2:
+                specification = argument[2:]
+                index += 1
+            elif argument.startswith("--volume="):
+                specification = argument.split("=", 1)[1]
+                index += 1
+            elif argument == "--mount" and index + 1 < len(arguments):
+                specification = arguments[index + 1]
+                index += 2
+            elif argument.startswith("--mount="):
+                specification = argument.split("=", 1)[1]
+                index += 1
+            else:
+                index += 1
+            if not specification:
+                continue
+            if specification.startswith("type=bind,"):
+                fields = dict(
+                    item.split("=", 1)
+                    for item in specification.split(",")
+                    if "=" in item
+                )
+                if same_source(fields.get("source", fields.get("src", ""))):
+                    return True
+                continue
+            source = specification.split(":", 1)[0]
+            if same_source(source):
+                return True
+        return False
 
     @staticmethod
     def _host_path(argument: str, mounts: list[dict]) -> str:
