@@ -98,8 +98,9 @@ def test_preflight_reports_missing_binding_at_active_qemu_line(tmp_path):
         'qemu-system-x86_64 -kernel /tmp/other-kernel\n',
     )
     finding = inspect_implementation(_Project(), tmp_path, "base")
-    assert finding["status"] == "FAIL"
+    assert finding["status"] == "PASS"
     binding = next(item for item in finding["findings"] if item["code"] == "runtime-not-bound")
+    assert binding["severity"] == "advisory"
     assert binding["line"] == 3
     assert binding["text"].startswith("qemu-system-x86_64")
 
@@ -180,3 +181,21 @@ def test_continuation_guard_preserves_workspace_location_but_ignores_attempt_id(
     ))
     assert first == second
     assert "/tmp/run/.dpf/implementation-smoke/<attempt>/receipt.json" in first
+
+
+def test_preflight_does_not_block_helper_owned_continuation_or_binding(tmp_path):
+    _outputs(
+        tmp_path, b"\x7fELF\x02\x01binary",
+        '#!/bin/sh\nqemu-system-x86_64 -S -kernel /prepared/image &\n'
+        'python .dpf-output/harness/drive_guest.py\n',
+    )
+    finding = inspect_implementation(_Project(), tmp_path, "base")
+    assert finding["status"] == "PASS"
+    assert {f["code"] for f in finding["findings"]} == {"qemu-paused", "runtime-not-bound"}
+    assert all(f["severity"] == "advisory" for f in finding["findings"])
+
+
+def test_script_artifact_with_marker_words_is_not_rejected(tmp_path):
+    _outputs(tmp_path, b'#!/bin/sh\n# implementation snapshot marker\nexec boot-helper\n',
+             '#!/bin/sh\nqemu-system-x86_64 -kernel "$DPF_RUNTIME_ARTIFACT"\n')
+    assert inspect_implementation(_Project(), tmp_path, "base")["status"] == "PASS"

@@ -138,7 +138,9 @@ PYTHONPATH=src .venv/bin/python -m driver_port_factory.cli port run ./runs/e1000
 | `public_qemu_validation` | 执行公开 QEMU 阶梯，保存命令、设备身份、日志、退出码和归因。 |
 | `final_evidence_review`（可选） | 独立 AI 一次性审查交付证据、代码定位和原始运行结果。 |
 
-目标框架能力在 `target_framework_enablement` 准备，驱动实现之后由 `artifact_preparation` 准备制品并固定身份，`public_qemu_validation` 在 QEMU 中执行公开测试。实现自检在调用 QEMU 前还会执行通用的运行前置检查：只拦截高置信度的 marker 制品、没有继续命令的 `-S` 暂停和没有绑定当前 runtime 的脚本，并在 receipt 中记录精确路径、行号和原因。阶段失败时原始 artifact 和失败 attempt 保留；相同可执行输入连续失败时控制器会熔断，避免重复消耗模型调用；可恢复修复只在当前允许的阶段进行，已封存的大阶段不会被静默回退。详见 [`docs/STAGE_GUIDE.md`](docs/STAGE_GUIDE.md)、[`docs/WORKFLOW.md`](docs/WORKFLOW.md) 和 [`docs/EXECUTION_RECOVERY.md`](docs/EXECUTION_RECOVERY.md)。
+目标框架能力在 `target_framework_enablement` 准备，驱动实现之后由 `artifact_preparation` 准备制品并固定身份，`public_qemu_validation` 在 QEMU 中执行公开测试。实现自检在调用 QEMU 前执行通用检查：高置信度 marker 制品会被拦截；脚本里找不到 QMP 继续命令或 runtime 变量仅产生 advisory，由实际执行证据判定，避免误拒绝 helper／外部控制器。失败记录包含精确位置与实际观察。三个不同提交在输入和观察均相同时暂停续调，计数跨重启保存，同一提交重放不重复计数；helper 修复或新观察允许继续。可恢复修复只在当前允许的阶段进行，已封存的大阶段不会被静默回退。详见 [`docs/STAGE_GUIDE.md`](docs/STAGE_GUIDE.md)、[`docs/WORKFLOW.md`](docs/WORKFLOW.md) 和 [`docs/EXECUTION_RECOVERY.md`](docs/EXECUTION_RECOVERY.md)。
+
+`status` 分开展示执行结果和功能评估来源，机械执行 PASS 不代表所有设备行为已覆盖。默认继续复用会话；如果需要摆脱过期诊断，可以在控制器停止后使用 `dpf codex reset-session RUN STAGE --reason "具体原因"`，为当前 provider/model 的 worker 或 reviewer 会话建立新上下文。旧会话归档，冻结证据和未完成状态通过 CAS 交接，代码和阶段状态保持原样，不调用模型。详见 [成本与质量优化说明](docs/COST_QUALITY_OPTIMIZATION_2026-09-26.zh-CN.md)。
 
 ## 查看进度和计费
 

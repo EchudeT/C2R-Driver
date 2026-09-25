@@ -19,6 +19,8 @@ Use this run's inputs, shared installed tools and supplied upstream baselines; d
 Use tool_runtime for directory, permissions and commands. When the execution root is the target worktree (implementation, artifact preparation or public QEMU), put reports, scratch files and harness inputs under .dpf-output/; report-only stages must write their report inside their current stage workspace so the submission tool can consume it. Other edits to the target worktree count as implementation. Implementation symlinks are unsupported.
 Reuse valid work and follow Skill repair/self-check rules. Store necessary continuity notes in existing reports; reopen originals after compaction when needed.
 A program diagnostic is an observation: use the checker-decision protocol for evidenced disagreement rather than modifying correct code to fit a collector limitation.
+Keep verified facts, hypotheses, unresolved required behavior and superseded findings distinct in the existing report. A completed analysis may leave implementation work planned, but unknown prerequisites need a bounded capability check or explicit rework before dependent implementation. An API name alone does not establish the device's required DMA, interrupt, ownership or lifecycle semantics.
+Read targeted symbols/sections first. Keep full build and runtime logs on disk; inspect relevant failures instead of repeatedly printing whole files. Do not redo passing checks whose inputs are unchanged.
 
 ## Submission
 

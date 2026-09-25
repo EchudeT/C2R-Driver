@@ -3,8 +3,8 @@
 These checks do not identify a particular driver API and do not decide whether
 the translated hardware logic is correct. They only reject evidence that is
 mechanically incapable of proving a current runtime: a high-confidence text
-marker in the artifact, a QEMU invocation left paused without a continuation,
-or a harness that does not bind the artifact supplied by the controller.
+marker in the artifact. Shell-level absence is advisory: helpers and external
+QMP controllers may supply continuation or runtime binding at execution time.
 """
 from __future__ import annotations
 
@@ -23,6 +23,8 @@ def _runtime_marker(runtime: Path, smoke_text: str) -> bool:
     script or configuration package. The failed run used a printable marker
     with several marker terms, which is safe to reject before QEMU.
     """
+    if runtime.stat().st_size >= 4096:
+        return False
     data = runtime.read_bytes()
     if not data:
         return False  # non-empty validation reports an empty artifact separately
@@ -31,7 +33,7 @@ def _runtime_marker(runtime: Path, smoke_text: str) -> bool:
     except UnicodeDecodeError:
         return False
     printable = all(char in "\n\r\t" or 0x20 <= ord(char) < 0x7f for char in text)
-    if not printable or len(data) >= 4096:
+    if not printable or len(data) >= 4096 or text.startswith("#!"):
         return False
     if sum(word in text.lower() for word in _MARKER_WORDS) < 2:
         return False
@@ -216,7 +218,13 @@ def inspect_implementation(project, worktree: Path, base: str) -> dict[str, Any]
                     ))
                     break
 
-    result["status"] = "FAIL" if result["findings"] else "PASS"
+    for finding in result["findings"]:
+        finding["severity"] = (
+            "error" if finding["code"] == "non-bootable-runtime-marker" else "advisory"
+        )
+    result["status"] = (
+        "FAIL" if any(f["severity"] == "error" for f in result["findings"]) else "PASS"
+    )
     return result
 
 
@@ -224,13 +232,14 @@ def format_findings(preflight: dict[str, Any]) -> str:
     """Format all findings with exact paths/lines and their reasons."""
     if not preflight.get("findings"):
         return "implementation runtime preflight passed"
-    lines = ["implementation runtime preflight failed before QEMU:"]
+    lines = ["implementation runtime preflight findings (advisories do not block execution):"]
     for finding in preflight["findings"]:
         location = finding.get("path", "<unknown>")
         if finding.get("line") is not None:
             location += f":{finding['line']}"
         lines.append(
-            f"- {location}: {finding.get('detail', finding.get('code', 'finding'))}; "
+            f"- [{finding.get('severity', 'error')}] {location}: "
+            f"{finding.get('detail', finding.get('code', 'finding'))}; "
             f"source: {finding.get('text', '<unavailable>')!r}"
         )
     lines.append(

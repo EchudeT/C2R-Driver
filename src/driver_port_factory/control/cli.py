@@ -69,6 +69,11 @@ def command_status(arguments: argparse.Namespace) -> None:
     )
     print(f"controller={stats['controller']['state']} "
           f"{stats['controller'].get('note', '')}")
+    evidence = stats["evidence"]
+    print(f"evidence: execution={evidence['execution']} "
+          f"functional_assessment={evidence['functional_assessment']}")
+    if evidence["reports"]:
+        print(evidence["note"])
     from ..core.phases import GROUPS, phase
     stages = project.stages()
     for group in GROUPS:

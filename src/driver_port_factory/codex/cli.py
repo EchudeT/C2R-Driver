@@ -106,6 +106,8 @@ def run_codex_stage(
         raise WorkflowError(f"Codex stage must be READY or RUNNING, got {stage.status.value}")
     grant = CodexExecutionPolicy().grant(project, stage_key)
     key, session = stage_session(project, stage_key, grant, model, backend.value)
+    from .context_reset import attach_handoff
+    context, thread_id = attach_handoff(project, session, context, thread_id)
     thread_id = thread_id or session.get("thread_id")
     job_id = str(uuid.uuid4())
     codex_dir = project.control / "codex"
@@ -234,6 +236,12 @@ def run_codex_stage(
     metrics = {
         "stage": stage_key.value, "job_id": job.job_id, "thread_id": thread_id,
         "started_at": utc_now(), "completed_at": None,
+        "invocation_state": "RUNNING",
+        "context_epoch": session.get("handoff", {}).get("epoch"),
+        "controller_started_at": (
+            json.loads((project.control / "controller.json").read_text()).get("started_at")
+            if (project.control / "controller.json").is_file() else None
+        ),
         **model_settings(model),
         "usage_baseline": latest_usage(codex_dir, thread_id),
         "resumed": bool(thread_id), "prompt_bytes": len(prompt.encode()),
@@ -280,9 +288,13 @@ def run_codex_stage(
     persist_metrics()
     try:
         result = gateway.run(job)
+        metrics["invocation_state"] = "FAILED" if result.error else "COMPLETED"
     except (WorkflowError, OSError, subprocess.SubprocessError) as error:
+        metrics["invocation_state"] = "FAILED"
         raise ModelInvocationError(str(error)) from error
     finally:
+        if metrics["invocation_state"] == "RUNNING":
+            metrics["invocation_state"] = "INTERRUPTED"
         metrics["completed_at"] = utc_now()
         persist_metrics()
     save_session(
@@ -364,18 +376,20 @@ def command_prompt_render(arguments: argparse.Namespace) -> None:
 
 
 def command_codex_run(arguments: argparse.Namespace) -> None:
+    from ..control.runtime import controller_run
     project = open_project(Path(arguments.path))
     stage_key = project.workflow.parse_stage(arguments.stage)
-    result, rendered, output_path = run_codex_stage(
-        project,
-        stage_key,
-        objective=arguments.objective,
-        context=_load_context(project, arguments.context),
-        backend=arguments.backend,
-        codex_bin=arguments.codex_bin,
-        model=arguments.model,
-        prompt_pack_path=arguments.prompt_pack,
-    )
+    with controller_run(project):
+        result, rendered, output_path = run_codex_stage(
+            project,
+            stage_key,
+            objective=arguments.objective,
+            context=_load_context(project, arguments.context),
+            backend=arguments.backend,
+            codex_bin=arguments.codex_bin,
+            model=arguments.model,
+            prompt_pack_path=arguments.prompt_pack,
+        )
     print(
         json.dumps(
             {
@@ -403,6 +417,18 @@ def command_codex_submit(arguments: argparse.Namespace) -> None:
         repair_stage=arguments.repair_stage,
     )
     print(f"submitted {stage.value} {arguments.kind} via {receipt}")
+
+
+def command_session_reset(arguments: argparse.Namespace) -> None:
+    from ..control.runtime import controller_run
+    from .context_reset import reset_session
+    project = open_project(Path(arguments.path))
+    stage = project.workflow.parse_stage(arguments.stage)
+    with controller_run(project):
+        grant = CodexExecutionPolicy().grant(project, stage)
+        key, _ = stage_session(project, stage, grant, arguments.model, CodexBackend.EXEC.value)
+        handoff = reset_session(project, stage, key, reason=arguments.reason)
+    print(json.dumps(handoff))
 
 
 def command_codex_transcript(arguments: argparse.Namespace) -> None:
@@ -458,6 +484,15 @@ def register_commands(commands: CommandRegistry) -> None:
     run.add_argument("--codex-bin", default="codex")
     run.add_argument("--model")
     run.set_defaults(handler=command_codex_run)
+
+    reset = codex_commands.add_parser(
+        "reset-session", help="rotate a developer conversation with a factual handoff"
+    )
+    reset.add_argument("path")
+    reset.add_argument("stage")
+    reset.add_argument("--reason", required=True)
+    reset.add_argument("--model")
+    reset.set_defaults(handler=command_session_reset)
 
     submit = codex_commands.add_parser(
         "submit", help="submit a file-backed worker deliverable and state decision"

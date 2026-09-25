@@ -441,8 +441,6 @@ class PortRunner:
         pending = self._latest_job_occurrence(project, stage)
         thread_id = self._latest_thread_id(project, stage)
         feedback = None
-        last_progress: str | None = None
-        unchanged_continuations = 0
         while True:
             if pending is None:
                 result, _, response = self._codex(
@@ -492,31 +490,43 @@ class PortRunner:
                 retry_prerequisite(project, error.target, trigger=stage, reason=str(error))
                 return False
             except CodexContinuation as progress:
-                # Progress is deliberately not formatted as rejected output.
-                fingerprint = self._continuation_fingerprint(project, stage, progress)
-                if fingerprint == last_progress:
-                    unchanged_continuations += 1
-                else:
-                    unchanged_continuations = 0
-                last_progress = fingerprint
-                if unchanged_continuations >= 1:
-                    message = (
-                        "bounded repair stopped after two identical continuation findings; "
-                        "no implementation, runtime, harness or evidence input changed. "
-                        f"stage={stage.value}; "
-                        f"last_receipt={self._latest_receipt(project, stage)}; "
-                        f"finding={self._continuation_detail(progress)}; "
-                        f"fingerprint={fingerprint}. "
-                        "Apply the cited repair or submit an explicit "
-                        "prerequisite rework after changing the affected input, "
-                        "then reopen this stage."
-                    )
-                    project.note_check(message)
-                    project.complete(stage, StageStatus.BLOCKED, message=message)
+                context = self._continuation_context(project, stage, pending, progress, context)
+                if context is None:
                     return False
-                context = {**context, "controller_execution": str(progress)}
                 feedback = None
                 pending = None
+
+    def _continuation_context(self, project, stage, pending, progress, context):
+        """Observe one failed submission, or hand successful execution to self-review."""
+        from .core.continuation import record_continuation
+        if not progress.counts_as_failure:
+            # Public operation requests already have a durable operation guard.
+            return {**context, "controller_execution": str(progress)}
+        fingerprint = self._continuation_fingerprint(project, stage, progress)
+        history = record_continuation(
+            project, stage, pending, fingerprint,
+            detail=self._continuation_detail(progress), receipt=progress.receipt,
+        )
+        if history["consecutive"] >= 3:
+            message = (
+                "bounded repair paused after three identical continuation observations; "
+                "no implementation, runtime, harness or evidence input changed. "
+                f"stage={stage.value}; "
+                f"last_receipt={progress.receipt or self._latest_receipt(project, stage)}; "
+                f"finding={self._continuation_detail(progress)}; fingerprint={fingerprint}. "
+                "Apply the cited repair or submit an explicit prerequisite rework after "
+                "changing the affected input, then reopen this stage."
+            )
+            project.note_check(message)
+            project.complete(stage, StageStatus.BLOCKED, message=message)
+            return None
+        return {**context, "controller_execution": str(progress), "repair_observation": {
+            "consecutive": history["consecutive"], "receipt": progress.receipt,
+            "observed": progress.observation,
+            "next": "Inspect the causal failure and new evidence. Collector success does not "
+            "establish driver behavior. If the premise is wrong, use the existing "
+            "checker-decision or prerequisite rework route.",
+        }}
 
     @staticmethod
     def _latest_receipt(project: Project, stage: StageKey) -> str:
@@ -556,6 +566,7 @@ class PortRunner:
         """
         normalized = PortRunner._continuation_detail(error)
         value: dict[str, object] = {"stage": stage.value, "error": normalized, "artifacts": []}
+        value["observation"] = getattr(error, "observation", {})
         try:
             refs = [
                 ref for ref in project.current_artifact_refs(stage=stage)
@@ -573,6 +584,8 @@ class PortRunner:
             worktree = project.root / target.path
             from .migration.implementation import worktree_files
             value["worktree"] = worktree_files(worktree, target.base_commit)
+            from .migration.public_qemu import PublicQemuService
+            value["helpers"] = PublicQemuService._helper_inputs(worktree)
             output = worktree / ".dpf-output"
             for name in (
                 "runtime-artifact",
@@ -1167,7 +1180,7 @@ class PortRunner:
                     "observations against the agreed oracles and complete the Skill's final "
                     "self-check in your existing report. Do not rerun an unchanged passing "
                     "suite. Submit pass only if requirements are met; otherwise repair the "
-                    "cause or submit a concrete blocker."
+                    "cause or submit a concrete blocker.", counts_as_failure=False,
                 )
             service.accept_self_review(project, work_report_path=report)
         except ImplementationChanged as error:

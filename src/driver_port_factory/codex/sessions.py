@@ -86,7 +86,8 @@ def save_session(
     path = project.control / "codex" / "sessions" / f"{key}.json"
     path.parent.mkdir(parents=True, exist_ok=True)
     temporary = path.with_suffix(".tmp")
-    temporary.write_text(json.dumps({"thread_id": thread_id, "documents": documents,
+    prior = read_session(project, key)
+    temporary.write_text(json.dumps({**prior, "thread_id": thread_id, "documents": documents,
                                      "inputs": inputs or {}}))
     temporary.replace(path)
 

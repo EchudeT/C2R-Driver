@@ -3,6 +3,14 @@
 Controller and worker execute the same self-contained shell entrypoints with a shebang.
 The controller captures exit/timeout and observed QEMU execution; these are mechanical
 observations, not a functional verdict. Follow the Skill for execution and evidence rules.
+Preflight advisories are hints, not rejected outputs: helpers or external controllers can
+supply runtime binding or QMP continuation. Use actual observations to resolve them; do not
+rewrite a working harness merely to silence a text heuristic. A preflight PASS is not boot proof.
+Before broad implementation, establish the target build/insertion route and the first applicable
+device operation. In the existing report, map required contract/test IDs to observations and
+keep BLOCKED/NOT_RUN explicit. Registration, model enumeration, or host-printed success strings
+cannot stand in for device operations. Preserve the frozen scope; repair a failed oracle without
+silently removing its required behavior. N/A needs a device/target reason, not a missing implementation.
 
 Public execution uses DPF_RUNTIME_ARTIFACT for production and absolute paths for packaged
 variants under .dpf-output/harness/variants/. Keep helpers and oracle inputs as regular files
