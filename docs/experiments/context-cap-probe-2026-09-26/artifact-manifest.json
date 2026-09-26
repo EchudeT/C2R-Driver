@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "files": {
+    "assessment.json": "2380660537887912795cef0c45696dbcfef11b82740d184ac17f759b6ccca649",
+    "call-00-factual_handoff.answer.txt": "4e4e24a204771aa0fac78811e9b29b125bfd75046810db269a10ab9cebfe47d7",
+    "call-00-factual_handoff.events.jsonl": "db762ff70f144d3557fa9b29a99948424a22537023e5fe7905e0503c3c150588",
+    "call-00-factual_handoff.metrics.json": "3c9e86ca74d5d90d5c078ebb9622ad2b73dfe9e4ed0635459e3ceb54dc7f3ac2",
+    "call-00-factual_handoff.request.json": "9fa6d93bdcb3209a8b5446ce60440bd40d644f04ed095544f59627a80920410f",
+    "call-00-factual_handoff.response.json": "944b09113f2ff781bfc9670a07e3f4d43378ea75841cfe18141e776e9e19a378",
+    "current.txt": "5cb73237aec6158bddc0f863a295a5cf963894cb6189db00f19e271b127aedc4",
+    "handoff.txt": "5cb73237aec6158bddc0f863a295a5cf963894cb6189db00f19e271b127aedc4",
+    "history.txt": "5cb73237aec6158bddc0f863a295a5cf963894cb6189db00f19e271b127aedc4",
+    "protocol.json": "91e4cd4b7d5cbdfaaa2ff6c541d401d93ec675898178eb138142db779b4a52d6"
+  }
+}

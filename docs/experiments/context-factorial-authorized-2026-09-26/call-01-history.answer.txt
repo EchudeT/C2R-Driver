@@ -1,0 +1,58 @@
+{
+  "facts": [
+    "The latest controller receipt is FAIL, but not because container/QEMU observation was absent: it records container_qemu_execs=[\"qemu-system-x86_64\"], container_execution.satisfied=true, runtime_bound=true, the pinned image and image ID, and smoke-command exit_code=0 [latest runtime receipt].",
+    "The executed QEMU command used -S, so the virtual CPU remained paused. It attached .dpf-output/runtime-artifact as a raw virtio drive; the supplied artifact contains only two text lines and is not a bootable Asterinas kernel [current smoke helper; current runtime artifact bytes; latest runtime receipt].",
+    "Consequently, the latest run provides evidence only that Docker and QEMU launched with an e1000 model and the marker attached. It provides no guest initialization, component execution, PCI probe, BAR access, network registration, interrupt, DMA, TX, or RX evidence.",
+    "The smoke helper prints E1000_COMPONENT_INIT, E1000_PCI_BIND, E1000_NETWORK_REGISTER, and E1000_TX_RX PASS after merely accepting QEMU timeout 124 or exit 0. Those labels are not tied to guest or packet oracles and therefore cannot establish the asserted behavior [current implementation smoke helper].",
+    "The Rust source exactly filters PCI identity 8086:100e and registers a PciDriver, but on match it discards PciCommonDevice ownership and registers aster_bigtcp::device::Loopback under the name e1000 [current driver source].",
+    "The implementation has no BAR0 acquisition, memory/bus-master enablement, MMIO register access, reset sequence, DMA descriptors or buffers, TX/RX rings, IRQ handling, deferred work, queue completion, error unwind, or hardware-backed AnyNetworkDevice implementation [current driver source versus contracts E1000-C02 through E1000-C09].",
+    "Presence succeeds only by finding a regular marker file containing 8086:100e; it does not prove that an e1000 component is included in or executed by a kernel [current presence helper; latest receipt].",
+    "The framework report supports that generic PCI, network, IRQ, and DMA primitives already exist without framework edits. Driver-specific correct use and ownership remain unimplemented and unverified [target framework report].",
+    "Earlier receipts 4, 5, 7, and 11 already observed container QEMU; receipts 7 and 11 were runtime_bound=true. Thus observation had succeeded before the latest receipt as well, although every receipt remained FAIL."
+  ],
+  "superseded_claims": [
+    {
+      "claim": "container_qemu_execs was empty and container_execution.satisfied was false because nested Docker processes were outside the collector observation namespace.",
+      "judgment": "Contradicted as a current or general blocker.",
+      "evidence": "The latest receipt records container_qemu_execs=[\"qemu-system-x86_64\"] and container_execution.satisfied=true with no observation errors. Older receipts 4, 5, 7, and 11 also observed container QEMU."
+    },
+    {
+      "claim": "An observable container-QEMU route or approved wrapper is the prerequisite preventing implementation PASS.",
+      "judgment": "Superseded.",
+      "evidence": "The observable route now works. The remaining failure is consistent with absence of a bootable migrated-driver artifact and functional device evidence, not an observation-namespace limitation [latest receipt; artifact bytes; smoke command]."
+    },
+    {
+      "claim": "The smoke result demonstrates component initialization, PCI binding, network registration, or TX/RX.",
+      "judgment": "Unsupported.",
+      "evidence": "The helper emits those strings unconditionally after a paused QEMU invocation against a text marker; no guest logs or packet assertions are collected."
+    }
+  ],
+  "unresolved_obligations": [
+    "E1000-C01: retain exact 8086:100e-only matching and prove actual guest probe/claim; source inspection alone does not establish runtime behavior.",
+    "E1000-C02/C03: retain PciCommonDevice, acquire and own BAR0, enable required PCI access, implement bounded hardware reset and register initialization before traffic.",
+    "E1000-C04/C05/C07/C09: replace Loopback with a hardware-backed AnyNetworkDevice using evidenced DMA ownership, TX/RX descriptor rings, bounds/status/error validation, ordering, wraparound, completion reclamation, queue wake, callbacks, and payload delivery.",
+    "E1000-C06: implement interrupt cause acknowledgment, masking/re-enable, top-half registration, and deferred network softirq processing.",
+    "E1000-C08: implement probe-failure/reset cleanup for BAR, DMA rings, IRQs, and buffers; dynamic unload remains not applicable only as bounded by the target lifecycle evidence.",
+    "Close the frozen source compiler/layout/ABI uncertainty using the matching Linux configuration, generated headers, compiler target, and flags before claiming compiled-layout equivalence.",
+    "Build a genuine Asterinas runtime artifact containing the component and execute the selected device-functional and protocol tests with exact stimuli and oracles."
+  ],
+  "next_actions": [
+    "Reject the marker/Loopback snapshot as functional completion and make the smoke helper fail unless it consumes guest-generated probe and packet evidence; remove unconditional TX_RX and binding PASS labels.",
+    "Implement the smallest coherent hardware path using existing APIs: preserve PciCommonDevice, acquire BAR0, perform bounded reset/init, and provide driver-owned DMA TX/RX rings through AnyNetworkDevice.",
+    "Add the existing IRQ-to-softirq route and focused deterministic tests for identity, reset, one bounded TX frame, one RX frame, malformed/error RX rejection, completion reclaim, wraparound, and cleanup.",
+    "Build a bootable Asterinas image in the pinned container and run it without -S using QEMU e1000; capture serial/register markers and external packet evidence in one bounded, uniquely identified run."
+  ],
+  "success_evidence_required": [
+    "A receipt bound to the exact source and bootable kernel hashes, pinned container image ID, complete QEMU argv, and unique run ID.",
+    "Guest logs proving component initialization, 8086:100e probe, BAR ownership, bounded reset completion, and interface registration by the hardware driver rather than Loopback.",
+    "Externally observed TX and RX with exact payload and length, plus driver counters or descriptor markers proving completion and absence of error status.",
+    "Evidence for IRQ acknowledgment/deferred processing, DMA/ring ownership and ordering, queue stop/wake or reclamation, and failure cleanup.",
+    "Negative evidence that non-8086:100e devices are not claimed and malformed/error RX frames are not delivered."
+  ],
+  "uncertainty": [
+    "The receipt does not state the controller's precise final FAIL predicate; it only establishes that container observation, runtime binding, and shell exit succeeded.",
+    "No supplied runtime log shows whether the text marker caused QEMU guest errors, although it cannot by itself evidence Asterinas execution.",
+    "Compilation claims in the worker report are prose without corresponding current command logs here; even if valid, compilation would not satisfy device behavior.",
+    "Exact e1000 descriptor layout, volatile/DMA ordering, and source ABI equivalence remain blocked by the documented missing Linux generated configuration/compiler closure."
+  ]
+}

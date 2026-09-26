@@ -6,11 +6,11 @@ import uuid
 from dataclasses import asdict, dataclass
 from pathlib import Path
 
-from ..core.container_trace import ContainerTrace
+from ..codex.contracts import CodexOutputError
 from ..core.container_policy import (
     container_execution_summary,
 )
-from ..codex.contracts import CodexOutputError
+from ..core.container_trace import ContainerTrace
 from ..core.execution import CommandRunner, observed_script_command
 from ..core.models import (
     ActorRole,
@@ -99,6 +99,18 @@ class ExperimentExecutor:
             target_platform=project.config.target_platform,
             host_qemu_execs=tuple(host_qemu_programs),
         )
+        # The Codex-authored harness has no structured route proposal.  The
+        # controller therefore derives a valid mode from the observed runner;
+        # never persist the old free-form ``documented-in-work-report`` value,
+        # which could make an unclassified model smoke look like a delivery
+        # route.
+        target_name = project.config.target_platform.strip().lower().replace(" ", "-")
+        artifact_mode = (
+            ArtifactMode.OFFICIAL_CONTAINER_OR_SDK.value
+            if target_name in {"asterinas", "asterinas-os", "asterinas_os"}
+            and container_summary["satisfied"]
+            else ArtifactMode.VERIFIED_LOCAL_RUNNER.value
+        )
         ready = (
             result.launched
             and result.launch_error is None
@@ -114,7 +126,7 @@ class ExperimentExecutor:
             "repair_inputs": {"script_sha256": script_digest},
             "route": {
                 "route_id": route_id,
-                "artifact_mode": "documented-in-work-report",
+                "artifact_mode": artifact_mode,
                 "script": str(script_path.relative_to(project.root)),
             },
             "command": asdict(result),
@@ -171,7 +183,7 @@ class ExperimentExecutor:
         )
         mode = {
             "schema_version": 3,
-            "artifact_mode": "documented-in-work-report",
+            "artifact_mode": artifact_mode,
             "selected_route_id": route_id,
             "work_report": attempt["work_report"],
         }
@@ -179,7 +191,7 @@ class ExperimentExecutor:
             "schema_version": 3,
             "milestone": ExperimentRouteMilestone.READY,
             "route_id": route_id,
-            "artifact_mode": "documented-in-work-report",
+            "artifact_mode": artifact_mode,
             "command": list(result.argv),
             "attempt_sha256": hashlib.sha256(attempt_path.read_bytes()).hexdigest(),
             "qemu_programs": qemu_programs,

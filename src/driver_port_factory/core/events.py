@@ -2,6 +2,9 @@ from enum import StrEnum
 
 
 class RunEvent(StrEnum):
+    CONTINUATION = "run.continuation"
+    SESSION_RESET = "run.session_reset"
+    CONTEXT_POLICY = "run.context_policy"
     RECOVERY_RESUMED = "run.recovery_resumed"
     CHECKER_DECISION = "run.checker_decision"
     CREATED = "run.created"

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Open Kernel Driver Port"
+  short_description: "Bootstrap and port a kernel driver end to end"
+  default_prompt: "Use $open-kernel-driver-port with source platform <source>, target platform <target>, and driver <driver-name> to acquire evidence, build a local knowledge base, migrate the driver to Rust, and validate it in QEMU."

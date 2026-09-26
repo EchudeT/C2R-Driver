@@ -7,6 +7,19 @@ from datetime import UTC, datetime
 from ..codex.accounting import FIELDS, PRICE_DATE, PRICE_SOURCE, estimate, read_jobs, usage_delta
 
 
+def job_elapsed(job: dict, now: datetime, *, controller_active: bool) -> float:
+    """Only an explicitly live invocation may accrue time between checkpoints.
+
+    Legacy interrupted calls have no completed_at. Their recorded elapsed is a
+    lower bound, not permission to charge all subsequent controller downtime.
+    """
+    elapsed = max(0, job.get("elapsed_seconds", 0))
+    if (controller_active and job.get("invocation_state") == "RUNNING"
+            and job.get("started_at") and not job.get("completed_at")):
+        return max(elapsed, (now - datetime.fromisoformat(job["started_at"])).total_seconds())
+    return elapsed
+
+
 def stage_times(events, now: datetime, intervals=None) -> dict:
     def elapsed(start, end):
         if intervals is None:
@@ -51,9 +64,11 @@ def stage_times(events, now: datetime, intervals=None) -> dict:
 
 
 def project_statistics(project, *, pricing_model=None, pricing_tier=None) -> dict:
+    from .evidence import evidence_summary
     now = datetime.now(UTC)
     from .runtime import controller_status
-    stopped = controller_status(project)["state"] == "STOPPED"
+    controller = controller_status(project)["state"]
+    stopped = controller == "STOPPED"
     path = project.control / "controller.json"
     record = json.loads(path.read_text()) if path.exists() else {}
     if stopped and record.get("completed_at"):
@@ -111,9 +126,10 @@ def project_statistics(project, *, pricing_model=None, pricing_tier=None) -> dic
             else estimate(usage, model, tier)
         )
         row["codex_calls"] += 1
-        elapsed = job.get("elapsed_seconds", 0)
-        if job.get("started_at") and not job.get("completed_at"):
-            elapsed = max(0, (now - datetime.fromisoformat(job["started_at"])).total_seconds())
+        # A stale RUNNING call from a killed controller is not live in a later run.
+        same_controller = job.get("controller_started_at") == record.get("started_at")
+        elapsed = job_elapsed(job, now, controller_active=(
+            controller == "ACTIVE" and same_controller and bool(record.get("started_at"))))
         row["codex_seconds"] += elapsed
         if usage is None:
             row["unknown_usage_calls"] += 1
@@ -142,11 +158,25 @@ def project_statistics(project, *, pricing_model=None, pricing_tier=None) -> dic
                 "job_id": job["job_id"],
                 "call_reason": reason,
                 "thread_id": thread,
+                "resumed": job.get("resumed"),
                 "usage": usage,
                 "estimate": quote,
                 "model": model,
                 "elapsed_seconds": elapsed,
                 "usage_status": "known" if usage is not None else "unknown",
+                "timing_status": "complete" if job.get("completed_at") else "checkpoint_only",
+                "context_policy": job.get("context_policy"),
+                "context_epoch": job.get("context_epoch"),
+                "context_action": job.get("context_action"),
+                "context_handoff": job.get("context_handoff"),
+                "context_log": job.get("context_log"),
+                "session_key": job.get("session_key"),
+                "service_tier": tier,
+                "prompt_bytes": job.get("prompt_bytes"),
+                "first_response_seconds": job.get("first_response_seconds"),
+                "auto_compact_token_limit": job.get("auto_compact_token_limit"),
+                "policy_sha256": job.get("policy_sha256"),
+                "invocation_state": job.get("invocation_state"),
             }
         )
     totals = {
@@ -168,10 +198,13 @@ def project_statistics(project, *, pricing_model=None, pricing_tier=None) -> dic
         "totals": totals,
         "jobs": jobs,
         "by_call_reason": reasons,
+        "evidence": evidence_summary(project),
         "price_source": PRICE_SOURCE,
         "price_date": PRICE_DATE,
         "pricing_model_for_missing_metadata": pricing_model,
-        "note": "Recorded controller downtime and user waits are excluded; older runs may lack interval history. "
+        "note": "Recorded controller downtime and user waits are excluded; "
+        "unfinished calls use recorded "
+        "checkpoint time unless confirmed live. Older runs may lack interval history. "
         "Retries included. Unknown usage is not zero. USD assumes short context with 224k "
         "auto-compaction; reasoning output is already included. Not a relay invoice.",
     }

@@ -1,0 +1,23 @@
+{
+  "kind": "offline_native_archive_roundtrip",
+  "model_calls": 0,
+  "source_thread": "01a0d93e-26ae-7713-9d5c-336f23490a89",
+  "source_sha256": "df7f01810ed05a5f890c8e0c734031af8a6e885376daf74eb8e820e2d181a650",
+  "bytes": 721423,
+  "native_record_summary": {
+    "record_types": {
+      "session_meta": 1,
+      "event_msg": 42,
+      "response_item": 45,
+      "world_state": 1,
+      "turn_context": 1,
+      "token_usage_record": 13
+    },
+    "native_compacted_records": 0,
+    "invalid_complete_records": 0,
+    "trailing_bytes": 0,
+    "note": "Counts are cumulative within this snapshot, not per-call deltas. Only native top-level compacted records are counted; formats may differ."
+  },
+  "exact_roundtrip": true,
+  "scope": "Available final repair session only; earlier long session not recovered."
+}

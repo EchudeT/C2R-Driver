@@ -1,0 +1,74 @@
+{
+  "scope": {
+    "source": "linux",
+    "target": "asterinas",
+    "driver": "e1000"
+  },
+  "stages": [
+    {
+      "stage": "project_init",
+      "status": "PASS"
+    },
+    {
+      "stage": "request_intake",
+      "status": "PASS"
+    },
+    {
+      "stage": "driver_candidate_resolution",
+      "status": "PASS"
+    },
+    {
+      "stage": "scope_confirmation",
+      "status": "PASS"
+    },
+    {
+      "stage": "migration_envelope_freeze",
+      "status": "PASS"
+    },
+    {
+      "stage": "repository_acquisition",
+      "status": "PASS"
+    },
+    {
+      "stage": "evidence_closure",
+      "status": "PASS"
+    },
+    {
+      "stage": "environment_recovery",
+      "status": "PASS"
+    },
+    {
+      "stage": "knowledge_base",
+      "status": "PASS"
+    },
+    {
+      "stage": "target_platform_study",
+      "status": "PASS"
+    },
+    {
+      "stage": "migration_handoff",
+      "status": "PASS"
+    },
+    {
+      "stage": "migration_contracts",
+      "status": "PASS"
+    },
+    {
+      "stage": "target_framework_enablement",
+      "status": "PASS"
+    },
+    {
+      "stage": "driver_implementation",
+      "status": "RUNNING"
+    },
+    {
+      "stage": "artifact_preparation",
+      "status": "PENDING"
+    },
+    {
+      "stage": "public_qemu_validation",
+      "status": "PENDING"
+    }
+  ],
+  "history_policy": "Previous receipts and worker diagnosis are archived. Continue from current checkpoint materials below. Preserve all frozen obligations; do not treat a passed stage as runtime proof."
+}

@@ -1,0 +1,2338 @@
+{
+  "schema_version": 1,
+  "observed_at_utc": "2026-09-25T17:00:24.749964+00:00",
+  "factory_commit": "dbe4e67c14e4dc8cce039ed8eb99ce0a0f2728d2",
+  "scope": "Read-only local audit; historical receipts were not rerun; costs are stored estimates, not invoices.",
+  "runs": [
+    {
+      "root": "/tmp/e2e-e1000-local-baseline-02",
+      "stages": [
+        {
+          "name": "project_init",
+          "status": "PASS",
+          "message": null
+        },
+        {
+          "name": "request_intake",
+          "status": "PASS",
+          "message": null
+        },
+        {
+          "name": "driver_candidate_resolution",
+          "status": "PASS",
+          "message": null
+        },
+        {
+          "name": "scope_confirmation",
+          "status": "PASS",
+          "message": null
+        },
+        {
+          "name": "migration_envelope_freeze",
+          "status": "PASS",
+          "message": null
+        },
+        {
+          "name": "repository_acquisition",
+          "status": "PASS",
+          "message": null
+        },
+        {
+          "name": "evidence_closure",
+          "status": "PASS",
+          "message": null
+        },
+        {
+          "name": "environment_recovery",
+          "status": "PASS",
+          "message": null
+        },
+        {
+          "name": "knowledge_base",
+          "status": "PASS",
+          "message": null
+        },
+        {
+          "name": "target_platform_study",
+          "status": "PASS",
+          "message": null
+        },
+        {
+          "name": "migration_handoff",
+          "status": "PASS",
+          "message": null
+        },
+        {
+          "name": "migration_contracts",
+          "status": "PASS",
+          "message": null
+        },
+        {
+          "name": "target_framework_enablement",
+          "status": "PASS",
+          "message": null
+        },
+        {
+          "name": "driver_implementation",
+          "status": "RUNNING",
+          "message": null
+        },
+        {
+          "name": "artifact_preparation",
+          "status": "PENDING",
+          "message": null
+        },
+        {
+          "name": "public_qemu_validation",
+          "status": "PENDING",
+          "message": null
+        }
+      ],
+      "event_time_bounds": [
+        "2026-09-25T13:29:55.462620+00:00",
+        "2026-09-25T15:45:22.476192+00:00"
+      ],
+      "by_call_reason": {
+        "stage_work": {
+          "calls": 11,
+          "stored_elapsed_seconds": 1694.481,
+          "known_estimate_usd": 4.4765184,
+          "unknown_usage_calls": 5,
+          "unpriced_calls": 5,
+          "input_tokens": 5163622,
+          "cached_input_tokens": 4635136,
+          "output_tokens": 25426
+        },
+        "recovery": {
+          "calls": 2,
+          "stored_elapsed_seconds": 85.405,
+          "known_estimate_usd": 0.229984,
+          "unknown_usage_calls": 0,
+          "unpriced_calls": 0,
+          "input_tokens": 367695,
+          "cached_input_tokens": 354560,
+          "output_tokens": 1781
+        },
+        "execution_self_check": {
+          "calls": 12,
+          "stored_elapsed_seconds": 748.1820000000001,
+          "known_estimate_usd": 4.61954,
+          "unknown_usage_calls": 0,
+          "unpriced_calls": 0,
+          "input_tokens": 7440751,
+          "cached_input_tokens": 7050240,
+          "output_tokens": 11870
+        },
+        "repair": {
+          "calls": 3,
+          "stored_elapsed_seconds": 156.762,
+          "known_estimate_usd": 0,
+          "unknown_usage_calls": 3,
+          "unpriced_calls": 3,
+          "input_tokens": 0,
+          "cached_input_tokens": 0,
+          "output_tokens": 0
+        }
+      },
+      "calls": 28,
+      "known_estimate_usd": 9.3260424,
+      "unpriced_calls": 8,
+      "latest_selected_artifacts": {
+        "experiment_route": {
+          "kind": "experiment_route",
+          "digest": "e5103f1b0990e40e4f324956740a9d0b6709335b30ed5c79242efb5efbc63df0",
+          "cas_path": "objects/sha256/e5/103f1b0990e40e4f324956740a9d0b6709335b30ed5c79242efb5efbc63df0",
+          "path": "/tmp/e2e-e1000-local-baseline-02/.dpf/cas/objects/sha256/e5/103f1b0990e40e4f324956740a9d0b6709335b30ed5c79242efb5efbc63df0",
+          "hash_verified": true
+        },
+        "target_study_report": {
+          "kind": "target_study_report",
+          "digest": "a503796d43ff18d80cc3d462750ec5855f861e62024dbf6a18ffab29d62f814a",
+          "cas_path": "objects/sha256/a5/03796d43ff18d80cc3d462750ec5855f861e62024dbf6a18ffab29d62f814a",
+          "path": "/tmp/e2e-e1000-local-baseline-02/.dpf/cas/objects/sha256/a5/03796d43ff18d80cc3d462750ec5855f861e62024dbf6a18ffab29d62f814a",
+          "hash_verified": true
+        },
+        "migration_contracts": {
+          "kind": "migration_contracts",
+          "digest": "0786ecc73ac9f02a3265e56f199fd20983c09af1eafc21241b4030868c784730",
+          "cas_path": "objects/sha256/07/86ecc73ac9f02a3265e56f199fd20983c09af1eafc21241b4030868c784730",
+          "path": "/tmp/e2e-e1000-local-baseline-02/.dpf/cas/objects/sha256/07/86ecc73ac9f02a3265e56f199fd20983c09af1eafc21241b4030868c784730",
+          "hash_verified": true
+        },
+        "target_framework_enablement_report": {
+          "kind": "target_framework_enablement_report",
+          "digest": "7e064e31ffbb8d0d2aed63baca38ec08326b76637e288f2222d1516b445e638d",
+          "cas_path": "objects/sha256/7e/064e31ffbb8d0d2aed63baca38ec08326b76637e288f2222d1516b445e638d",
+          "path": "/tmp/e2e-e1000-local-baseline-02/.dpf/cas/objects/sha256/7e/064e31ffbb8d0d2aed63baca38ec08326b76637e288f2222d1516b445e638d",
+          "hash_verified": true
+        }
+      },
+      "jobs": [
+        {
+          "stage": "repository_acquisition",
+          "job_id": "aeeca3c7-5ede-4ec4-b341-509cda229021",
+          "thread_id": null,
+          "started_at": "2026-09-25T13:29:55.522936+00:00",
+          "completed_at": "2026-09-25T13:29:55.911329+00:00",
+          "model": "gpt-5.6-sol",
+          "service_tier": "standard",
+          "usage_baseline": {
+            "input_tokens": 0,
+            "cached_input_tokens": 0,
+            "output_tokens": 0
+          },
+          "resumed": false,
+          "prompt_bytes": 26087,
+          "auto_compact_token_limit": 224000,
+          "policy_sha256": "22ed225c1cef57b5e11d3d6f35778571251734cb77e68953160fd5010280c61f",
+          "call_reason": "stage_work",
+          "usage_semantics": "cumulative thread counters; subtract usage_baseline",
+          "elapsed_seconds": 0.388,
+          "first_response_seconds": null,
+          "reported_usage": [],
+          "usage": null,
+          "estimate": null,
+          "metrics_file": ".dpf/codex/repository_acquisition-aeeca3c7-5ede-4ec4-b341-509cda229021.metrics.json"
+        },
+        {
+          "stage": "repository_acquisition",
+          "job_id": "81c7ec4e-fb7b-4b05-a214-6bc62cdc5eaa",
+          "thread_id": "01a0d8c3-dc45-74a1-aa3e-6b09b56e9d59",
+          "started_at": "2026-09-25T13:31:49.402515+00:00",
+          "completed_at": null,
+          "model": "gpt-5.6-sol",
+          "service_tier": "standard",
+          "usage_baseline": {
+            "input_tokens": 0,
+            "cached_input_tokens": 0,
+            "output_tokens": 0
+          },
+          "resumed": false,
+          "prompt_bytes": 26087,
+          "auto_compact_token_limit": 224000,
+          "policy_sha256": "22ed225c1cef57b5e11d3d6f35778571251734cb77e68953160fd5010280c61f",
+          "call_reason": "stage_work",
+          "usage_semantics": "cumulative thread counters; subtract usage_baseline",
+          "elapsed_seconds": 0.324,
+          "first_response_seconds": null,
+          "reported_usage": [],
+          "usage": null,
+          "estimate": null,
+          "metrics_file": ".dpf/codex/repository_acquisition-81c7ec4e-fb7b-4b05-a214-6bc62cdc5eaa.metrics.json"
+        },
+        {
+          "stage": "repository_acquisition",
+          "job_id": "1875515d-de10-4b65-a98d-ec4e66d6d20f",
+          "thread_id": "01a0d8c3-dc45-74a1-aa3e-6b09b56e9d59",
+          "started_at": "2026-09-25T13:34:23.825516+00:00",
+          "completed_at": null,
+          "model": "gpt-5.6-sol",
+          "service_tier": "standard",
+          "usage_baseline": null,
+          "resumed": true,
+          "prompt_bytes": 26087,
+          "auto_compact_token_limit": 224000,
+          "policy_sha256": "22ed225c1cef57b5e11d3d6f35778571251734cb77e68953160fd5010280c61f",
+          "call_reason": "stage_work",
+          "usage_semantics": "cumulative thread counters; subtract usage_baseline",
+          "elapsed_seconds": 0.212,
+          "first_response_seconds": null,
+          "reported_usage": [],
+          "usage": null,
+          "estimate": null,
+          "metrics_file": ".dpf/codex/repository_acquisition-1875515d-de10-4b65-a98d-ec4e66d6d20f.metrics.json"
+        },
+        {
+          "stage": "repository_acquisition",
+          "job_id": "1735e3f6-d4a9-4b51-92c6-fd0c39efd13a",
+          "thread_id": "01a0d8c3-dc45-74a1-aa3e-6b09b56e9d59",
+          "started_at": "2026-09-25T13:36:47.326783+00:00",
+          "completed_at": null,
+          "model": "gpt-5.6-sol",
+          "service_tier": "standard",
+          "usage_baseline": null,
+          "resumed": true,
+          "prompt_bytes": 26087,
+          "auto_compact_token_limit": 224000,
+          "policy_sha256": "22ed225c1cef57b5e11d3d6f35778571251734cb77e68953160fd5010280c61f",
+          "call_reason": "stage_work",
+          "usage_semantics": "cumulative thread counters; subtract usage_baseline",
+          "elapsed_seconds": 0.19,
+          "first_response_seconds": null,
+          "reported_usage": [],
+          "usage": null,
+          "estimate": null,
+          "metrics_file": ".dpf/codex/repository_acquisition-1735e3f6-d4a9-4b51-92c6-fd0c39efd13a.metrics.json"
+        },
+        {
+          "stage": "repository_acquisition",
+          "job_id": "33afabdb-b09e-4872-9f9f-74ecfa77db3b",
+          "thread_id": "01a0d8c3-dc45-74a1-aa3e-6b09b56e9d59",
+          "started_at": "2026-09-25T13:40:03.355070+00:00",
+          "completed_at": "2026-09-25T13:41:16.021763+00:00",
+          "model": "gpt-5.6-sol",
+          "service_tier": "standard",
+          "usage_baseline": null,
+          "resumed": true,
+          "prompt_bytes": 26087,
+          "auto_compact_token_limit": 224000,
+          "policy_sha256": "22ed225c1cef57b5e11d3d6f35778571251734cb77e68953160fd5010280c61f",
+          "call_reason": "stage_work",
+          "usage_semantics": "cumulative thread counters; subtract usage_baseline",
+          "elapsed_seconds": 72.666,
+          "first_response_seconds": 11.955,
+          "reported_usage": [
+            {
+              "input_tokens": 211677,
+              "cached_input_tokens": 182528,
+              "cache_write_input_tokens": 0,
+              "output_tokens": 1741,
+              "reasoning_output_tokens": 241
+            }
+          ],
+          "usage": null,
+          "estimate": null,
+          "metrics_file": ".dpf/codex/repository_acquisition-33afabdb-b09e-4872-9f9f-74ecfa77db3b.metrics.json"
+        },
+        {
+          "stage": "evidence_closure",
+          "job_id": "3295c5a4-a457-48b4-93f4-62d4d747715e",
+          "thread_id": "01a0d8c3-dc45-74a1-aa3e-6b09b56e9d59",
+          "started_at": "2026-09-25T13:41:37.473758+00:00",
+          "completed_at": "2026-09-25T13:43:40.424559+00:00",
+          "model": "gpt-5.6-sol",
+          "service_tier": "standard",
+          "usage_baseline": {
+            "input_tokens": 211677,
+            "cached_input_tokens": 182528,
+            "cache_write_input_tokens": 0,
+            "output_tokens": 1741,
+            "reasoning_output_tokens": 241
+          },
+          "resumed": true,
+          "prompt_bytes": 14606,
+          "auto_compact_token_limit": 224000,
+          "policy_sha256": "b19e21a9eee63d85f0924545fe49770d67155a72fea34ae3b6362bd88284393f",
+          "call_reason": "stage_work",
+          "usage_semantics": "cumulative thread counters; subtract usage_baseline",
+          "elapsed_seconds": 122.951,
+          "first_response_seconds": 10.646,
+          "reported_usage": [
+            {
+              "input_tokens": 498145,
+              "cached_input_tokens": 451072,
+              "cache_write_input_tokens": 0,
+              "output_tokens": 4892,
+              "reasoning_output_tokens": 635
+            }
+          ],
+          "usage": {
+            "input_tokens": 286468,
+            "cached_input_tokens": 268544,
+            "output_tokens": 3151,
+            "cache_write_input_tokens": 0
+          },
+          "estimate": {
+            "usd": 0.2421336,
+            "model": "gpt-5.6-sol",
+            "service_tier": "standard",
+            "source": "https://developers.openai.com/api/docs/pricing",
+            "price_date": "2026-09-19",
+            "basis": "short context assumed with 224k auto-compaction; public API rates, not relay invoice"
+          },
+          "metrics_file": ".dpf/codex/evidence_closure-3295c5a4-a457-48b4-93f4-62d4d747715e.metrics.json"
+        },
+        {
+          "stage": "evidence_closure",
+          "job_id": "d928597b-75b4-4c6b-aef4-ab4140d44181",
+          "thread_id": "01a0d8c3-dc45-74a1-aa3e-6b09b56e9d59",
+          "started_at": "2026-09-25T13:43:41.039413+00:00",
+          "completed_at": "2026-09-25T13:44:23.102785+00:00",
+          "model": "gpt-5.6-sol",
+          "service_tier": "standard",
+          "usage_baseline": {
+            "input_tokens": 498145,
+            "cached_input_tokens": 451072,
+            "cache_write_input_tokens": 0,
+            "output_tokens": 4892,
+            "reasoning_output_tokens": 635
+          },
+          "resumed": true,
+          "prompt_bytes": 12206,
+          "auto_compact_token_limit": 224000,
+          "policy_sha256": "b19e21a9eee63d85f0924545fe49770d67155a72fea34ae3b6362bd88284393f",
+          "call_reason": "recovery",
+          "usage_semantics": "cumulative thread counters; subtract usage_baseline",
+          "elapsed_seconds": 42.063,
+          "first_response_seconds": 14.722,
+          "reported_usage": [
+            {
+              "input_tokens": 647341,
+              "cached_input_tokens": 594688,
+              "cache_write_input_tokens": 0,
+              "output_tokens": 5681,
+              "reasoning_output_tokens": 800
+            }
+          ],
+          "usage": {
+            "input_tokens": 149196,
+            "cached_input_tokens": 143616,
+            "output_tokens": 789,
+            "cache_write_input_tokens": 0
+          },
+          "estimate": {
+            "usd": 0.0955464,
+            "model": "gpt-5.6-sol",
+            "service_tier": "standard",
+            "source": "https://developers.openai.com/api/docs/pricing",
+            "price_date": "2026-09-19",
+            "basis": "short context assumed with 224k auto-compaction; public API rates, not relay invoice"
+          },
+          "metrics_file": ".dpf/codex/evidence_closure-d928597b-75b4-4c6b-aef4-ab4140d44181.metrics.json"
+        },
+        {
+          "stage": "evidence_closure",
+          "job_id": "e1681951-bda2-425c-b3c0-ae2763575eb0",
+          "thread_id": "01a0d8c3-dc45-74a1-aa3e-6b09b56e9d59",
+          "started_at": "2026-09-25T13:44:26.787297+00:00",
+          "completed_at": "2026-09-25T13:45:10.129550+00:00",
+          "model": "gpt-5.6-sol",
+          "service_tier": "standard",
+          "usage_baseline": {
+            "input_tokens": 647341,
+            "cached_input_tokens": 594688,
+            "cache_write_input_tokens": 0,
+            "output_tokens": 5681,
+            "reasoning_output_tokens": 800
+          },
+          "resumed": true,
+          "prompt_bytes": 12318,
+          "auto_compact_token_limit": 224000,
+          "policy_sha256": "b19e21a9eee63d85f0924545fe49770d67155a72fea34ae3b6362bd88284393f",
+          "call_reason": "recovery",
+          "usage_semantics": "cumulative thread counters; subtract usage_baseline",
+          "elapsed_seconds": 43.342,
+          "first_response_seconds": 9.792,
+          "reported_usage": [
+            {
+              "input_tokens": 865840,
+              "cached_input_tokens": 805632,
+              "cache_write_input_tokens": 0,
+              "output_tokens": 6673,
+              "reasoning_output_tokens": 999
+            }
+          ],
+          "usage": {
+            "input_tokens": 218499,
+            "cached_input_tokens": 210944,
+            "output_tokens": 992,
+            "cache_write_input_tokens": 0
+          },
+          "estimate": {
+            "usd": 0.1344376,
+            "model": "gpt-5.6-sol",
+            "service_tier": "standard",
+            "source": "https://developers.openai.com/api/docs/pricing",
+            "price_date": "2026-09-19",
+            "basis": "short context assumed with 224k auto-compaction; public API rates, not relay invoice"
+          },
+          "metrics_file": ".dpf/codex/evidence_closure-e1681951-bda2-425c-b3c0-ae2763575eb0.metrics.json"
+        },
+        {
+          "stage": "environment_recovery",
+          "job_id": "65474ac7-6cd1-4992-bf14-1670581a68c6",
+          "thread_id": "01a0d8c3-dc45-74a1-aa3e-6b09b56e9d59",
+          "started_at": "2026-09-25T13:45:13.649907+00:00",
+          "completed_at": "2026-09-25T13:47:42.907362+00:00",
+          "model": "gpt-5.6-sol",
+          "service_tier": "standard",
+          "usage_baseline": {
+            "input_tokens": 865840,
+            "cached_input_tokens": 805632,
+            "cache_write_input_tokens": 0,
+            "output_tokens": 6673,
+            "reasoning_output_tokens": 999
+          },
+          "resumed": true,
+          "prompt_bytes": 16342,
+          "auto_compact_token_limit": 224000,
+          "policy_sha256": "b3c0890e095122c283794afdbf3fdcb76aac07c4f0e012f73ec11b753a7c7314",
+          "call_reason": "stage_work",
+          "usage_semantics": "cumulative thread counters; subtract usage_baseline",
+          "elapsed_seconds": 149.257,
+          "first_response_seconds": 6.988,
+          "reported_usage": [
+            {
+              "input_tokens": 1463603,
+              "cached_input_tokens": 1374976,
+              "cache_write_input_tokens": 0,
+              "output_tokens": 9619,
+              "reasoning_output_tokens": 1714
+            }
+          ],
+          "usage": {
+            "input_tokens": 597763,
+            "cached_input_tokens": 569344,
+            "output_tokens": 2946,
+            "cache_write_input_tokens": 0
+          },
+          "estimate": {
+            "usd": 0.4003336,
+            "model": "gpt-5.6-sol",
+            "service_tier": "standard",
+            "source": "https://developers.openai.com/api/docs/pricing",
+            "price_date": "2026-09-19",
+            "basis": "short context assumed with 224k auto-compaction; public API rates, not relay invoice"
+          },
+          "metrics_file": ".dpf/codex/environment_recovery-65474ac7-6cd1-4992-bf14-1670581a68c6.metrics.json"
+        },
+        {
+          "stage": "target_platform_study",
+          "job_id": "e4c916a7-f496-47d5-92e5-fdc815ef9082",
+          "thread_id": "01a0d8c3-dc45-74a1-aa3e-6b09b56e9d59",
+          "started_at": "2026-09-25T13:47:46.212892+00:00",
+          "completed_at": "2026-09-25T13:51:01.464217+00:00",
+          "model": "gpt-5.6-sol",
+          "service_tier": "standard",
+          "usage_baseline": {
+            "input_tokens": 1463603,
+            "cached_input_tokens": 1374976,
+            "cache_write_input_tokens": 0,
+            "output_tokens": 9619,
+            "reasoning_output_tokens": 1714
+          },
+          "resumed": true,
+          "prompt_bytes": 49654,
+          "auto_compact_token_limit": 224000,
+          "policy_sha256": "646f7afd5a2f26b0a02bcb12716c6cf8a9c4c2c6387e6a1dd2e0a3c96599904d",
+          "call_reason": "stage_work",
+          "usage_semantics": "cumulative thread counters; subtract usage_baseline",
+          "elapsed_seconds": 195.251,
+          "first_response_seconds": 10.142,
+          "reported_usage": [
+            {
+              "input_tokens": 2355133,
+              "cached_input_tokens": 2213632,
+              "cache_write_input_tokens": 0,
+              "output_tokens": 14012,
+              "reasoning_output_tokens": 2067
+            }
+          ],
+          "usage": {
+            "input_tokens": 891530,
+            "cached_input_tokens": 838656,
+            "output_tokens": 4393,
+            "cache_write_input_tokens": 0
+          },
+          "estimate": {
+            "usd": 0.6348184,
+            "model": "gpt-5.6-sol",
+            "service_tier": "standard",
+            "source": "https://developers.openai.com/api/docs/pricing",
+            "price_date": "2026-09-19",
+            "basis": "short context assumed with 224k auto-compaction; public API rates, not relay invoice"
+          },
+          "metrics_file": ".dpf/codex/target_platform_study-e4c916a7-f496-47d5-92e5-fdc815ef9082.metrics.json"
+        },
+        {
+          "stage": "migration_contracts",
+          "job_id": "0644f8d2-1d70-4ad6-b312-7a2928574486",
+          "thread_id": "01a0d8c3-dc45-74a1-aa3e-6b09b56e9d59",
+          "started_at": "2026-09-25T13:51:01.653801+00:00",
+          "completed_at": "2026-09-25T13:54:13.836556+00:00",
+          "model": "gpt-5.6-sol",
+          "service_tier": "standard",
+          "usage_baseline": {
+            "input_tokens": 2355133,
+            "cached_input_tokens": 2213632,
+            "cache_write_input_tokens": 0,
+            "output_tokens": 14012,
+            "reasoning_output_tokens": 2067
+          },
+          "resumed": true,
+          "prompt_bytes": 31294,
+          "auto_compact_token_limit": 224000,
+          "policy_sha256": "cbc9fb05f00c0fdbd46a17bcdd53d655b51ba7cd61b7b88eb1eaf2879ad841ab",
+          "call_reason": "stage_work",
+          "usage_semantics": "cumulative thread counters; subtract usage_baseline",
+          "elapsed_seconds": 192.182,
+          "first_response_seconds": 10.17,
+          "reported_usage": [
+            {
+              "input_tokens": 3095825,
+              "cached_input_tokens": 2781696,
+              "cache_write_input_tokens": 0,
+              "output_tokens": 18634,
+              "reasoning_output_tokens": 2804
+            }
+          ],
+          "usage": {
+            "input_tokens": 740692,
+            "cached_input_tokens": 568064,
+            "output_tokens": 4622,
+            "cache_write_input_tokens": 0
+          },
+          "estimate": {
+            "usd": 1.0101776,
+            "model": "gpt-5.6-sol",
+            "service_tier": "standard",
+            "source": "https://developers.openai.com/api/docs/pricing",
+            "price_date": "2026-09-19",
+            "basis": "short context assumed with 224k auto-compaction; public API rates, not relay invoice"
+          },
+          "metrics_file": ".dpf/codex/migration_contracts-0644f8d2-1d70-4ad6-b312-7a2928574486.metrics.json"
+        },
+        {
+          "stage": "target_framework_enablement",
+          "job_id": "7994bc23-52fb-46eb-b4a4-717c1a8394f6",
+          "thread_id": "01a0d8c3-dc45-74a1-aa3e-6b09b56e9d59",
+          "started_at": "2026-09-25T13:54:13.895937+00:00",
+          "completed_at": "2026-09-25T13:58:46.409283+00:00",
+          "model": "gpt-5.6-sol",
+          "service_tier": "standard",
+          "usage_baseline": {
+            "input_tokens": 3095825,
+            "cached_input_tokens": 2781696,
+            "cache_write_input_tokens": 0,
+            "output_tokens": 18634,
+            "reasoning_output_tokens": 2804
+          },
+          "resumed": true,
+          "prompt_bytes": 16260,
+          "auto_compact_token_limit": 224000,
+          "policy_sha256": "d08981f8e4881d9700da73b8441acb788ea426fe64ec14207b5cd80d584cdc69",
+          "call_reason": "stage_work",
+          "usage_semantics": "cumulative thread counters; subtract usage_baseline",
+          "elapsed_seconds": 272.513,
+          "first_response_seconds": 8.304,
+          "reported_usage": [
+            {
+              "input_tokens": 4455660,
+              "cached_input_tokens": 4116992,
+              "cache_write_input_tokens": 0,
+              "output_tokens": 21734,
+              "reasoning_output_tokens": 3454
+            }
+          ],
+          "usage": {
+            "input_tokens": 1359835,
+            "cached_input_tokens": 1335296,
+            "output_tokens": 3100,
+            "cache_write_input_tokens": 0
+          },
+          "estimate": {
+            "usd": 0.6942744,
+            "model": "gpt-5.6-sol",
+            "service_tier": "standard",
+            "source": "https://developers.openai.com/api/docs/pricing",
+            "price_date": "2026-09-19",
+            "basis": "short context assumed with 224k auto-compaction; public API rates, not relay invoice"
+          },
+          "metrics_file": ".dpf/codex/target_framework_enablement-7994bc23-52fb-46eb-b4a4-717c1a8394f6.metrics.json"
+        },
+        {
+          "stage": "driver_implementation",
+          "job_id": "a0bf22fd-a2ec-403e-9a7a-3bbed17a8c32",
+          "thread_id": "01a0d8c3-dc45-74a1-aa3e-6b09b56e9d59",
+          "started_at": "2026-09-25T13:58:46.485881+00:00",
+          "completed_at": "2026-09-25T14:10:15.032719+00:00",
+          "model": "gpt-5.6-sol",
+          "service_tier": "standard",
+          "usage_baseline": {
+            "input_tokens": 4455660,
+            "cached_input_tokens": 4116992,
+            "cache_write_input_tokens": 0,
+            "output_tokens": 21734,
+            "reasoning_output_tokens": 3454
+          },
+          "resumed": true,
+          "prompt_bytes": 18448,
+          "auto_compact_token_limit": 160000,
+          "policy_sha256": "912aab06cf8cb0b0b0db506e03084dd8da14add77132f39e3e1b4424908afb65",
+          "call_reason": "stage_work",
+          "usage_semantics": "cumulative thread counters; subtract usage_baseline",
+          "elapsed_seconds": 688.547,
+          "first_response_seconds": 78.834,
+          "reported_usage": [
+            {
+              "input_tokens": 5742994,
+              "cached_input_tokens": 5172224,
+              "cache_write_input_tokens": 0,
+              "output_tokens": 28948,
+              "reasoning_output_tokens": 4115
+            }
+          ],
+          "usage": {
+            "input_tokens": 1287334,
+            "cached_input_tokens": 1055232,
+            "output_tokens": 7214,
+            "cache_write_input_tokens": 0
+          },
+          "estimate": {
+            "usd": 1.4947808,
+            "model": "gpt-5.6-sol",
+            "service_tier": "standard",
+            "source": "https://developers.openai.com/api/docs/pricing",
+            "price_date": "2026-09-19",
+            "basis": "short context assumed with 224k auto-compaction; public API rates, not relay invoice"
+          },
+          "metrics_file": ".dpf/codex/driver_implementation-a0bf22fd-a2ec-403e-9a7a-3bbed17a8c32.metrics.json"
+        },
+        {
+          "stage": "driver_implementation",
+          "job_id": "32667888-8a2e-452f-9886-7598f2f583a1",
+          "thread_id": "01a0d8c3-dc45-74a1-aa3e-6b09b56e9d59",
+          "started_at": "2026-09-25T14:10:15.194507+00:00",
+          "completed_at": "2026-09-25T14:12:28.953566+00:00",
+          "model": "gpt-5.6-sol",
+          "service_tier": "standard",
+          "usage_baseline": {
+            "input_tokens": 5742994,
+            "cached_input_tokens": 5172224,
+            "cache_write_input_tokens": 0,
+            "output_tokens": 28948,
+            "reasoning_output_tokens": 4115
+          },
+          "resumed": true,
+          "prompt_bytes": 18769,
+          "auto_compact_token_limit": 224000,
+          "policy_sha256": "912aab06cf8cb0b0b0db506e03084dd8da14add77132f39e3e1b4424908afb65",
+          "call_reason": "execution_self_check",
+          "usage_semantics": "cumulative thread counters; subtract usage_baseline",
+          "elapsed_seconds": 133.759,
+          "first_response_seconds": 17.337,
+          "reported_usage": [
+            {
+              "input_tokens": 6158041,
+              "cached_input_tokens": 5577216,
+              "cache_write_input_tokens": 0,
+              "output_tokens": 30041,
+              "reasoning_output_tokens": 4235
+            }
+          ],
+          "usage": {
+            "input_tokens": 415047,
+            "cached_input_tokens": 404992,
+            "output_tokens": 1093,
+            "cache_write_input_tokens": 0
+          },
+          "estimate": {
+            "usd": 0.2240768,
+            "model": "gpt-5.6-sol",
+            "service_tier": "standard",
+            "source": "https://developers.openai.com/api/docs/pricing",
+            "price_date": "2026-09-19",
+            "basis": "short context assumed with 224k auto-compaction; public API rates, not relay invoice"
+          },
+          "metrics_file": ".dpf/codex/driver_implementation-32667888-8a2e-452f-9886-7598f2f583a1.metrics.json"
+        },
+        {
+          "stage": "driver_implementation",
+          "job_id": "75a22e44-9188-4b6b-a20d-ec6152deca45",
+          "thread_id": "01a0d8c3-dc45-74a1-aa3e-6b09b56e9d59",
+          "started_at": "2026-09-25T14:12:29.294298+00:00",
+          "completed_at": "2026-09-25T14:13:59.950555+00:00",
+          "model": "gpt-5.6-sol",
+          "service_tier": "standard",
+          "usage_baseline": {
+            "input_tokens": 6158041,
+            "cached_input_tokens": 5577216,
+            "cache_write_input_tokens": 0,
+            "output_tokens": 30041,
+            "reasoning_output_tokens": 4235
+          },
+          "resumed": true,
+          "prompt_bytes": 18769,
+          "auto_compact_token_limit": 224000,
+          "policy_sha256": "912aab06cf8cb0b0b0db506e03084dd8da14add77132f39e3e1b4424908afb65",
+          "call_reason": "execution_self_check",
+          "usage_semantics": "cumulative thread counters; subtract usage_baseline",
+          "elapsed_seconds": 90.656,
+          "first_response_seconds": 28.073,
+          "reported_usage": [
+            {
+              "input_tokens": 6468252,
+              "cached_input_tokens": 5881344,
+              "cache_write_input_tokens": 0,
+              "output_tokens": 30695,
+              "reasoning_output_tokens": 4323
+            }
+          ],
+          "usage": {
+            "input_tokens": 310211,
+            "cached_input_tokens": 304128,
+            "output_tokens": 654,
+            "cache_write_input_tokens": 0
+          },
+          "estimate": {
+            "usd": 0.1590632,
+            "model": "gpt-5.6-sol",
+            "service_tier": "standard",
+            "source": "https://developers.openai.com/api/docs/pricing",
+            "price_date": "2026-09-19",
+            "basis": "short context assumed with 224k auto-compaction; public API rates, not relay invoice"
+          },
+          "metrics_file": ".dpf/codex/driver_implementation-75a22e44-9188-4b6b-a20d-ec6152deca45.metrics.json"
+        },
+        {
+          "stage": "driver_implementation",
+          "job_id": "a8e52209-b2ad-4599-b87a-04320730113a",
+          "thread_id": "01a0d8c3-dc45-74a1-aa3e-6b09b56e9d59",
+          "started_at": "2026-09-25T14:14:03.299541+00:00",
+          "completed_at": "2026-09-25T14:16:28.341602+00:00",
+          "model": "gpt-5.6-sol",
+          "service_tier": "standard",
+          "usage_baseline": {
+            "input_tokens": 6468252,
+            "cached_input_tokens": 5881344,
+            "cache_write_input_tokens": 0,
+            "output_tokens": 30695,
+            "reasoning_output_tokens": 4323
+          },
+          "resumed": true,
+          "prompt_bytes": 18769,
+          "auto_compact_token_limit": 224000,
+          "policy_sha256": "912aab06cf8cb0b0b0db506e03084dd8da14add77132f39e3e1b4424908afb65",
+          "call_reason": "execution_self_check",
+          "usage_semantics": "cumulative thread counters; subtract usage_baseline",
+          "elapsed_seconds": 145.042,
+          "first_response_seconds": 18.804,
+          "reported_usage": [
+            {
+              "input_tokens": 7067253,
+              "cached_input_tokens": 6467328,
+              "cache_write_input_tokens": 0,
+              "output_tokens": 31953,
+              "reasoning_output_tokens": 4617
+            }
+          ],
+          "usage": {
+            "input_tokens": 599001,
+            "cached_input_tokens": 585984,
+            "output_tokens": 1258,
+            "cache_write_input_tokens": 0
+          },
+          "estimate": {
+            "usd": 0.3116216,
+            "model": "gpt-5.6-sol",
+            "service_tier": "standard",
+            "source": "https://developers.openai.com/api/docs/pricing",
+            "price_date": "2026-09-19",
+            "basis": "short context assumed with 224k auto-compaction; public API rates, not relay invoice"
+          },
+          "metrics_file": ".dpf/codex/driver_implementation-a8e52209-b2ad-4599-b87a-04320730113a.metrics.json"
+        },
+        {
+          "stage": "driver_implementation",
+          "job_id": "efd7918b-3eb1-4429-bfae-e491001714b7",
+          "thread_id": "01a0d8c3-dc45-74a1-aa3e-6b09b56e9d59",
+          "started_at": "2026-09-25T14:54:22.556687+00:00",
+          "completed_at": null,
+          "model": "gpt-5.6-sol",
+          "service_tier": "standard",
+          "usage_baseline": {
+            "input_tokens": 7067253,
+            "cached_input_tokens": 6467328,
+            "cache_write_input_tokens": 0,
+            "output_tokens": 31953,
+            "reasoning_output_tokens": 4617
+          },
+          "resumed": true,
+          "prompt_bytes": 19198,
+          "auto_compact_token_limit": 224000,
+          "policy_sha256": "912aab06cf8cb0b0b0db506e03084dd8da14add77132f39e3e1b4424908afb65",
+          "call_reason": "repair",
+          "usage_semantics": "cumulative thread counters; subtract usage_baseline",
+          "elapsed_seconds": 0.524,
+          "first_response_seconds": null,
+          "reported_usage": [],
+          "usage": null,
+          "estimate": null,
+          "metrics_file": ".dpf/codex/driver_implementation-efd7918b-3eb1-4429-bfae-e491001714b7.metrics.json"
+        },
+        {
+          "stage": "driver_implementation",
+          "job_id": "16c34b82-dde1-4a24-b152-af57c3e49a65",
+          "thread_id": "01a0d8c3-dc45-74a1-aa3e-6b09b56e9d59",
+          "started_at": "2026-09-25T15:01:40.912816+00:00",
+          "completed_at": "2026-09-25T15:02:04.684131+00:00",
+          "model": "gpt-5.6-sol",
+          "service_tier": "standard",
+          "usage_baseline": null,
+          "resumed": true,
+          "prompt_bytes": 19198,
+          "auto_compact_token_limit": 224000,
+          "policy_sha256": "912aab06cf8cb0b0b0db506e03084dd8da14add77132f39e3e1b4424908afb65",
+          "call_reason": "repair",
+          "usage_semantics": "cumulative thread counters; subtract usage_baseline",
+          "elapsed_seconds": 23.771,
+          "first_response_seconds": 10.844,
+          "reported_usage": [
+            {
+              "input_tokens": 7359177,
+              "cached_input_tokens": 6650112,
+              "cache_write_input_tokens": 0,
+              "output_tokens": 32518,
+              "reasoning_output_tokens": 4693
+            }
+          ],
+          "usage": null,
+          "estimate": null,
+          "metrics_file": ".dpf/codex/driver_implementation-16c34b82-dde1-4a24-b152-af57c3e49a65.metrics.json"
+        },
+        {
+          "stage": "driver_implementation",
+          "job_id": "6ffdf5ff-3238-42a1-ae32-22649f9b3246",
+          "thread_id": "01a0d8c3-dc45-74a1-aa3e-6b09b56e9d59",
+          "started_at": "2026-09-25T15:02:08.146980+00:00",
+          "completed_at": "2026-09-25T15:02:40.806415+00:00",
+          "model": "gpt-5.6-sol",
+          "service_tier": "standard",
+          "usage_baseline": {
+            "input_tokens": 7359177,
+            "cached_input_tokens": 6650112,
+            "cache_write_input_tokens": 0,
+            "output_tokens": 32518,
+            "reasoning_output_tokens": 4693
+          },
+          "resumed": true,
+          "prompt_bytes": 19525,
+          "auto_compact_token_limit": 224000,
+          "policy_sha256": "912aab06cf8cb0b0b0db506e03084dd8da14add77132f39e3e1b4424908afb65",
+          "call_reason": "execution_self_check",
+          "usage_semantics": "cumulative thread counters; subtract usage_baseline",
+          "elapsed_seconds": 32.659,
+          "first_response_seconds": 6.23,
+          "reported_usage": [
+            {
+              "input_tokens": 7883463,
+              "cached_input_tokens": 7162880,
+              "cache_write_input_tokens": 0,
+              "output_tokens": 33274,
+              "reasoning_output_tokens": 4793
+            }
+          ],
+          "usage": {
+            "input_tokens": 524286,
+            "cached_input_tokens": 512768,
+            "output_tokens": 756,
+            "cache_write_input_tokens": 0
+          },
+          "estimate": {
+            "usd": 0.2662992,
+            "model": "gpt-5.6-sol",
+            "service_tier": "standard",
+            "source": "https://developers.openai.com/api/docs/pricing",
+            "price_date": "2026-09-19",
+            "basis": "short context assumed with 224k auto-compaction; public API rates, not relay invoice"
+          },
+          "metrics_file": ".dpf/codex/driver_implementation-6ffdf5ff-3238-42a1-ae32-22649f9b3246.metrics.json"
+        },
+        {
+          "stage": "driver_implementation",
+          "job_id": "a1ec3863-f943-43f8-bcc8-e50a582674e1",
+          "thread_id": "01a0d8c3-dc45-74a1-aa3e-6b09b56e9d59",
+          "started_at": "2026-09-25T15:02:44.152698+00:00",
+          "completed_at": "2026-09-25T15:03:21.301945+00:00",
+          "model": "gpt-5.6-sol",
+          "service_tier": "standard",
+          "usage_baseline": {
+            "input_tokens": 7883463,
+            "cached_input_tokens": 7162880,
+            "cache_write_input_tokens": 0,
+            "output_tokens": 33274,
+            "reasoning_output_tokens": 4793
+          },
+          "resumed": true,
+          "prompt_bytes": 19525,
+          "auto_compact_token_limit": 224000,
+          "policy_sha256": "912aab06cf8cb0b0b0db506e03084dd8da14add77132f39e3e1b4424908afb65",
+          "call_reason": "execution_self_check",
+          "usage_semantics": "cumulative thread counters; subtract usage_baseline",
+          "elapsed_seconds": 37.149,
+          "first_response_seconds": 13.176,
+          "reported_usage": [
+            {
+              "input_tokens": 8331943,
+              "cached_input_tokens": 7602176,
+              "cache_write_input_tokens": 0,
+              "output_tokens": 34349,
+              "reasoning_output_tokens": 4977
+            }
+          ],
+          "usage": {
+            "input_tokens": 448480,
+            "cached_input_tokens": 439296,
+            "output_tokens": 1075,
+            "cache_write_input_tokens": 0
+          },
+          "estimate": {
+            "usd": 0.2339544,
+            "model": "gpt-5.6-sol",
+            "service_tier": "standard",
+            "source": "https://developers.openai.com/api/docs/pricing",
+            "price_date": "2026-09-19",
+            "basis": "short context assumed with 224k auto-compaction; public API rates, not relay invoice"
+          },
+          "metrics_file": ".dpf/codex/driver_implementation-a1ec3863-f943-43f8-bcc8-e50a582674e1.metrics.json"
+        },
+        {
+          "stage": "driver_implementation",
+          "job_id": "d4bbd491-1764-4953-8d36-fc0c1d017e50",
+          "thread_id": "01a0d8c3-dc45-74a1-aa3e-6b09b56e9d59",
+          "started_at": "2026-09-25T15:03:21.634122+00:00",
+          "completed_at": "2026-09-25T15:04:37.735201+00:00",
+          "model": "gpt-5.6-sol",
+          "service_tier": "standard",
+          "usage_baseline": {
+            "input_tokens": 8331943,
+            "cached_input_tokens": 7602176,
+            "cache_write_input_tokens": 0,
+            "output_tokens": 34349,
+            "reasoning_output_tokens": 4977
+          },
+          "resumed": true,
+          "prompt_bytes": 19525,
+          "auto_compact_token_limit": 224000,
+          "policy_sha256": "912aab06cf8cb0b0b0db506e03084dd8da14add77132f39e3e1b4424908afb65",
+          "call_reason": "execution_self_check",
+          "usage_semantics": "cumulative thread counters; subtract usage_baseline",
+          "elapsed_seconds": 76.101,
+          "first_response_seconds": 5.982,
+          "reported_usage": [
+            {
+              "input_tokens": 9169712,
+              "cached_input_tokens": 8310912,
+              "cache_write_input_tokens": 0,
+              "output_tokens": 35975,
+              "reasoning_output_tokens": 5473
+            }
+          ],
+          "usage": {
+            "input_tokens": 837769,
+            "cached_input_tokens": 708736,
+            "output_tokens": 1626,
+            "cache_write_input_tokens": 0
+          },
+          "estimate": {
+            "usd": 0.8321464,
+            "model": "gpt-5.6-sol",
+            "service_tier": "standard",
+            "source": "https://developers.openai.com/api/docs/pricing",
+            "price_date": "2026-09-19",
+            "basis": "short context assumed with 224k auto-compaction; public API rates, not relay invoice"
+          },
+          "metrics_file": ".dpf/codex/driver_implementation-d4bbd491-1764-4953-8d36-fc0c1d017e50.metrics.json"
+        },
+        {
+          "stage": "driver_implementation",
+          "job_id": "908745c7-e55a-4cd0-8aa1-454787cc243f",
+          "thread_id": "01a0d8c3-dc45-74a1-aa3e-6b09b56e9d59",
+          "started_at": "2026-09-25T15:04:41.080952+00:00",
+          "completed_at": "2026-09-25T15:05:24.257735+00:00",
+          "model": "gpt-5.6-sol",
+          "service_tier": "standard",
+          "usage_baseline": {
+            "input_tokens": 9169712,
+            "cached_input_tokens": 8310912,
+            "cache_write_input_tokens": 0,
+            "output_tokens": 35975,
+            "reasoning_output_tokens": 5473
+          },
+          "resumed": true,
+          "prompt_bytes": 19525,
+          "auto_compact_token_limit": 224000,
+          "policy_sha256": "912aab06cf8cb0b0b0db506e03084dd8da14add77132f39e3e1b4424908afb65",
+          "call_reason": "execution_self_check",
+          "usage_semantics": "cumulative thread counters; subtract usage_baseline",
+          "elapsed_seconds": 43.176,
+          "first_response_seconds": 7.503,
+          "reported_usage": [
+            {
+              "input_tokens": 9807442,
+              "cached_input_tokens": 8930816,
+              "cache_write_input_tokens": 0,
+              "output_tokens": 36947,
+              "reasoning_output_tokens": 5743
+            }
+          ],
+          "usage": {
+            "input_tokens": 637730,
+            "cached_input_tokens": 619904,
+            "output_tokens": 972,
+            "cache_write_input_tokens": 0
+          },
+          "estimate": {
+            "usd": 0.3387056,
+            "model": "gpt-5.6-sol",
+            "service_tier": "standard",
+            "source": "https://developers.openai.com/api/docs/pricing",
+            "price_date": "2026-09-19",
+            "basis": "short context assumed with 224k auto-compaction; public API rates, not relay invoice"
+          },
+          "metrics_file": ".dpf/codex/driver_implementation-908745c7-e55a-4cd0-8aa1-454787cc243f.metrics.json"
+        },
+        {
+          "stage": "driver_implementation",
+          "job_id": "b12239b8-a1af-4281-a487-e509b91f0be7",
+          "thread_id": "01a0d8c3-dc45-74a1-aa3e-6b09b56e9d59",
+          "started_at": "2026-09-25T15:05:24.401458+00:00",
+          "completed_at": "2026-09-25T15:06:00.367686+00:00",
+          "model": "gpt-5.6-sol",
+          "service_tier": "standard",
+          "usage_baseline": {
+            "input_tokens": 9807442,
+            "cached_input_tokens": 8930816,
+            "cache_write_input_tokens": 0,
+            "output_tokens": 36947,
+            "reasoning_output_tokens": 5743
+          },
+          "resumed": true,
+          "prompt_bytes": 19525,
+          "auto_compact_token_limit": 224000,
+          "policy_sha256": "912aab06cf8cb0b0b0db506e03084dd8da14add77132f39e3e1b4424908afb65",
+          "call_reason": "execution_self_check",
+          "usage_semantics": "cumulative thread counters; subtract usage_baseline",
+          "elapsed_seconds": 35.966,
+          "first_response_seconds": 13.751,
+          "reported_usage": [
+            {
+              "input_tokens": 10344380,
+              "cached_input_tokens": 9459200,
+              "cache_write_input_tokens": 0,
+              "output_tokens": 37976,
+              "reasoning_output_tokens": 5880
+            }
+          ],
+          "usage": {
+            "input_tokens": 536938,
+            "cached_input_tokens": 528384,
+            "output_tokens": 1029,
+            "cache_write_input_tokens": 0
+          },
+          "estimate": {
+            "usd": 0.2661496,
+            "model": "gpt-5.6-sol",
+            "service_tier": "standard",
+            "source": "https://developers.openai.com/api/docs/pricing",
+            "price_date": "2026-09-19",
+            "basis": "short context assumed with 224k auto-compaction; public API rates, not relay invoice"
+          },
+          "metrics_file": ".dpf/codex/driver_implementation-b12239b8-a1af-4281-a487-e509b91f0be7.metrics.json"
+        },
+        {
+          "stage": "driver_implementation",
+          "job_id": "b6d25d42-cf3d-41b7-aa47-1d8c44143d2c",
+          "thread_id": "01a0d8c3-dc45-74a1-aa3e-6b09b56e9d59",
+          "started_at": "2026-09-25T15:06:00.553854+00:00",
+          "completed_at": "2026-09-25T15:06:43.152867+00:00",
+          "model": "gpt-5.6-sol",
+          "service_tier": "standard",
+          "usage_baseline": {
+            "input_tokens": 10344380,
+            "cached_input_tokens": 9459200,
+            "cache_write_input_tokens": 0,
+            "output_tokens": 37976,
+            "reasoning_output_tokens": 5880
+          },
+          "resumed": true,
+          "prompt_bytes": 19525,
+          "auto_compact_token_limit": 224000,
+          "policy_sha256": "912aab06cf8cb0b0b0db506e03084dd8da14add77132f39e3e1b4424908afb65",
+          "call_reason": "execution_self_check",
+          "usage_semantics": "cumulative thread counters; subtract usage_baseline",
+          "elapsed_seconds": 42.599,
+          "first_response_seconds": 6.478,
+          "reported_usage": [
+            {
+              "input_tokens": 11191176,
+              "cached_input_tokens": 10294272,
+              "cache_write_input_tokens": 0,
+              "output_tokens": 38802,
+              "reasoning_output_tokens": 6125
+            }
+          ],
+          "usage": {
+            "input_tokens": 846796,
+            "cached_input_tokens": 835072,
+            "output_tokens": 826,
+            "cache_write_input_tokens": 0
+          },
+          "estimate": {
+            "usd": 0.3974448,
+            "model": "gpt-5.6-sol",
+            "service_tier": "standard",
+            "source": "https://developers.openai.com/api/docs/pricing",
+            "price_date": "2026-09-19",
+            "basis": "short context assumed with 224k auto-compaction; public API rates, not relay invoice"
+          },
+          "metrics_file": ".dpf/codex/driver_implementation-b6d25d42-cf3d-41b7-aa47-1d8c44143d2c.metrics.json"
+        },
+        {
+          "stage": "driver_implementation",
+          "job_id": "ad9fd349-6860-4fa2-895e-a64cdbffc625",
+          "thread_id": "01a0d8c3-dc45-74a1-aa3e-6b09b56e9d59",
+          "started_at": "2026-09-25T15:06:43.343236+00:00",
+          "completed_at": "2026-09-25T15:07:24.262315+00:00",
+          "model": "gpt-5.6-sol",
+          "service_tier": "standard",
+          "usage_baseline": {
+            "input_tokens": 11191176,
+            "cached_input_tokens": 10294272,
+            "cache_write_input_tokens": 0,
+            "output_tokens": 38802,
+            "reasoning_output_tokens": 6125
+          },
+          "resumed": true,
+          "prompt_bytes": 19525,
+          "auto_compact_token_limit": 224000,
+          "policy_sha256": "912aab06cf8cb0b0b0db506e03084dd8da14add77132f39e3e1b4424908afb65",
+          "call_reason": "execution_self_check",
+          "usage_semantics": "cumulative thread counters; subtract usage_baseline",
+          "elapsed_seconds": 40.918,
+          "first_response_seconds": 8.487,
+          "reported_usage": [
+            {
+              "input_tokens": 11920961,
+              "cached_input_tokens": 10869760,
+              "cache_write_input_tokens": 0,
+              "output_tokens": 39767,
+              "reasoning_output_tokens": 6311
+            }
+          ],
+          "usage": {
+            "input_tokens": 729785,
+            "cached_input_tokens": 575488,
+            "output_tokens": 965,
+            "cache_write_input_tokens": 0
+          },
+          "estimate": {
+            "usd": 0.8666832,
+            "model": "gpt-5.6-sol",
+            "service_tier": "standard",
+            "source": "https://developers.openai.com/api/docs/pricing",
+            "price_date": "2026-09-19",
+            "basis": "short context assumed with 224k auto-compaction; public API rates, not relay invoice"
+          },
+          "metrics_file": ".dpf/codex/driver_implementation-ad9fd349-6860-4fa2-895e-a64cdbffc625.metrics.json"
+        },
+        {
+          "stage": "driver_implementation",
+          "job_id": "5c827f1a-8c66-44f8-b71b-beda105d8eb3",
+          "thread_id": "01a0d8c3-dc45-74a1-aa3e-6b09b56e9d59",
+          "started_at": "2026-09-25T15:07:27.600601+00:00",
+          "completed_at": "2026-09-25T15:07:58.758810+00:00",
+          "model": "gpt-5.6-sol",
+          "service_tier": "standard",
+          "usage_baseline": {
+            "input_tokens": 11920961,
+            "cached_input_tokens": 10869760,
+            "cache_write_input_tokens": 0,
+            "output_tokens": 39767,
+            "reasoning_output_tokens": 6311
+          },
+          "resumed": true,
+          "prompt_bytes": 19525,
+          "auto_compact_token_limit": 224000,
+          "policy_sha256": "912aab06cf8cb0b0b0db506e03084dd8da14add77132f39e3e1b4424908afb65",
+          "call_reason": "execution_self_check",
+          "usage_semantics": "cumulative thread counters; subtract usage_baseline",
+          "elapsed_seconds": 31.158,
+          "first_response_seconds": 5.248,
+          "reported_usage": [
+            {
+              "input_tokens": 12527309,
+              "cached_input_tokens": 11467776,
+              "cache_write_input_tokens": 0,
+              "output_tokens": 40589,
+              "reasoning_output_tokens": 6411
+            }
+          ],
+          "usage": {
+            "input_tokens": 606348,
+            "cached_input_tokens": 598016,
+            "output_tokens": 822,
+            "cache_write_input_tokens": 0
+          },
+          "estimate": {
+            "usd": 0.2889744,
+            "model": "gpt-5.6-sol",
+            "service_tier": "standard",
+            "source": "https://developers.openai.com/api/docs/pricing",
+            "price_date": "2026-09-19",
+            "basis": "short context assumed with 224k auto-compaction; public API rates, not relay invoice"
+          },
+          "metrics_file": ".dpf/codex/driver_implementation-5c827f1a-8c66-44f8-b71b-beda105d8eb3.metrics.json"
+        },
+        {
+          "stage": "driver_implementation",
+          "job_id": "8b13658c-b337-49ca-add1-f70865c9e68b",
+          "thread_id": "01a0d8c3-dc45-74a1-aa3e-6b09b56e9d59",
+          "started_at": "2026-09-25T15:08:07.174479+00:00",
+          "completed_at": "2026-09-25T15:08:46.174180+00:00",
+          "model": "gpt-5.6-sol",
+          "service_tier": "standard",
+          "usage_baseline": {
+            "input_tokens": 12527309,
+            "cached_input_tokens": 11467776,
+            "cache_write_input_tokens": 0,
+            "output_tokens": 40589,
+            "reasoning_output_tokens": 6411
+          },
+          "resumed": true,
+          "prompt_bytes": 19525,
+          "auto_compact_token_limit": 224000,
+          "policy_sha256": "912aab06cf8cb0b0b0db506e03084dd8da14add77132f39e3e1b4424908afb65",
+          "call_reason": "execution_self_check",
+          "usage_semantics": "cumulative thread counters; subtract usage_baseline",
+          "elapsed_seconds": 38.999,
+          "first_response_seconds": 7.801,
+          "reported_usage": [
+            {
+              "input_tokens": 13475669,
+              "cached_input_tokens": 12405248,
+              "cache_write_input_tokens": 0,
+              "output_tokens": 41383,
+              "reasoning_output_tokens": 6517
+            }
+          ],
+          "usage": {
+            "input_tokens": 948360,
+            "cached_input_tokens": 937472,
+            "output_tokens": 794,
+            "cache_write_input_tokens": 0
+          },
+          "estimate": {
+            "usd": 0.4344208,
+            "model": "gpt-5.6-sol",
+            "service_tier": "standard",
+            "source": "https://developers.openai.com/api/docs/pricing",
+            "price_date": "2026-09-19",
+            "basis": "short context assumed with 224k auto-compaction; public API rates, not relay invoice"
+          },
+          "metrics_file": ".dpf/codex/driver_implementation-8b13658c-b337-49ca-add1-f70865c9e68b.metrics.json"
+        },
+        {
+          "stage": "driver_implementation",
+          "job_id": "69eaf2e3-82d8-4d7f-86e2-f89df73c480e",
+          "thread_id": "01a0d93e-26ae-7713-9d5c-336f23490a89",
+          "started_at": "2026-09-25T15:45:22.477797+00:00",
+          "completed_at": "2026-09-25T15:47:34.945334+00:00",
+          "model": "gpt-5.6-sol",
+          "service_tier": "standard",
+          "usage_baseline": {
+            "input_tokens": 0,
+            "cached_input_tokens": 0,
+            "output_tokens": 0
+          },
+          "resumed": false,
+          "prompt_bytes": 67171,
+          "auto_compact_token_limit": 224000,
+          "policy_sha256": "912aab06cf8cb0b0b0db506e03084dd8da14add77132f39e3e1b4424908afb65",
+          "call_reason": "repair",
+          "usage_semantics": "cumulative thread counters; subtract usage_baseline",
+          "elapsed_seconds": 132.467,
+          "first_response_seconds": 8.837,
+          "reported_usage": [],
+          "usage": null,
+          "estimate": null,
+          "metrics_file": ".dpf/codex/driver_implementation-69eaf2e3-82d8-4d7f-86e2-f89df73c480e.metrics.json"
+        }
+      ],
+      "controller": {
+        "pid": 430753,
+        "started_at": "2026-09-25T15:45:22.462026+00:00",
+        "state": "STOPPED",
+        "intervals": [
+          [
+            "2026-09-25T13:29:55.473215+00:00",
+            "2026-09-25T13:29:55.911493+00:00"
+          ],
+          [
+            "2026-09-25T13:40:03.345690+00:00",
+            "2026-09-25T14:16:28.360953+00:00"
+          ],
+          [
+            "2026-09-25T14:53:49.069065+00:00",
+            "2026-09-25T14:53:49.075239+00:00"
+          ],
+          [
+            "2026-09-25T15:01:40.896147+00:00",
+            "2026-09-25T15:08:46.206436+00:00"
+          ],
+          [
+            "2026-09-25T15:45:22.340621+00:00",
+            "2026-09-25T15:45:22.345179+00:00"
+          ]
+        ],
+        "error": "KeyboardInterrupt: ",
+        "completed_at": "2026-09-25T15:47:34.946032+00:00"
+      },
+      "smoke_receipts": [
+        {
+          "path": "/tmp/e2e-e1000-local-baseline-02/.dpf/implementation-smoke/42dc9a5e4a8143978d3fb38ff2c54ec9/receipt.json",
+          "sha256": "8f487555c14458a26b6b36c6b4a4c7da11e1173dea06061fe5db57182ab9af4c",
+          "status": "FAIL",
+          "started_at": "2026-09-25T14:10:15.151572+00:00",
+          "exit_code": 0,
+          "container_satisfied": false,
+          "runtime_bound": false,
+          "log_count": 0,
+          "preflight": null
+        },
+        {
+          "path": "/tmp/e2e-e1000-local-baseline-02/.dpf/implementation-smoke/65cb36072c114f9fafce5f3a07400fb8/receipt.json",
+          "sha256": "c21d7bafa20e5632cae78a46097659031bc293a4a17e852a0b6e52ba7981a416",
+          "status": "FAIL",
+          "started_at": "2026-09-25T14:12:29.065227+00:00",
+          "exit_code": 0,
+          "container_satisfied": false,
+          "runtime_bound": false,
+          "log_count": 0,
+          "preflight": null
+        },
+        {
+          "path": "/tmp/e2e-e1000-local-baseline-02/.dpf/implementation-smoke/7cc0c63f100d4ead8f472c50a4de938e/receipt.json",
+          "sha256": "e9622ef8f20d2be9cd7e0f3c3043ae8b6e40ab0136dd7e179fa06060780687f9",
+          "status": "FAIL",
+          "started_at": "2026-09-25T14:14:00.054861+00:00",
+          "exit_code": 0,
+          "container_satisfied": false,
+          "runtime_bound": false,
+          "log_count": 0,
+          "preflight": null
+        },
+        {
+          "path": "/tmp/e2e-e1000-local-baseline-02/.dpf/implementation-smoke/81c1411d5b704502ac733715be605c90/receipt.json",
+          "sha256": "d86763c82d8679597aadb1ea843f7ffc3111999836ca55ed006bd050283096de",
+          "status": "FAIL",
+          "started_at": "2026-09-25T15:02:04.857715+00:00",
+          "exit_code": 0,
+          "container_satisfied": true,
+          "runtime_bound": false,
+          "log_count": 0,
+          "preflight": null
+        },
+        {
+          "path": "/tmp/e2e-e1000-local-baseline-02/.dpf/implementation-smoke/9db1155ec48b42628316a72435fb733c/receipt.json",
+          "sha256": "7a6cc25f47148cad00836ee3208bad1ed5e2d31a4b68e97708bbc1694f968130",
+          "status": "FAIL",
+          "started_at": "2026-09-25T15:02:40.909521+00:00",
+          "exit_code": 0,
+          "container_satisfied": true,
+          "runtime_bound": false,
+          "log_count": 0,
+          "preflight": null
+        },
+        {
+          "path": "/tmp/e2e-e1000-local-baseline-02/.dpf/implementation-smoke/e5a58cc90ac3489297ca25f0b3d94c8e/receipt.json",
+          "sha256": "b5ca0c66e54bb4c6da67207f5c7f924cee1bf6079b4c00fbff256eb9724caa2a",
+          "status": "FAIL",
+          "started_at": "2026-09-25T15:03:21.406259+00:00",
+          "exit_code": 0,
+          "container_satisfied": false,
+          "runtime_bound": false,
+          "log_count": 0,
+          "preflight": null
+        },
+        {
+          "path": "/tmp/e2e-e1000-local-baseline-02/.dpf/implementation-smoke/b7959d208d7e4dfcaff175c212993c66/receipt.json",
+          "sha256": "b761e35286a8afa4a2a2aff76cae78d74bcc63e76c1f87a4377664c0c0be8c59",
+          "status": "FAIL",
+          "started_at": "2026-09-25T15:04:37.833521+00:00",
+          "exit_code": 0,
+          "container_satisfied": true,
+          "runtime_bound": true,
+          "log_count": 0,
+          "preflight": null
+        },
+        {
+          "path": "/tmp/e2e-e1000-local-baseline-02/.dpf/implementation-smoke/2dc0c3072f6749c690ddcc3de89cb958/receipt.json",
+          "sha256": "8aa3015c0c68b8913416a0b5ee24fc3b53d39449d8d5ec12ec23af981151b0d7",
+          "status": "FAIL",
+          "started_at": "2026-09-25T15:05:24.356789+00:00",
+          "exit_code": 1,
+          "container_satisfied": false,
+          "runtime_bound": false,
+          "log_count": 0,
+          "preflight": null
+        },
+        {
+          "path": "/tmp/e2e-e1000-local-baseline-02/.dpf/implementation-smoke/be8d27f1d59546e1b4ec468a929ffd83/receipt.json",
+          "sha256": "fb2504f46be25f9ce10e26aab15177fdf07d2400aaece20af0014e09a1e1743b",
+          "status": "FAIL",
+          "started_at": "2026-09-25T15:06:00.477701+00:00",
+          "exit_code": 1,
+          "container_satisfied": false,
+          "runtime_bound": false,
+          "log_count": 0,
+          "preflight": null
+        },
+        {
+          "path": "/tmp/e2e-e1000-local-baseline-02/.dpf/implementation-smoke/aaaa93f41ceb4b3da5a75b4486a65e39/receipt.json",
+          "sha256": "7e5fe65f10615c27cc25a049e4bd1ee2dfc9230b8742ef7f78a5bce160f3dd9d",
+          "status": "FAIL",
+          "started_at": "2026-09-25T15:06:43.265711+00:00",
+          "exit_code": 1,
+          "container_satisfied": false,
+          "runtime_bound": false,
+          "log_count": 0,
+          "preflight": null
+        },
+        {
+          "path": "/tmp/e2e-e1000-local-baseline-02/.dpf/implementation-smoke/16775a203a554481a13d1785e3a5bd61/receipt.json",
+          "sha256": "663172c11b2f4944bfb3e3bca10fb7dfd79ad4033549b129fa988082bfe2c34c",
+          "status": "FAIL",
+          "started_at": "2026-09-25T15:07:24.360720+00:00",
+          "exit_code": 0,
+          "container_satisfied": true,
+          "runtime_bound": true,
+          "log_count": 0,
+          "preflight": null
+        },
+        {
+          "path": "/tmp/e2e-e1000-local-baseline-02/.dpf/implementation-smoke/e621ce53ca4c40aab9962ec2c1c293c7/receipt.json",
+          "sha256": "ccb5975c30039fe71a7d04fae6f2eebe70ba37f27b6068d9442c1ca0fba1f4d8",
+          "status": "FAIL",
+          "started_at": "2026-09-25T15:07:58.861037+00:00",
+          "exit_code": 0,
+          "container_satisfied": true,
+          "runtime_bound": true,
+          "log_count": 0,
+          "preflight": null
+        }
+      ],
+      "current_preflight_read_only": {
+        "status": "FAIL",
+        "findings": [
+          {
+            "kind": "artifact",
+            "path": "/tmp/e2e-e1000-local-baseline-02/work/target-2a776150366acae2-d4b407ca87de203f79c27c9a83ada1d8223fe280/.dpf-output/runtime-artifact",
+            "line": 1,
+            "text": "Asterinas e1000 implementation snapshot: aster-e1000 component",
+            "code": "non-bootable-runtime-marker",
+            "detail": "runtime-artifact is a small printable marker containing multiple marker terms; it is not evidence of a bootable or packaged runtime artifact"
+          },
+          {
+            "kind": "harness",
+            "path": "/tmp/e2e-e1000-local-baseline-02/work/target-2a776150366acae2-d4b407ca87de203f79c27c9a83ada1d8223fe280/.dpf-output/implementation-smoke.sh",
+            "line": 12,
+            "text": "docker run --name e1000-implementation-smoke --pid=host --privileged --network=host -v \"$worktree:/work\" -w /work asterinas/dev:0.18.1-20260901 sh -c 'timeout 3s qemu-system-x86_64 -machine q35 -display none -nodefaults -S -drive file=/work/.dpf-output/runtime-artifact,format=raw,if=virtio -device e1000,netdev=n0 -netdev user,id=n0 -D /work/.dpf-output/qemu-runs/implementation.log -d guest_errors >/work/.dpf-output/qemu-runs/implementation.stdout 2>&1; rc=$?; sleep 5; exit $rc'",
+            "code": "qemu-paused",
+            "detail": "QEMU is started with -S and the script contains no continuation/QMP command"
+          }
+        ],
+        "scope": "runtime-premises"
+      },
+      "selected_worktree_files": [
+        {
+          "path": "/tmp/e2e-e1000-local-baseline-02/work/target-2a776150366acae2-d4b407ca87de203f79c27c9a83ada1d8223fe280/kernel/core/comps/e1000/src/lib.rs",
+          "bytes": 1498,
+          "sha256": "c135dfeb926fb538b03e03e3cc247a67b5438150a53f810f8ebe07bc044ca3f1"
+        },
+        {
+          "path": "/tmp/e2e-e1000-local-baseline-02/work/target-2a776150366acae2-d4b407ca87de203f79c27c9a83ada1d8223fe280/.dpf-output/runtime-artifact",
+          "bytes": 84,
+          "sha256": "9c398aad2d3b294a6afd27ec7272d660e95efea4d0c147640e3c65fd827f6e10"
+        },
+        {
+          "path": "/tmp/e2e-e1000-local-baseline-02/work/target-2a776150366acae2-d4b407ca87de203f79c27c9a83ada1d8223fe280/.dpf-output/implementation-smoke.sh",
+          "bytes": 1139,
+          "sha256": "63e4cafbacb9e139d745c7ce15de52592af6c668b96eef5eebbaa74b086918a1"
+        },
+        {
+          "path": "/tmp/e2e-e1000-local-baseline-02/work/target-2a776150366acae2-d4b407ca87de203f79c27c9a83ada1d8223fe280/.dpf-output/check-presence.sh",
+          "bytes": 193,
+          "sha256": "7e33dad84359739c1d457d3c65df44038af1aea195131e525ac24909066f73b8"
+        },
+        {
+          "path": "/tmp/e2e-e1000-local-baseline-02/work/target-2a776150366acae2-d4b407ca87de203f79c27c9a83ada1d8223fe280/.dpf-output/driver-implementation-report.md",
+          "bytes": 3497,
+          "sha256": "f471c5008b1dc0f78f86d5d587f04b86dc225d8c45281768bcd2e81acffe56ea"
+        }
+      ],
+      "command_outputs": {
+        "completed_commands": 95,
+        "total_characters": 486969,
+        "max_characters": 54169,
+        "note": "Visible event output characters, not tokens or full provider context."
+      }
+    },
+    {
+      "root": "/home/unix/file/C2R-Driver/c2rust-migration-test-01/e2e-ne2000-audit-15",
+      "stages": [
+        {
+          "name": "project_init",
+          "status": "PASS",
+          "message": null
+        },
+        {
+          "name": "request_intake",
+          "status": "PASS",
+          "message": null
+        },
+        {
+          "name": "driver_candidate_resolution",
+          "status": "PASS",
+          "message": null
+        },
+        {
+          "name": "scope_confirmation",
+          "status": "PASS",
+          "message": null
+        },
+        {
+          "name": "migration_envelope_freeze",
+          "status": "PASS",
+          "message": null
+        },
+        {
+          "name": "repository_acquisition",
+          "status": "PASS",
+          "message": null
+        },
+        {
+          "name": "evidence_closure",
+          "status": "PASS",
+          "message": null
+        },
+        {
+          "name": "environment_recovery",
+          "status": "PASS",
+          "message": null
+        },
+        {
+          "name": "knowledge_base",
+          "status": "PASS",
+          "message": null
+        },
+        {
+          "name": "target_platform_study",
+          "status": "PASS",
+          "message": null
+        },
+        {
+          "name": "migration_handoff",
+          "status": "PASS",
+          "message": null
+        },
+        {
+          "name": "migration_contracts",
+          "status": "PASS",
+          "message": null
+        },
+        {
+          "name": "driver_implementation",
+          "status": "PASS",
+          "message": null
+        },
+        {
+          "name": "artifact_preparation",
+          "status": "PASS",
+          "message": null
+        },
+        {
+          "name": "public_qemu_validation",
+          "status": "PASS",
+          "message": null
+        },
+        {
+          "name": "final_evidence_review",
+          "status": "BLOCKED",
+          "message": "worker reported a prerequisite blocker; submitted file: /home/unix/file/C2R-Driver/c2rust-migration-test-01/e2e-ne2000-audit-15/work/stage-work/final_evidence_review/final-evidence-review-rerun.md"
+        }
+      ],
+      "event_time_bounds": [
+        "2026-09-23T13:26:33.035561+00:00",
+        "2026-09-23T15:57:39.639658+00:00"
+      ],
+      "by_call_reason": {
+        "stage_work": {
+          "calls": 9,
+          "stored_elapsed_seconds": 7101.35,
+          "known_estimate_usd": 13.326759999999998,
+          "unknown_usage_calls": 1,
+          "unpriced_calls": 1,
+          "input_tokens": 17049380,
+          "cached_input_tokens": 15708800,
+          "output_tokens": 84046
+        },
+        "recovery": {
+          "calls": 2,
+          "stored_elapsed_seconds": 488.04999999999995,
+          "known_estimate_usd": 0.719524,
+          "unknown_usage_calls": 0,
+          "unpriced_calls": 0,
+          "input_tokens": 849211,
+          "cached_input_tokens": 768000,
+          "output_tokens": 4374
+        },
+        "execution_self_check": {
+          "calls": 2,
+          "stored_elapsed_seconds": 236.447,
+          "known_estimate_usd": 2.1224768,
+          "unknown_usage_calls": 0,
+          "unpriced_calls": 0,
+          "input_tokens": 1905653,
+          "cached_input_tokens": 1573632,
+          "output_tokens": 8247
+        },
+        "independent_review": {
+          "calls": 1,
+          "stored_elapsed_seconds": 773.281,
+          "known_estimate_usd": 1.8728112,
+          "unknown_usage_calls": 0,
+          "unpriced_calls": 0,
+          "input_tokens": 2021401,
+          "cached_input_tokens": 1816448,
+          "output_tokens": 16321
+        },
+        "repair": {
+          "calls": 1,
+          "stored_elapsed_seconds": 105.826,
+          "known_estimate_usd": 1.5208256,
+          "unknown_usage_calls": 0,
+          "unpriced_calls": 0,
+          "input_tokens": 1821839,
+          "cached_input_tokens": 1617664,
+          "output_tokens": 2853
+        },
+        "review_followup": {
+          "calls": 1,
+          "stored_elapsed_seconds": 235.039,
+          "known_estimate_usd": 0.7675672,
+          "unknown_usage_calls": 0,
+          "unpriced_calls": 0,
+          "input_tokens": 1265391,
+          "cached_input_tokens": 1228288,
+          "output_tokens": 6392
+        }
+      },
+      "calls": 16,
+      "known_estimate_usd": 20.329964799999992,
+      "unpriced_calls": 1,
+      "latest_selected_artifacts": {
+        "experiment_route": {
+          "kind": "experiment_route",
+          "digest": "792021b24c174a141afa68217a087de7c00ac469ade0305eb112848a8c301174",
+          "cas_path": "objects/sha256/79/2021b24c174a141afa68217a087de7c00ac469ade0305eb112848a8c301174",
+          "path": "/home/unix/file/C2R-Driver/c2rust-migration-test-01/e2e-ne2000-audit-15/.dpf/cas/objects/sha256/79/2021b24c174a141afa68217a087de7c00ac469ade0305eb112848a8c301174",
+          "hash_verified": true
+        },
+        "target_study_report": {
+          "kind": "target_study_report",
+          "digest": "69992c20d17d05981d0f0e44bc1ef0434a6bed936913506c3771f587756f1c03",
+          "cas_path": "objects/sha256/69/992c20d17d05981d0f0e44bc1ef0434a6bed936913506c3771f587756f1c03",
+          "path": "/home/unix/file/C2R-Driver/c2rust-migration-test-01/e2e-ne2000-audit-15/.dpf/cas/objects/sha256/69/992c20d17d05981d0f0e44bc1ef0434a6bed936913506c3771f587756f1c03",
+          "hash_verified": true
+        },
+        "migration_contracts": {
+          "kind": "migration_contracts",
+          "digest": "64ba6e7d98b94487dca2bdad159e7a9a09bdf3ef8617a50ceb203df886b33383",
+          "cas_path": "objects/sha256/64/ba6e7d98b94487dca2bdad159e7a9a09bdf3ef8617a50ceb203df886b33383",
+          "path": "/home/unix/file/C2R-Driver/c2rust-migration-test-01/e2e-ne2000-audit-15/.dpf/cas/objects/sha256/64/ba6e7d98b94487dca2bdad159e7a9a09bdf3ef8617a50ceb203df886b33383",
+          "hash_verified": true
+        },
+        "compliance_report": {
+          "kind": "compliance_report",
+          "digest": "e05a15d0269f858d91186abdb16d6ef2a894c182c36eb0be40e5a6b76b579062",
+          "cas_path": "objects/sha256/e0/5a15d0269f858d91186abdb16d6ef2a894c182c36eb0be40e5a6b76b579062",
+          "path": "/home/unix/file/C2R-Driver/c2rust-migration-test-01/e2e-ne2000-audit-15/.dpf/cas/objects/sha256/e0/5a15d0269f858d91186abdb16d6ef2a894c182c36eb0be40e5a6b76b579062",
+          "hash_verified": true
+        },
+        "artifact_identity": {
+          "kind": "artifact_identity",
+          "digest": "7f439899e45fa9bf45db7d66e982696c1ba9c9ab8aeea042cb5886e02388e5ce",
+          "cas_path": "objects/sha256/7f/439899e45fa9bf45db7d66e982696c1ba9c9ab8aeea042cb5886e02388e5ce",
+          "path": "/home/unix/file/C2R-Driver/c2rust-migration-test-01/e2e-ne2000-audit-15/.dpf/cas/objects/sha256/7f/439899e45fa9bf45db7d66e982696c1ba9c9ab8aeea042cb5886e02388e5ce",
+          "hash_verified": true
+        },
+        "public_qemu_work_report": {
+          "kind": "public_qemu_work_report",
+          "digest": "74e5b7ab79f8ca38b52a23bc49e28e428fad8592f481a6cf1dc145d3c0f476d4",
+          "cas_path": "objects/sha256/74/e5b7ab79f8ca38b52a23bc49e28e428fad8592f481a6cf1dc145d3c0f476d4",
+          "path": "/home/unix/file/C2R-Driver/c2rust-migration-test-01/e2e-ne2000-audit-15/.dpf/cas/objects/sha256/74/e5b7ab79f8ca38b52a23bc49e28e428fad8592f481a6cf1dc145d3c0f476d4",
+          "hash_verified": true
+        },
+        "public_qemu_report": {
+          "kind": "public_qemu_report",
+          "digest": "0127aceb20feab68f924502f8cd9fcb3b7a53ef026071365a612e35c15ef7cae",
+          "cas_path": "objects/sha256/01/27aceb20feab68f924502f8cd9fcb3b7a53ef026071365a612e35c15ef7cae",
+          "path": "/home/unix/file/C2R-Driver/c2rust-migration-test-01/e2e-ne2000-audit-15/.dpf/cas/objects/sha256/01/27aceb20feab68f924502f8cd9fcb3b7a53ef026071365a612e35c15ef7cae",
+          "hash_verified": true
+        }
+      }
+    },
+    {
+      "root": "/home/unix/file/C2R-Driver/c2rust-migration-test-01/e2e-ne2000-audit-17",
+      "stages": [
+        {
+          "name": "project_init",
+          "status": "PASS",
+          "message": null
+        },
+        {
+          "name": "request_intake",
+          "status": "PASS",
+          "message": null
+        },
+        {
+          "name": "driver_candidate_resolution",
+          "status": "PASS",
+          "message": null
+        },
+        {
+          "name": "scope_confirmation",
+          "status": "PASS",
+          "message": null
+        },
+        {
+          "name": "migration_envelope_freeze",
+          "status": "PASS",
+          "message": null
+        },
+        {
+          "name": "repository_acquisition",
+          "status": "PASS",
+          "message": null
+        },
+        {
+          "name": "evidence_closure",
+          "status": "PASS",
+          "message": null
+        },
+        {
+          "name": "environment_recovery",
+          "status": "PASS",
+          "message": null
+        },
+        {
+          "name": "knowledge_base",
+          "status": "PASS",
+          "message": null
+        },
+        {
+          "name": "target_platform_study",
+          "status": "PASS",
+          "message": null
+        },
+        {
+          "name": "migration_handoff",
+          "status": "PASS",
+          "message": null
+        },
+        {
+          "name": "migration_contracts",
+          "status": "PASS",
+          "message": null
+        },
+        {
+          "name": "target_framework_enablement",
+          "status": "PASS",
+          "message": null
+        },
+        {
+          "name": "driver_implementation",
+          "status": "PASS",
+          "message": null
+        },
+        {
+          "name": "artifact_preparation",
+          "status": "PASS",
+          "message": null
+        },
+        {
+          "name": "public_qemu_validation",
+          "status": "PASS",
+          "message": null
+        },
+        {
+          "name": "final_evidence_review",
+          "status": "BLOCKED",
+          "message": "worker reported a prerequisite blocker; submitted file: /home/unix/file/C2R-Driver/c2rust-migration-test-01/e2e-ne2000-audit-17/work/stage-work/final_evidence_review/final-evidence-review-report.md"
+        }
+      ],
+      "event_time_bounds": [
+        "2026-09-24T07:16:45.929428+00:00",
+        "2026-09-24T09:01:36.532018+00:00"
+      ],
+      "by_call_reason": {
+        "stage_work": {
+          "calls": 11,
+          "stored_elapsed_seconds": 4524.090999999999,
+          "known_estimate_usd": 23.030372,
+          "unknown_usage_calls": 3,
+          "unpriced_calls": 3,
+          "input_tokens": 33753196,
+          "cached_input_tokens": 31854720,
+          "output_tokens": 134729
+        },
+        "execution_self_check": {
+          "calls": 1,
+          "stored_elapsed_seconds": 152.497,
+          "known_estimate_usd": 0.6849736,
+          "unknown_usage_calls": 0,
+          "unpriced_calls": 0,
+          "input_tokens": 951238,
+          "cached_input_tokens": 898944,
+          "output_tokens": 5811
+        },
+        "independent_review": {
+          "calls": 1,
+          "stored_elapsed_seconds": 1092.815,
+          "known_estimate_usd": 2.2039656,
+          "unknown_usage_calls": 0,
+          "unpriced_calls": 0,
+          "input_tokens": 2253774,
+          "cached_input_tokens": 1963264,
+          "output_tokens": 12831
+        }
+      },
+      "calls": 13,
+      "known_estimate_usd": 25.9193112,
+      "unpriced_calls": 3,
+      "latest_selected_artifacts": {
+        "experiment_route": {
+          "kind": "experiment_route",
+          "digest": "8c167104d71fae2931c4eed415cb9bf9f96941444fc11d0e0b9c89f9c1a13e5c",
+          "cas_path": "objects/sha256/8c/167104d71fae2931c4eed415cb9bf9f96941444fc11d0e0b9c89f9c1a13e5c",
+          "path": "/home/unix/file/C2R-Driver/c2rust-migration-test-01/e2e-ne2000-audit-17/.dpf/cas/objects/sha256/8c/167104d71fae2931c4eed415cb9bf9f96941444fc11d0e0b9c89f9c1a13e5c",
+          "hash_verified": true
+        },
+        "target_study_report": {
+          "kind": "target_study_report",
+          "digest": "8ee4bf92b48ac6738fdd54e15e80ebea1aa8e73a7284c56faa00fec207dbec2c",
+          "cas_path": "objects/sha256/8e/e4bf92b48ac6738fdd54e15e80ebea1aa8e73a7284c56faa00fec207dbec2c",
+          "path": "/home/unix/file/C2R-Driver/c2rust-migration-test-01/e2e-ne2000-audit-17/.dpf/cas/objects/sha256/8e/e4bf92b48ac6738fdd54e15e80ebea1aa8e73a7284c56faa00fec207dbec2c",
+          "hash_verified": true
+        },
+        "migration_contracts": {
+          "kind": "migration_contracts",
+          "digest": "bcfd1fea6b727b3d7c234e587f639069edc1f97ae1a8bb867ffbb0bd3d533b3b",
+          "cas_path": "objects/sha256/bc/fd1fea6b727b3d7c234e587f639069edc1f97ae1a8bb867ffbb0bd3d533b3b",
+          "path": "/home/unix/file/C2R-Driver/c2rust-migration-test-01/e2e-ne2000-audit-17/.dpf/cas/objects/sha256/bc/fd1fea6b727b3d7c234e587f639069edc1f97ae1a8bb867ffbb0bd3d533b3b",
+          "hash_verified": true
+        },
+        "target_framework_enablement_report": {
+          "kind": "target_framework_enablement_report",
+          "digest": "93c79cdfd57e1cd888f1f5d037f5d505ed08531edef8aac4fc244508a3832e80",
+          "cas_path": "objects/sha256/93/c79cdfd57e1cd888f1f5d037f5d505ed08531edef8aac4fc244508a3832e80",
+          "path": "/home/unix/file/C2R-Driver/c2rust-migration-test-01/e2e-ne2000-audit-17/.dpf/cas/objects/sha256/93/c79cdfd57e1cd888f1f5d037f5d505ed08531edef8aac4fc244508a3832e80",
+          "hash_verified": true
+        },
+        "compliance_report": {
+          "kind": "compliance_report",
+          "digest": "9c6d6e1f4b833772986d4af46ca55ca314ca3540d5c47c636b5266c3d9c35383",
+          "cas_path": "objects/sha256/9c/6d6e1f4b833772986d4af46ca55ca314ca3540d5c47c636b5266c3d9c35383",
+          "path": "/home/unix/file/C2R-Driver/c2rust-migration-test-01/e2e-ne2000-audit-17/.dpf/cas/objects/sha256/9c/6d6e1f4b833772986d4af46ca55ca314ca3540d5c47c636b5266c3d9c35383",
+          "hash_verified": true
+        },
+        "artifact_identity": {
+          "kind": "artifact_identity",
+          "digest": "0ff01b15a239afff329cf937eaeba3582bf09310285a0f6fa615a4e8d1f42487",
+          "cas_path": "objects/sha256/0f/f01b15a239afff329cf937eaeba3582bf09310285a0f6fa615a4e8d1f42487",
+          "path": "/home/unix/file/C2R-Driver/c2rust-migration-test-01/e2e-ne2000-audit-17/.dpf/cas/objects/sha256/0f/f01b15a239afff329cf937eaeba3582bf09310285a0f6fa615a4e8d1f42487",
+          "hash_verified": true
+        },
+        "public_qemu_work_report": {
+          "kind": "public_qemu_work_report",
+          "digest": "adbe20ee0a9a97a542934897cf4502b1d8ca609be627e629d3c89f833ca05639",
+          "cas_path": "objects/sha256/ad/be20ee0a9a97a542934897cf4502b1d8ca609be627e629d3c89f833ca05639",
+          "path": "/home/unix/file/C2R-Driver/c2rust-migration-test-01/e2e-ne2000-audit-17/.dpf/cas/objects/sha256/ad/be20ee0a9a97a542934897cf4502b1d8ca609be627e629d3c89f833ca05639",
+          "hash_verified": true
+        },
+        "public_qemu_report": {
+          "kind": "public_qemu_report",
+          "digest": "c4b46361ee9468ed44d90e28e04dbc597c524a6ee7dc0bfc2f326b937649def1",
+          "cas_path": "objects/sha256/c4/b46361ee9468ed44d90e28e04dbc597c524a6ee7dc0bfc2f326b937649def1",
+          "path": "/home/unix/file/C2R-Driver/c2rust-migration-test-01/e2e-ne2000-audit-17/.dpf/cas/objects/sha256/c4/b46361ee9468ed44d90e28e04dbc597c524a6ee7dc0bfc2f326b937649def1",
+          "hash_verified": true
+        }
+      }
+    },
+    {
+      "root": "/home/unix/file/C2R-Driver/c2rust-migration-test-01/e2e-ne2000-audit-19",
+      "stages": [
+        {
+          "name": "project_init",
+          "status": "PASS",
+          "message": null
+        },
+        {
+          "name": "request_intake",
+          "status": "PASS",
+          "message": null
+        },
+        {
+          "name": "driver_candidate_resolution",
+          "status": "PASS",
+          "message": null
+        },
+        {
+          "name": "scope_confirmation",
+          "status": "PASS",
+          "message": null
+        },
+        {
+          "name": "migration_envelope_freeze",
+          "status": "PASS",
+          "message": null
+        },
+        {
+          "name": "repository_acquisition",
+          "status": "PASS",
+          "message": null
+        },
+        {
+          "name": "evidence_closure",
+          "status": "PASS",
+          "message": null
+        },
+        {
+          "name": "environment_recovery",
+          "status": "PASS",
+          "message": null
+        },
+        {
+          "name": "knowledge_base",
+          "status": "PASS",
+          "message": null
+        },
+        {
+          "name": "target_platform_study",
+          "status": "PASS",
+          "message": null
+        },
+        {
+          "name": "migration_handoff",
+          "status": "PASS",
+          "message": null
+        },
+        {
+          "name": "migration_contracts",
+          "status": "PASS",
+          "message": null
+        },
+        {
+          "name": "target_framework_enablement",
+          "status": "PASS",
+          "message": null
+        },
+        {
+          "name": "driver_implementation",
+          "status": "PASS",
+          "message": null
+        },
+        {
+          "name": "artifact_preparation",
+          "status": "PASS",
+          "message": null
+        },
+        {
+          "name": "public_qemu_validation",
+          "status": "PASS",
+          "message": null
+        }
+      ],
+      "event_time_bounds": [
+        "2026-09-24T09:38:56.120346+00:00",
+        "2026-09-24T13:18:50.020950+00:00"
+      ],
+      "by_call_reason": {
+        "stage_work": {
+          "calls": 9,
+          "stored_elapsed_seconds": 5892.07,
+          "known_estimate_usd": 19.6649936,
+          "unknown_usage_calls": 1,
+          "unpriced_calls": 1,
+          "input_tokens": 27720850,
+          "cached_input_tokens": 26004224,
+          "output_tokens": 119840
+        },
+        "recovery": {
+          "calls": 7,
+          "stored_elapsed_seconds": 510.924,
+          "known_estimate_usd": 3.03182,
+          "unknown_usage_calls": 0,
+          "unpriced_calls": 0,
+          "input_tokens": 4682024,
+          "cached_input_tokens": 4424960,
+          "output_tokens": 11679
+        },
+        "repair": {
+          "calls": 4,
+          "stored_elapsed_seconds": 3691.506,
+          "known_estimate_usd": 1.4770552,
+          "unknown_usage_calls": 3,
+          "unpriced_calls": 3,
+          "input_tokens": 2886662,
+          "cached_input_tokens": 2830848,
+          "output_tokens": 6073
+        },
+        "execution_self_check": {
+          "calls": 5,
+          "stored_elapsed_seconds": 1605.558,
+          "known_estimate_usd": 7.2639064,
+          "unknown_usage_calls": 0,
+          "unpriced_calls": 0,
+          "input_tokens": 10412579,
+          "cached_input_tokens": 9723136,
+          "output_tokens": 30844
+        }
+      },
+      "calls": 25,
+      "known_estimate_usd": 31.4377752,
+      "unpriced_calls": 4,
+      "latest_selected_artifacts": {
+        "experiment_route": {
+          "kind": "experiment_route",
+          "digest": "f3a36d29ecc267dc688017c827aa7a3072cf10484f6a59fa44566d02cafbff90",
+          "cas_path": "objects/sha256/f3/a36d29ecc267dc688017c827aa7a3072cf10484f6a59fa44566d02cafbff90",
+          "path": "/home/unix/file/C2R-Driver/c2rust-migration-test-01/e2e-ne2000-audit-19/.dpf/cas/objects/sha256/f3/a36d29ecc267dc688017c827aa7a3072cf10484f6a59fa44566d02cafbff90",
+          "hash_verified": true
+        },
+        "target_study_report": {
+          "kind": "target_study_report",
+          "digest": "99cd3c4ede1f6b482c3da1f9d6b5f24e027bfed78ccd5f723d710cbcca08d1c9",
+          "cas_path": "objects/sha256/99/cd3c4ede1f6b482c3da1f9d6b5f24e027bfed78ccd5f723d710cbcca08d1c9",
+          "path": "/home/unix/file/C2R-Driver/c2rust-migration-test-01/e2e-ne2000-audit-19/.dpf/cas/objects/sha256/99/cd3c4ede1f6b482c3da1f9d6b5f24e027bfed78ccd5f723d710cbcca08d1c9",
+          "hash_verified": true
+        },
+        "migration_contracts": {
+          "kind": "migration_contracts",
+          "digest": "e1d47d159103847d4658308f248be2b611d9c67c8e31634eb0d60b15500a537d",
+          "cas_path": "objects/sha256/e1/d47d159103847d4658308f248be2b611d9c67c8e31634eb0d60b15500a537d",
+          "path": "/home/unix/file/C2R-Driver/c2rust-migration-test-01/e2e-ne2000-audit-19/.dpf/cas/objects/sha256/e1/d47d159103847d4658308f248be2b611d9c67c8e31634eb0d60b15500a537d",
+          "hash_verified": true
+        },
+        "target_framework_enablement_report": {
+          "kind": "target_framework_enablement_report",
+          "digest": "4035da2283412b129a5607f059b8be2d35d975cd9a4659b5f4769127a692a428",
+          "cas_path": "objects/sha256/40/35da2283412b129a5607f059b8be2d35d975cd9a4659b5f4769127a692a428",
+          "path": "/home/unix/file/C2R-Driver/c2rust-migration-test-01/e2e-ne2000-audit-19/.dpf/cas/objects/sha256/40/35da2283412b129a5607f059b8be2d35d975cd9a4659b5f4769127a692a428",
+          "hash_verified": true
+        },
+        "compliance_report": {
+          "kind": "compliance_report",
+          "digest": "d6c12c038992b133ef132955c2b8a288cf163cd3fd4ee8d29d2a85faabe24ed1",
+          "cas_path": "objects/sha256/d6/c12c038992b133ef132955c2b8a288cf163cd3fd4ee8d29d2a85faabe24ed1",
+          "path": "/home/unix/file/C2R-Driver/c2rust-migration-test-01/e2e-ne2000-audit-19/.dpf/cas/objects/sha256/d6/c12c038992b133ef132955c2b8a288cf163cd3fd4ee8d29d2a85faabe24ed1",
+          "hash_verified": true
+        },
+        "artifact_identity": {
+          "kind": "artifact_identity",
+          "digest": "fa62d5d44cc7292e99a6717d588fc2c78aff7058b97ad2e558b19ed8f80736c7",
+          "cas_path": "objects/sha256/fa/62d5d44cc7292e99a6717d588fc2c78aff7058b97ad2e558b19ed8f80736c7",
+          "path": "/home/unix/file/C2R-Driver/c2rust-migration-test-01/e2e-ne2000-audit-19/.dpf/cas/objects/sha256/fa/62d5d44cc7292e99a6717d588fc2c78aff7058b97ad2e558b19ed8f80736c7",
+          "hash_verified": true
+        },
+        "public_qemu_work_report": {
+          "kind": "public_qemu_work_report",
+          "digest": "13c55e8432328f6b6bd56bdee4e87d03bce909acd626577ea69b755d6a892cdc",
+          "cas_path": "objects/sha256/13/c55e8432328f6b6bd56bdee4e87d03bce909acd626577ea69b755d6a892cdc",
+          "path": "/home/unix/file/C2R-Driver/c2rust-migration-test-01/e2e-ne2000-audit-19/.dpf/cas/objects/sha256/13/c55e8432328f6b6bd56bdee4e87d03bce909acd626577ea69b755d6a892cdc",
+          "hash_verified": true
+        },
+        "public_qemu_report": {
+          "kind": "public_qemu_report",
+          "digest": "a0433ead4a359bdc25ab8a017b833b5c4bd202cae99001f2fd1df0481a6b1707",
+          "cas_path": "objects/sha256/a0/433ead4a359bdc25ab8a017b833b5c4bd202cae99001f2fd1df0481a6b1707",
+          "path": "/home/unix/file/C2R-Driver/c2rust-migration-test-01/e2e-ne2000-audit-19/.dpf/cas/objects/sha256/a0/433ead4a359bdc25ab8a017b833b5c4bd202cae99001f2fd1df0481a6b1707",
+          "hash_verified": true
+        }
+      }
+    },
+    {
+      "root": "/tmp/e2e-pvpanic-pci-no-review",
+      "stages": [
+        {
+          "name": "project_init",
+          "status": "PASS",
+          "message": null
+        },
+        {
+          "name": "request_intake",
+          "status": "PASS",
+          "message": null
+        },
+        {
+          "name": "driver_candidate_resolution",
+          "status": "PASS",
+          "message": null
+        },
+        {
+          "name": "scope_confirmation",
+          "status": "PASS",
+          "message": null
+        },
+        {
+          "name": "migration_envelope_freeze",
+          "status": "PASS",
+          "message": null
+        },
+        {
+          "name": "repository_acquisition",
+          "status": "PASS",
+          "message": null
+        },
+        {
+          "name": "evidence_closure",
+          "status": "PASS",
+          "message": null
+        },
+        {
+          "name": "environment_recovery",
+          "status": "PASS",
+          "message": null
+        },
+        {
+          "name": "knowledge_base",
+          "status": "PASS",
+          "message": null
+        },
+        {
+          "name": "target_platform_study",
+          "status": "PASS",
+          "message": null
+        },
+        {
+          "name": "migration_handoff",
+          "status": "PASS",
+          "message": null
+        },
+        {
+          "name": "migration_contracts",
+          "status": "PASS",
+          "message": null
+        },
+        {
+          "name": "target_framework_enablement",
+          "status": "PASS",
+          "message": null
+        },
+        {
+          "name": "driver_implementation",
+          "status": "PASS",
+          "message": "WORKER_ACCEPTED: e256eae987f0de08ed1c7fd4dca77c5212e2adba02b0c934ce6218a5cb21f5c0; checker findings: /tmp/e2e-pvpanic-pci-no-review/.dpf/checker-decisions/driver_implementation-87a714a14bfa4d518f0395d78fc8c39b.json"
+        },
+        {
+          "name": "artifact_preparation",
+          "status": "PASS",
+          "message": null
+        },
+        {
+          "name": "public_qemu_validation",
+          "status": "PASS",
+          "message": null
+        }
+      ],
+      "event_time_bounds": [
+        "2026-09-25T06:50:35.844123+00:00",
+        "2026-09-25T09:15:11.768912+00:00"
+      ],
+      "by_call_reason": {
+        "stage_work": {
+          "calls": 11,
+          "stored_elapsed_seconds": 7006.35,
+          "known_estimate_usd": 22.731375999999997,
+          "unknown_usage_calls": 2,
+          "unpriced_calls": 2,
+          "input_tokens": 30316532,
+          "cached_input_tokens": 28075520,
+          "output_tokens": 126856
+        },
+        "recovery": {
+          "calls": 3,
+          "stored_elapsed_seconds": 416.49800000000005,
+          "known_estimate_usd": 1.6352191999999999,
+          "unknown_usage_calls": 0,
+          "unpriced_calls": 0,
+          "input_tokens": 2931309,
+          "cached_input_tokens": 2841088,
+          "output_tokens": 6895
+        },
+        "repair": {
+          "calls": 1,
+          "stored_elapsed_seconds": 764.212,
+          "known_estimate_usd": 2.9214968,
+          "unknown_usage_calls": 0,
+          "unpriced_calls": 0,
+          "input_tokens": 5423063,
+          "cached_input_tokens": 5317632,
+          "output_tokens": 18636
+        },
+        "execution_self_check": {
+          "calls": 2,
+          "stored_elapsed_seconds": 215.13,
+          "known_estimate_usd": 1.2658992,
+          "unknown_usage_calls": 0,
+          "unpriced_calls": 0,
+          "input_tokens": 2284688,
+          "cached_input_tokens": 2229248,
+          "output_tokens": 7622
+        }
+      },
+      "calls": 17,
+      "known_estimate_usd": 28.553991199999995,
+      "unpriced_calls": 2,
+      "latest_selected_artifacts": {
+        "experiment_route": {
+          "kind": "experiment_route",
+          "digest": "55d81f5c0ff736280d655f3560f2eb6d1c559a8b2803f255a0800c0bc4f105ad",
+          "cas_path": "objects/sha256/55/d81f5c0ff736280d655f3560f2eb6d1c559a8b2803f255a0800c0bc4f105ad",
+          "path": "/tmp/e2e-pvpanic-pci-no-review/.dpf/cas/objects/sha256/55/d81f5c0ff736280d655f3560f2eb6d1c559a8b2803f255a0800c0bc4f105ad",
+          "hash_verified": true
+        },
+        "target_study_report": {
+          "kind": "target_study_report",
+          "digest": "22a9e87eab3c79b792046aa6f6f5b2039a6264e1e392b4cf04571840e5cd39e9",
+          "cas_path": "objects/sha256/22/a9e87eab3c79b792046aa6f6f5b2039a6264e1e392b4cf04571840e5cd39e9",
+          "path": "/tmp/e2e-pvpanic-pci-no-review/.dpf/cas/objects/sha256/22/a9e87eab3c79b792046aa6f6f5b2039a6264e1e392b4cf04571840e5cd39e9",
+          "hash_verified": true
+        },
+        "migration_contracts": {
+          "kind": "migration_contracts",
+          "digest": "040b375a0ef05361de3758666372b7eb24b4d312cad3ba26b8fe3924d1d5f675",
+          "cas_path": "objects/sha256/04/0b375a0ef05361de3758666372b7eb24b4d312cad3ba26b8fe3924d1d5f675",
+          "path": "/tmp/e2e-pvpanic-pci-no-review/.dpf/cas/objects/sha256/04/0b375a0ef05361de3758666372b7eb24b4d312cad3ba26b8fe3924d1d5f675",
+          "hash_verified": true
+        },
+        "target_framework_enablement_report": {
+          "kind": "target_framework_enablement_report",
+          "digest": "4020d6b6ba9859a86e25f012568e429086902e7b57a76abea5329c45a869f413",
+          "cas_path": "objects/sha256/40/20d6b6ba9859a86e25f012568e429086902e7b57a76abea5329c45a869f413",
+          "path": "/tmp/e2e-pvpanic-pci-no-review/.dpf/cas/objects/sha256/40/20d6b6ba9859a86e25f012568e429086902e7b57a76abea5329c45a869f413",
+          "hash_verified": true
+        },
+        "compliance_report": {
+          "kind": "compliance_report",
+          "digest": "89bb9c047ae6e2554997cedc953554ef14e98b151d6490ed46907629d1aad070",
+          "cas_path": "objects/sha256/89/bb9c047ae6e2554997cedc953554ef14e98b151d6490ed46907629d1aad070",
+          "path": "/tmp/e2e-pvpanic-pci-no-review/.dpf/cas/objects/sha256/89/bb9c047ae6e2554997cedc953554ef14e98b151d6490ed46907629d1aad070",
+          "hash_verified": true
+        },
+        "artifact_identity": {
+          "kind": "artifact_identity",
+          "digest": "0dad984432f3e3bc7a7a66ad66ffd1287066e1e4bbff86f6e55240418f399650",
+          "cas_path": "objects/sha256/0d/ad984432f3e3bc7a7a66ad66ffd1287066e1e4bbff86f6e55240418f399650",
+          "path": "/tmp/e2e-pvpanic-pci-no-review/.dpf/cas/objects/sha256/0d/ad984432f3e3bc7a7a66ad66ffd1287066e1e4bbff86f6e55240418f399650",
+          "hash_verified": true
+        },
+        "public_qemu_work_report": {
+          "kind": "public_qemu_work_report",
+          "digest": "cf441d0a6ea08b9549fa7f61ef7cf4edda7c12732d152f05cb1aa1b8275589f9",
+          "cas_path": "objects/sha256/cf/441d0a6ea08b9549fa7f61ef7cf4edda7c12732d152f05cb1aa1b8275589f9",
+          "path": "/tmp/e2e-pvpanic-pci-no-review/.dpf/cas/objects/sha256/cf/441d0a6ea08b9549fa7f61ef7cf4edda7c12732d152f05cb1aa1b8275589f9",
+          "hash_verified": true
+        },
+        "public_qemu_report": {
+          "kind": "public_qemu_report",
+          "digest": "20fe8ba7b2d4cd1c9d8978d18eb15e158cdf5f9e36216f9526dcfb09bf045f97",
+          "cas_path": "objects/sha256/20/fe8ba7b2d4cd1c9d8978d18eb15e158cdf5f9e36216f9526dcfb09bf045f97",
+          "path": "/tmp/e2e-pvpanic-pci-no-review/.dpf/cas/objects/sha256/20/fe8ba7b2d4cd1c9d8978d18eb15e158cdf5f9e36216f9526dcfb09bf045f97",
+          "hash_verified": true
+        }
+      }
+    }
+  ]
+}

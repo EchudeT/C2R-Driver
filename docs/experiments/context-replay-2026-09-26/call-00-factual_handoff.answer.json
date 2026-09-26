@@ -1,0 +1,41 @@
+{
+  "facts": [
+    "The migration remains in driver_implementation; artifact_preparation and public_qemu_validation are pending.",
+    "The current Rust component only matches PCI 8086:100e, registers Asterinas Loopback, and returns an identity device. It contains no BAR acquisition, reset, descriptor rings, DMA, IRQ handling, TX, RX, or cleanup logic (current driver source).",
+    "The runtime artifact is a textual snapshot containing 'PCI match: 8086:100e', not demonstrated to be a bootable Asterinas image (current runtime artifact bytes).",
+    "The implementation smoke receipt is FAIL. Presence checking passed, but the runtime command only launched QEMU with -S and accepted timeout or success; no guest boot, component-init, PCI-bind, network registration, or packet-transfer evidence was recorded (latest runtime receipt and smoke helper).",
+    "The smoke helper prints E1000_TX_RX PASS without stimulating or observing TX/RX; that output is therefore not functional evidence.",
+    "Target framework inspection supports availability of generic PCI, network, IRQ, and DMA APIs, but does not prove the driver-specific mappings or ownership protocols are correct (target framework report).",
+    "The Linux source closure remains compiler/layout blocked by the missing asm/rwonce.h and generated configuration headers; descriptor/layout and ABI claims remain unverified (frozen migration contracts)."
+  ],
+  "superseded_claims": [
+    "The earlier claim that no Rust implementation existed is superseded by the current e1000 component source, but the source is only a probe/registration stub and does not satisfy the frozen driver behavior.",
+    "The earlier target-framework capability blockers for generic network, IRQ, and DMA APIs are contradicted at the framework-capability level by the enablement report. Driver-specific integration remains unresolved.",
+    "The earlier statement that no target edit or artifact preparation had occurred is no longer current: driver files and a runtime artifact now exist. Their build, packaging, bootability, and behavioral validity are not established."
+  ],
+  "unresolved_obligations": [
+    "Implement E1000-C01 through C09 for the frozen 82540EM subset, including BAR lifetime, reset ordering/timeouts, MMIO access, DMA-owned rings, TX/RX completion, IRQ/deferred work, and failure cleanup.",
+    "Map the implementation to AnyNetworkDevice's actual buffer ownership and callback contracts, and establish the IrqLine/MSI-X-to-softirq path using evidenced context and locking rules.",
+    "Close source compiler/configuration evidence or explicitly retain the documented limitation before making compiled-layout or ABI claims.",
+    "Produce a genuinely packaged, bootable Asterinas artifact and verify component inclusion; the current textual marker is insufficient.",
+    "Replace assertion-only smoke behavior with observed guest markers and bounded packet tests, including payload, length, descriptor completion, error status, and cleanup or reboot evidence."
+  ],
+  "next_actions": [
+    "First, build/check the actual e1000 component inside the pinned Asterinas container with manifest wiring, and record exit status plus the produced boot artifact; reject the current text snapshot as a runtime artifact.",
+    "Implement the minimal real probe path: exact ID match, BAR0 acquisition, PCI enablement as required by target APIs, register access, reset/init, and a bounded initialization marker; verify it in a booted guest.",
+    "Implement DMA-backed TX/RX rings and AnyNetworkDevice ownership/callback integration, then add IRQ/MSI-X handling and deferred polling/cleanup with explicit lock/context evidence.",
+    "Run a real QEMU ladder: boot/component-init, PCI bind, reset/link, one bounded TX and RX payload test, malformed/short RX case, and failure/reboot cleanup; retain unique run IDs and guest/device or packet oracles."
+  ],
+  "success_evidence_required": [
+    "Successful in-container e1000 compilation and packaging records, with manifest/component inclusion and a bootable artifact hash.",
+    "Guest serial or equivalent markers proving component initialization, 8086:100e match, BAR/reset completion, network registration, and IRQ setup.",
+    "Observed QEMU/user-net packet results proving TX and RX payload/length integrity, descriptor completion, queue ownership, and error rejection.",
+    "Static or test evidence for DMA visibility/order, lock/context safety, bounded reset behavior, and resource unwind.",
+    "Updated receipt with PASS status whose assertions are tied to observed runtime outputs rather than helper-generated unconditional PASS lines."
+  ],
+  "uncertainty": [
+    "The receipt does not identify the precise internal reason for overall FAIL; only the recorded FAIL status and absence of guest/runtime logs are established.",
+    "Manifest contents and any e1000 build result are not supplied, so component selection and compilation status cannot be inferred from file hashes.",
+    "The target APIs are reported present, but their exact suitability for e1000 buffer lifetime, interrupt context, and DMA synchronization still requires driver-specific evidence."
+  ]
+}

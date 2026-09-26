@@ -41,7 +41,7 @@ def execute(
                     try:
                         event = json.loads(line)
                     except json.JSONDecodeError:
-                        continue
+                        event = {"type": "unparsed.stdout", "text": line}
                     if isinstance(event, dict):
                         on_event(event)
             code = process.wait()
@@ -59,9 +59,14 @@ def execute(
             if process.stdout:
                 process.stdout.close()
         stderr.seek(0, os.SEEK_END)
-        stderr.seek(max(0, stderr.tell() - 8000))
+        stderr_bytes = stderr.tell()
+        stderr.seek(max(0, stderr_bytes - 8000))
+        stderr_tail = stderr.read().decode("utf-8", errors="replace")
+        if on_event and stderr_tail:
+            on_event({"type": "transport.stderr", "text": stderr_tail,
+                      "bytes_total": stderr_bytes, "tail_only": stderr_bytes > 8000})
         return subprocess.CompletedProcess(
-            command, code, "".join(lines), stderr.read().decode("utf-8", errors="replace")
+            command, code, "".join(lines), stderr_tail
         )
 
 

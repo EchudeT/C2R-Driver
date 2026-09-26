@@ -108,16 +108,6 @@ def _validate_baseline_command_shapes(
     bare = str((root / checkout.bare_repository).resolve())
     worktree = str((root / checkout.checkout_path).resolve())
     expected = {
-        RepositoryCommandKind.BASELINE_FETCH: (
-            "git",
-            "-C",
-            bare,
-            "fetch",
-            "--depth=1",
-            "--no-tags",
-            "origin",
-            checkout.requested_ref,
-        ),
         RepositoryCommandKind.BASELINE_COMMIT: (
             "git",
             "-C",
@@ -148,6 +138,27 @@ def _validate_baseline_command_shapes(
             raise WorkflowError(
                 f"{checkout.role.value} command evidence does not bind {operation.value}"
             )
+    fetch_commands = [
+        command.result.argv
+        for command in commands
+        if command.operation is RepositoryCommandKind.BASELINE_FETCH
+    ]
+    remote_fetch = (
+        "git",
+        "-C",
+        bare,
+        "fetch",
+        "--depth=1",
+        "--no-tags",
+        "origin",
+        checkout.requested_ref,
+    )
+    if remote_fetch not in fetch_commands and not any(
+        _is_local_baseline_fetch(argv, bare) for argv in fetch_commands
+    ):
+        raise WorkflowError(
+            f"{checkout.role.value} command evidence does not bind baseline fetch"
+        )
     worktree_commands = [
         command.result.argv
         for command in commands
@@ -160,6 +171,18 @@ def _validate_baseline_command_shapes(
         for argv in worktree_commands
     ):
         raise WorkflowError(f"{checkout.role.value} worktree command evidence is invalid")
+
+
+def _is_local_baseline_fetch(argv: tuple[str, ...], bare: str) -> bool:
+    """Recognize the strict offline import command emitted by BareRepositoryStore."""
+    return (
+        len(argv) == 8
+        and argv[:6]
+        == ("git", "-C", bare, "fetch", "--depth=1", "--no-tags")
+        and Path(argv[6]).is_absolute()
+        and argv[6] != "origin"
+        and argv[7].endswith(":refs/dpf-cache/local")
+    )
 
 
 def _json_object(data: bytes, label: str) -> dict[str, object]:

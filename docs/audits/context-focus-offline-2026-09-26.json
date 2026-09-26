@@ -1,0 +1,336 @@
+{
+  "source_project": "/tmp/e2e-e1000-local-baseline-02",
+  "method": "Read-only historical prompt replay; temporary isolated CAS; no model calls. Character counts are not tokens or cost savings. Does not simulate future model behavior or repair ledger changes. Temporary path length can vary between runs.",
+  "calls": 28,
+  "unparsed_prompt_digests": [],
+  "feedback_compacted_calls": 0,
+  "rows": [
+    {
+      "prompt_digest": "6b9b0587ffa59b56c1645be07545359680c2ac766780cee9c22af7a82a4d35eb",
+      "stage": "driver_implementation",
+      "context_characters_before": 4157,
+      "context_characters_after_feedback_compaction": 4157,
+      "reading_plan_characters": 870,
+      "prioritized_kinds": [
+        "migration_contracts",
+        "test_port_matrix",
+        "target_study_report"
+      ],
+      "archived_feedback_fields": []
+    },
+    {
+      "prompt_digest": "0aff4ed70bb40d44b80c03367a672bf480c41e2f272de137292e0179d6ab2ba3",
+      "stage": "driver_implementation",
+      "context_characters_before": 4482,
+      "context_characters_after_feedback_compaction": 4482,
+      "reading_plan_characters": 870,
+      "prioritized_kinds": [
+        "migration_contracts",
+        "test_port_matrix",
+        "target_study_report"
+      ],
+      "archived_feedback_fields": []
+    },
+    {
+      "prompt_digest": "1b229ced87ddbe353aade342b4a0e13137f4a1e939cbc9dba0051ff3ef7fe242",
+      "stage": "driver_implementation",
+      "context_characters_before": 4482,
+      "context_characters_after_feedback_compaction": 4482,
+      "reading_plan_characters": 870,
+      "prioritized_kinds": [
+        "migration_contracts",
+        "test_port_matrix",
+        "target_study_report"
+      ],
+      "archived_feedback_fields": []
+    },
+    {
+      "prompt_digest": "e1bd5e8c4d8fb09e90dade05fb0b598af6504e6b463f09e7ffe0cb69cb2b0f2e",
+      "stage": "driver_implementation",
+      "context_characters_before": 4482,
+      "context_characters_after_feedback_compaction": 4482,
+      "reading_plan_characters": 870,
+      "prioritized_kinds": [
+        "migration_contracts",
+        "test_port_matrix",
+        "target_study_report"
+      ],
+      "archived_feedback_fields": []
+    },
+    {
+      "prompt_digest": "14e8c13a339363ecdbfd8625c6c572c427f7e5fd35119146e014b797a29340d3",
+      "stage": "driver_implementation",
+      "context_characters_before": 4625,
+      "context_characters_after_feedback_compaction": 4625,
+      "reading_plan_characters": 870,
+      "prioritized_kinds": [
+        "migration_contracts",
+        "test_port_matrix",
+        "target_study_report"
+      ],
+      "archived_feedback_fields": []
+    },
+    {
+      "prompt_digest": "47c11b742fa9d5e81890d2eb02e5c1b157f031c482b3e7e27aeaef9efdb740ac",
+      "stage": "driver_implementation",
+      "context_characters_before": 4625,
+      "context_characters_after_feedback_compaction": 4625,
+      "reading_plan_characters": 870,
+      "prioritized_kinds": [
+        "migration_contracts",
+        "test_port_matrix",
+        "target_study_report"
+      ],
+      "archived_feedback_fields": []
+    },
+    {
+      "prompt_digest": "026ef91b221b5385f8a578046cd2908112de2dae7ffeecd17d80d3ab59b984bf",
+      "stage": "driver_implementation",
+      "context_characters_before": 4948,
+      "context_characters_after_feedback_compaction": 4948,
+      "reading_plan_characters": 870,
+      "prioritized_kinds": [
+        "migration_contracts",
+        "test_port_matrix",
+        "target_study_report"
+      ],
+      "archived_feedback_fields": []
+    },
+    {
+      "prompt_digest": "ec8d60b18a3fe9539a791dbb93bea187f5a02c5e811fb1359d68c9fa473f67be",
+      "stage": "driver_implementation",
+      "context_characters_before": 4948,
+      "context_characters_after_feedback_compaction": 4948,
+      "reading_plan_characters": 870,
+      "prioritized_kinds": [
+        "migration_contracts",
+        "test_port_matrix",
+        "target_study_report"
+      ],
+      "archived_feedback_fields": []
+    },
+    {
+      "prompt_digest": "7bdc5258f1274f919cea34f51f1dd96a00ed98e4cc73012fa92b114c55274dc5",
+      "stage": "driver_implementation",
+      "context_characters_before": 4948,
+      "context_characters_after_feedback_compaction": 4948,
+      "reading_plan_characters": 870,
+      "prioritized_kinds": [
+        "migration_contracts",
+        "test_port_matrix",
+        "target_study_report"
+      ],
+      "archived_feedback_fields": []
+    },
+    {
+      "prompt_digest": "4df0856ef5e17593fea17392451065a4eefe84c4b6a027061b7c03521ce23b19",
+      "stage": "driver_implementation",
+      "context_characters_before": 4948,
+      "context_characters_after_feedback_compaction": 4948,
+      "reading_plan_characters": 870,
+      "prioritized_kinds": [
+        "migration_contracts",
+        "test_port_matrix",
+        "target_study_report"
+      ],
+      "archived_feedback_fields": []
+    },
+    {
+      "prompt_digest": "c52cc5dff5c9531a47a2a7790b521dceda23e3ee3be08edf5750caee1dc21dcd",
+      "stage": "driver_implementation",
+      "context_characters_before": 4948,
+      "context_characters_after_feedback_compaction": 4948,
+      "reading_plan_characters": 870,
+      "prioritized_kinds": [
+        "migration_contracts",
+        "test_port_matrix",
+        "target_study_report"
+      ],
+      "archived_feedback_fields": []
+    },
+    {
+      "prompt_digest": "a01f8d779e6aa61bdd7a6f9907730ce1b849612b2c4af62618a60414ec962c7a",
+      "stage": "driver_implementation",
+      "context_characters_before": 4948,
+      "context_characters_after_feedback_compaction": 4948,
+      "reading_plan_characters": 870,
+      "prioritized_kinds": [
+        "migration_contracts",
+        "test_port_matrix",
+        "target_study_report"
+      ],
+      "archived_feedback_fields": []
+    },
+    {
+      "prompt_digest": "abc84facbf292fef15c43b584fae4b07cf71c237ab96900a9a2654382a0d10ee",
+      "stage": "driver_implementation",
+      "context_characters_before": 4948,
+      "context_characters_after_feedback_compaction": 4948,
+      "reading_plan_characters": 870,
+      "prioritized_kinds": [
+        "migration_contracts",
+        "test_port_matrix",
+        "target_study_report"
+      ],
+      "archived_feedback_fields": []
+    },
+    {
+      "prompt_digest": "69e382bfc8a432a73f7d71bc92caefa425e5fbcb9ddac26639352b497db43df8",
+      "stage": "driver_implementation",
+      "context_characters_before": 4948,
+      "context_characters_after_feedback_compaction": 4948,
+      "reading_plan_characters": 870,
+      "prioritized_kinds": [
+        "migration_contracts",
+        "test_port_matrix",
+        "target_study_report"
+      ],
+      "archived_feedback_fields": []
+    },
+    {
+      "prompt_digest": "b1b7d063a0229bb9ddf8e472457b47868d846b9ad406ef91441886dc4bbbdeae",
+      "stage": "driver_implementation",
+      "context_characters_before": 4948,
+      "context_characters_after_feedback_compaction": 4948,
+      "reading_plan_characters": 870,
+      "prioritized_kinds": [
+        "migration_contracts",
+        "test_port_matrix",
+        "target_study_report"
+      ],
+      "archived_feedback_fields": []
+    },
+    {
+      "prompt_digest": "7b411defdeba4fe4bcd3c2c2b3ac724933ce1f4355d2fc7d26bbb084629de07f",
+      "stage": "driver_implementation",
+      "context_characters_before": 4681,
+      "context_characters_after_feedback_compaction": 4681,
+      "reading_plan_characters": 891,
+      "prioritized_kinds": [
+        "migration_contracts",
+        "test_port_matrix",
+        "target_study_report"
+      ],
+      "archived_feedback_fields": []
+    },
+    {
+      "prompt_digest": "2c48a8e88933d4c611e521a9d4f9041627c61c4003f4bebc4cc0d57f42461ab6",
+      "stage": "environment_recovery",
+      "context_characters_before": 753,
+      "context_characters_after_feedback_compaction": 753,
+      "reading_plan_characters": 0,
+      "prioritized_kinds": [],
+      "archived_feedback_fields": []
+    },
+    {
+      "prompt_digest": "dc7d2513552abb64440ad5370a78890c0d83e48ab343ee746ee7654875ed7015",
+      "stage": "evidence_closure",
+      "context_characters_before": 754,
+      "context_characters_after_feedback_compaction": 754,
+      "reading_plan_characters": 0,
+      "prioritized_kinds": [],
+      "archived_feedback_fields": []
+    },
+    {
+      "prompt_digest": "00bc12668b1bbe787e8c2a3f5a92c05ae8dfd263894bd3d0a279ae30aa88e58b",
+      "stage": "evidence_closure",
+      "context_characters_before": 515,
+      "context_characters_after_feedback_compaction": 515,
+      "reading_plan_characters": 0,
+      "prioritized_kinds": [],
+      "archived_feedback_fields": []
+    },
+    {
+      "prompt_digest": "d0911420a029d722e2fa15abd8cd69e7ecd1c2000a8735718c5c93b0b345ce6d",
+      "stage": "evidence_closure",
+      "context_characters_before": 627,
+      "context_characters_after_feedback_compaction": 627,
+      "reading_plan_characters": 0,
+      "prioritized_kinds": [],
+      "archived_feedback_fields": []
+    },
+    {
+      "prompt_digest": "8463b6208d84ef212f43d088b4a2f6abcb1680ac909c58db55043994d20cfb23",
+      "stage": "migration_contracts",
+      "context_characters_before": 3468,
+      "context_characters_after_feedback_compaction": 3468,
+      "reading_plan_characters": 889,
+      "prioritized_kinds": [
+        "target_study_report",
+        "migration_handoff",
+        "kb_query_contract"
+      ],
+      "archived_feedback_fields": []
+    },
+    {
+      "prompt_digest": "8040ea07d27a17a244cc7e20f19edc2a74d6183faaec5db0142fb316339f90e2",
+      "stage": "repository_acquisition",
+      "context_characters_before": 704,
+      "context_characters_after_feedback_compaction": 704,
+      "reading_plan_characters": 0,
+      "prioritized_kinds": [],
+      "archived_feedback_fields": []
+    },
+    {
+      "prompt_digest": "06b000f65277d0b5e711c84e794d83352e9f8a9066afd1151e8ee772d94f82e9",
+      "stage": "repository_acquisition",
+      "context_characters_before": 704,
+      "context_characters_after_feedback_compaction": 704,
+      "reading_plan_characters": 0,
+      "prioritized_kinds": [],
+      "archived_feedback_fields": []
+    },
+    {
+      "prompt_digest": "aedefd103efca653f25842b6f4a0e7aadb0737e59e55f7cfccee084d412599ff",
+      "stage": "repository_acquisition",
+      "context_characters_before": 704,
+      "context_characters_after_feedback_compaction": 704,
+      "reading_plan_characters": 0,
+      "prioritized_kinds": [],
+      "archived_feedback_fields": []
+    },
+    {
+      "prompt_digest": "2fc921e47d52a15119ffc967b34d4381fba2a2c0e11e959b229fa63c6ddff79d",
+      "stage": "repository_acquisition",
+      "context_characters_before": 704,
+      "context_characters_after_feedback_compaction": 704,
+      "reading_plan_characters": 0,
+      "prioritized_kinds": [],
+      "archived_feedback_fields": []
+    },
+    {
+      "prompt_digest": "5a1b063d81841124f420dbe16d2ad584b93155ceac26f9aa753f389b07294068",
+      "stage": "repository_acquisition",
+      "context_characters_before": 704,
+      "context_characters_after_feedback_compaction": 704,
+      "reading_plan_characters": 0,
+      "prioritized_kinds": [],
+      "archived_feedback_fields": []
+    },
+    {
+      "prompt_digest": "d16e1dd92045bae66dc803caf1bd06d9cc34d60b7dbc674474891f51d7ef46c5",
+      "stage": "target_framework_enablement",
+      "context_characters_before": 3434,
+      "context_characters_after_feedback_compaction": 3434,
+      "reading_plan_characters": 884,
+      "prioritized_kinds": [
+        "migration_contracts",
+        "target_study_report",
+        "test_port_matrix"
+      ],
+      "archived_feedback_fields": []
+    },
+    {
+      "prompt_digest": "e3fd44132e1107b137700ba854ff431c1eb1b7bb2338d4d3a87d55369900e1d7",
+      "stage": "target_platform_study",
+      "context_characters_before": 1593,
+      "context_characters_after_feedback_compaction": 1593,
+      "reading_plan_characters": 762,
+      "prioritized_kinds": [
+        "artifact_mode_record",
+        "kb_query_contract"
+      ],
+      "archived_feedback_fields": []
+    }
+  ]
+}

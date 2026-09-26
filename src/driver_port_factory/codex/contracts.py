@@ -14,6 +14,13 @@ class ModelInvocationError(WorkflowError):
 class CodexContinuation(Exception):
     """New controller evidence for the same worker, not a failed model answer."""
 
+    def __init__(self, message: str, *, receipt: str | None = None,
+                 observation: dict | None = None, counts_as_failure: bool = True):
+        super().__init__(message)
+        self.receipt = receipt
+        self.observation = observation or {}
+        self.counts_as_failure = counts_as_failure
+
 
 class CodexArtifact(StrEnum):
     PROMPT = "codex_prompt"

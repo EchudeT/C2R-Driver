@@ -1,0 +1,43 @@
+{
+  "facts": [
+    "The latest receipt remains status FAIL despite successful helper execution: presence exit 0, smoke exit 0, container_execution.satisfied true, runtime_bound true, and QEMU observed inside the pinned container (latest runtime receipt).",
+    "The runtime artifact is a text marker, not a bootable Asterinas kernel image (current runtime artifact; worker implementation report). Therefore the QEMU invocation cannot establish guest initialization, PCI probing, or network behavior.",
+    "The current Rust component matches vendor 0x8086/device 0x100e in PciDriver::probe and calls aster_network::register_device, but registers aster_bigtcp::device::Loopback rather than an e1000 implementation (current driver source).",
+    "The current source contains no evidenced BAR acquisition, MMIO register setup, reset, descriptor rings, DMA ownership, interrupt handling, RX validation/recycling, TX completion, or failure-unwind implementation (current driver source; contracts E1000-C02–C08).",
+    "The smoke helper prints E1000_TX_RX PASS and related markers after only checking the marker file and a bounded QEMU process result; those outputs are not functional oracles (current implementation smoke helper).",
+    "The target-framework report supports that PCI, network, IRQ, and DMA generic APIs exist and that no framework change is required. Driver-specific integration remains unproved.",
+    "The migration contracts explicitly require C01–C09 behavior; none is recorded as VERIFIED in the contract matrix."
+  ],
+  "superseded_claims": [
+    "The earlier primary diagnosis that failure was caused by an unobservable nested-container QEMU route is contradicted by the latest receipt: container execution is satisfied, container_qemu_execs contains qemu-system-x86_64, and runtime_bound is true.",
+    "The earlier claim that the implementation was blocked solely by controller observation is superseded. Observation is now adequate, but the artifact and implementation still cannot demonstrate guest or device behavior.",
+    "The worker report's statement that the smoke revision addressed the missing container-QEMU observation is supported mechanically, but its implication of meaningful implementation validation is not supported: the artifact is still non-bootable and the driver still uses Loopback.",
+    "The worker report's static PASS claims may establish only the reported compilation/static checks; no supplied receipt independently verifies those commands, and they do not satisfy functional contracts."
+  ],
+  "unresolved_obligations": [
+    "Implement actual 82540EM probe/resource ownership: exact PCI match, BAR0 acquisition, memory/bus-master enablement, and lifetime ownership (C01–C02).",
+    "Implement reset and initialization with bounded timeout and correct register access/order (C03, C07).",
+    "Implement DMA-backed 256-descriptor TX/RX rings, ownership transitions, wraparound, completion reclaim, queue behavior, RX status/length/error validation, recycling, and payload delivery (C04–C05, C07).",
+    "Connect existing IRQ/MSI-X facilities to cause acknowledgement, masking/re-enable, deferred TX/RX cleaning, and reset work (C06).",
+    "Provide a real AnyNetworkDevice adapter and establish cleanup/error-unwind behavior within the target lifecycle (C08–C09).",
+    "Replace marker-based assertions with evidence tied to a bootable artifact and actual guest/device observations."
+  ],
+  "next_actions": [
+    "First, run the reported targeted cargo checks against the exact current source inside the pinned container and preserve exit logs; this cheaply detects whether the shown component actually compiles against the cited APIs.",
+    "Replace the Loopback registration with a driver-owned AnyNetworkDevice design and implement the minimum PCI/BAR/reset path before attempting packet tests; do not broaden scope with framework changes.",
+    "Implement and review DMA rings plus IRQ/softirq integration, including failure paths, ownership ordering, and reset handling; keep C01–C09 as the acceptance checklist.",
+    "Prepare a bootable Asterinas artifact and rerun QEMU with guest-originated probe, registration, reset, IRQ, TX, RX, and cleanup markers; alter the smoke helper so PASS requires those markers rather than a text marker and process timeout."
+  ],
+  "success_evidence_required": [
+    "Reproducible targeted and affected-workspace cargo-check receipts for the exact current revision.",
+    "Bootable artifact hash and QEMU receipt showing actual Asterinas guest execution, PCI 8086:100e discovery, probe success, BAR/reset initialization, and network registration.",
+    "Externally stimulated TX and RX evidence with payload bytes, lengths, descriptor completion, error/status checks, and packet capture or equivalent QEMU/user-net oracle.",
+    "Evidence of interrupt/deferred-work operation, DMA ownership/order correctness, bounded reset behavior, and failure-unwind/resource cleanup.",
+    "Smoke scripts whose assertions consume guest/device evidence; no unconditional TX/RX PASS markers."
+  ],
+  "uncertainty": [
+    "The supplied latest receipt does not expose the QEMU exit status or guest logs, so the precise immediate smoke failure reason is not independently identifiable from the receipt alone.",
+    "The implementation report says targeted cargo checks passed, but their command logs are not included here; compilation status of the displayed source is therefore unconfirmed.",
+    "The target reports establish API availability, not that the current driver uses those APIs correctly or safely."
+  ]
+}

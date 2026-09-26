@@ -1,0 +1,41 @@
+# Blind evaluation experiment record
+
+```text
+experiment_id:
+batch_state: BATCH_DRAFT
+evaluation_mode: PROSPECTIVE_BLIND | POST_HOC_SEALED_BLIND | DEVELOPER_EVIDENCE
+track: LANGUAGE_ONLY | FRAMEWORK_ADAPTATION | CROSS_PLATFORM
+research_claims:
+curator_identity_machine_workspace_credentials_scope:
+migration_operator_identity_machine_workspace_credentials_scope:
+evaluator_identity_machine_workspace_credentials_scope:
+hardware_operator_identity_machine_workspace_credentials_scope:
+auditor_identity_machine_workspace_credentials_scope:
+role_conflicts:
+curator_evaluator_relation:
+candidate_freeze_relation:
+candidate_opaque_acceptance_digest_and_receipt:
+test_author_candidate_exposure:
+producer_private_feedback:
+train_split_digest:
+development_split_digest:
+held_out_split_digest:
+challenge_split_digest:
+public_bundle_digest:
+private_bundle_digest:
+private_bundle_commitment:
+commitment_timestamp_and_holder:
+ledger_genesis_timestamp:
+state_ledger_path_and_digest:
+external_transparency_WORM_or_timestamp_service:
+ledger_genesis_external_receipt:
+task_attempt_manifest_path_and_digest:
+migrator_version_and_budget:
+submission_policy:
+thresholds_and_statistics:
+hardware_subset:
+allowed_corrections:
+status:
+```
+
+Each task/attempt ledger entry records its own public export, migration start, candidate seal, private execution, hardware terminal and external timestamp receipts. Do not store these as one batch-wide timestamp.

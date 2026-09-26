@@ -32,6 +32,18 @@ def command_init(arguments: argparse.Namespace) -> None:
         skill_root=str(Path(arguments.skill_root).resolve()) if arguments.skill_root else None,
         prompt_pack=str(Path(arguments.prompt_pack).resolve()) if arguments.prompt_pack else None,
         baseline_repositories=tuple(str(Path(path).resolve()) for path in arguments.baseline_repository),
+        local_source_repository=(
+            str(Path(arguments.local_source_repository).resolve())
+            if arguments.local_source_repository else None
+        ),
+        local_target_repository=(
+            str(Path(arguments.local_target_repository).resolve())
+            if arguments.local_target_repository else None
+        ),
+        local_qemu_repository=(
+            str(Path(arguments.local_qemu_repository).resolve())
+            if arguments.local_qemu_repository else None
+        ),
         enable_analysis_review=(
             True if arguments.analysis_review is None else arguments.analysis_review
         ),
@@ -57,6 +69,11 @@ def command_status(arguments: argparse.Namespace) -> None:
     )
     print(f"controller={stats['controller']['state']} "
           f"{stats['controller'].get('note', '')}")
+    evidence = stats["evidence"]
+    print(f"evidence: execution={evidence['execution']} "
+          f"functional_assessment={evidence['functional_assessment']}")
+    if evidence["reports"]:
+        print(evidence["note"])
     from ..core.phases import GROUPS, phase
     stages = project.stages()
     for group in GROUPS:
@@ -167,6 +184,18 @@ def register_commands(commands: CommandRegistry) -> None:
     init.add_argument("--skill-root")
     init.add_argument("--baseline-repository", action="append", default=[],
                       help="read-only upstream repository cache (repeatable)")
+    init.add_argument(
+        "--local-source-repository",
+        help="existing local Linux/source checkout or bare repository (offline import)",
+    )
+    init.add_argument(
+        "--local-target-repository",
+        help="existing local Asterinas/target checkout or bare repository (offline import)",
+    )
+    init.add_argument(
+        "--local-qemu-repository",
+        help="existing local QEMU checkout or bare repository (offline import)",
+    )
     init.add_argument("--prompt-pack", help="editable prompt-pack directory used by default")
     init.add_argument(
         "--analysis-review", action=argparse.BooleanOptionalAction, default=None,

@@ -11,7 +11,7 @@ from .acquisition.contracts import AcquisitionStage
 from .codex.validation import VALIDATORS as CODEX_VALIDATORS
 from .control.contracts import ControlArtifact, ControlStage
 from .control.validation import VALIDATORS as CONTROL_VALIDATORS
-from .core.models import ActorRole, ProjectConfig, WorkflowError
+from .core.models import ActorRole, EvaluationMode, ProjectConfig, WorkflowError
 from .core.project import Project
 from .core.validation import ValidationRegistry
 from .core.workflow import StageCatalog, WorkflowDefinition
@@ -81,6 +81,7 @@ def workflow_for(config: ProjectConfig) -> WorkflowDefinition:
     else:
         raise WorkflowError(f"unsupported actor role: {config.actor_role.value}")
     from dataclasses import replace
+
     from .codex.contracts import CodexArtifact
     from .core.models import EvaluationMode, StageOwner
     if config.evaluation_mode is EvaluationMode.DEVELOPER_EVIDENCE:
@@ -93,7 +94,7 @@ def workflow_for(config: ProjectConfig) -> WorkflowDefinition:
 
 
 def initialize_project(root: Path, config: ProjectConfig) -> Project:
-    return Project.initialize(
+    project = Project.initialize(
         root,
         config,
         workflow_for(config),
@@ -101,6 +102,15 @@ def initialize_project(root: Path, config: ProjectConfig) -> Project:
         initial_stage=ControlStage.PROJECT_INIT,
         manifest_kind=ControlArtifact.PROJECT_MANIFEST,
     )
+    if config.evaluation_mode is EvaluationMode.DEVELOPER_EVIDENCE:
+        import fcntl
+
+        from .codex.context_policy import configure_policy
+        # Initialization is not a controller execution interval for cost/timing reports.
+        with (project.control / "controller.lock").open("a") as lock:
+            fcntl.flock(lock, fcntl.LOCK_EX)
+            configure_policy(project, "analysis-handoff", reason="new project default")
+    return project
 
 
 def open_project(root: Path, *, read_only: bool = False,

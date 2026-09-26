@@ -91,6 +91,12 @@ class ProjectConfig:
     skill_root: str | None = None
     prompt_pack: str | None = None
     baseline_repositories: tuple[str, ...] = ()
+    # Optional role-specific local repositories for offline baseline import.
+    # The user checkout is read-only; the run receives its own managed bare
+    # repository and detached worktree.
+    local_source_repository: str | None = None
+    local_target_repository: str | None = None
+    local_qemu_repository: str | None = None
     enable_analysis_review: bool = True
     enable_final_evidence_review: bool = True
     created_at: str = field(default_factory=utc_now)
@@ -107,6 +113,9 @@ class ProjectConfig:
         data["evaluation_mode"] = EvaluationMode(data["evaluation_mode"])
         data["actor_role"] = ActorRole(data["actor_role"])
         data["baseline_repositories"] = tuple(data.get("baseline_repositories", ()))
+        data["local_source_repository"] = data.get("local_source_repository")
+        data["local_target_repository"] = data.get("local_target_repository")
+        data["local_qemu_repository"] = data.get("local_qemu_repository")
         data["enable_analysis_review"] = data.get("enable_analysis_review", True)
         data["enable_final_evidence_review"] = data.get("enable_final_evidence_review", True)
         return cls(**data)

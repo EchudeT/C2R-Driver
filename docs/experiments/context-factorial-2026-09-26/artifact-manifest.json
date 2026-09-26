@@ -1,0 +1,11 @@
+{
+  "schema_version": 1,
+  "files": {
+    "current.txt": "1cd2b1974a43ae85fa589c2b08216047180809646f54c6fb32850951cd0d5e50",
+    "history.txt": "7024bc6bde47bc0d9202849d6bb5cc33782e33ca3a92f17b018befc34b33378f",
+    "mechanism.txt": "55676222393ca41f4b265db0c853ddc770c511a751fcebb91fb26be94019a580",
+    "protocol.json": "f649df26b75d2f6763b626d537c9ebdb8a4513881fbe83f1b0c97ede08e8a8dd",
+    "rubric.json": "cd6450a0e8236a0714a581768eaf5b00b1091e30bb3c6f4bafb2fe8a4fcd99e8",
+    "shared.txt": "a70e45cc77e4941c97aa6c1a2392292168a0f04a1bcc4f3aa882caf16b582f8b"
+  }
+}

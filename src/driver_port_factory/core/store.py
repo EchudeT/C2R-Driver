@@ -280,6 +280,7 @@ class _RunPersistence:
                 "stage": name.value, "status": StageStatus.READY.value,
                 "trigger": name.value, "actor_role": actor_role.value,
                 "reason": "operator resolved blocker: " + reason,
+                "operator_reopen": True,
                 "artifact_boundaries": boundaries,
             })
 

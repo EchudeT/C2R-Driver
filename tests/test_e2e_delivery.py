@@ -156,6 +156,7 @@ def test_two_conversations_complete_with_independent_review(tmp_path, risk, appe
     from driver_port_factory.control.statistics import project_statistics
 
     stats = project_statistics(project)
+    assert stats["evidence"]["functional_assessment"] == "INDEPENDENT_REVIEW_RECORDED"
     groups = stats["by_call_reason"]
     assert groups["stage_work"]["codex_calls"] == 4
     assert groups["execution_self_check"]["codex_calls"] == 1

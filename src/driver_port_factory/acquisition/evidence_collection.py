@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from pathlib import PurePosixPath
 
-from ..core.models import WorkflowError, utc_now
 from ..codex.contracts import CodexOutputError
+from ..core.models import WorkflowError, utc_now
 from .accounting import CoverageEntry, EvidenceGap, RetrievalAttempt, reason_for_attempts
 from .facets import (
     SOURCE_DRIVER_ENTRY,
@@ -167,13 +168,20 @@ class EvidenceCollector:
         expected_path: str,
     ) -> MaterialRecord:
         source = [record for record in materials if record.facet == SOURCE_DRIVER_ENTRY]
-        if len(source) != 1:
-            raise WorkflowError("source driver entry must resolve to exactly one material")
-        origin = source[0].origin
-        if (
-            not isinstance(origin, GitBlobOrigin)
-            or origin.repository is not RepositoryRole.SOURCE
-            or origin.path != expected_path
-        ):
-            raise WorkflowError("controlled source entry does not match the frozen envelope")
+        if not source:
+            raise WorkflowError("source driver entry must resolve to at least one material")
+        expected = PurePosixPath(expected_path)
+        for record in source:
+            origin = record.origin
+            if (
+                not isinstance(origin, GitBlobOrigin)
+                or origin.repository is not RepositoryRole.SOURCE
+                or not (
+                    origin.path == expected_path
+                    or expected in PurePosixPath(origin.path).parents
+                )
+            ):
+                raise WorkflowError("controlled source entry does not match the frozen envelope")
+        # A directory-scoped source entry is represented by all of its
+        # controller-expanded tracked files; a file-scoped entry has one.
         return source[0]

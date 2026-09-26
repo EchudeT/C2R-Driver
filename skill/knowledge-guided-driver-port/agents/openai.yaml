@@ -1,0 +1,4 @@
+interface:
+  display_name: "Knowledge-Guided Driver Port"
+  short_description: "Port C kernel drivers to Rust with local evidence"
+  default_prompt: "Use $knowledge-guided-driver-port to port this C kernel driver from the source platform to the target platform and validate it in QEMU."

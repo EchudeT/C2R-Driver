@@ -1,0 +1,38 @@
+{
+  "schema_version": 1,
+  "catalog_id": "linux-e1000-local",
+  "catalog_version": 1,
+  "source_platform": "linux",
+  "drivers": [
+    {
+      "candidate_id": "linux-e1000-pci-82540em",
+      "canonical_name": "e1000",
+      "source_entry_hint": "drivers/net/ethernet/intel/e1000",
+      "device_family": "Intel 82540EM-compatible PCI Ethernet controller",
+      "bus_or_transport": "PCI",
+      "aliases": [
+        "E1000",
+        "Intel e1000",
+        "e1000 PCI",
+        "e1000-82540em"
+      ],
+      "device_scope": [
+        "Intel 82540EM-compatible PCI NIC",
+        "QEMU e1000 model"
+      ],
+      "candidate_device_ids": [
+        "PCI vendor 0x8086, device 0x100e (Intel 82540EM)"
+      ],
+      "qemu_models": [
+        "e1000"
+      ],
+      "evidence_hints": [
+        "Linux drivers/net/ethernet/intel/e1000/e1000_main.c",
+        "Linux drivers/net/ethernet/intel/e1000/e1000_hw.c",
+        "Linux drivers/net/ethernet/intel/e1000/e1000_hw.h",
+        "Linux drivers/net/ethernet/intel/e1000/Makefile",
+        "QEMU hw/net/e1000.c and its PCI device model"
+      ]
+    }
+  ]
+}

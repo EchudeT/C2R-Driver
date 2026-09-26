@@ -1,0 +1,47 @@
+{
+  "facts": [
+    "The latest runtime receipt has status FAIL for implementation-functional-smoke, despite the wrapper command exiting 0; the accepted exit codes only show that QEMU was started and stopped, not that the guest driver functioned.",
+    "Presence verification passed only because the artifact contained the text 8086:100e. The artifact bytes are a descriptive snapshot, not demonstrated bootable Asterinas output.",
+    "The current driver matches 8086:100e, but its probe registers `Loopback::new()` and does not acquire BAR0, enable bus mastering, reset hardware, allocate DMA rings, install IRQ handling, or implement e1000 TX/RX behavior (`current driver source`).",
+    "The smoke helper unconditionally prints `E1000_TX_RX PASS` and related markers after the QEMU wrapper; those markers are not guest-observed evidence.",
+    "The QEMU invocation uses `-S`, and the receipt records no guest logs or serial markers. Thus PCI binding, network registration, reset, interrupt, DMA, and packet behavior are unverified.",
+    "The target-framework report supports availability of generic PCI, MSI-X/IRQ, network, and DMA APIs, with no framework files changed. It does not prove correct e1000 integration.",
+    "The Linux source/configuration closure remains compiler-blocked by missing generated headers (`asm/rwonce.h`), so compiled layout/ABI and ordering evidence remain unavailable.",
+    "The frozen scope requires all E1000-C01 through E1000-C09 behavior; no contract is verified as implemented."
+  ],
+  "superseded_claims": [
+    "The earlier target-capability claim that NET, IRQ, and DMA APIs were unavailable is superseded at the generic framework level by the target-framework report; driver-specific ownership and mapping remain unresolved.",
+    "The earlier characterization of implementation as absent is superseded by the presence of a minimal component, but its own source comment and behavior show that it is only a registration/placeholder implementation.",
+    "Any implication that implementation smoke passed is contradicted by the latest receipt status FAIL and by the absence of guest-observed assertions.",
+    "The environment-readiness PASS remains supported, but it must not be interpreted as migrated-driver runtime readiness; that field is explicitly false."
+  ],
+  "unresolved_obligations": [
+    "Implement real C02/C03 PCI BAR ownership, bus-master enablement, reset, initialization, and bounded reset handling.",
+    "Implement C04/C05 TX and RX descriptor rings, DMA buffer ownership, packet allocation/delivery, completion/reclaim, error checks, and wraparound.",
+    "Implement C06 interrupt cause handling, masking/acknowledgement, IRQ-to-softirq scheduling, and deferred work.",
+    "Implement C07 synchronization, register ordering, and DMA visibility using evidenced target APIs.",
+    "Implement C08 failure cleanup and C09 a genuine `AnyNetworkDevice` adapter; remove the Loopback substitution.",
+    "Wire the component into manifests and produce a real Asterinas boot artifact.",
+    "Close the Linux generated-config/compiler evidence and target DMA/IRQ ownership evidence before claiming layout or semantic completeness.",
+    "Replace helper-generated markers with guest-observed, run-identified assertions and execute the public TX/RX validation matrix."
+  ],
+  "next_actions": [
+    "First, classify the failed smoke without treating wrapper exit 0 as success: preserve and inspect the implementation-smoke stdout, QEMU log, artifact provenance, and bootability; require guest-originated evidence.",
+    "Replace the placeholder with a compilable, manifest-selected e1000 component that owns BAR0 and implements reset/init plus a real `AnyNetworkDevice` adapter; verify with target-container build/check logs.",
+    "Add evidenced DMA ring and IRQ/MSI-X integration, then implement descriptor-based TX/RX and cleanup while preserving C01-C09 scope.",
+    "Run a staged QEMU ladder: guest component/probe markers, BAR/reset markers, interrupt/completion counters, and one bounded payload-integrity TX/RX test; only then prepare public validation."
+  ],
+  "success_evidence_required": [
+    "Containerized build receipt identifying the e1000 component and a generated bootable Asterinas artifact.",
+    "Guest-observed 8086:100e match, BAR acquisition, reset completion, network-device registration, and IRQ/DMA initialization.",
+    "Guest-observed TX submission/completion and RX delivery with exact payload and length checks, including malformed/short-frame handling.",
+    "Evidence of failure unwind/resource ownership and repeated or reset-path behavior.",
+    "Execution receipts with unique run IDs, exact stimuli, cleanup, QEMU limitations, and no helper-only PASS markers.",
+    "Closed source compiler/configuration and target DMA/order evidence before claiming full ABI/layout coverage."
+  ],
+  "uncertainty": [
+    "The receipt does not identify the precise failing assertion; only overall status FAIL and wrapper execution details are supplied.",
+    "It is unresolved whether the artifact is bootable at all; the supplied artifact content is only a textual snapshot.",
+    "The target framework report establishes API existence, not the exact safety, lifetime, cache, or interrupt-context correctness needed by this driver."
+  ]
+}

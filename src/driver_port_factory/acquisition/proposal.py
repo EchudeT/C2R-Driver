@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 import json
-from collections.abc import Callable
+import subprocess
 from collections import Counter
-from dataclasses import dataclass
+from collections.abc import Callable
+from dataclasses import dataclass, replace
+from pathlib import PurePosixPath
 
 from ..codex.contracts import CodexArtifact, CodexOutputError
 from ..core.models import (
@@ -412,6 +414,7 @@ class EvidenceProposalImporter:
                 )
         except (UnicodeDecodeError, json.JSONDecodeError, WorkflowError) as error:
             raise CodexOutputError(f"invalid Codex evidence proposal: {error}") from error
+        proposal = _expand_directory_source_entry(project, proposal)
         if proposal.migration_envelope_sha256 != envelope_ref.digest:
             raise CodexOutputError("evidence proposal migration envelope digest is stale")
         if proposal.repository_manifest_sha256 != repository_ref.digest:
@@ -434,6 +437,106 @@ class EvidenceProposalImporter:
     def _document_binder(project: Project):
         from .document_binding import ExternalDocumentBinder
         return ExternalDocumentBinder(project).bind
+
+
+def _expand_directory_source_entry(
+    project: Project, proposal: EvidenceDiscoveryProposal
+) -> EvidenceDiscoveryProposal:
+    """Expand a frozen directory entry into its tracked file locators.
+
+    The intake envelope may intentionally identify a driver by its source
+    directory.  Evidence retrieval is file based, so convert only the
+    controller-injected directory locator into the exact tracked blobs from
+    the frozen source commit.  The envelope itself remains unchanged.
+    """
+    envelope = project.load_json_artifact(
+        IntakeStage.ENVELOPE_FREEZE, IntakeArtifact.MIGRATION_ENVELOPE
+    )
+    expected = relative_path(
+        envelope["source_driver_entry_or_repository_hint"],
+        "frozen source driver path",
+    )
+    source = next(
+        (item for item in proposal.facets if item.facet == SOURCE_DRIVER_ENTRY),
+        None,
+    )
+    if source is None:
+        raise WorkflowError("evidence proposal requires the frozen source driver entry")
+    if not any(
+        isinstance(locator, GitBlobLocator)
+        and locator.repository is RepositoryRole.SOURCE
+        and locator.path == expected
+        for locator in source.locators
+    ):
+        return proposal
+    paths = _tracked_source_files(project, expected)
+    expanded = tuple(
+        locator
+        for locator in source.locators
+        if not (
+            isinstance(locator, GitBlobLocator)
+            and locator.repository is RepositoryRole.SOURCE
+            and locator.path == expected
+        )
+    ) + tuple(
+        GitBlobLocator(RepositoryRole.SOURCE, path, _STATIC_GIT_POLICY)
+        for path in paths
+    )
+    facets = tuple(
+        replace(item, locators=expanded) if item.facet == SOURCE_DRIVER_ENTRY else item
+        for item in proposal.facets
+    )
+    return replace(proposal, facets=facets)
+
+
+def _tracked_source_files(project: Project, expected: str) -> tuple[str, ...]:
+    """Return all tracked blob paths under the frozen source entry."""
+    from .repository import load_repository_acquisition
+
+    checkout = load_repository_acquisition(project).checkout(RepositoryRole.SOURCE)
+    root = (project.root / checkout.checkout_path).resolve()
+    path = (root / PurePosixPath(expected)).resolve()
+    if root not in path.parents and path != root:
+        raise WorkflowError("frozen source driver path escapes its checkout")
+    if path.is_file():
+        return (expected,)
+    if not path.is_dir():
+        raise WorkflowError("frozen source driver entry is absent from its checkout")
+    result = subprocess.run(
+        (
+            "git",
+            "-C",
+            str(root),
+            "ls-tree",
+            "-r",
+            "-z",
+            "--full-tree",
+            checkout.resolved_commit,
+            "--",
+            expected,
+        ),
+        cwd=project.root,
+        check=False,
+        capture_output=True,
+    )
+    if result.returncode != 0:
+        detail = result.stderr.decode("utf-8", errors="replace").strip()
+        raise WorkflowError(f"cannot enumerate frozen source directory: {detail}")
+    paths: list[str] = []
+    for record in result.stdout.split(b"\0"):
+        if not record:
+            continue
+        try:
+            metadata, raw_path = record.split(b"\t", 1)
+            _, object_type, _ = metadata.decode("ascii").split(" ", 2)
+            source_path = raw_path.decode("utf-8")
+        except (ValueError, UnicodeDecodeError) as error:
+            raise WorkflowError("frozen source directory has malformed Git tree output") from error
+        if object_type == "blob":
+            paths.append(source_path)
+    if not paths:
+        raise WorkflowError("frozen source directory has no tracked files")
+    return tuple(sorted(paths))
 
 
 def load_proposal_occurrence(

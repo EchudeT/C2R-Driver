@@ -1,0 +1,43 @@
+{
+  "facts": [
+    "The latest runtime receipt has status FAIL, although the presence helper exited 0 and the implementation helper command itself exited 0.",
+    "The current Rust component only matches PCI 8086:100e, registers `Loopback::new()`, and returns an `E1000Device` containing only the PCI ID. It has no BAR acquisition, reset, MMIO, DMA rings, IRQ handling, TX, RX, or cleanup logic.",
+    "The implementation smoke helper launches QEMU with `-S` and a raw file, then accepts timeout or zero exit and prints PASS markers unconditionally; the receipt contains no guest boot, driver-probe, register, interrupt, or packet evidence.",
+    "The runtime artifact is documented only as textual snapshot bytes containing `8086:100e`; no artifact-build or bootability evidence is supplied.",
+    "Framework-level PCI, network, IRQ, and DMA primitives are present according to the target-framework report, but driver-specific integration remains unproved.",
+    "The Linux source closure still has a concrete compiler/layout blocker: preprocessing failed on missing `asm/rwonce.h`; generated configuration, compiler, ABI, and layout coverage remain unavailable.",
+    "The environment route itself is mechanically ready and QEMU execution occurred inside the required container, but `migrated_driver_runtime_ready` is false."
+  ],
+  "superseded_claims": [
+    "The earlier claim that target framework APIs were missing is superseded at the generic-capability level by the framework report: `AnyNetworkDevice`, `IrqLine`/MSI-X, and typed DMA APIs exist. This does not prove the e1000 adapter is correctly implemented.",
+    "The earlier statement that no Rust implementation existed is superseded by the current component source and receipt inputs. The implementation is only a registration/Loopback stub, not an e1000 migration.",
+    "The earlier runtime-readiness conclusion is supported, not contradicted: presence and script markers do not establish guest execution or device behavior.",
+    "The prior contract statuses remain substantially valid: no E1000-C01–C09 behavior is verified. Only the intended PCI identity check is represented in source."
+  ],
+  "unresolved_obligations": [
+    "Implement E1000-C02/C03: acquire and retain BAR0, enable required PCI access, reset hardware, initialize registers, and enforce bounded reset behavior.",
+    "Implement E1000-C04/C05/C07: DMA-backed TX/RX descriptor rings, ownership and wraparound rules, completion/recycling, payload and error validation, synchronization, and ordering.",
+    "Implement E1000-C06: interrupt cause handling, masking/acknowledgement, IRQ-to-softirq scheduling, and deferred TX/RX/reset work.",
+    "Implement E1000-C08/C09: failure cleanup, network-device registration backed by the real device rather than Loopback, and target lifecycle/reboot cleanup policy.",
+    "Close source compiler/configuration/layout evidence or explicitly retain the documented BLOCKED boundary.",
+    "Prove component manifest wiring, target compilation, artifact generation, and actual runtime inclusion."
+  ],
+  "next_actions": [
+    "Build the actual e1000 component in the required Asterinas container, verify Cargo/Components wiring, and retain compiler and artifact logs; do not reuse the textual snapshot as a runtime image.",
+    "Replace the Loopback stub with the minimum real implementation covering PCI/BAR ownership, reset/init, DMA rings, and `AnyNetworkDevice` callbacks; add static ownership and unsafe/synchronization review.",
+    "Add a bounded guest-visible probe path and run QEMU without the current paused-only proof pattern; require markers for PCI match, BAR/reset completion, network registration, IRQ activity, and TX/RX completion.",
+    "Execute one bounded packet-integrity test through QEMU user networking, including malformed/short RX handling and cleanup, then promote only evidence-backed contracts."
+  ],
+  "success_evidence_required": [
+    "Successful target compilation of the driver and a reproducible bootable artifact containing the component.",
+    "Guest serial or equivalent logs proving component initialization, exact 8086:100e matching, BAR acquisition, reset completion, and network registration.",
+    "Runtime evidence of interrupt/deferred-work activity and descriptor completion.",
+    "A QEMU packet test proving TX and RX payload/length integrity, error rejection, descriptor recycling, and no reported cleanup/resource leak.",
+    "A recorded disposition for the missing Linux generated-config/compiler/layout evidence."
+  ],
+  "uncertainty": [
+    "The receipt gives no direct contents of QEMU stdout or guest logs, so the exact failure point is unknown.",
+    "It is not established whether the raw runtime artifact is bootable, whether the component was packaged into it, or whether the guest reached driver initialization.",
+    "Framework API existence is evidenced, but exact driver-facing signatures, DMA ownership semantics, and interrupt context behavior still require compile-time and implementation-level confirmation."
+  ]
+}

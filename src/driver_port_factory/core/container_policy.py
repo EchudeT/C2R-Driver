@@ -72,6 +72,7 @@ def container_execution_summary(
 ) -> dict[str, Any]:
     """Summarize the mechanical target-container boundary for a run."""
 
+    observation_data = load_container_observations(observations_path)
     records = qemu_container_observations(observations_path)
     images = sorted({record["image"] for record in records})
     required = target_requires_asterinas_container(target_platform)
@@ -89,5 +90,9 @@ def container_execution_summary(
             if isinstance(record.get("image_id"), str)
         }),
         "qemu_programs": [record["argv"][0] for record in records],
+        "observation_errors": [
+            str(error) for error in observation_data["errors"]
+            if isinstance(error, str)
+        ],
         "observation_path": str(observations_path),
     }

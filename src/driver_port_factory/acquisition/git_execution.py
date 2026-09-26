@@ -55,7 +55,11 @@ class RepositoryGit:
             error_type = RepositoryFetchError if operation is RepositoryCommandKind.BASELINE_FETCH else WorkflowError
             if (operation is RepositoryCommandKind.BASELINE_FETCH
                     and not result.timed_out and result.launched
-                    and arguments[:1] == ["-C"]):
+                    and arguments[:1] == ["-C"]
+                    # A role-specific local baseline is strict offline input.
+                    # Never probe its configured origin after a local fetch
+                    # failure, because that would unexpectedly use the network.
+                    and len(arguments) > 5 and arguments[5] == "origin"):
                 # Only diagnose after a failed download. Git's exit 2 proves a
                 # reachable remote has no matching ref; other exits say nothing
                 # about validity and remain resumable transport failures.

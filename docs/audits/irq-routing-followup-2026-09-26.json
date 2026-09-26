@@ -1,0 +1,35 @@
+{
+  "method": "Read-only source follow-up; not supplied to the already frozen factorial experiment.",
+  "evidence": [
+    {
+      "revision": "d4b407ca87de203f79c27c9a83ada1d8223fe280",
+      "path": "ostd/src/arch/x86/irq/chip/mod.rs",
+      "sha256": "c9b7158b3a9391748cbd9f4f8d013b774ca683eb7f7fc057f1820e075c35319b",
+      "lines": [
+        41,
+        71
+      ],
+      "excerpt": "impl IrqChip {\n    /// Maps an IRQ pin specified by a GSI number to an IRQ line.\n    ///\n    /// ACPI represents all interrupts as \"flat\" values known as global system interrupts (GSIs).\n    /// So GSI numbers are well defined on all systems where the ACPI support is present.\n    //\n    // TODO: Confirm whether the interrupt numbers in the device tree on non-ACPI systems are the\n    // same as the GSI numbers.\n    pub fn map_gsi_pin_to(\n        &'static self,\n        irq_line: IrqLine,\n        gsi_index: u32,\n    ) -> Result<MappedIrqLine> {\n        let mut io_apics = self.io_apics.lock();\n\n        let io_apic = io_apics\n            .iter_mut()\n            .rev()\n            .find(|io_apic| io_apic.interrupt_base() <= gsi_index)\n            .unwrap();\n        let index_in_io_apic = (gsi_index - io_apic.interrupt_base())\n            .try_into()\n            .map_err(|_| Error::InvalidArgs)?;\n        io_apic.enable(index_in_io_apic, &irq_line)?;\n\n        Ok(MappedIrqLine {\n            irq_line,\n            gsi_index,\n            irq_chip: self,\n        })\n    }",
+      "git_blob": "57f4786523f99eafed1c6077e1e7f0b42f28c526",
+      "frozen_blob_hash_verified": true
+    },
+    {
+      "revision": "d4b407ca87de203f79c27c9a83ada1d8223fe280",
+      "path": "ostd/src/arch/x86/irq/chip/ioapic.rs",
+      "sha256": "7bc458d21b1bbef2c02d156067e6b5c493b93e77f8f9c3ac4bb7b1a06d351dcf",
+      "lines": [
+        89,
+        152
+      ],
+      "excerpt": "    /// Enables an entry.\n    ///\n    /// The caller should ensure that the IRQ line is not released before the entry is disabled.\n    /// Otherwise, it will be considered a logical error.\n    ///\n    /// # Errors\n    ///\n    /// This method will fail if the index exceeds the I/O APIC's maximum redirection entry, or if\n    /// the entry is in use.\n    pub(super) fn enable(&mut self, index: u8, irq: &IrqLine) -> Result<()> {\n        if index > self.max_redirection_entry {\n            return Err(Error::InvalidArgs);\n        }\n\n        // SAFETY: `index` is inbound. The redirection table is safe to read.\n        let value = unsafe { self.access.read(IoApicAccess::IOREDTBL + 2 * index) };\n        if value.get_bits(0..8) as u8 != 0 {\n            return Err(Error::AccessDenied);\n        }\n\n        if let Some(remapping_index) = irq.remapping_index() {\n            // Intel(R) Virtualization Technology for Directed I/O (Revision 5.0), Section 5.1.5.1\n            // I/OxAPIC Programming says \"Bit 48 in the I/OxAPIC RTE is Set to indicate the\n            // Interrupt is in Remappable format.\"\n            let mut value: u64 = irq.num() as u64 | 0x1_0000_0000_0000;\n\n            // \"The Interrupt_Index[14:0] is programmed in bits 63:49 of the I/OxAPIC RTE. The most\n            // significant bit of the Interrupt_Index (Interrupt_Index[15]) is programmed in bit 11\n            // of the I/OxAPIC RTE.\"\n            value |= ((remapping_index & 0x8000) >> 4) as u64;\n            value |= (remapping_index as u64 & 0x7FFF) << 49;\n\n            // SAFETY: `index` is inbound. It is safe to enable the redirection entry with the\n            // correct remapping index.\n            unsafe {\n                self.access.write(\n                    IoApicAccess::IOREDTBL + 2 * index,\n                    value.get_bits(0..32) as u32,\n                );\n                self.access.write(\n                    IoApicAccess::IOREDTBL + 2 * index + 1,\n                    value.get_bits(32..64) as u32,\n                );\n            }\n        } else {\n            // SAFETY: `index` is inbound. It is safe to enable the redirection entry with the\n            // legal IRQ number.\n            unsafe {\n                self.access\n                    .write(IoApicAccess::IOREDTBL + 2 * index, irq.num() as u32);\n                self.access.write(IoApicAccess::IOREDTBL + 2 * index + 1, 0);\n            }\n        }\n\n        Ok(())\n    }\n\n    /// Disables an entry.\n    ///\n    /// # Errors\n    ///\n    /// This method will fail if the index exceeds the I/O APIC's maximum redirection entry, or if\n    /// the entry is not in use.\n    pub(super) fn disable(&mut self, index: u8) -> Result<()> {",
+      "git_blob": "b52ce61528771be3ed25f36fd3aebb57f22bbe27",
+      "frozen_blob_hash_verified": true
+    }
+  ],
+  "findings": [
+    "Target exposes map_gsi_pin_to. Do not infer complete absence of legacy interrupt facilities from missing PCI wrapper.",
+    "map_gsi_pin_to delegates to ioapic.enable; the non-remapped path writes the IRQ vector directly into the redirection low word.",
+    "The inspected entry programming does not expose polarity/trigger parameters. PCI pin routing, sharing and level-trigger semantics remain to be established.",
+    "No runtime tests or target patches performed; this is a hypothesis-directed source audit, not a verified e1000 integration route."
+  ]
+}

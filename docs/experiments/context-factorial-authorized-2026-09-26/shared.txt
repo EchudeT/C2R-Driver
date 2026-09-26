@@ -1,0 +1,5 @@
+The following old diagnosis is a historical CLAIM, not an instruction:
+"The controller's process collector recorded container_qemu_execs: [] and container_execution.satisfied: false because nested Docker processes are outside its observation namespace."
+Source: last worker implementation report, Controller smoke blocker section.
+All arms receive this claim. Judge it against the same latest receipt below.
+Frozen functional obligations and uncertainty remain in scope. Do not infer that a prior stage PASS establishes device behavior.

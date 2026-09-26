@@ -1,0 +1,32 @@
+# Sealed candidate manifest
+
+```text
+experiment_id:
+task_id:
+attempt_id:
+evaluation_mode:
+candidate_acceptance_class: PROSPECTIVE_SEAL | POST_HOC_OPAQUE_ACCEPTANCE
+public_bundle_digest:
+state_ledger_previous_event_digest:
+migrator_version:
+source_revision:
+target_revision:
+compiler_and_dependency_identities:
+dependency_lock_files_paths_and_digests:
+complete_build_inputs_manifest_path_and_digest:
+build_command:
+artifact_mode:
+driver_insertion_proof:
+public_test_results:
+capability_map_path_and_digest:
+candidate_source_digest:
+target_patch_digest:
+runtime_artifact_digest:
+session_provenance_digest:
+human_interventions:
+known_unsupported_items:
+sealed_at:
+signer_or_timestamp:
+external_seal_timestamp_receipt:
+candidate_bundle_digest:
+```

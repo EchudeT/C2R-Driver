@@ -84,3 +84,17 @@ def test_asterinas_host_smoke_is_rejected(tmp_path):
     evidence = json.loads(saved.read_text())["execution"]
     assert evidence["container_execution"]["satisfied"] is False
     assert project.stage(S.DRIVER_IMPLEMENTATION).status.value == "RUNNING"
+
+
+def test_smoke_receipt_rechecks_changed_validation_policy(tmp_path):
+    from unittest.mock import patch
+
+    from driver_port_factory.migration.implementation_smoke import implementation_smoke
+    project, tree, _ = setup_smoke(tmp_path)
+    base = load_repository_acquisition(project).target_worktree.base_commit
+    first = implementation_smoke(project, tree, base)
+    with patch("driver_port_factory.migration.implementation_smoke.smoke_policy_digest",
+               return_value="new-validation-policy"):
+        second = implementation_smoke(project, tree, base)
+    assert first["receipt_path"] != second["receipt_path"]
+    assert second["status"] == "PASS"
