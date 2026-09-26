@@ -1,0 +1,285 @@
+{
+  "schema_version": 1,
+  "source_project": "/tmp/e2e-e1000-local-baseline-02",
+  "stage_filter": "driver_implementation",
+  "session_lineage": {
+    "calls": [
+      {
+        "job_id": "a0bf22fd-a2ec-403e-9a7a-3bbed17a8c32",
+        "stage": "driver_implementation",
+        "thread_id": "01a0d8c3-dc45-74a1-aa3e-6b09b56e9d59",
+        "continuity": "resume_with_prior_record",
+        "prior_recorded_calls_same_thread": 11,
+        "prior_recorded_stages_same_thread": [
+          "repository_acquisition",
+          "evidence_closure",
+          "environment_recovery",
+          "target_platform_study",
+          "migration_contracts",
+          "target_framework_enablement"
+        ]
+      },
+      {
+        "job_id": "32667888-8a2e-452f-9886-7598f2f583a1",
+        "stage": "driver_implementation",
+        "thread_id": "01a0d8c3-dc45-74a1-aa3e-6b09b56e9d59",
+        "continuity": "resume_with_prior_record",
+        "prior_recorded_calls_same_thread": 12,
+        "prior_recorded_stages_same_thread": [
+          "repository_acquisition",
+          "evidence_closure",
+          "environment_recovery",
+          "target_platform_study",
+          "migration_contracts",
+          "target_framework_enablement",
+          "driver_implementation"
+        ]
+      },
+      {
+        "job_id": "75a22e44-9188-4b6b-a20d-ec6152deca45",
+        "stage": "driver_implementation",
+        "thread_id": "01a0d8c3-dc45-74a1-aa3e-6b09b56e9d59",
+        "continuity": "resume_with_prior_record",
+        "prior_recorded_calls_same_thread": 13,
+        "prior_recorded_stages_same_thread": [
+          "repository_acquisition",
+          "evidence_closure",
+          "environment_recovery",
+          "target_platform_study",
+          "migration_contracts",
+          "target_framework_enablement",
+          "driver_implementation"
+        ]
+      },
+      {
+        "job_id": "a8e52209-b2ad-4599-b87a-04320730113a",
+        "stage": "driver_implementation",
+        "thread_id": "01a0d8c3-dc45-74a1-aa3e-6b09b56e9d59",
+        "continuity": "resume_with_prior_record",
+        "prior_recorded_calls_same_thread": 14,
+        "prior_recorded_stages_same_thread": [
+          "repository_acquisition",
+          "evidence_closure",
+          "environment_recovery",
+          "target_platform_study",
+          "migration_contracts",
+          "target_framework_enablement",
+          "driver_implementation"
+        ]
+      },
+      {
+        "job_id": "efd7918b-3eb1-4429-bfae-e491001714b7",
+        "stage": "driver_implementation",
+        "thread_id": "01a0d8c3-dc45-74a1-aa3e-6b09b56e9d59",
+        "continuity": "resume_with_prior_record",
+        "prior_recorded_calls_same_thread": 15,
+        "prior_recorded_stages_same_thread": [
+          "repository_acquisition",
+          "evidence_closure",
+          "environment_recovery",
+          "target_platform_study",
+          "migration_contracts",
+          "target_framework_enablement",
+          "driver_implementation"
+        ]
+      },
+      {
+        "job_id": "16c34b82-dde1-4a24-b152-af57c3e49a65",
+        "stage": "driver_implementation",
+        "thread_id": "01a0d8c3-dc45-74a1-aa3e-6b09b56e9d59",
+        "continuity": "resume_with_prior_record",
+        "prior_recorded_calls_same_thread": 16,
+        "prior_recorded_stages_same_thread": [
+          "repository_acquisition",
+          "evidence_closure",
+          "environment_recovery",
+          "target_platform_study",
+          "migration_contracts",
+          "target_framework_enablement",
+          "driver_implementation"
+        ]
+      },
+      {
+        "job_id": "6ffdf5ff-3238-42a1-ae32-22649f9b3246",
+        "stage": "driver_implementation",
+        "thread_id": "01a0d8c3-dc45-74a1-aa3e-6b09b56e9d59",
+        "continuity": "resume_with_prior_record",
+        "prior_recorded_calls_same_thread": 17,
+        "prior_recorded_stages_same_thread": [
+          "repository_acquisition",
+          "evidence_closure",
+          "environment_recovery",
+          "target_platform_study",
+          "migration_contracts",
+          "target_framework_enablement",
+          "driver_implementation"
+        ]
+      },
+      {
+        "job_id": "a1ec3863-f943-43f8-bcc8-e50a582674e1",
+        "stage": "driver_implementation",
+        "thread_id": "01a0d8c3-dc45-74a1-aa3e-6b09b56e9d59",
+        "continuity": "resume_with_prior_record",
+        "prior_recorded_calls_same_thread": 18,
+        "prior_recorded_stages_same_thread": [
+          "repository_acquisition",
+          "evidence_closure",
+          "environment_recovery",
+          "target_platform_study",
+          "migration_contracts",
+          "target_framework_enablement",
+          "driver_implementation"
+        ]
+      },
+      {
+        "job_id": "d4bbd491-1764-4953-8d36-fc0c1d017e50",
+        "stage": "driver_implementation",
+        "thread_id": "01a0d8c3-dc45-74a1-aa3e-6b09b56e9d59",
+        "continuity": "resume_with_prior_record",
+        "prior_recorded_calls_same_thread": 19,
+        "prior_recorded_stages_same_thread": [
+          "repository_acquisition",
+          "evidence_closure",
+          "environment_recovery",
+          "target_platform_study",
+          "migration_contracts",
+          "target_framework_enablement",
+          "driver_implementation"
+        ]
+      },
+      {
+        "job_id": "908745c7-e55a-4cd0-8aa1-454787cc243f",
+        "stage": "driver_implementation",
+        "thread_id": "01a0d8c3-dc45-74a1-aa3e-6b09b56e9d59",
+        "continuity": "resume_with_prior_record",
+        "prior_recorded_calls_same_thread": 20,
+        "prior_recorded_stages_same_thread": [
+          "repository_acquisition",
+          "evidence_closure",
+          "environment_recovery",
+          "target_platform_study",
+          "migration_contracts",
+          "target_framework_enablement",
+          "driver_implementation"
+        ]
+      },
+      {
+        "job_id": "b12239b8-a1af-4281-a487-e509b91f0be7",
+        "stage": "driver_implementation",
+        "thread_id": "01a0d8c3-dc45-74a1-aa3e-6b09b56e9d59",
+        "continuity": "resume_with_prior_record",
+        "prior_recorded_calls_same_thread": 21,
+        "prior_recorded_stages_same_thread": [
+          "repository_acquisition",
+          "evidence_closure",
+          "environment_recovery",
+          "target_platform_study",
+          "migration_contracts",
+          "target_framework_enablement",
+          "driver_implementation"
+        ]
+      },
+      {
+        "job_id": "b6d25d42-cf3d-41b7-aa47-1d8c44143d2c",
+        "stage": "driver_implementation",
+        "thread_id": "01a0d8c3-dc45-74a1-aa3e-6b09b56e9d59",
+        "continuity": "resume_with_prior_record",
+        "prior_recorded_calls_same_thread": 22,
+        "prior_recorded_stages_same_thread": [
+          "repository_acquisition",
+          "evidence_closure",
+          "environment_recovery",
+          "target_platform_study",
+          "migration_contracts",
+          "target_framework_enablement",
+          "driver_implementation"
+        ]
+      },
+      {
+        "job_id": "ad9fd349-6860-4fa2-895e-a64cdbffc625",
+        "stage": "driver_implementation",
+        "thread_id": "01a0d8c3-dc45-74a1-aa3e-6b09b56e9d59",
+        "continuity": "resume_with_prior_record",
+        "prior_recorded_calls_same_thread": 23,
+        "prior_recorded_stages_same_thread": [
+          "repository_acquisition",
+          "evidence_closure",
+          "environment_recovery",
+          "target_platform_study",
+          "migration_contracts",
+          "target_framework_enablement",
+          "driver_implementation"
+        ]
+      },
+      {
+        "job_id": "5c827f1a-8c66-44f8-b71b-beda105d8eb3",
+        "stage": "driver_implementation",
+        "thread_id": "01a0d8c3-dc45-74a1-aa3e-6b09b56e9d59",
+        "continuity": "resume_with_prior_record",
+        "prior_recorded_calls_same_thread": 24,
+        "prior_recorded_stages_same_thread": [
+          "repository_acquisition",
+          "evidence_closure",
+          "environment_recovery",
+          "target_platform_study",
+          "migration_contracts",
+          "target_framework_enablement",
+          "driver_implementation"
+        ]
+      },
+      {
+        "job_id": "8b13658c-b337-49ca-add1-f70865c9e68b",
+        "stage": "driver_implementation",
+        "thread_id": "01a0d8c3-dc45-74a1-aa3e-6b09b56e9d59",
+        "continuity": "resume_with_prior_record",
+        "prior_recorded_calls_same_thread": 25,
+        "prior_recorded_stages_same_thread": [
+          "repository_acquisition",
+          "evidence_closure",
+          "environment_recovery",
+          "target_platform_study",
+          "migration_contracts",
+          "target_framework_enablement",
+          "driver_implementation"
+        ]
+      },
+      {
+        "job_id": "69eaf2e3-82d8-4d7f-86e2-f89df73c480e",
+        "stage": "driver_implementation",
+        "thread_id": "01a0d93e-26ae-7713-9d5c-336f23490a89",
+        "continuity": "fresh",
+        "prior_recorded_calls_same_thread": 0,
+        "prior_recorded_stages_same_thread": []
+      }
+    ],
+    "observed_thread_count": 2,
+    "effective_context": "unknown",
+    "observed_compactions": null,
+    "note": "Prior records cover the whole run even with a stage filter. Resume metadata does not prove which messages survived compaction. Configured compaction limits and cumulative input tokens do not count observed compactions. Different threads may be independent workers or reviewers, not resets."
+  },
+  "available_rollout": {
+    "path": "/home/unix/.codex/sessions/2026/09/25/rollout-2026-09-25T23-45-24-01a0d93e-26ae-7713-9d5c-336f23490a89.jsonl",
+    "sha256": "df7f01810ed05a5f890c8e0c734031af8a6e885376daf74eb8e820e2d181a650",
+    "record_types": {
+      "session_meta": 1,
+      "event_msg": 42,
+      "response_item": 45,
+      "world_state": 1,
+      "turn_context": 1,
+      "token_usage_record": 13
+    },
+    "scope": "Last fresh repair invocation only; not the preceding multi-stage thread."
+  },
+  "long_thread_lookup": {
+    "thread_id": "01a0d8c3-dc45-74a1-aa3e-6b09b56e9d59",
+    "result": "not_found_in_checked_locations",
+    "checked": [
+      "CODEX_HOME/sessions filename search",
+      "CODEX_HOME/archived_sessions filename search",
+      "state_5.sqlite exact threads.id",
+      "thread_history_1.sqlite exact thread_items.thread_id"
+    ],
+    "limitation": "Does not establish deletion or absence in other stores; actual compactions unknown."
+  },
+  "conclusion": "No native full-history versus reset causal comparison is available."
+}

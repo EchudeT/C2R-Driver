@@ -158,6 +158,7 @@ def project_statistics(project, *, pricing_model=None, pricing_tier=None) -> dic
                 "job_id": job["job_id"],
                 "call_reason": reason,
                 "thread_id": thread,
+                "resumed": job.get("resumed"),
                 "usage": usage,
                 "estimate": quote,
                 "model": model,

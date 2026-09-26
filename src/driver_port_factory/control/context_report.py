@@ -131,11 +131,45 @@ def context_report(project, *, stage: str | None = None) -> dict:
         "by_policy": {key: aggregate(value) for key, value in policies.items()},
         "by_epoch": {key: aggregate(value) for key, value in epochs.items()},
         "history": _history(project, stage), "jobs": jobs,
+        "session_lineage": session_lineage(stats["jobs"], stage=stage),
         "stages": stats["stages"], "evidence": stats["evidence"],
         "quality": {"required_obligations_omitted": None, "repeated_investigations": None,
                     "assessment": "Requires a common functional oracle and report review; "
                                   "not inferred from report keywords or stage PASS."},
         "cost_note": stats["note"],
+    }
+
+
+def session_lineage(jobs: list[dict], *, stage: str | None = None) -> dict:
+    """Expose recorded continuity without claiming to know effective model context."""
+    seen = {}
+    calls = []
+    for job in jobs:
+        thread = job.get("thread_id")
+        prior = seen.get(thread, []) if thread else []
+        resumed = job.get("resumed")
+        continuity = (
+            "fresh" if resumed is False else
+            "resume_with_prior_record" if resumed is True and prior else
+            "resume_without_prior_record" if resumed is True else "unknown")
+        if stage is None or job["stage"] == stage:
+            calls.append({
+                "job_id": job["job_id"], "stage": job["stage"], "thread_id": thread,
+                "continuity": continuity,
+                "prior_recorded_calls_same_thread": len(prior),
+                "prior_recorded_stages_same_thread": list(dict.fromkeys(prior)),
+            })
+        if thread:
+            seen.setdefault(thread, []).append(job["stage"])
+    return {
+        "calls": calls,
+        "observed_thread_count": len({c["thread_id"] for c in calls if c["thread_id"]}),
+        "effective_context": "unknown",
+        "observed_compactions": None,
+        "note": "Prior records cover the whole run even with a stage filter. Resume metadata "
+                "does not prove which messages survived compaction. Configured compaction "
+                "limits and cumulative input tokens do not count observed compactions. "
+                "Different threads may be independent workers or reviewers, not resets.",
     }
 
 
