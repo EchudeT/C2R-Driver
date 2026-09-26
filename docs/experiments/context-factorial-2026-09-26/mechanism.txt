@@ -1,0 +1,41 @@
+{
+  "source_excerpts": [
+    {
+      "role": "source",
+      "revision": "587858367581b9c55c3690f4e63382ad622719d4",
+      "path": "drivers/net/ethernet/intel/e1000/e1000_main.c",
+      "sha256": "c4d30549844a5476fa5a91f5a14267d597c909b10d927361b1fefd8b1f8a06c2",
+      "start_line": 250,
+      "end_line": 262,
+      "excerpt": "static int e1000_request_irq(struct e1000_adapter *adapter)\n{\n\tstruct net_device *netdev = adapter->netdev;\n\tirq_handler_t handler = e1000_intr;\n\tint irq_flags = IRQF_SHARED;\n\tint err;\n\n\terr = request_irq(adapter->pdev->irq, handler, irq_flags, netdev->name,\n\t\t\t  netdev);\n\tif (err) {\n\t\te_err(probe, \"Unable to allocate interrupt Error: %d\\n\", err);\n\t}\n"
+    },
+    {
+      "role": "qemu",
+      "revision": "2d3df8abca265c9bcc9e438d691d561592060998",
+      "path": "hw/net/e1000.c",
+      "sha256": "d2a4111660c099aa99c2dfd24f48075fdf30275b1fbeb0df8abd84c12ff86be8",
+      "start_line": 331,
+      "end_line": 337,
+      "excerpt": "                  mit_delay * 256);\n        s->mit_ide = 0;\n    }\n\n    s->mit_irq_level = (pending_ints != 0);\n    pci_set_irq(d, s->mit_irq_level);\n}"
+    },
+    {
+      "role": "qemu",
+      "revision": "2d3df8abca265c9bcc9e438d691d561592060998",
+      "path": "hw/net/e1000.c",
+      "sha256": "d2a4111660c099aa99c2dfd24f48075fdf30275b1fbeb0df8abd84c12ff86be8",
+      "start_line": 1626,
+      "end_line": 1644,
+      "excerpt": "static void pci_e1000_realize(PCIDevice *pci_dev, Error **errp)\n{\n    DeviceState *dev = DEVICE(pci_dev);\n    E1000State *d = E1000(pci_dev);\n    uint8_t *pci_conf;\n    uint8_t *macaddr;\n\n    pci_dev->config_write = e1000_write_config;\n\n    pci_conf = pci_dev->config;\n\n    /* TODO: RST# value should be 0, PCI spec 6.2.4 */\n    pci_conf[PCI_CACHE_LINE_SIZE] = 0x10;\n\n    pci_conf[PCI_INTERRUPT_PIN] = 1; /* interrupt pin A */\n\n    e1000_mmio_setup(d);\n\n    pci_register_bar(pci_dev, 0, PCI_BASE_ADDRESS_SPACE_MEMORY, &d->mmio);"
+    },
+    {
+      "role": "target",
+      "revision": "d4b407ca87de203f79c27c9a83ada1d8223fe280",
+      "path": "kernel/core/comps/pci/src/common_device.rs",
+      "sha256": "38b02edbccdcfc1ef87849772527c3fe2b3ff1e7c95ba3c1af1a2c7990f064e0",
+      "start_line": 72,
+      "end_line": 80,
+      "excerpt": "    /// Acquires necessary resources to build the MSI-X capability data, if the capability exists.\n    ///\n    /// Note that the MSI-X capability data occupies some memory BARs. Therefore, it will fail if\n    /// the necessary resources are not available.\n    pub fn acquire_msix_capability(&mut self) -> Result<Option<CapabilityMsixData>> {\n        self.capabilities\n            .acquire_msix_data(&self.location, &mut self.bar_manager)\n    }\n"
+    }
+  ],
+  "note": "These excerpts are source evidence, not a diagnosis. They do not exhaust the target platform routing implementation. Decide what is established and what still needs inspection."
+}

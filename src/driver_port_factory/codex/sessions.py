@@ -109,6 +109,9 @@ def input_changes(context: dict, known: dict[str, str]) -> tuple[dict, dict[str,
             else:
                 for key, child in value.items():
                     visit(child, (*location, key))
+        elif isinstance(value, list):
+            for index, child in enumerate(value):
+                visit(child, (*location, str(index)))
 
     visit(context, ())
     return {**context, "input_changes": changes}, supplied

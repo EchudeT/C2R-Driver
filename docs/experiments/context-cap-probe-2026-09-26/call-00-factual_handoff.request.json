@@ -1,0 +1,17 @@
+{
+  "model": "gpt-5.6-sol",
+  "store": false,
+  "stream": true,
+  "max_output_tokens": 64,
+  "service_tier": "default",
+  "reasoning": {
+    "effort": "low"
+  },
+  "instructions": "Follow the user formatting request. Do not use tools.",
+  "input": [
+    {
+      "role": "user",
+      "content": "Output-limit transport check. No driver task.\n\n\nOutput-limit transport check. No driver task.\n\n\nPrint the integers 1 through 200 separated by spaces. Do not abbreviate or add commentary."
+    }
+  ]
+}

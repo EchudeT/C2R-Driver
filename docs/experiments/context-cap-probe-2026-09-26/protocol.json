@@ -1,0 +1,26 @@
+{
+  "model": "gpt-5.6-sol",
+  "max_output_tokens": 64,
+  "reasoning_effort": "low",
+  "authorized_budget_usd": 0.1,
+  "order": [
+    "factual_handoff"
+  ],
+  "files": {
+    "current": {
+      "path": "current.txt",
+      "sha256": "5cb73237aec6158bddc0f863a295a5cf963894cb6189db00f19e271b127aedc4"
+    },
+    "history": {
+      "path": "history.txt",
+      "sha256": "5cb73237aec6158bddc0f863a295a5cf963894cb6189db00f19e271b127aedc4"
+    },
+    "handoff": {
+      "path": "handoff.txt",
+      "sha256": "5cb73237aec6158bddc0f863a295a5cf963894cb6189db00f19e271b127aedc4"
+    }
+  },
+  "instructions": "Follow the user formatting request. Do not use tools.",
+  "task": "Print the integers 1 through 200 separated by spaces. Do not abbreviate or add commentary.",
+  "purpose": "Single controlled probe: check whether requested cap bounds actual output; no automatic retry. Prior study estimate $0.5507184 counts toward shared $20 authorization."
+}

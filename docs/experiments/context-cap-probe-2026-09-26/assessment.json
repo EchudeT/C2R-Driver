@@ -1,0 +1,9 @@
+{
+  "requested_output_limit": 64,
+  "observed_output_tokens": 403,
+  "limit_enforced": false,
+  "known_estimated_usd": 0.008296,
+  "cumulative_known_estimated_usd": 0.5590144,
+  "action": "Stop paid follow-up on this channel; preserve diagnostic result, do not silently switch providers.",
+  "note": "Original metrics retained verbatim; new evaluator classifies this as provider_exceeded_output_cap."
+}

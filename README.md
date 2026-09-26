@@ -284,3 +284,5 @@ bash -n scripts/*.sh
 可选 `--context-policy implementation-handoff` 在契约冻结后的首次实现调用前交接一次，连续修复仍复用会话；默认 `persistent`。用 `dpf codex context-report RUN [--compare OTHER_RUN] [--stage STAGE]` 查看费用、缓存、epoch 与证据，不调用模型，也不把执行 PASS 当成质量等价。实现和真实小规模实验见 [上下文策略与 pilot](docs/CONTEXT_POLICY_PILOT_2026-09-26.zh-CN.md)。
 
 交接包现在携带同一修复周期的最近两条 controller observation 及变化，帮助核对过期归因；`context-report` 增加保持 token 不变的缓存成本敏感性统计。两者均不触发新门禁或付费调用。证据、边界和下一步实验设计见 [后续优化研究](docs/WORKFLOW_OPTIMIZATION_FOLLOWUP_2026-09-26.zh-CN.md)。
+
+第二轮限额探针发现当前中转在请求输出上限 64 时实际返回 403 token，因此已停止后续付费实验；信息更对等的四组实验材料已冻结为 dry-run。执行器限额诊断与列表证据变化跟踪已改进，见 [第二轮实验记录](docs/CONTEXT_EXPERIMENT_ROUND2_2026-09-26.zh-CN.md)。

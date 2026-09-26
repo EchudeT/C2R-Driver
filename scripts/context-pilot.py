@@ -10,6 +10,7 @@ import argparse
 import fcntl
 import hashlib
 import json
+import math
 import os
 import time
 import tomllib
@@ -38,14 +39,19 @@ def load_protocol(path):
 def payload_for(protocol, root, arm):
     def content(key):
         return (root / protocol["files"][key]["path"]).read_text()
-    history = content("history") if arm == "history_replay" else content("handoff")
+    if "arms" in protocol:
+        material = "\n\n".join(content(key) for key in protocol["arms"][arm])
+    else:
+        if arm not in {"history_replay", "factual_handoff"}:
+            raise ValueError("unknown pilot arm")
+        history = content("history") if arm == "history_replay" else content("handoff")
+        material = history + "\n\n" + content("current")
     return {
         "model": protocol["model"], "store": False, "stream": True,
         "max_output_tokens": protocol["max_output_tokens"], "service_tier": "default",
         "reasoning": {"effort": protocol["reasoning_effort"]},
         "instructions": protocol["instructions"],
-        "input": [{"role": "user", "content": history + "\n\n" + content("current")
-                   + "\n\n" + protocol["task"]}],
+        "input": [{"role": "user", "content": material + "\n\n" + protocol["task"]}],
     }
 
 
@@ -105,6 +111,10 @@ def response_text(events_path):
 
 
 def run_call(directory, protocol, index, arm, *, budget):
+    if protocol.get("execution_blocked"):
+        raise ValueError("pilot protocol blocks execution: " + protocol["execution_blocked"])
+    if not math.isfinite(budget) or budget <= 0:
+        raise ValueError("pilot budget must be finite and positive")
     payload = payload_for(protocol, directory, arm)
     prefix = directory / f"call-{index:02d}-{arm}"
     metrics_path = prefix.with_suffix(".metrics.json")
@@ -115,6 +125,10 @@ def run_call(directory, protocol, index, arm, *, budget):
         return  # A failed/unfinished attempt remains charged against the reserve.
     spent = sum(json.loads(path.read_text())["reserved_usd"]
                 for path in directory.glob("call-*.metrics.json"))
+    for path in directory.glob("call-*.metrics.json"):
+        prior = json.loads(path.read_text())
+        if prior.get("stop_reason") or prior["state"] != "COMPLETED" or prior["estimate"] is None:
+            raise ValueError("prior uncertain call prevents further provider access")
     reserve = reserve_usd(payload)
     if spent + reserve > budget:
         raise ValueError("pilot conservative reservation would exceed the authorized budget")
@@ -143,8 +157,7 @@ def run_call(directory, protocol, index, arm, *, budget):
                                            final.get("service_tier") or "default")
         metrics["served_model"] = final.get("model")
         metrics["state"] = final.get("status", "unknown").upper()
-        if final.get("max_output_tokens") != payload["max_output_tokens"]:
-            metrics["stop_reason"] = "provider_did_not_confirm_output_cap"
+        metrics["stop_reason"] = response_stop_reason(final, payload)
     except Exception as error:
         # Provider bodies and URLs may contain sensitive operational details.
         metrics["state"] = "FAILED"
@@ -158,12 +171,25 @@ def run_call(directory, protocol, index, arm, *, budget):
         print(json.dumps(metrics), flush=True)
 
 
+def response_stop_reason(final, payload):
+    actual = (final.get("usage") or {}).get("output_tokens")
+    if type(actual) is int and actual > payload["max_output_tokens"]:
+        return "provider_exceeded_output_cap"
+    if final.get("model") != payload["model"]:
+        return "provider_model_identity_mismatch"
+    if final.get("max_output_tokens") != payload["max_output_tokens"]:
+        return "provider_did_not_confirm_output_cap"
+    return None
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("directory", type=Path)
     parser.add_argument("--execute", action="store_true")
     parser.add_argument("--budget-usd", type=float, default=0)
     args = parser.parse_args()
+    if args.execute and (not math.isfinite(args.budget_usd) or args.budget_usd <= 0):
+        raise ValueError("pilot budget must be finite and positive")
     protocol = load_protocol(args.directory / "protocol.json")
     expected = sum(reserve_usd(payload_for(protocol, args.directory, arm))
                    for arm in protocol["order"])
@@ -171,6 +197,8 @@ def main():
                       "execute": args.execute}), flush=True)
     if not args.execute:
         return
+    if protocol.get("execution_blocked"):
+        raise ValueError("pilot protocol blocks execution: " + protocol["execution_blocked"])
     if expected > args.budget_usd or args.budget_usd > protocol["authorized_budget_usd"]:
         raise ValueError("requested plan does not fit the frozen authorized budget")
     with (args.directory / ".pilot.lock").open("a") as lock:

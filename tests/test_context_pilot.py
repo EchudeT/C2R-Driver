@@ -46,3 +46,56 @@ def test_streamed_answer_survives_empty_terminal_output(tmp_path):
         {"type": "response.completed", "response": {"output": []}},
     ]))
     assert pilot.response_text(path) == "hello world"
+
+
+def test_actual_limit_violation_takes_precedence_over_missing_echo():
+    payload = {"model": "gpt-5.6-sol", "max_output_tokens": 64}
+    final = {"model": "gpt-5.6-sol", "max_output_tokens": None,
+             "usage": {"output_tokens": 403}}
+    assert pilot.response_stop_reason(final, payload) == "provider_exceeded_output_cap"
+    final["usage"]["output_tokens"] = 32
+    assert pilot.response_stop_reason(final, payload) == "provider_did_not_confirm_output_cap"
+    final["max_output_tokens"] = 64
+    assert pilot.response_stop_reason(final, payload) is None
+
+
+@pytest.mark.parametrize("budget", [float("nan"), float("inf"), -1, 0])
+def test_invalid_budget_prevents_provider_access(tmp_path, budget):
+    with (patch.object(pilot, "connection") as connect,
+          pytest.raises(ValueError, match="finite and positive")):
+        pilot.run_call(tmp_path, {}, 0, "factual_handoff", budget=budget)
+    connect.assert_not_called()
+
+
+def test_failed_attempt_blocks_a_different_call(tmp_path):
+    (tmp_path / "protocol.json").write_text("{}")
+    (tmp_path / "call-00.metrics.json").write_text(json.dumps({
+        "state": "FAILED", "reserved_usd": 0.1, "estimate": None}))
+    payload = {"model": "gpt-5.6-sol", "max_output_tokens": 64}
+    with (patch.object(pilot, "payload_for", return_value=payload),
+          patch.object(pilot, "connection") as connect,
+          pytest.raises(ValueError, match="prior uncertain")):
+        pilot.run_call(tmp_path, {}, 1, "history_replay", budget=20)
+    connect.assert_not_called()
+
+
+def test_factorial_arms_only_receive_declared_material(tmp_path):
+    for name in ("shared", "history", "mechanism"):
+        (tmp_path / name).write_text(name.upper())
+    protocol = {"files": {name: {"path": name} for name in
+                          ("shared", "history", "mechanism")},
+                "arms": {"compact": ["shared"], "enriched": ["shared", "mechanism"]},
+                "model": "gpt-5.6-sol", "max_output_tokens": 64,
+                "reasoning_effort": "low", "instructions": "instructions", "task": "task"}
+    compact = pilot.payload_for(protocol, tmp_path, "compact")["input"][0]["content"]
+    enriched = pilot.payload_for(protocol, tmp_path, "enriched")["input"][0]["content"]
+    assert compact == "SHARED\n\ntask"
+    assert enriched == "SHARED\n\nMECHANISM\n\ntask"
+
+
+def test_protocol_block_precedes_provider_access(tmp_path):
+    with (patch.object(pilot, "connection") as connect,
+          pytest.raises(ValueError, match="protocol blocks execution")):
+        pilot.run_call(tmp_path, {"execution_blocked": "output cap not enforced"},
+                       0, "compact", budget=20)
+    connect.assert_not_called()

@@ -1,0 +1,12 @@
+{
+  "assessment": "manual nonblind developer diagnosis; not a functional oracle",
+  "criteria": [
+    "Uses latest receipt to correct obsolete container-observation claim.",
+    "Rejects marker and helper-only PASS as proof of boot/device operation.",
+    "Identifies missing real device data path and preserves all frozen required behavior.",
+    "Separates generic API availability from device-specific interrupt capability/routing evidence; does not prescribe unsupported MSI-X as settled.",
+    "Proposes bounded targeted source/platform check and real operation validation without weakening scope.",
+    "Distinguishes direct observations, report claims and remaining unknowns."
+  ],
+  "grading": "One point per explicit criterion, same criteria for all arms. Missing information may appropriately lead to uncertainty. No token/length-based quality score. False completion is a separate critical error."
+}
