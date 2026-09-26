@@ -1,0 +1,81 @@
+{
+  "facts": [
+    {
+      "observation": "The latest smoke remains FAIL even though the execution command exited 0, container execution was satisfied, container_qemu_execs contains qemu-system-x86_64, and runtime_bound is true.",
+      "evidence": "latest runtime receipt: status, execution.command.exit_code, container_qemu_execs, container_execution.satisfied, runtime_bound"
+    },
+    {
+      "observation": "The QEMU invocation cannot exercise the migrated driver: it uses -S, supplies the text marker as a raw virtio drive, and supplies no bootable Asterinas kernel. Therefore no guest code, PCI probe, or network path is evidenced.",
+      "evidence": "current implementation smoke helper; current runtime artifact bytes; latest runtime receipt qemu_execs"
+    },
+    {
+      "observation": "The helper prints E1000_COMPONENT_INIT, PCI_BIND, NETWORK_REGISTER, and TX_RX PASS without checking guest output or packet results. These strings are unsupported assertions rather than functional oracles.",
+      "evidence": "current implementation smoke helper"
+    },
+    {
+      "observation": "The Rust component performs exact 8086:100e filtering, but then registers aster_bigtcp::device::Loopback and discards PciCommonDevice. It contains no BAR acquisition, MMIO reset/configuration, descriptor rings, DMA buffers, IRQ setup, TX, RX, or recovery logic.",
+      "evidence": "current driver source; contracts E1000-C01 through E1000-C09"
+    },
+    {
+      "observation": "The source and QEMU evidence points to a shared PCI interrupt/INTx path: Linux requests pdev->irq with IRQF_SHARED, and the QEMU model exposes interrupt pin A and calls pci_set_irq. The supplied target excerpt establishes only optional MSI-X acquisition, not an e1000-compatible interrupt route.",
+      "evidence": "e1000_main.c:250-262 excerpt; QEMU hw/net/e1000.c:331-337 and 1626-1644 excerpts; target common_device.rs:72-80 excerpt"
+    },
+    {
+      "observation": "Existing target APIs may provide network, DMA, and interrupt primitives, but their existence does not establish their correct integration into this driver.",
+      "evidence": "target-framework enablement report; frozen migration contracts; current driver source"
+    }
+  ],
+  "superseded_claims": [
+    {
+      "claim": "container_qemu_execs was empty and container_execution.satisfied was false because nested Docker processes were outside the controller observation namespace.",
+      "judgment": "Contradicted as a current blocker and overgeneralized historically.",
+      "evidence": "latest receipt records container_qemu_execs=[qemu-system-x86_64] and satisfied=true with no observation errors. Older receipts 4, 5, 7, and 11 also observed container QEMU successfully."
+    },
+    {
+      "claim": "The current smoke demonstrates PCI binding, network registration, or TX/RX.",
+      "judgment": "Contradicted.",
+      "evidence": "QEMU is paused with -S and has no bootable guest; the helper emits PASS labels unconditionally after accepting timeout."
+    },
+    {
+      "claim": "The implementation is a migrated e1000 data path.",
+      "judgment": "Contradicted.",
+      "evidence": "current source registers Loopback and implements none of E1000-C02 through E1000-C08 hardware behavior."
+    },
+    {
+      "claim": "Framework capability checks or compilation PASS establish device behavior.",
+      "judgment": "Not supported.",
+      "evidence": "target-framework report is capability-level only; contracts explicitly say no implemented behavior is VERIFIED; latest functional receipt is FAIL."
+    }
+  ],
+  "unresolved_obligations": [
+    "E1000-C01 needs runtime proof that only 8086:100e is claimed; source filtering alone is insufficient.",
+    "E1000-C02 and C03: retain PciCommonDevice/BAR0 ownership, enable required PCI access, perform bounded reset, and initialize registers before traffic.",
+    "E1000-C04 and C05: implement real DMA-backed TX/RX descriptor ownership, wraparound, completion, validation, recycling, and payload delivery.",
+    "E1000-C06: establish the supported INTx or other model-compatible target route, acknowledge/mask/re-enable causes, and defer network work safely.",
+    "E1000-C07: prove locking, DMA visibility, MMIO ordering, and buffer lifetimes.",
+    "E1000-C08: implement failure unwind and reset cleanup for BAR, rings, IRQs, and buffers; dynamic unload may remain not applicable.",
+    "E1000-C09: replace Loopback with a driver-owned AnyNetworkDevice connected to hardware queues and callbacks.",
+    "Produce a bootable artifact and genuine device tests; retain the blocked Linux generated-config/compiler-layout obligation rather than inferring ABI facts."
+  ],
+  "next_actions": [
+    "Replace the marker artifact and assertion-only helper with a bootable Asterinas image and fail-closed smoke oracle based on captured guest serial/events; remove -S and the unconditional TX_RX PASS.",
+    "Inspect and document the exact target INTx/shared-IRQ registration path and AnyNetworkDevice plus DMA ownership contracts. If INTx is unavailable, record a narrowly scoped target-change necessity instead of assuming MSI-X works for QEMU e1000.",
+    "Implement the smallest real probe path first: exact ID match, retained PciCommonDevice, BAR0 acquisition, PCI enablement, bounded reset, register initialization, and truthful probe/error markers.",
+    "Then implement and test one bounded TX and RX frame with descriptor/IRQ counters, exact payload and length oracles, malformed-frame handling, wraparound/reclaim, and failure cleanup."
+  ],
+  "success_evidence_required": [
+    "Hash-bound bootable kernel artifact containing the e1000 component, with the exact container image and QEMU command recorded.",
+    "Guest-originated serial evidence for PCI identity, BAR0 acquisition, reset completion, interface registration, and rejection/non-claim of nonmatching IDs.",
+    "Externally observed TX and RX with unique run ID, exact payload and length, descriptor completion, interrupt-cause handling, and no error status.",
+    "Tests for RX error/length rejection, ring wraparound, TX stop/wake or equivalent backpressure, reset timeout, and resource unwind.",
+    "Source/static evidence that Loopback is absent from the e1000 registration path and that device/BAR/DMA/IRQ ownership is retained for required lifetimes.",
+    "A new functional receipt marked PASS; earlier mechanical or framework PASS results are not substitutes."
+  ],
+  "uncertainty": [
+    "The supplied evidence does not show whether this QEMU e1000 model advertises MSI-X; the excerpts positively show legacy interrupt pin behavior only.",
+    "The exact Asterinas INTx/shared interrupt registration path has not been supplied.",
+    "The target reports describe DMA and AnyNetworkDevice APIs, but their detailed ownership, cache-coherency, and callback constraints still require driver-level inspection.",
+    "Reported cargo checks are prose evidence without corresponding command logs in the latest receipt and do not resolve runtime behavior.",
+    "Exact Linux compiled layouts and ordering remain blocked by the missing generated configuration, headers, compiler target, and flags."
+  ]
+}

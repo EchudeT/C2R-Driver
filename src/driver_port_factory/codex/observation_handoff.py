@@ -2,6 +2,7 @@
 
 import json
 import sqlite3
+from itertools import pairwise
 
 
 def observation_handoff(project, stage) -> dict:
@@ -24,18 +25,11 @@ def observation_handoff(project, stage) -> dict:
             observations.append({"event_sequence": sequence, "receipt": value.get("receipt"),
                                  "fingerprint": value["fingerprint"],
                                  "observation": value.get("observation")})
-        if len(observations) == 2:
-            break
-    changes = []
-    if len(observations) == 2:
-        current, previous = (item["observation"] for item in observations)
-        if isinstance(current, dict) and isinstance(previous, dict):
-            for field in sorted(current.keys() & previous.keys()):
-                if current[field] != previous[field]:
-                    changes.append({"field": field, "previous": previous[field],
-                                    "current": current[field]})
+    recent = observations[:2]
+    changes = observation_changes(*recent) if len(recent) == 2 else []
     return {
-        "recent": observations, "changes": changes,
+        "recent": recent, "changes": changes,
+        "last_transition": last_transition(observations),
         "instruction": "These are historical observations at the cited ledger events, not "
                        "current execution guarantees. Recheck old diagnoses against these facts "
                        "and current inputs. Changed inputs may explain differences; missing "
@@ -43,3 +37,26 @@ def observation_handoff(project, stage) -> dict:
                        "establish device behavior. Do not repeat a disproved diagnosis or "
                        "infer that the whole blocker is resolved from one changed field.",
     }
+
+
+def observation_changes(current, previous):
+    current, previous = current["observation"], previous["observation"]
+    if not isinstance(current, dict) or not isinstance(previous, dict):
+        return []
+    return [{"field": field, "previous": previous[field], "current": current[field]}
+            for field in sorted(current.keys() & previous.keys())
+            if current[field] != previous[field]]
+
+
+def last_transition(observations):
+    """Retain a transition across repeated identical snapshots, not across unknowns."""
+    for current, previous in pairwise(observations):
+        a, b = current["observation"], previous["observation"]
+        if not isinstance(a, dict) or not isinstance(b, dict) or not a or not b:
+            break
+        changes = observation_changes(current, previous)
+        if changes:
+            return {"previous": previous, "current": current, "changes": changes}
+        if a != b:
+            break  # Missing/new fields do not establish a stable intervening observation.
+    return None

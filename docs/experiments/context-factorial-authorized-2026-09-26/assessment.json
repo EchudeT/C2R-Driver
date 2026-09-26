@@ -1,0 +1,276 @@
+{
+  "schema_version": 1,
+  "method": "Manual nonblind developer review of all eight answers against frozen six-item rubric. No paid grader.",
+  "protocol_sha256": "de59659c1c45916b315ea44a60ec864228f52f8d602733e9de48a31316fff2e8",
+  "total_estimated_usd": 0.7996352,
+  "cumulative_known_estimated_usd": 1.3586496,
+  "groups": {
+    "compact": {
+      "calls": 2,
+      "estimated_usd": 0.15074,
+      "input_tokens": 20550,
+      "cached_input_tokens": 0,
+      "output_tokens": 3427,
+      "mean_rubric_score": 5.5,
+      "median_seconds": 79.9315,
+      "explicit_mechanism_distinction_count": 0
+    },
+    "history": {
+      "calls": 2,
+      "estimated_usd": 0.2273424,
+      "input_tokens": 66032,
+      "cached_input_tokens": 32896,
+      "output_tokens": 4082,
+      "mean_rubric_score": 5.5,
+      "median_seconds": 45.061499999999995,
+      "explicit_mechanism_distinction_count": 0
+    },
+    "compact_mechanism": {
+      "calls": 2,
+      "estimated_usd": 0.190068,
+      "input_tokens": 22562,
+      "cached_input_tokens": 0,
+      "output_tokens": 4991,
+      "mean_rubric_score": 6,
+      "median_seconds": 59.149,
+      "explicit_mechanism_distinction_count": 2
+    },
+    "history_mechanism": {
+      "calls": 2,
+      "estimated_usd": 0.2314848,
+      "input_tokens": 68044,
+      "cached_input_tokens": 33792,
+      "output_tokens": 4048,
+      "mean_rubric_score": 6,
+      "median_seconds": 47.8665,
+      "explicit_mechanism_distinction_count": 2
+    }
+  },
+  "calls": [
+    {
+      "call": "call-00-compact",
+      "index": 0,
+      "arm": "compact",
+      "state": "COMPLETED",
+      "usage": {
+        "input_tokens": 10275,
+        "cached_input_tokens": 0,
+        "output_tokens": 2047,
+        "cache_write_input_tokens": 0
+      },
+      "estimated_usd": 0.08204,
+      "elapsed_seconds": 74.38,
+      "rubric_scores": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1
+      ],
+      "rubric_total": 6,
+      "manual_review_note": "C4 credited: explicitly requires supported e1000 interrupt route and says correct mode mapping remains unproven. No concrete INTA/MSI-X distinction.",
+      "explicit_INTA_optional_MSIX_distinction": false,
+      "critical_false_completion_claim": false,
+      "answer_sha256": "5cddf681e185a77e9256554ab032705a5080b2bc17ed84347cbad48ef180d367"
+    },
+    {
+      "call": "call-01-history",
+      "index": 1,
+      "arm": "history",
+      "state": "COMPLETED",
+      "usage": {
+        "input_tokens": 33016,
+        "cached_input_tokens": 0,
+        "output_tokens": 1969,
+        "cache_write_input_tokens": 0
+      },
+      "estimated_usd": 0.171444,
+      "elapsed_seconds": 39.175,
+      "rubric_scores": [
+        1,
+        1,
+        1,
+        0,
+        1,
+        1
+      ],
+      "rubric_total": 5,
+      "manual_review_note": "C4 not credited: proposes existing IRQ-to-softirq route without explicitly questioning the device interrupt mode/API preconditions; generic integration caveat is insufficient.",
+      "explicit_INTA_optional_MSIX_distinction": false,
+      "critical_false_completion_claim": false,
+      "answer_sha256": "c5a3a4dc9e0a4cc28f9596ad0c718583a4d6d6b57750a253d3f15179b30995a0"
+    },
+    {
+      "call": "call-02-history_mechanism",
+      "index": 2,
+      "arm": "history_mechanism",
+      "state": "COMPLETED",
+      "usage": {
+        "input_tokens": 34022,
+        "cached_input_tokens": 0,
+        "output_tokens": 2075,
+        "cache_write_input_tokens": 0
+      },
+      "estimated_usd": 0.177588,
+      "elapsed_seconds": 44.27,
+      "rubric_scores": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1
+      ],
+      "rubric_total": 6,
+      "manual_review_note": "C4 credited: cites Linux shared IRQ, QEMU pin A/pci_set_irq, optional target MSI-X, requests INTx evidence.",
+      "explicit_INTA_optional_MSIX_distinction": true,
+      "critical_false_completion_claim": false,
+      "answer_sha256": "abf4c4873ceb8fe6ef87e24d76beb99eff1ef80fbc397dfa832f2bd3d7df96d2"
+    },
+    {
+      "call": "call-03-compact_mechanism",
+      "index": 3,
+      "arm": "compact_mechanism",
+      "state": "COMPLETED",
+      "usage": {
+        "input_tokens": 11281,
+        "cached_input_tokens": 0,
+        "output_tokens": 2099,
+        "cache_write_input_tokens": 0
+      },
+      "estimated_usd": 0.087104,
+      "elapsed_seconds": 44.116,
+      "rubric_scores": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1
+      ],
+      "rubric_total": 6,
+      "manual_review_note": "C4 credited: uncertainty explicitly contrasts legacy/shared source/QEMU path with optional target MSI-X.",
+      "explicit_INTA_optional_MSIX_distinction": true,
+      "critical_false_completion_claim": false,
+      "answer_sha256": "8bc2bccda5690ec15608e4dc86253b79a9e968581681d3c61583b353d4d91f03"
+    },
+    {
+      "call": "call-04-compact_mechanism",
+      "index": 4,
+      "arm": "compact_mechanism",
+      "state": "COMPLETED",
+      "usage": {
+        "input_tokens": 11281,
+        "cached_input_tokens": 0,
+        "output_tokens": 2892,
+        "cache_write_input_tokens": 0
+      },
+      "estimated_usd": 0.102964,
+      "elapsed_seconds": 74.182,
+      "rubric_scores": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1
+      ],
+      "rubric_total": 6,
+      "manual_review_note": "C4 credited: states model pin A and IRQ level; does not assume MSI-X; requests legacy/shared route.",
+      "explicit_INTA_optional_MSIX_distinction": true,
+      "critical_false_completion_claim": false,
+      "answer_sha256": "1df33726bdb7674ce28882fcd057869443cb546b9cbfe3433e9d4b5ffe641e47"
+    },
+    {
+      "call": "call-05-history_mechanism",
+      "index": 5,
+      "arm": "history_mechanism",
+      "state": "COMPLETED",
+      "usage": {
+        "input_tokens": 34022,
+        "cached_input_tokens": 33792,
+        "output_tokens": 1973,
+        "cache_write_input_tokens": 0
+      },
+      "estimated_usd": 0.0538968,
+      "elapsed_seconds": 51.463,
+      "rubric_scores": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1
+      ],
+      "rubric_total": 6,
+      "manual_review_note": "C4 credited: cites shared/INTx source path versus optional MSI-X and preserves uncertainty about target.",
+      "explicit_INTA_optional_MSIX_distinction": true,
+      "critical_false_completion_claim": false,
+      "answer_sha256": "96b4316627fe6dab391049af46651a016797bd7be922b3a13497cfc5b06ee522"
+    },
+    {
+      "call": "call-06-history",
+      "index": 6,
+      "arm": "history",
+      "state": "COMPLETED",
+      "usage": {
+        "input_tokens": 33016,
+        "cached_input_tokens": 32896,
+        "output_tokens": 2113,
+        "cache_write_input_tokens": 0
+      },
+      "estimated_usd": 0.0558984,
+      "elapsed_seconds": 50.948,
+      "rubric_scores": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1
+      ],
+      "rubric_total": 6,
+      "manual_review_note": "C4 credited: uncertainty explicitly says correct e1000 interrupt mode requires evidence despite generic target APIs. No concrete INTA/MSI-X distinction.",
+      "explicit_INTA_optional_MSIX_distinction": false,
+      "critical_false_completion_claim": false,
+      "answer_sha256": "564d1b5d463bd186de639b671ff3b111b01ee20218e8df8b0a7f23ccb3db6ba2"
+    },
+    {
+      "call": "call-07-compact",
+      "index": 7,
+      "arm": "compact",
+      "state": "COMPLETED",
+      "usage": {
+        "input_tokens": 10275,
+        "cached_input_tokens": 0,
+        "output_tokens": 1380,
+        "cache_write_input_tokens": 0
+      },
+      "estimated_usd": 0.0687,
+      "elapsed_seconds": 85.483,
+      "rubric_scores": [
+        1,
+        1,
+        1,
+        0,
+        1,
+        1
+      ],
+      "rubric_total": 5,
+      "manual_review_note": "C4 not credited: retains generic target integration/interrupt gaps, but no explicit check of selected device interrupt mode versus API preconditions.",
+      "explicit_INTA_optional_MSIX_distinction": false,
+      "critical_false_completion_claim": false,
+      "answer_sha256": "f8f50ba32e41af389c4f64813844bd56c60e12e74713bddac5f0d28735ff31e8"
+    }
+  ],
+  "interpretation": [
+    "All answers correct obsolete collector attribution and preserve device obligations; no false completion claim observed.",
+    "All mechanism arms explicitly distinguish INTA/shared interrupt from optional MSI-X; no non-mechanism arm makes that specific distinction.",
+    "Concrete INTA/MSI-X count is a post-hoc explanatory diagnostic, not a separately preregistered endpoint.",
+    "Rubric item 4 depends on specificity judgment: generic uncertainty is credited only if it questions mode/API suitability explicitly. Do not infer robust quality ranking from one-point differences.",
+    "Shorter inputs did not uniformly lower latency or per-call cost; cache hits favored long arms in block 2.",
+    "Single known checkpoint, two repetitions per arm: no significance, native-session, or end-to-end claims.",
+    "Evidence extraction and reviewer labor excluded from token estimates and must be included in later automation evaluation."
+  ]
+}

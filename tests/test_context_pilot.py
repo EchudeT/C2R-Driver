@@ -99,3 +99,18 @@ def test_protocol_block_precedes_provider_access(tmp_path):
         pilot.run_call(tmp_path, {"execution_blocked": "output cap not enforced"},
                        0, "compact", budget=20)
     connect.assert_not_called()
+
+
+def test_explicit_observed_usage_policy_relaxes_only_missing_echo():
+    payload = {"model": "gpt-5.6-sol", "max_output_tokens": 4096}
+    final = {"model": "gpt-5.6-sol", "max_output_tokens": None,
+             "usage": {"output_tokens": 1000}}
+    assert pilot.experiment_stop_reason(final, payload, {}) is not None
+    policy = {"limit_policy": "observe_actual_usage"}
+    assert pilot.experiment_stop_reason(final, payload, policy) is None
+    final["usage"]["output_tokens"] = 5000
+    assert pilot.experiment_stop_reason(final, payload, policy) == "provider_exceeded_output_cap"
+    final["usage"]["output_tokens"] = 1000
+    final["model"] = "other-model"
+    assert (pilot.experiment_stop_reason(final, payload, policy)
+            == "provider_model_identity_mismatch")

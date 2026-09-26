@@ -157,7 +157,9 @@ def run_call(directory, protocol, index, arm, *, budget):
                                            final.get("service_tier") or "default")
         metrics["served_model"] = final.get("model")
         metrics["state"] = final.get("status", "unknown").upper()
-        metrics["stop_reason"] = response_stop_reason(final, payload)
+        metrics["limit_policy"] = protocol.get("limit_policy", "confirmed")
+        metrics["limit_warning"] = response_stop_reason(final, payload)
+        metrics["stop_reason"] = experiment_stop_reason(final, payload, protocol)
     except Exception as error:
         # Provider bodies and URLs may contain sensitive operational details.
         metrics["state"] = "FAILED"
@@ -180,6 +182,16 @@ def response_stop_reason(final, payload):
     if final.get("max_output_tokens") != payload["max_output_tokens"]:
         return "provider_did_not_confirm_output_cap"
     return None
+
+
+def experiment_stop_reason(final, payload, protocol):
+    reason = response_stop_reason(final, payload)
+    # Explicit protocol authorization only relaxes absent echo, never observed
+    # overruns, model substitution, missing usage or failed/incomplete responses.
+    if (protocol.get("limit_policy") == "observe_actual_usage"
+            and reason == "provider_did_not_confirm_output_cap"):
+        return None
+    return reason
 
 
 def main():

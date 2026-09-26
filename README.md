@@ -286,3 +286,5 @@ bash -n scripts/*.sh
 交接包现在携带同一修复周期的最近两条 controller observation 及变化，帮助核对过期归因；`context-report` 增加保持 token 不变的缓存成本敏感性统计。两者均不触发新门禁或付费调用。证据、边界和下一步实验设计见 [后续优化研究](docs/WORKFLOW_OPTIMIZATION_FOLLOWUP_2026-09-26.zh-CN.md)。
 
 第二轮限额探针发现当前中转在请求输出上限 64 时实际返回 403 token，因此已停止后续付费实验；信息更对等的四组实验材料已冻结为 dry-run。执行器限额诊断与列表证据变化跟踪已改进，见 [第二轮实验记录](docs/CONTEXT_EXPERIMENT_ROUND2_2026-09-26.zh-CN.md)。
+
+用户随后授权适量实验，已用显式观察用量策略完成四组共 8 次调用：补充短机制证据比单纯删历史更有诊断价值，默认仍复用会话。本轮同时保留重复快照之前的关键观察转变，并统一 preflight advisory 提示。数据与适用边界见 [四组实验结果](docs/CONTEXT_FACTORIAL_RESULTS_2026-09-26.zh-CN.md)。

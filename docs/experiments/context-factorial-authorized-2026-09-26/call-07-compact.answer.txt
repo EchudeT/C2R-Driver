@@ -1,0 +1,40 @@
+{
+  "facts": [
+    "The latest runtime receipt has status FAIL for implementation-functional-smoke, although presence passed and the wrapper command exited 0.",
+    "The receipt directly records QEMU execution inside the Docker container: container_execution.satisfied=true, container_qemu_execs contains qemu-system-x86_64, and observation_errors is empty.",
+    "The implementation source only matches PCI 8086:100e and registers aster_bigtcp::Loopback; it does not acquire BARs, reset hardware, allocate DMA rings, handle interrupts, or implement e1000 TX/RX.",
+    "The runtime artifact is a textual component snapshot containing the string 8086:100e, not evidence of a bootable Asterinas image or compiled driver.",
+    "The smoke helper launches QEMU with -S, accepts timeout or zero as success, and prints E1000_* PASS markers unconditionally. These markers therefore do not establish component initialization, PCI binding, network registration, or device TX/RX.",
+    "The environment receipt establishes mechanical readiness only and explicitly reports migrated_driver_runtime_ready=false.",
+    "The frozen source and target records still retain compiler/generated-header uncertainty and require evidence for DMA ordering/layout, interrupt mapping, lifecycle, and full device behavior."
+  ],
+  "superseded_claims": [
+    "The historical claim that nested Docker QEMU processes were outside the observation namespace is contradicted by the latest receipt: the nested QEMU process was observed and container execution was satisfied.",
+    "Any interpretation that the prior environment or mechanical PASS established driver/device behavior is contradicted by the current source, artifact, helper semantics, and migrated_driver_runtime_ready=false.",
+    "The target-framework report's capability-level conclusion is not contradicted, but it must not be treated as proof of a correct e1000 driver integration."
+  ],
+  "unresolved_obligations": [
+    "Explain the receipt status FAIL despite wrapper exit_code=0; the supplied receipt omits the collector failure detail and only provides hashed stdout/stderr.",
+    "Produce a real compiled, bootable Asterinas artifact with e1000 component/package wiring; the current artifact cannot prove runtime presence.",
+    "Implement and verify E1000-C01 through C09 beyond identity matching: BAR ownership, reset/initialization, descriptor-ring DMA ownership and ordering, IRQ acknowledgment/deferred work, RX validation/recycling, TX completion/reclaim, network-device callbacks, and failure cleanup.",
+    "Close the frozen compiler/generated-config and target DMA/interrupt evidence gaps before claiming compiled layout, ABI, ordering, or functional coverage.",
+    "Provide device-level verification using QEMU: PCI probe, reset, network registration, one bounded TX/RX exchange with payload/length/completion or error oracles, and cleanup behavior."
+  ],
+  "next_actions": [
+    "1. Reconcile the FAIL result by obtaining the referenced implementation-smoke stdout/stderr and container-process/collector records; determine whether failure was artifact validation, guest boot, marker collection, or another policy check.",
+    "2. Replace the textual artifact and marker-only helper path with a container-built bootable Asterinas image containing the e1000 component; first establish compile/package success and actual component inclusion.",
+    "3. Replace Loopback with the driver-owned e1000 implementation, prioritizing BAR/probe/reset and explicit DMA/IRQ/network ownership contracts before TX/RX.",
+    "4. Run a bounded QEMU functional test with serial/probe markers and packet-level TX/RX oracles; retain the exact run ID, payload, lengths, completions, errors, and cleanup result."
+  ],
+  "success_evidence_required": [
+    "A successful containerized build with exact artifact identity and e1000 component inclusion.",
+    "Guest evidence of matching PCI 8086:100e, BAR acquisition, reset completion, network registration, and interrupt/DMA setup.",
+    "A real TX/RX test proving payload integrity, lengths, descriptor completion, error handling, and queue progress.",
+    "Receipt status PASS with collector-observed markers tied to the guest run, not helper-printed unconditional strings."
+  ],
+  "uncertainty": [
+    "The supplied receipt does not expose why the controller marked the smoke FAIL.",
+    "QEMU was launched with -S and only its process invocation is evidenced; guest execution and driver execution are not established.",
+    "No compiled-layout, runtime serial, packet capture, or device-register evidence is supplied."
+  ]
+}

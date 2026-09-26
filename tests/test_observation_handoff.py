@@ -68,3 +68,28 @@ def test_cache_counterfactual_does_not_mix_unknown_or_historical_rates():
     assert result["estimated_usd_if_same_tokens_uncached"] == 0.006
     assert result["estimated_cache_discount_usd"] == 0.00324
     assert cache_cost_sensitivity([])["estimated_cache_discount_usd"] is None
+
+
+def test_transition_survives_repeated_observations(tmp_path):
+    project = ready_implementation(tmp_path)
+    observe(project, 1, {"runtime_bound": False, "logs_observed": False})
+    observe(project, 2, {"runtime_bound": True, "logs_observed": False})
+    observe(project, 3, {"runtime_bound": True, "logs_observed": False})
+    handoff = observation_handoff(project, S.DRIVER_IMPLEMENTATION)
+    assert handoff["changes"] == []
+    transition = handoff["last_transition"]
+    assert transition["previous"]["receipt"] == "receipt-1.json"
+    assert transition["current"]["receipt"] == "receipt-2.json"
+    assert transition["changes"] == [
+        {"field": "runtime_bound", "previous": False, "current": True}]
+
+
+def test_transition_search_stops_at_unknown_or_different_fields():
+    from driver_port_factory.codex.observation_handoff import last_transition
+    def record(observation):
+        return {"observation": observation}
+    for gap in (None, {}, {"other_field": True}):
+        assert last_transition([
+            record({"runtime_bound": True}), record(gap),
+            record({"runtime_bound": True}), record({"runtime_bound": False}),
+        ]) is None
