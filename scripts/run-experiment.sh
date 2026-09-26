@@ -20,6 +20,7 @@ Request and execution options:
   --target-platform NAME             Default: asterinas
   --catalog PATH                     Driver catalog; repeat for multiple catalogs
   --model NAME                       Codex model override
+  --context-policy NAME              persistent or implementation-handoff (saved in run)
   --codex-bin PATH                   Codex executable; default: codex
   --backend NAME                     Backend; default: exec
   --baseline-repository PATH         Read-only cache; repeatable
@@ -50,6 +51,7 @@ driver_name=""
 codex_bin="codex"
 backend="exec"
 model=""
+context_policy=""
 skill_root=""
 catalogs=()
 baselines=()
@@ -71,6 +73,7 @@ while (($#)); do
         --local-qemu-repository) [[ $# -ge 2 ]] || { echo "error: --local-qemu-repository needs a value" >&2; exit 2; }; local_qemu="$2"; shift 2 ;;
         --skill-root) [[ $# -ge 2 ]] || { echo "error: --skill-root needs a value" >&2; exit 2; }; skill_root="$2"; shift 2 ;;
         --model) [[ $# -ge 2 ]] || { echo "error: --model needs a value" >&2; exit 2; }; model="$2"; shift 2 ;;
+        --context-policy) [[ $# -ge 2 ]] || { echo "error: --context-policy needs a value" >&2; exit 2; }; context_policy="$2"; shift 2 ;;
         --codex-bin) [[ $# -ge 2 ]] || { echo "error: --codex-bin needs a value" >&2; exit 2; }; codex_bin="$2"; shift 2 ;;
         --backend) [[ $# -ge 2 ]] || { echo "error: --backend needs a value" >&2; exit 2; }; backend="$2"; shift 2 ;;
         --analysis-review|--no-analysis-review) review_args+=("$1"); shift ;;
@@ -103,6 +106,7 @@ args=(
     --codex-bin "$codex_bin"
 )
 [[ -n "$model" ]] && args+=(--model "$model")
+[[ -n "$context_policy" ]] && args+=(--context-policy "$context_policy")
 [[ -n "$skill_root" ]] && args+=(--skill-root "$skill_root")
 for path in "${catalogs[@]}"; do args+=(--catalog "$path"); done
 for path in "${baselines[@]}"; do args+=(--baseline-repository "$path"); done

@@ -24,7 +24,8 @@ def attach_handoff(project, session, context, thread_id):
     }}, None  # An explicit rotation overrides even a stale caller thread ID.
 
 
-def reset_session(project, stage, key: str, *, reason: str) -> dict:
+def reset_session(project, stage, key: str, *, reason: str,
+                  automatic_boundary: str | None = None) -> dict:
     """Caller must hold the controller lock. Rotate one provider/model/role session."""
     if not reason.strip():
         raise WorkflowError("context reset requires a reason")
@@ -47,6 +48,7 @@ def reset_session(project, stage, key: str, *, reason: str) -> dict:
     epoch = uuid.uuid4().hex
     packet = {
         "schema_version": 1, "epoch": epoch, "created_at": utc_now(), "reason": reason,
+        "automatic_boundary": automatic_boundary,
         "stage": stage.value,
         "scope": {"source": project.config.source_platform,
                   "target": project.config.target_platform, "driver": project.config.driver_name},
@@ -75,15 +77,20 @@ def reset_session(project, stage, key: str, *, reason: str) -> dict:
         kind="context_handoff",
     )
     handoff = {"digest": content.digest,
-               "path": str(project.artifacts.path_for_digest(content.digest)), "epoch": epoch}
+               "path": str(project.artifacts.path_for_digest(content.digest)), "epoch": epoch,
+               "reason": reason}
     # Event is durable before the pointer switches; a failed switch leaves the
     # original resumable thread intact. The CAS packet is immutable.
     project.record_event(RunEvent.SESSION_RESET, {
         "stage": stage.value, "session_key": key, "previous_thread": session["thread_id"],
         "handoff": handoff, "reason": reason,
+        "automatic_boundary": automatic_boundary,
     })
     path = root / f"{key}.json"
     temporary = path.with_suffix(".tmp")
-    temporary.write_text(json.dumps({"documents": {}, "inputs": {}, "handoff": handoff}))
+    temporary.write_text(json.dumps({
+        "documents": {}, "inputs": {}, "handoff": handoff,
+        "automatic_boundary": automatic_boundary or session.get("automatic_boundary"),
+    }))
     temporary.replace(path)
     return handoff

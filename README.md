@@ -280,3 +280,5 @@ bash -n scripts/*.sh
 ```
 
 完整测试依赖 `.[dev]`。测试不能替代真实 Linux/Asterinas/QEMU 证据；合成 controller fixture 只验证流程和契约。阶段协议、artifact 类型、角色门禁和 Skill 对齐见 [`docs/SKILL_TRACEABILITY.md`](docs/SKILL_TRACEABILITY.md)、[`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)、[`docs/CODEX_JOBS.md`](docs/CODEX_JOBS.md) 和 [`docs/WORKFLOW_ALIGNMENT.md`](docs/WORKFLOW_ALIGNMENT.md)。
+
+可选 `--context-policy implementation-handoff` 在契约冻结后的首次实现调用前交接一次，连续修复仍复用会话；默认 `persistent`。用 `dpf codex context-report RUN [--compare OTHER_RUN] [--stage STAGE]` 查看费用、缓存、epoch 与证据，不调用模型，也不把执行 PASS 当成质量等价。实现和真实小规模实验见 [上下文策略与 pilot](docs/CONTEXT_POLICY_PILOT_2026-09-26.zh-CN.md)。

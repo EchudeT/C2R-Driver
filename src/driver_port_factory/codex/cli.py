@@ -106,6 +106,13 @@ def run_codex_stage(
         raise WorkflowError(f"Codex stage must be READY or RUNNING, got {stage.status.value}")
     grant = CodexExecutionPolicy().grant(project, stage_key)
     key, session = stage_session(project, stage_key, grant, model, backend.value)
+    from .context_policy import prepare_context
+    session, context_policy = prepare_context(
+        project, stage_key, key, session,
+        continuing=bool(thread_id or follow_up or (context or {}).get("checker_decision")
+                        or (context or {}).get("controller_execution")
+                        or project.retry_feedback(stage_key)),
+    )
     from .context_reset import attach_handoff
     context, thread_id = attach_handoff(project, session, context, thread_id)
     thread_id = thread_id or session.get("thread_id")
@@ -238,6 +245,11 @@ def run_codex_stage(
         "started_at": utc_now(), "completed_at": None,
         "invocation_state": "RUNNING",
         "context_epoch": session.get("handoff", {}).get("epoch"),
+        "context_policy": context_policy,
+        "session_key": key,
+        "context_action": ("resume" if thread_id else
+                           "handoff" if session.get("handoff") else "fresh"),
+        "context_handoff": session.get("handoff"),
         "controller_started_at": (
             json.loads((project.control / "controller.json").read_text()).get("started_at")
             if (project.control / "controller.json").is_file() else None
@@ -472,6 +484,8 @@ def register_commands(commands: CommandRegistry) -> None:
 
     codex = commands.add_parser("codex", help="run a bounded Codex stage job")
     codex_commands = command_registry(codex, dest="codex_command")
+    from .context_cli import register_context_commands
+    register_context_commands(codex_commands)
     run = codex_commands.add_parser("run")
     run.add_argument("path")
     run.add_argument("stage")

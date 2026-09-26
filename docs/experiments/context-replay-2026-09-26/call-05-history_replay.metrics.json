@@ -1,0 +1,25 @@
+{
+  "arm": "history_replay",
+  "index": 5,
+  "reserved_usd": 1.036312,
+  "state": "COMPLETED",
+  "model": "gpt-5.6-sol",
+  "provider": "cc2",
+  "usage": {
+    "input_tokens": 32925,
+    "cached_input_tokens": 0,
+    "output_tokens": 1529,
+    "cache_write_input_tokens": 0
+  },
+  "estimate": {
+    "usd": 0.16228,
+    "model": "gpt-5.6-sol",
+    "service_tier": "default",
+    "source": "https://developers.openai.com/api/docs/pricing",
+    "price_date": "2026-09-19",
+    "basis": "short context assumed with 224k auto-compaction; public API rates, not relay invoice"
+  },
+  "protocol_sha256": "8eb60fdc60cfc47f97d0e35a694cc266ad1c0078bdfa30f0b19dab1bbaa6ad15",
+  "served_model": "gpt-5.6-sol",
+  "elapsed_seconds": 92.481
+}

@@ -1,0 +1,268 @@
+{
+  "schema_version": 1,
+  "assessment": "manual developer review of all six streamed answers, not blind and not functional testing",
+  "protocol_sha256": "8eb60fdc60cfc47f97d0e35a694cc266ad1c0078bdfa30f0b19dab1bbaa6ad15",
+  "total_estimated_usd": 0.5507184,
+  "groups": {
+    "factual_handoff": {
+      "calls": 3,
+      "estimated_usd": 0.1810616,
+      "input_tokens": 31761,
+      "cached_input_tokens": 9984,
+      "output_tokens": 4498,
+      "median_seconds": 50.12,
+      "mean_rubric_score": 6
+    },
+    "history_replay": {
+      "calls": 3,
+      "estimated_usd": 0.3696568,
+      "input_tokens": 98775,
+      "cached_input_tokens": 32512,
+      "output_tokens": 4580,
+      "median_seconds": 92.481,
+      "mean_rubric_score": 7
+    }
+  },
+  "calls": [
+    {
+      "call": "call-00-factual_handoff",
+      "arm": "factual_handoff",
+      "usage": {
+        "input_tokens": 10587,
+        "cached_input_tokens": 0,
+        "output_tokens": 1375,
+        "cache_write_input_tokens": 0
+      },
+      "estimate": {
+        "usd": 0.069848,
+        "model": "gpt-5.6-sol",
+        "service_tier": "default",
+        "source": "https://developers.openai.com/api/docs/pricing",
+        "price_date": "2026-09-19",
+        "basis": "short context assumed with 224k auto-compaction; public API rates, not relay invoice"
+      },
+      "elapsed_seconds": 47.481,
+      "state": "COMPLETED",
+      "rubric_scores": [
+        0,
+        1,
+        1,
+        1,
+        0,
+        1,
+        1,
+        1
+      ],
+      "score": 6,
+      "critical_false_completion_claim": false,
+      "assessment_notes": [
+        "C1: no explicit correction with current runtime binding. Old worker report was not supplied to this arm; this criterion is treatment-sensitive.",
+        "C5: no explicit check that MSI-X is appropriate for the selected device; generic IRQ uncertainty is insufficient.",
+        "C2 credited for identifying marker/no boot evidence; handoff calls 03 and 04 hedge marker bootability unnecessarily.",
+        "C7 credited for separating report claims and evidence; neither establishes complete API suitability."
+      ]
+    },
+    {
+      "call": "call-01-history_replay",
+      "arm": "history_replay",
+      "usage": {
+        "input_tokens": 32925,
+        "cached_input_tokens": 0,
+        "output_tokens": 1504,
+        "cache_write_input_tokens": 0
+      },
+      "estimate": {
+        "usd": 0.16178,
+        "model": "gpt-5.6-sol",
+        "service_tier": "default",
+        "source": "https://developers.openai.com/api/docs/pricing",
+        "price_date": "2026-09-19",
+        "basis": "short context assumed with 224k auto-compaction; public API rates, not relay invoice"
+      },
+      "elapsed_seconds": 92.246,
+      "state": "COMPLETED",
+      "rubric_scores": [
+        1,
+        1,
+        1,
+        1,
+        0,
+        1,
+        1,
+        1
+      ],
+      "score": 7,
+      "critical_false_completion_claim": false,
+      "assessment_notes": [
+        "C1: explicit container-observation correction and runtime binding present.",
+        "C5: no explicit check that MSI-X is appropriate for the selected device; generic IRQ uncertainty is insufficient.",
+        "C2 credited for identifying marker/no boot evidence; handoff calls 03 and 04 hedge marker bootability unnecessarily.",
+        "C7 credited for separating report claims and evidence; neither establishes complete API suitability."
+      ]
+    },
+    {
+      "call": "call-02-history_replay",
+      "arm": "history_replay",
+      "usage": {
+        "input_tokens": 32925,
+        "cached_input_tokens": 32512,
+        "output_tokens": 1547,
+        "cache_write_input_tokens": 0
+      },
+      "estimate": {
+        "usd": 0.0455968,
+        "model": "gpt-5.6-sol",
+        "service_tier": "default",
+        "source": "https://developers.openai.com/api/docs/pricing",
+        "price_date": "2026-09-19",
+        "basis": "short context assumed with 224k auto-compaction; public API rates, not relay invoice"
+      },
+      "elapsed_seconds": 109.241,
+      "state": "COMPLETED",
+      "rubric_scores": [
+        1,
+        1,
+        1,
+        1,
+        0,
+        1,
+        1,
+        1
+      ],
+      "score": 7,
+      "critical_false_completion_claim": false,
+      "assessment_notes": [
+        "C1: explicit container-observation correction and runtime binding present.",
+        "C5: no explicit check that MSI-X is appropriate for the selected device; generic IRQ uncertainty is insufficient.",
+        "C2 credited for identifying marker/no boot evidence; handoff calls 03 and 04 hedge marker bootability unnecessarily.",
+        "C7 credited for separating report claims and evidence; neither establishes complete API suitability."
+      ]
+    },
+    {
+      "call": "call-03-factual_handoff",
+      "arm": "factual_handoff",
+      "usage": {
+        "input_tokens": 10587,
+        "cached_input_tokens": 9984,
+        "output_tokens": 1543,
+        "cache_write_input_tokens": 0
+      },
+      "estimate": {
+        "usd": 0.0372656,
+        "model": "gpt-5.6-sol",
+        "service_tier": "default",
+        "source": "https://developers.openai.com/api/docs/pricing",
+        "price_date": "2026-09-19",
+        "basis": "short context assumed with 224k auto-compaction; public API rates, not relay invoice"
+      },
+      "elapsed_seconds": 50.12,
+      "state": "COMPLETED",
+      "rubric_scores": [
+        0,
+        1,
+        1,
+        1,
+        0,
+        1,
+        1,
+        1
+      ],
+      "score": 6,
+      "critical_false_completion_claim": false,
+      "assessment_notes": [
+        "C1: no explicit correction with current runtime binding. Old worker report was not supplied to this arm; this criterion is treatment-sensitive.",
+        "C5: no explicit check that MSI-X is appropriate for the selected device; generic IRQ uncertainty is insufficient.",
+        "C2 credited for identifying marker/no boot evidence; handoff calls 03 and 04 hedge marker bootability unnecessarily.",
+        "C7 credited for separating report claims and evidence; neither establishes complete API suitability."
+      ]
+    },
+    {
+      "call": "call-04-factual_handoff",
+      "arm": "factual_handoff",
+      "usage": {
+        "input_tokens": 10587,
+        "cached_input_tokens": 0,
+        "output_tokens": 1580,
+        "cache_write_input_tokens": 0
+      },
+      "estimate": {
+        "usd": 0.073948,
+        "model": "gpt-5.6-sol",
+        "service_tier": "default",
+        "source": "https://developers.openai.com/api/docs/pricing",
+        "price_date": "2026-09-19",
+        "basis": "short context assumed with 224k auto-compaction; public API rates, not relay invoice"
+      },
+      "elapsed_seconds": 56.559,
+      "state": "COMPLETED",
+      "rubric_scores": [
+        0,
+        1,
+        1,
+        1,
+        0,
+        1,
+        1,
+        1
+      ],
+      "score": 6,
+      "critical_false_completion_claim": false,
+      "assessment_notes": [
+        "C1: no explicit correction with current runtime binding. Old worker report was not supplied to this arm; this criterion is treatment-sensitive.",
+        "C5: no explicit check that MSI-X is appropriate for the selected device; generic IRQ uncertainty is insufficient.",
+        "C2 credited for identifying marker/no boot evidence; handoff calls 03 and 04 hedge marker bootability unnecessarily.",
+        "C7 credited for separating report claims and evidence; neither establishes complete API suitability."
+      ]
+    },
+    {
+      "call": "call-05-history_replay",
+      "arm": "history_replay",
+      "usage": {
+        "input_tokens": 32925,
+        "cached_input_tokens": 0,
+        "output_tokens": 1529,
+        "cache_write_input_tokens": 0
+      },
+      "estimate": {
+        "usd": 0.16228,
+        "model": "gpt-5.6-sol",
+        "service_tier": "default",
+        "source": "https://developers.openai.com/api/docs/pricing",
+        "price_date": "2026-09-19",
+        "basis": "short context assumed with 224k auto-compaction; public API rates, not relay invoice"
+      },
+      "elapsed_seconds": 92.481,
+      "state": "COMPLETED",
+      "rubric_scores": [
+        1,
+        1,
+        1,
+        1,
+        0,
+        1,
+        1,
+        1
+      ],
+      "score": 7,
+      "critical_false_completion_claim": false,
+      "assessment_notes": [
+        "C1: explicit container-observation correction and runtime binding present.",
+        "C5: no explicit check that MSI-X is appropriate for the selected device; generic IRQ uncertainty is insufficient.",
+        "C2 credited for identifying marker/no boot evidence; handoff calls 03 and 04 hedge marker bootability unnecessarily.",
+        "C7 credited for separating report claims and evidence; neither establishes complete API suitability."
+      ]
+    }
+  ],
+  "findings": [
+    "Handoff has fewer input tokens and lower aggregate public-rate estimated cost in this replay.",
+    "History arm explicitly revises old collector claim; handoff arm lacks the old report and cannot be assumed superior.",
+    "All six fail to explicitly question device interrupt-mode suitability.",
+    "Cache variability reverses the second pair cost ordering: cached history costs less than uncached handoff.",
+    "No evidence for improved driver migration success, native-session savings, or optimal automatic reset."
+  ],
+  "provider_limitations": [
+    "Terminal response.output was empty; answers reconstructed from preserved response.output_text.delta events.",
+    "Requested max_output_tokens=4096, but terminal response reports max_output_tokens=null. Actual outputs are all below 4096; relay enforcement of the requested cap is not established.",
+    "No billing API/invoice verified. Costs use repository public-rate estimates."
+  ]
+}

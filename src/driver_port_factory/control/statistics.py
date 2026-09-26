@@ -164,6 +164,17 @@ def project_statistics(project, *, pricing_model=None, pricing_tier=None) -> dic
                 "elapsed_seconds": elapsed,
                 "usage_status": "known" if usage is not None else "unknown",
                 "timing_status": "complete" if job.get("completed_at") else "checkpoint_only",
+                "context_policy": job.get("context_policy"),
+                "context_epoch": job.get("context_epoch"),
+                "context_action": job.get("context_action"),
+                "context_handoff": job.get("context_handoff"),
+                "session_key": job.get("session_key"),
+                "service_tier": tier,
+                "prompt_bytes": job.get("prompt_bytes"),
+                "first_response_seconds": job.get("first_response_seconds"),
+                "auto_compact_token_limit": job.get("auto_compact_token_limit"),
+                "policy_sha256": job.get("policy_sha256"),
+                "invocation_state": job.get("invocation_state"),
             }
         )
     totals = {

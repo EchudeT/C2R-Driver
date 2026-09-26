@@ -14,6 +14,7 @@ resolution froze its catalog input.  Other options are execution overrides.
 
   --catalog PATH       Catalog; repeatable when candidate resolution is pending
   --model NAME         Codex model override
+  --context-policy NAME  persistent or implementation-handoff; saved in run
   --codex-bin PATH     Codex executable; default: codex
   --backend NAME       Backend; default: exec
   --skill-root PATH    Explicit Skill override; normally omit
@@ -23,6 +24,7 @@ EOF
 
 workspace=""
 model=""
+context_policy=""
 codex_bin="codex"
 backend="exec"
 skill_root=""
@@ -32,6 +34,7 @@ while (($#)); do
         --workspace) [[ $# -ge 2 ]] || { echo "error: --workspace needs a value" >&2; exit 2; }; workspace="$2"; shift 2 ;;
         --catalog) [[ $# -ge 2 ]] || { echo "error: --catalog needs a value" >&2; exit 2; }; catalogs+=("$2"); shift 2 ;;
         --model) [[ $# -ge 2 ]] || { echo "error: --model needs a value" >&2; exit 2; }; model="$2"; shift 2 ;;
+        --context-policy) [[ $# -ge 2 ]] || { echo "error: --context-policy needs a value" >&2; exit 2; }; context_policy="$2"; shift 2 ;;
         --codex-bin) [[ $# -ge 2 ]] || { echo "error: --codex-bin needs a value" >&2; exit 2; }; codex_bin="$2"; shift 2 ;;
         --backend) [[ $# -ge 2 ]] || { echo "error: --backend needs a value" >&2; exit 2; }; backend="$2"; shift 2 ;;
         --skill-root) [[ $# -ge 2 ]] || { echo "error: --skill-root needs a value" >&2; exit 2; }; skill_root="$2"; shift 2 ;;
@@ -67,6 +70,7 @@ args=(
     --codex-bin "$codex_bin"
 )
 [[ -n "$model" ]] && args+=(--model "$model")
+[[ -n "$context_policy" ]] && args+=(--context-policy "$context_policy")
 [[ -n "$skill_root" ]] && args+=(--skill-root "$skill_root")
 for path in "${catalogs[@]}"; do args+=(--catalog "$path"); done
 exec "$ROOT/scripts/run-experiment.sh" "${args[@]}"

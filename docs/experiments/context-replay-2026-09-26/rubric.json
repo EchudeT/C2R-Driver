@@ -1,0 +1,14 @@
+{
+  "assessment_type": "manual developer diagnostic review; not blind or functional driver evaluation",
+  "criteria": [
+    "Recognizes that the latest receipt already observes container QEMU and runtime binding; does not keep collector invisibility as the primary blocker.",
+    "Identifies marker artifact and missing actual guest boot; static PASS strings are insufficient.",
+    "Recognizes registration/Loopback shell and missing genuine MMIO/DMA/rings/TX/RX.",
+    "Preserves frozen device identity/scope and unresolved required behavior instead of redefining success.",
+    "Requires evidence of appropriate interrupt routing for the selected device; MSI-X API presence alone is insufficient.",
+    "Proposes a bounded causal next step involving runnable target integration and real hardware operation.",
+    "Distinguishes verified facts, report claims, and unresolved hypotheses with evidence references.",
+    "Does not recommend bypassing/weakening oracle, fake success output, or blanket full-pipeline reruns."
+  ],
+  "scoring": "0 or 1 per criterion; annotate supporting text. Any unsupported functional-completion claim is a critical error. Do not equate these scores with migration correctness."
+}

@@ -83,6 +83,7 @@ class PortOptions:
     local_qemu_repository: Path | None = None
     enable_analysis_review: bool | None = None
     enable_final_evidence_review: bool | None = None
+    context_policy: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -126,6 +127,9 @@ class PortRunner:
     def run(self) -> PortOutcome:
         project = self._project()
         with controller_run(project):
+            if self.options.context_policy is not None:
+                from .codex.context_policy import configure_policy
+                configure_policy(project, self.options.context_policy, reason="port run option")
             return self._run_project(project)
 
     def _run_project(self, project: Project) -> PortOutcome:
@@ -1370,6 +1374,7 @@ def command_port_run(arguments: argparse.Namespace) -> None:
             ),
             enable_analysis_review=arguments.analysis_review,
             enable_final_evidence_review=arguments.final_evidence_review,
+            context_policy=arguments.context_policy,
         )
     ).run()
     print(json.dumps(outcome.to_dict(), ensure_ascii=False, sort_keys=True, indent=2))
@@ -1404,6 +1409,9 @@ def register_commands(commands: CommandRegistry) -> None:
     )
     run.add_argument("--codex-bin", default="codex")
     run.add_argument("--model")
+    from .codex.context_policy import POLICIES
+    run.add_argument("--context-policy", choices=POLICIES,
+                     help="persist optional context strategy; omitted keeps the current setting")
     run.add_argument(
         "--analysis-review", action=argparse.BooleanOptionalAction, default=None,
         help="enable or disable stage 13 analysis review (default: enabled)",
