@@ -510,6 +510,7 @@ class PortRunner:
         history = record_continuation(
             project, stage, pending, fingerprint,
             detail=self._continuation_detail(progress), receipt=progress.receipt,
+            observation=progress.observation,
         )
         if history["consecutive"] >= 3:
             message = (

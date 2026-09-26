@@ -1,0 +1,100 @@
+{
+  "schema_version": 1,
+  "method": "Read-only frozen-source inspection and existing accounting; no paid calls or execution.",
+  "interrupt_route_evidence": [
+    {
+      "role": "source",
+      "revision": "587858367581b9c55c3690f4e63382ad622719d4",
+      "path": "drivers/net/ethernet/intel/e1000/e1000_main.c",
+      "sha256": "c4d30549844a5476fa5a91f5a14267d597c909b10d927361b1fefd8b1f8a06c2",
+      "start_line": 250,
+      "end_line": 262,
+      "excerpt": "static int e1000_request_irq(struct e1000_adapter *adapter)\n{\n\tstruct net_device *netdev = adapter->netdev;\n\tirq_handler_t handler = e1000_intr;\n\tint irq_flags = IRQF_SHARED;\n\tint err;\n\n\terr = request_irq(adapter->pdev->irq, handler, irq_flags, netdev->name,\n\t\t\t  netdev);\n\tif (err) {\n\t\te_err(probe, \"Unable to allocate interrupt Error: %d\\n\", err);\n\t}\n"
+    },
+    {
+      "role": "qemu",
+      "revision": "2d3df8abca265c9bcc9e438d691d561592060998",
+      "path": "hw/net/e1000.c",
+      "sha256": "d2a4111660c099aa99c2dfd24f48075fdf30275b1fbeb0df8abd84c12ff86be8",
+      "start_line": 331,
+      "end_line": 337,
+      "excerpt": "                  mit_delay * 256);\n        s->mit_ide = 0;\n    }\n\n    s->mit_irq_level = (pending_ints != 0);\n    pci_set_irq(d, s->mit_irq_level);\n}"
+    },
+    {
+      "role": "qemu",
+      "revision": "2d3df8abca265c9bcc9e438d691d561592060998",
+      "path": "hw/net/e1000.c",
+      "sha256": "d2a4111660c099aa99c2dfd24f48075fdf30275b1fbeb0df8abd84c12ff86be8",
+      "start_line": 1626,
+      "end_line": 1644,
+      "excerpt": "static void pci_e1000_realize(PCIDevice *pci_dev, Error **errp)\n{\n    DeviceState *dev = DEVICE(pci_dev);\n    E1000State *d = E1000(pci_dev);\n    uint8_t *pci_conf;\n    uint8_t *macaddr;\n\n    pci_dev->config_write = e1000_write_config;\n\n    pci_conf = pci_dev->config;\n\n    /* TODO: RST# value should be 0, PCI spec 6.2.4 */\n    pci_conf[PCI_CACHE_LINE_SIZE] = 0x10;\n\n    pci_conf[PCI_INTERRUPT_PIN] = 1; /* interrupt pin A */\n\n    e1000_mmio_setup(d);\n\n    pci_register_bar(pci_dev, 0, PCI_BASE_ADDRESS_SPACE_MEMORY, &d->mmio);"
+    },
+    {
+      "role": "target",
+      "revision": "d4b407ca87de203f79c27c9a83ada1d8223fe280",
+      "path": "kernel/core/comps/pci/src/common_device.rs",
+      "sha256": "38b02edbccdcfc1ef87849772527c3fe2b3ff1e7c95ba3c1af1a2c7990f064e0",
+      "start_line": 72,
+      "end_line": 80,
+      "excerpt": "    /// Acquires necessary resources to build the MSI-X capability data, if the capability exists.\n    ///\n    /// Note that the MSI-X capability data occupies some memory BARs. Therefore, it will fail if\n    /// the necessary resources are not available.\n    pub fn acquire_msix_capability(&mut self) -> Result<Option<CapabilityMsixData>> {\n        self.capabilities\n            .acquire_msix_data(&self.location, &mut self.bar_manager)\n    }\n"
+    }
+  ],
+  "historical_receipt_observations": [
+    {
+      "path": "/tmp/e2e-e1000-local-baseline-02/.dpf/implementation-smoke/42dc9a5e4a8143978d3fb38ff2c54ec9/receipt.json",
+      "sha256": "8f487555c14458a26b6b36c6b4a4c7da11e1173dea06061fe5db57182ab9af4c",
+      "started_at": "2026-09-25T14:10:15.151572+00:00",
+      "status": "FAIL",
+      "observation": {
+        "qemu_observed": false,
+        "container_observed": false,
+        "runtime_bound": false,
+        "logs_observed": false
+      }
+    },
+    {
+      "path": "/tmp/e2e-e1000-local-baseline-02/.dpf/implementation-smoke/e621ce53ca4c40aab9962ec2c1c293c7/receipt.json",
+      "sha256": "ccb5975c30039fe71a7d04fae6f2eebe70ba37f27b6068d9442c1ca0fba1f4d8",
+      "started_at": "2026-09-25T15:07:58.861037+00:00",
+      "status": "FAIL",
+      "observation": {
+        "qemu_observed": true,
+        "container_observed": true,
+        "runtime_bound": true,
+        "logs_observed": false
+      }
+    }
+  ],
+  "implementation_costs": {
+    "calls": 16,
+    "known_usage": {
+      "input_tokens": 8728085,
+      "cached_input_tokens": 8105472,
+      "output_tokens": 19084
+    },
+    "unknown_usage_calls": 3,
+    "unpriced_calls": 3,
+    "known_estimated_usd": 6.1143208,
+    "cost_complete": false,
+    "codex_seconds": 1593.491,
+    "checkpoint_only_calls": 1,
+    "known_usage_cache_hit_fraction": 0.9286655663871285,
+    "context_actions": {
+      "unrecorded": 16
+    },
+    "cache_cost_sensitivity": {
+      "covered_calls": 13,
+      "uncovered_calls": 3,
+      "estimated_usd_with_reported_cache": 6.1143208,
+      "estimated_usd_if_same_tokens_uncached": 35.29402,
+      "estimated_cache_discount_usd": 29.1796992,
+      "note": "Same tokens and rate metadata, changing only cache discount. This is not the cost of resetting: new context, rereads, output and cache hits may differ."
+    }
+  },
+  "conclusion_limits": [
+    "INTA signalling in the selected QEMU e1000 is directly evidenced; target INTx routing has not been demonstrated.",
+    "No claim that the entire target lacks INTx support.",
+    "Cache counterfactual holds tokens fixed, not a prediction for new sessions.",
+    "Old observations were extracted for this audit only; historical ledger was not rewritten."
+  ]
+}

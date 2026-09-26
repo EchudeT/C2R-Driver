@@ -8,6 +8,7 @@ from ..core.events import RunEvent
 from ..core.models import ArtifactDirection, EvaluationMode, WorkflowError, utc_now
 from .contracts import CodexArtifact
 from .sessions import read_session
+from .observation_handoff import observation_handoff
 
 
 def attach_handoff(project, session, context, thread_id):
@@ -55,6 +56,7 @@ def reset_session(project, stage, key: str, *, reason: str,
         "stages": [{"stage": s.name.value, "status": s.status.value, "message": s.message}
                    for s in project.stages()],
         "current_evidence": inputs,
+        "execution_observations": observation_handoff(project, stage),
         "instruction": "Continue the existing worktree and frozen scope. Read current contracts, "
         "unresolved obligations and the latest failure evidence before editing. Stage PASS does "
         "not prove device behavior. Prior reports are claims; prefer raw evidence on conflict. "

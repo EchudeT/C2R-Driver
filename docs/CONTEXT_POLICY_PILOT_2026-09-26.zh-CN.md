@@ -74,3 +74,5 @@ PYTHONPATH=src .venv/bin/python -m driver_port_factory.cli codex context-report 
 4. 后续跨设备实验固定功能范围、环境、模型、压缩与缓存策略，记录全部失败和人工操作，用共同功能 oracle 判断完成质量。
 
 验证：新增策略回归覆盖默认行为、非边界、首次交接、跨重启重试、中断、迟到 opt-in、缺契约、未知计量和 CLI。最终完整回归 **84 passed（86.70 秒）**，包含实验执行器预算/无重试/流式答案测试。新增模块、脚本、测试及修改后的 context_reset Ruff 通过，git diff --check 和 shell 语法检查通过。未声称全仓既有 lint 已清理。
+
+后续研究已增加 controller observation 的持久化与交接前后变化、缓存成本敏感性统计，并核对设备实际中断机制；见 [后续优化研究](WORKFLOW_OPTIMIZATION_FOLLOWUP_2026-09-26.zh-CN.md)。历史 pilot 输入与原有评阅结果未修改。

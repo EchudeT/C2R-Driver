@@ -4,7 +4,7 @@ import json
 import sqlite3
 
 from ..acquisition.contracts import AcquisitionArtifact, AcquisitionStage
-from ..codex.accounting import FIELDS
+from ..codex.accounting import FIELDS, estimate
 from ..codex.context_policy import read_policy
 from ..core.models import ArtifactDirection
 from ..migration.contracts import MigrationStage
@@ -32,6 +32,32 @@ def aggregate(jobs: list[dict]) -> dict:
             action: sum((job.get("context_action") or "unrecorded") == action for job in jobs)
             for action in sorted({job.get("context_action") or "unrecorded" for job in jobs})
         },
+        "cache_cost_sensitivity": cache_cost_sensitivity(jobs),
+    }
+
+
+def cache_cost_sensitivity(jobs: list[dict]) -> dict:
+    """An accounting counterfactual, not a prediction of costs after resetting."""
+    measured, uncached, covered = 0.0, 0.0, 0
+    for job in jobs:
+        usage, quote = job.get("usage"), job.get("estimate")
+        if usage is None or quote is None:
+            continue
+        tier = job.get("service_tier", "standard")
+        same_rates = estimate(usage, job.get("model"), tier)
+        without_cache = estimate({**usage, "cached_input_tokens": 0}, job.get("model"), tier)
+        if same_rates != quote or without_cache is None:
+            continue  # Do not mix frozen historical rates with a new rate table.
+        measured += quote["usd"]
+        uncached += without_cache["usd"]
+        covered += 1
+    return {
+        "covered_calls": covered, "uncovered_calls": len(jobs) - covered,
+        "estimated_usd_with_reported_cache": round(measured, 8) if covered else None,
+        "estimated_usd_if_same_tokens_uncached": round(uncached, 8) if covered else None,
+        "estimated_cache_discount_usd": round(uncached - measured, 8) if covered else None,
+        "note": "Same tokens and rate metadata, changing only cache discount. This is not "
+                "the cost of resetting: new context, rereads, output and cache hits may differ.",
     }
 
 

@@ -6,7 +6,7 @@ from .events import RunEvent
 
 
 def record_continuation(project, stage, occurrence, fingerprint: str, *, detail: str,
-                        receipt: str | None = None) -> dict:
+                        receipt: str | None = None, observation: dict | None = None) -> dict:
     # Keep history across retries/restarts, but an accepted stage starts a new
     # repair episode. Replaying one submission never spends another retry.
     with sqlite3.connect(f"{project.database_path.as_uri()}?mode=ro", uri=True) as db:
@@ -37,6 +37,6 @@ def record_continuation(project, stage, occurrence, fingerprint: str, *, detail:
              if previous and previous["fingerprint"] == fingerprint else 1)
     value = {"stage": stage.value, "submission": submission,
              "fingerprint": fingerprint, "consecutive": count,
-             "detail": detail, "receipt": receipt}
+             "detail": detail, "receipt": receipt, "observation": observation}
     project.record_event(RunEvent.CONTINUATION, value)
     return value
