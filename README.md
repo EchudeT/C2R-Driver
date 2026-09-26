@@ -283,6 +283,8 @@ bash -n scripts/*.sh
 
 新建 developer-evidence 项目默认 `analysis-handoff`：分析材料、契约及已启用的分析审查完成后，在首次框架使能前交接一次；框架使能、驱动实现及连续修复复用新会话。已有项目保留其设置，未记录策略的旧项目仍为 `persistent`。可用 `--context-policy persistent` 关闭交接，或选 `implementation-handoff` 将交接推迟至首次驱动实现前。用 `dpf codex context-report RUN [--compare OTHER_RUN] [--stage STAGE]` 查看费用、缓存、会话连续性与证据，不调用模型，也不把执行 PASS 当成质量等价。详见 [分析到执行的上下文交接](docs/ANALYSIS_HANDOFF_POLICY.zh-CN.md)。
 
+提示现支持阶段阅读导航、修复观测差异及长反馈按需读取；没有新信息时省略空摘要。高风险接口探针在现有节点内按需选择，不增加固定验收清单。实现范围、成本边界和只读回放工具见 [阅读导航与变化驱动修复](docs/CONTEXT_FOCUS_AND_PROBES.zh-CN.md)。
+
 交接包现在携带同一修复周期的最近两条 controller observation 及变化，帮助核对过期归因；`context-report` 增加保持 token 不变的缓存成本敏感性统计。两者均不触发新门禁或付费调用。证据、边界和下一步实验设计见 [后续优化研究](docs/WORKFLOW_OPTIMIZATION_FOLLOWUP_2026-09-26.zh-CN.md)。
 
 第二轮限额探针发现当前中转在请求输出上限 64 时实际返回 403 token，因此已停止后续付费实验；信息更对等的四组实验材料已冻结为 dry-run。执行器限额诊断与列表证据变化跟踪已改进，见 [第二轮实验记录](docs/CONTEXT_EXPERIMENT_ROUND2_2026-09-26.zh-CN.md)。

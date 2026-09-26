@@ -13,6 +13,17 @@ means the mapping is unresolved, not that the whole platform lacks support. Reus
 prior valid evidence; investigate only applicable mechanisms, without a new report
 format or a requirement to execute all driver behavior at this stage.
 
+Use an uncertainty-driven probe within this stage when a consequential mapping is
+still unresolved: choose the smallest applicable check that distinguishes the
+competing explanations (for example API callability, DMA ownership constraints,
+interrupt routing, or teardown ordering). Reuse a prior check with matching inputs.
+Do not run a fixed probe suite for every driver or add a separate review round.
+If existing source evidence settles the question, proceed. Record any attempted
+probe's command, inputs, observation and remaining uncertainty in the current report.
+Keep the probe within this stage's permitted paths; device integration behavior
+belongs to implementation. A build-only probe establishes callability, not runtime
+device correctness. Stop repeating a probe that cannot distinguish the hypotheses.
+
 ## Required procedure
 
 1. Read the frozen target-platform study and migration-contract/test-matrix

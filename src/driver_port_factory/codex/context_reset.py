@@ -6,6 +6,7 @@ import uuid
 
 from ..core.events import RunEvent
 from ..core.models import ArtifactDirection, EvaluationMode, WorkflowError, utc_now
+from .context_focus import reading_plan
 from .contracts import CodexArtifact
 from .observation_handoff import observation_handoff
 from .sessions import read_session
@@ -56,6 +57,7 @@ def reset_session(project, stage, key: str, *, reason: str,
         "stages": [{"stage": s.name.value, "status": s.status.value, "message": s.message}
                    for s in project.stages()],
         "current_evidence": inputs,
+        "reading_plan": reading_plan(stage, {"current_evidence": inputs}),
         "history_lookup": {
             "previous_thread": session["thread_id"],
             "archived_session": str(project.control / "codex" / "sessions" / "archive" /

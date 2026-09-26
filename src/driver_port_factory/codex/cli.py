@@ -200,7 +200,17 @@ def run_codex_stage(
         and phase(s.name) == phase(stage_key)
         and stage_key.value in project.workflow.descendants(s.name)]
     known_inputs = session.get("inputs", {}) if thread_id == session.get("thread_id") else {}
+    from .context_focus import compact_feedback, reading_plan, repair_focus
+    context = compact_feedback(project, context)
     context, supplied_inputs = input_changes(context, known_inputs)
+    plan = reading_plan(stage_key, context)
+    if plan:
+        context["reading_plan"] = plan
+    if any(context.get(k) for k in ("controller_execution", "controller_feedback",
+                                    "checker_decision", "repair_state", "repair_observation")):
+        focus = repair_focus(project, stage_key, context)
+        if focus:
+            context["repair_focus"] = focus
     rendered = _render_prompt(
         project,
         stage_key,

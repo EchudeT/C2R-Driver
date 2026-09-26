@@ -12,6 +12,13 @@ keep BLOCKED/NOT_RUN explicit. Registration, model enumeration, or host-printed 
 cannot stand in for device operations. Preserve the frozen scope; repair a failed oracle without
 silently removing its required behavior. N/A needs a device/target reason, not a missing implementation.
 
+Implement a small end-to-end path early: actual target insertion, device initialization,
+then the first applicable operation, before expanding to all required behavior. Choose
+the next bounded probe by the most consequential unresolved assumption, not a fixed
+DMA/interrupt checklist; some driver classes need neither. Reuse valid evidence and
+existing scripts. This order does not reduce the final contract or add another submission
+gate. Record what the probe establishes and what it leaves untested in the existing report.
+
 Public execution uses DPF_RUNTIME_ARTIFACT for production and absolute paths for packaged
 variants under .dpf-output/harness/variants/. Keep helpers and oracle inputs as regular files
 under .dpf-output/harness/; they are hash-bound with public-qemu.sh and the implementation/image.
