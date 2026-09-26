@@ -14,7 +14,7 @@ resolution froze its catalog input.  Other options are execution overrides.
 
   --catalog PATH       Catalog; repeatable when candidate resolution is pending
   --model NAME         Codex model override
-  --context-policy NAME  persistent or implementation-handoff; saved in run
+  --context-policy NAME  persistent, analysis-handoff or implementation-handoff; saved in run
   --codex-bin PATH     Codex executable; default: codex
   --backend NAME       Backend; default: exec
   --skill-root PATH    Explicit Skill override; normally omit

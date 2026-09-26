@@ -20,7 +20,7 @@ Request and execution options:
   --target-platform NAME             Default: asterinas
   --catalog PATH                     Driver catalog; repeat for multiple catalogs
   --model NAME                       Codex model override
-  --context-policy NAME              persistent or implementation-handoff (saved in run)
+  --context-policy NAME              persistent, analysis-handoff or implementation-handoff
   --codex-bin PATH                   Codex executable; default: codex
   --backend NAME                     Backend; default: exec
   --baseline-repository PATH         Read-only cache; repeatable

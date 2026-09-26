@@ -169,6 +169,7 @@ def project_statistics(project, *, pricing_model=None, pricing_tier=None) -> dic
                 "context_epoch": job.get("context_epoch"),
                 "context_action": job.get("context_action"),
                 "context_handoff": job.get("context_handoff"),
+                "context_log": job.get("context_log"),
                 "session_key": job.get("session_key"),
                 "service_tier": tier,
                 "prompt_bytes": job.get("prompt_bytes"),

@@ -290,6 +290,18 @@ def run_codex_stage(
         temporary.write_text(json.dumps(metrics))
         temporary.replace(path)
 
+    trace = None
+
+    def retain_context(*, force=False):
+        if trace is None:
+            return
+        try:
+            trace.capture(metrics.get("thread_id"), force=force)
+            metrics["context_log"] = {"manifest": str(trace.path),
+                                      "status": trace.record["status"]}
+        except (OSError, ValueError, TypeError) as error:
+            metrics["context_log"] = {"status": "capture_error", "error": str(error)}
+
     def checkpoint(event: dict) -> None:
         nonlocal first_event_seconds
         if first_event_seconds is None and event.get("type") not in {"thread.started", "turn.started"}:
@@ -301,15 +313,26 @@ def run_codex_stage(
         if event.get("type") == CodexExecEventType.THREAD_STARTED.value:
             metrics["thread_id"] = event.get("thread_id")
             save_session(project, key, event.get("thread_id"), known_documents, known_inputs)
+            retain_context(force=True)
             persist_metrics()
         elif event.get("type") == "turn.completed":
+            retain_context(force=True)
             persist_metrics()
+        else:
+            retain_context()
 
     gateway = CodexExecGateway(codex_bin, on_event=checkpoint)
     started = time.monotonic()
+    from .context_logs import ContextLog
+    try:
+        trace = ContextLog(project, job, metrics)
+        retain_context(force=True)
+    except (OSError, ValueError, TypeError) as error:
+        metrics["context_log"] = {"status": "capture_error", "error": str(error)}
     persist_metrics()
     try:
         result = gateway.run(job)
+        metrics["thread_id"] = result.thread_id or metrics.get("thread_id")
         metrics["invocation_state"] = "FAILED" if result.error else "COMPLETED"
     except (WorkflowError, OSError, subprocess.SubprocessError) as error:
         metrics["invocation_state"] = "FAILED"
@@ -317,6 +340,7 @@ def run_codex_stage(
     finally:
         if metrics["invocation_state"] == "RUNNING":
             metrics["invocation_state"] = "INTERRUPTED"
+        retain_context(force=True)
         metrics["completed_at"] = utc_now()
         persist_metrics()
     save_session(

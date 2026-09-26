@@ -1,6 +1,8 @@
 import json
 from unittest.mock import patch
 
+import pytest
+
 from driver_port_factory.codex.cli import run_codex_stage
 from driver_port_factory.codex.context_focus import compact_feedback, reading_plan, repair_focus
 from driver_port_factory.codex.contracts import CodexBackend
@@ -76,7 +78,8 @@ def test_repair_focus_retains_transition_but_never_crosses_reopened_episode(tmp_
     assert result is None
 
 
-def test_worker_receives_navigation_and_complete_feedback_reference(tmp_path):
+@pytest.mark.parametrize("log_failure", [False, True])
+def test_worker_receives_navigation_and_complete_feedback_reference(tmp_path, log_failure):
     project = ready_implementation(tmp_path)
     feedback = "synthetic failure\n" * 600
     contract = project.artifact(S.CONTRACTS, MigrationArtifact.CONTRACTS)
@@ -97,8 +100,15 @@ def test_worker_receives_navigation_and_complete_feedback_reference(tmp_path):
         submit(project, job, report, kind="report", decision="blocked")
         return CodexResult(job.job_id, "", "focus-worker")
 
-    with patch("driver_port_factory.codex.cli.CodexExecGateway.run", side_effect=gateway):
+    from contextlib import nullcontext
+    capture = (patch("driver_port_factory.codex.context_logs.ContextLog.capture",
+                     side_effect=OSError("synthetic archive unavailable"))
+               if log_failure else nullcontext())
+    with capture, patch("driver_port_factory.codex.cli.CodexExecGateway.run", side_effect=gateway):
         run_codex_stage(project, S.DRIVER_IMPLEMENTATION, context=context,
                         follow_up=feedback, backend=CodexBackend.EXEC,
                         codex_bin="codex", model=None)
+    if log_failure:
+        metrics = next((project.control / "codex").glob("*.metrics.json"))
+        assert json.loads(metrics.read_text())["context_log"]["status"] == "capture_error"
     project.verify_integrity()

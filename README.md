@@ -285,6 +285,8 @@ bash -n scripts/*.sh
 
 提示现支持阶段阅读导航、修复观测差异及长反馈按需读取；没有新信息时省略空摘要。高风险接口探针在现有节点内按需选择，不增加固定验收清单。实现范围、成本边界和只读回放工具见 [阅读导航与变化驱动修复](docs/CONTEXT_FOCUS_AND_PROBES.zh-CN.md)。
 
+每次模型调用默认保留精确提示和可用的原生会话快照，按内容分块去重，不增加模型请求。`dpf codex context-logs RUN` 查看覆盖与压缩记录；`dpf codex context-log-export RUN JOB_ID DESTINATION` 校验并还原日志。采集失败不会阻断翻译。详见 [日志说明与完整实验命令](docs/CONTEXT_LOGGING.zh-CN.md)。
+
 交接包现在携带同一修复周期的最近两条 controller observation 及变化，帮助核对过期归因；`context-report` 增加保持 token 不变的缓存成本敏感性统计。两者均不触发新门禁或付费调用。证据、边界和下一步实验设计见 [后续优化研究](docs/WORKFLOW_OPTIMIZATION_FOLLOWUP_2026-09-26.zh-CN.md)。
 
 第二轮限额探针发现当前中转在请求输出上限 64 时实际返回 403 token，因此已停止后续付费实验；信息更对等的四组实验材料已冻结为 dry-run。执行器限额诊断与列表证据变化跟踪已改进，见 [第二轮实验记录](docs/CONTEXT_EXPERIMENT_ROUND2_2026-09-26.zh-CN.md)。
