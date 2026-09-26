@@ -7,8 +7,8 @@ import uuid
 from ..core.events import RunEvent
 from ..core.models import ArtifactDirection, EvaluationMode, WorkflowError, utc_now
 from .contracts import CodexArtifact
-from .sessions import read_session
 from .observation_handoff import observation_handoff
+from .sessions import read_session
 
 
 def attach_handoff(project, session, context, thread_id):
@@ -56,11 +56,23 @@ def reset_session(project, stage, key: str, *, reason: str,
         "stages": [{"stage": s.name.value, "status": s.status.value, "message": s.message}
                    for s in project.stages()],
         "current_evidence": inputs,
+        "history_lookup": {
+            "previous_thread": session["thread_id"],
+            "archived_session": str(project.control / "codex" / "sessions" / "archive" /
+                                    f"{key}-{epoch}.json"),
+            "job_logs": str(project.control / "codex"),
+            "instruction": "Consult only for a concrete missing fact or rejected alternative; "
+                           "do not reload the full conversation by default.",
+        },
         "execution_observations": observation_handoff(project, stage),
         "instruction": "Continue the existing worktree and frozen scope. Read current contracts, "
         "unresolved obligations and the latest failure evidence before editing. Stage PASS does "
         "not prove device behavior. Prior reports are claims; prefer raw evidence on conflict. "
-        "Reuse passing work with unchanged inputs. History remains available for targeted lookup.",
+        "Reuse passing work with unchanged inputs. Read the relevant analysis reports and source "
+        "references on demand, not every linked artifact. Keep verified conclusions, hypotheses, "
+        "open questions and rejected alternatives distinct. Verify consequential claims against "
+        "their cited originals when using them; no extra blanket review is required. "
+        "History remains available for targeted lookup.",
     }
     with sqlite3.connect(f"{project.database_path.as_uri()}?mode=ro", uri=True) as db:
         row = db.execute(

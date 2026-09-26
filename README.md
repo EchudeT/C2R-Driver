@@ -281,7 +281,7 @@ bash -n scripts/*.sh
 
 完整测试依赖 `.[dev]`。测试不能替代真实 Linux/Asterinas/QEMU 证据；合成 controller fixture 只验证流程和契约。阶段协议、artifact 类型、角色门禁和 Skill 对齐见 [`docs/SKILL_TRACEABILITY.md`](docs/SKILL_TRACEABILITY.md)、[`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)、[`docs/CODEX_JOBS.md`](docs/CODEX_JOBS.md) 和 [`docs/WORKFLOW_ALIGNMENT.md`](docs/WORKFLOW_ALIGNMENT.md)。
 
-可选 `--context-policy implementation-handoff` 在契约冻结后的首次实现调用前交接一次，连续修复仍复用会话；默认 `persistent`。用 `dpf codex context-report RUN [--compare OTHER_RUN] [--stage STAGE]` 查看费用、缓存、epoch 与证据，不调用模型，也不把执行 PASS 当成质量等价。实现和真实小规模实验见 [上下文策略与 pilot](docs/CONTEXT_POLICY_PILOT_2026-09-26.zh-CN.md)。
+新建 developer-evidence 项目默认 `analysis-handoff`：分析材料、契约及已启用的分析审查完成后，在首次框架使能前交接一次；框架使能、驱动实现及连续修复复用新会话。已有项目保留其设置，未记录策略的旧项目仍为 `persistent`。可用 `--context-policy persistent` 关闭交接，或选 `implementation-handoff` 将交接推迟至首次驱动实现前。用 `dpf codex context-report RUN [--compare OTHER_RUN] [--stage STAGE]` 查看费用、缓存、会话连续性与证据，不调用模型，也不把执行 PASS 当成质量等价。详见 [分析到执行的上下文交接](docs/ANALYSIS_HANDOFF_POLICY.zh-CN.md)。
 
 交接包现在携带同一修复周期的最近两条 controller observation 及变化，帮助核对过期归因；`context-report` 增加保持 token 不变的缓存成本敏感性统计。两者均不触发新门禁或付费调用。证据、边界和下一步实验设计见 [后续优化研究](docs/WORKFLOW_OPTIMIZATION_FOLLOWUP_2026-09-26.zh-CN.md)。
 

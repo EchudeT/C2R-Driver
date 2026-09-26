@@ -1,7 +1,8 @@
 """Opt-in context experiments must preserve evidence and avoid reset loops."""
 
 import json
-from unittest.mock import patch
+from dataclasses import replace
+from unittest.mock import PropertyMock, patch
 
 import pytest
 
@@ -28,6 +29,8 @@ def worker(project):
 
 def test_default_and_nonboundary_calls_preserve_session(tmp_path):
     project = ready_implementation(tmp_path)
+    assert read_policy(project)["name"] == "analysis-handoff"
+    configure_policy(project, "persistent", reason="test persistent opt-out")
     key, session = worker(project)
     assert read_policy(project)["name"] == "persistent"
     unchanged, decision = prepare_context(
@@ -106,6 +109,60 @@ def test_interruption_does_not_lose_handoff_or_reset_again(tmp_path):
     assert result["handoff"] == session["handoff"]
     assert decision["decision"] == "preserve"
     assert not result.get("thread_id")
+
+
+def test_analysis_boundary_handoff_survives_restart_and_preserves_execution(tmp_path):
+    project = ready_implementation(tmp_path)
+    key, session = worker(project)
+    fresh, decision = prepare_context(
+        project, S.TARGET_FRAMEWORK_ENABLEMENT, key, session, continuing=False)
+    assert decision["decision"] == "rotate"
+    assert fresh["automatic_boundary"] == "analysis_to_execution"
+    packet = json.loads(project.artifacts.path_for_digest(fresh["handoff"]["digest"]).read_text())
+    assert {"migration_contracts", "test_port_matrix"} <= {
+        ref["kind"] for ref in packet["current_evidence"]}
+    assert packet["history_lookup"]["previous_thread"] == "existing-worker"
+    project = open_project(project.root)
+    pending, decision = prepare_context(
+        project, S.TARGET_FRAMEWORK_ENABLEMENT, key, read_session(project, key), continuing=False)
+    assert pending == fresh and decision["decision"] == "preserve"
+    save_session(project, key, "execution-worker", {})
+    for stage in (S.TARGET_FRAMEWORK_ENABLEMENT, S.DRIVER_IMPLEMENTATION,
+                  S.ARTIFACT_PREPARATION, S.PUBLIC_QEMU_VALIDATION):
+        kept, decision = prepare_context(
+            project, stage, key, read_session(project, key), continuing=False)
+        assert kept["thread_id"] == "execution-worker"
+        assert decision["decision"] == "preserve"
+
+
+@pytest.mark.parametrize("case", ["repair", "started", "review_pending", "fresh"])
+def test_analysis_boundary_skips_ineligible_calls_without_blocking(tmp_path, case):
+    project = ready_implementation(tmp_path, reviewed=case != "review_pending")
+    key, session = worker(project)
+    if case == "started":
+        (project.control / "codex/target_framework_enablement-old.metrics.json").write_text("{}")
+    if case == "fresh":
+        session = {}
+    kept, decision = prepare_context(
+        project, S.TARGET_FRAMEWORK_ENABLEMENT, key, session, continuing=case == "repair")
+    assert kept == session and decision["decision"] == "preserve"
+
+
+def test_legacy_project_without_policy_keeps_persistent_default(tmp_path):
+    project = ready_implementation(tmp_path)
+    (project.control / "codex/context-policy.json").unlink()
+    assert read_policy(open_project(project.root))["name"] == "persistent"
+
+
+def test_analysis_handoff_does_not_require_disabled_review(tmp_path):
+    project = ready_implementation(tmp_path, reviewed=False)
+    key, session = worker(project)
+    with patch.object(type(project), "config", new_callable=PropertyMock,
+                      return_value=replace(project.config, enable_analysis_review=False)):
+        fresh, decision = prepare_context(
+            project, S.TARGET_FRAMEWORK_ENABLEMENT, key, session, continuing=False)
+    assert decision["decision"] == "rotate"
+    assert not fresh.get("thread_id")
 
 
 def test_reports_preserve_unknown_costs_and_do_not_certify_comparison(tmp_path, capsys):
