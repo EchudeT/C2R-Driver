@@ -95,6 +95,8 @@ configs/drivers/linux-e1000.catalog.json
 configs/drivers/linux-pvpanic-pci.catalog.json
 ```
 
+如果要测试其他驱动，请在 `configs/drivers/` 中创建一个新的 `linux-*.catalog.json` 文件，这个是驱动的配置文件。
+
 默认开启分析审查和最终证据审查。此次开发实验明确不需要它们时，可以传：
 
 ```sh
