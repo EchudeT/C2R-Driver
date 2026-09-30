@@ -208,6 +208,19 @@ def accept_decision(project, stage, path: Path, report: Path) -> None:
         for item in payload["artifacts"]]
     if not all(project.artifacts.verify(ref) for ref in refs):
         raise WorkflowError("checker decision outputs are missing or damaged")
+    # Revalidate structural bindings even for old pending decisions. Only typed
+    # observational findings may be adjudicated; integrity failures stay failures.
+    from .models import ObservationFinding
+    artifacts = tuple((ref, project.artifacts.read(ref)) for ref in refs)
+    for ref, data in artifacts:
+        try:
+            project.validators.validate(project.validators.parse(ref.kind), data)
+        except ObservationFinding:
+            pass
+    try:
+        project._validate_stage_bundle(stage, artifacts)
+    except ObservationFinding:
+        pass
     decision = project.artifacts.put_bytes(text.encode(), kind="worker_checker_decision")
     message = f"WORKER_ACCEPTED: {decision.digest}; checker findings: {path}"
     project._persistence._commit_validated_stage(stage, refs, message=message)

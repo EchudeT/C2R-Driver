@@ -21,11 +21,18 @@ TASKS = {
         "Write {facets:[{lane,facet,rationale,repository_paths?:[{repository,path}],"
         "external_documents?:[{url,publisher_url,basis}|{url,corroboration_urls:[url]}],"
         "external_urls?:[url],gap?:{impact,repair_trigger}}]}. "
-        "Lanes: source,target,qemu,hardware,test,tooling. Facet is a descriptive name. "
+        "Lanes: source,target,qemu,hardware,test,tooling. Facet is a nonempty token without "
+        "whitespace (for example register_state_machine); put descriptive prose in rationale. "
+        "repository_paths may name tracked files or narrowly scoped directories in the frozen "
+        "revision. The controller expands directories into exact tracked file locators and "
+        "deduplicates overlap within each facet; do not manually enumerate a selected subtree. "
+        "Select individual files when only part of a broad directory is relevant. "
         "The controller adds source/driver_entry. Source/target/qemu use matching repositories; "
         "test/source_tests uses source; other test/tooling facets may use any repository. "
         "Hardware uses external documents, not repository_paths. Official originals use "
-        "publisher_url and basis; mirrors use corroboration_urls. Unavailable evidence uses "
+        "publisher_url and basis; mirrors use corroboration_urls containing byte-identical "
+        "copies of the same document from independent publishers after redirects, not different "
+        "manual versions or two URLs on one publisher. Unavailable evidence uses "
         "checked external_urls and gap. The controller owns hashes and provenance storage. "
         "Write this object to a file and invoke tool_runtime.submission_command with --kind "
         "proposal --decision submit. Do not put JSON in the final chat response. On repair "
@@ -38,7 +45,8 @@ TASKS = {
         "image ID; a host QEMU process is not accepted. The final chat response is not a "
         "submission.", executable=True),
     "target_platform_study": TaskProtocol(completion=
-        "Complete the target-platform study report, including the profile, target API evidence, "
+        "Complete one combined analysis report: source semantics, migration contracts and test "
+        "stimulus/assertion matrix, plus the target profile and target API evidence, "
         "one applicable analogous path and target-change/packaging evidence; write it to a file "
         "and invoke tool_runtime.submission_command with --kind report --decision pass. Use "
         "--decision rework --repair-stage or --decision blocked only under the shared protocol."),
@@ -50,12 +58,17 @@ TASKS = {
         "Complete source analysis, contracts and test plan in one Markdown report, then invoke "
         "tool_runtime.submission_command with --kind report --decision pass."),
     "target_framework_enablement": TaskProtocol(completion=
-        "Implement only the minimal target-platform framework/API changes required by the "
-        "frozen target study and migration contracts in the target worktree. Run the narrowest "
-        "target checks and affected regressions, write the report under .dpf-output, include "
-        "necessity, alternatives, safety impact and rollback evidence, then invoke "
-        "tool_runtime.submission_command with --kind report --decision pass. Do not edit the "
-        "migrated driver or invent a fallback path."),
+        "Complete one coherent delivery from the frozen analysis: minimal target API changes, "
+        "Rust driver and shared integration, public tests and runnable artifact preparation. "
+        "Create .dpf-output/runtime-artifact, check-presence.sh, implementation-smoke.sh, "
+        "public-qemu.sh and required harness variants. Follow the implementation smoke and "
+        "execution rules; use managed execution for a ready public suite, inspect its results "
+        "and acknowledge the same report in-task when complete. Downstream capture reuses "
+        "matching receipts. Record target-change necessity, alternatives, safety effects and "
+        "actual check results in one report, distinguishing pending public tests. Submit with "
+        "tool_runtime.submission_command --kind report --decision pass. The controller captures "
+        "separate evidence checkpoints and performs the ordinary implementation checks; "
+        "file presence alone does not establish correctness.", executable=True),
     "driver_implementation": TaskProtocol(completion=
         "Finish implementation and affected checks. Build the current driver into "
         ".dpf-output/runtime-artifact and write .dpf-output/check-presence.sh plus "
@@ -65,14 +78,14 @@ TASKS = {
         "Keep the smoke under 300 seconds; return zero only when all smoke assertions pass. "
         "Check component initialization, exact device identity, registration, successful "
         "probe/binding/readiness and one applicable data operation (network: one TX and RX "
-        "with externally checked payloads). For NE2000 use ne2k_pci, PCI 10ec:8029. "
-        "Use the pinned official Asterinas Docker for Asterinas builds and QEMU execution. "
+        "with externally checked payloads). Derive device identity and execution environment "
+        "from this project's frozen source, target and environment evidence. "
         "Save command, image identity, logs, actual exit/timeout and oracle results; an "
         "expected guest timeout is acceptable only after the assertions pass. The controller "
         "runs a deterministic runtime-premise preflight before QEMU and records every finding "
         "with an exact path and line. Inspect and repair failures in this stage before resubmitting; "
         "this does not replace the full public ladder. If a finding proves an absent target "
-        "capability or framework interface, request rework to target_framework_enablement; do not "
+        "capability or framework interface, repair it coherently with driver integration; do not "
         "report a repairable implementation or packaging defect as BLOCKED. Describe assertions "
         "and results in the report, then invoke "
         "tool_runtime.submission_command with --kind report --decision pass.", executable=True),
@@ -89,9 +102,8 @@ TASKS = {
         "the implementation snapshot without another implementation turn.", executable=True),
     "public_qemu_validation": TaskProtocol(("PUBLIC_QEMU",),
         "Write .dpf-output/public-qemu.sh, using $DPF_RUNTIME_ARTIFACT for production. "
-        "For an Asterinas target, invoke QEMU inside the pinned official asterinas/dev Docker "
-        "image with the worktree and runtime mounted; record the image identity in the run "
-        "evidence. Do not use a host QEMU as a substitute. "
+        "Use the selected target route and required container boundary, mounting the worktree "
+        "and runtime and recording image identity when applicable. "
         "Return zero only when its required oracles pass. Invoke tool_runtime.submission_command "
         "with --kind report --decision operation --operation PUBLIC_QEMU, then inspect "
         "controller_execution and update the same report. After the final audit invoke the "
@@ -112,10 +124,11 @@ def describe(stage):
     if task is None:
         return None
     repair = (
-        "For final_evidence_review, use the frozen contract/test IDs only as acceptance oracles. "
-        "Do not reopen evidence-and-design work or request evidence_closure, target_platform_study "
-        "or migration_contracts. Route target framework capability/interface changes to "
-        "target_framework_enablement, changed driver source to driver_implementation, authoritative "
+        "Use current contract/test IDs. A concrete counterexample to an analysis premise may request "
+        "the smallest permitted analysis prerequisite in instructions.repair_targets. Cite the "
+        "contradiction, affected obligations and necessary revision; do not reopen resolved doubts. "
+        "Route all target framework, shared integration and driver source "
+        "changes to driver_implementation, authoritative "
         "runtime/CAS/checker/variant/entrypoint identity to artifact_preparation, and unchanged-artifact "
         "harness/oracle defects to public_qemu_validation. A stale or refreshed human-readable artifact "
         "receipt or worker summary is derived metadata, not a packaging defect, and must not trigger a "
@@ -123,23 +136,24 @@ def describe(stage):
         "tool_runtime.submission_command with --decision rework --repair-stage <delivery prerequisite>. "
         "The reviewer never edits source or runtime files."
         if stage == "final_evidence_review" else
-        "Within the current phase choose from instructions.repair_targets. Route missing original "
-        "evidence/provenance/materials to evidence_closure; environment or executable-route defects "
-        "to environment_recovery; target API/call-chain/init-order/target-change evidence to "
+        "Choose only from instructions.repair_targets. Route missing original "
+        "evidence/provenance/materials to evidence_closure; broken baseline build/boot routes "
+        "to environment_recovery; missing future device/backend launch design to migration_contracts "
+        "without requiring its execution before implementation; target API/call-chain/init-order/target-change evidence to "
         "target_platform_study; C compiler/configuration/preprocessor/layout/ABI/effect facts, "
         "translation contracts, or test assertion provenance to migration_contracts; target framework "
-        "capability/interface implementation to target_framework_enablement; changed driver source "
+        "capability/interface implementation and changed driver source "
         "to driver_implementation; packaging/image identity to artifact_preparation; unchanged-artifact "
         "harness/oracle defects to public_qemu_validation. Do not route a semantic contract defect to "
         "evidence_closure merely because it is called an evidence gap. Write the reason in the report "
         "and invoke tool_runtime.submission_command with --decision rework --repair-stage <affected "
-        "prerequisite>. Completed earlier phases are sealed. If a frozen earlier premise must change, "
-        "report the concrete blocker and impact; never silently reopen it."
+        "prerequisite>. Revise an earlier premise only with concrete contradictory evidence and "
+        "affected contract IDs; preserve unrelated conclusions and all historical observations."
     )
     return {
         "report_action": "The report is evidence only. Append execution observations and self-checks to the file; use tool_runtime.submission_command to submit pass, operation, rework or blocked. The final chat response never changes workflow state.",
         "input_authority": "Current frozen_inputs supersede older versions in conversation or reports. "
-            "repair_state OPEN is actionable; RESOLVED is history, not a new repair request.",
+            "Previously supplied inputs are not necessarily read or verified.",
         "operations": list(task.operations),
         "operation_delivery": ("Use tool_runtime.submission_command with --decision operation "
                                "and --operation for a controller operation. An operation request "

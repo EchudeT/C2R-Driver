@@ -1,0 +1,70 @@
+{
+  "run": "/home/unix/file/C2R-Driver/c2rust-migration-test-01/e2e-e1000-context-logs-01",
+  "by_work_episode": {
+    "other:initial": {
+      "codex_calls": 3,
+      "usd": 2.5096896,
+      "codex_seconds": 545.732,
+      "unpriced_calls": 0,
+      "unknown_usage_calls": 0
+    },
+    "other:recovery": {
+      "codex_calls": 6,
+      "usd": 3.1410264000000003,
+      "codex_seconds": 737.729,
+      "unpriced_calls": 0,
+      "unknown_usage_calls": 0
+    },
+    "analysis:initial": {
+      "codex_calls": 2,
+      "usd": 9.031097599999999,
+      "codex_seconds": 1733.995,
+      "unpriced_calls": 0,
+      "unknown_usage_calls": 0
+    },
+    "review:initial": {
+      "codex_calls": 1,
+      "usd": 2.7209472,
+      "codex_seconds": 449.163,
+      "unpriced_calls": 0,
+      "unknown_usage_calls": 0
+    },
+    "analysis:repair": {
+      "codex_calls": 1,
+      "usd": 3.881484,
+      "codex_seconds": 407.608,
+      "unpriced_calls": 0,
+      "unknown_usage_calls": 0
+    },
+    "review:followup": {
+      "codex_calls": 3,
+      "usd": 8.0546496,
+      "codex_seconds": 1113.3310000000001,
+      "unpriced_calls": 0,
+      "unknown_usage_calls": 0
+    },
+    "delivery:initial": {
+      "codex_calls": 4,
+      "usd": 27.6270784,
+      "codex_seconds": 5260.658,
+      "unpriced_calls": 0,
+      "unknown_usage_calls": 0
+    },
+    "delivery:repair": {
+      "codex_calls": 2,
+      "usd": 32.4325344,
+      "codex_seconds": 6684.817999999999,
+      "unpriced_calls": 0,
+      "unknown_usage_calls": 0
+    },
+    "delivery:self_check": {
+      "codex_calls": 3,
+      "usd": 4.2774448,
+      "codex_seconds": 723.246,
+      "unpriced_calls": 0,
+      "unknown_usage_calls": 0
+    }
+  },
+  "total_usd": 93.675952,
+  "limitations": "Historical token estimates grouped by recorded stage/call_reason, not a new migration or measured savings. initial labels ordinary work calls, not proved first-attempt causality."
+}

@@ -6,13 +6,14 @@ returning one consolidated report containing ALL discovered substantive findings
 questions. Do not return after the first defect or drip-feed already discoverable issues across rounds.
 An unresolved question is not a proven defect. State review limits honestly; do not invent completeness.
 Use the controller-only stage-ownership and repair-routing map below. It describes
-workflow ownership only; the supplied Skill originals remain the sole source of
-technical porting requirements:
+workflow ownership. Apply analysis-task.md and the frozen scope; Skill references provide
+technical guidance, not additional exhaustive phases or optional verification obligations:
 
 | Finding | Earliest affected stage | Do not use |
 | --- | --- | --- |
 | Missing/wrong original file, external document, provenance, hash, or controlled material | `evidence_closure` | `migration_contracts` merely to acquire a missing original |
-| Environment, artifact mode, QEMU route, or executable entrypoint | `environment_recovery` | `evidence_closure` |
+| Broken baseline environment/build/boot route, or false claims about its execution | `environment_recovery` | `evidence_closure` |
+| Missing design for migrated-device topology/backend or launch configuration | `migration_contracts` | `environment_recovery` solely because the future harness is not implemented |
 | Target API definition/call path, initialization order, ownership/context, or bounded target change | `target_platform_study` | `evidence_closure` |
 | C compiler/configuration, generated defines, preprocessor output, struct layout, ABI, volatile-I/O effect, translation contract, or test stimulus/assertion provenance | `migration_contracts` | `evidence_closure` |
 | Changed Rust/source implementation or source snapshot | `driver_implementation` | any evidence/design stage |
@@ -24,6 +25,13 @@ an evidence gap. A repair target must name the earliest stage that owns the miss
 decision, and the report must explain why later related findings remain in the same review.
 
 ## What to verify
+
+Analysis review checks evidenced decisions and feasibility, not completed implementation. A working
+baseline plus an evidenced plan for device/backend selection and the intended edit/entrypoint can
+suffice. Require an early executable probe only for a concrete uncertainty that could invalidate
+the route. Do not require future packet injection, driver fault tests or migrated-device execution
+before implementation. Preserve those checks as delivery obligations. Contracts should state key
+ordering, bounds and API preconditions with original references, not duplicate the driver in prose.
 
 - When optional platform navigation was used, reuse the selected paths and evidence IDs in the analysis.
   Check whether the actual bus, device type and mechanisms have been covered, not whether every guide

@@ -44,6 +44,28 @@ def test_reading_plan_bounds_priority_list_but_preserves_catalog():
     assert len(context["inputs"]) == 20
 
 
+def test_shared_contract_and_matrix_content_is_read_once_but_keeps_both_roles():
+    context = {"inputs": [ref("migration_contracts", "same"),
+                          ref("test_port_matrix", "same")]}
+    plan = reading_plan(S.DRIVER_IMPLEMENTATION, context)
+    assert len(plan['first']) == 1
+    assert plan['first'][0]['also_supplies'] == ['test_port_matrix']
+    assert len(context['inputs']) == 2
+
+
+def test_implementation_receives_framework_report_without_unpacking_bundle(tmp_path):
+    from tests.workflow_support import runner
+    project = ready_implementation(tmp_path)
+    port = runner(project)
+    with patch.object(port, '_codex_gate') as gate:
+        port._implementation(project)
+    context = gate.call_args.args[2]
+    report = context['frozen_inputs']['target_framework_enablement_report']
+    assert report['digest'] == project.artifact(
+        S.TARGET_FRAMEWORK_ENABLEMENT, MigrationArtifact.TARGET_FRAMEWORK_REPORT).digest
+    assert 'target_framework_enablement_bundle' in context['frozen_inputs']
+
+
 def test_long_feedback_is_losslessly_archived_and_short_feedback_unchanged(tmp_path):
     project = ready_implementation(tmp_path)
     text = "开始\n" + "repeated diagnostic\n" * 500 + "critical final error\n"
@@ -90,6 +112,10 @@ def test_worker_receives_navigation_and_complete_feedback_reference(tmp_path, lo
     def gateway(job):
         header = json.loads(job.prompt.split("<job>", 1)[1].split("</job>", 1)[0])
         material = header["reference_material"]
+        assert "experiment_route" in material["environment_evidence"]
+        runtime = header["instructions"]["tool_runtime"]
+        assert "driver_port_factory.read_evidence" in runtime["text_reader"]
+        assert "not proof" in runtime["cargo_home_note"]
         record = material["controller_feedback"]["full_record"]
         assert project.artifacts.path_for_digest(record["digest"]).read_text() == feedback
         assert material["reading_plan"]["first"][0]["kind"] == "migration_contracts"

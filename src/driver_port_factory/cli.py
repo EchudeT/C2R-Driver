@@ -27,6 +27,14 @@ def parser() -> argparse.ArgumentParser:
     register_knowledge_commands(commands)
     register_codex_commands(commands)
     register_sealing_commands(commands)
+    from .migration.experiment_cli import register_commands as register_experiments
+    register_experiments(commands)
+    from .platform_assets import register_commands as register_platform_assets
+    register_platform_assets(commands)
+    from .build_cache import register_commands as register_build_cache
+    register_build_cache(commands)
+    from .checkpoints import register_commands as register_checkpoints
+    register_checkpoints(commands)
     return root
 
 

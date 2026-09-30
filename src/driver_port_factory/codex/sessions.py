@@ -50,7 +50,7 @@ def session_key(
         "base_url": settings.get("openai_base_url"),
     }
     if stage in {MigrationStage.FINAL_EVIDENCE_REVIEW, MigrationStage.ANALYSIS_REVIEW}:
-        conversation = "reviewer"
+        conversation = "reviewer" if stage is MigrationStage.ANALYSIS_REVIEW else "final-reviewer"
     elif project.config.evaluation_mode is EvaluationMode.DEVELOPER_EVIDENCE:
         conversation = "worker"
     else:

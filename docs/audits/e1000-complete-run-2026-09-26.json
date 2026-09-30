@@ -1,0 +1,1375 @@
+{
+  "schema_version": 1,
+  "run": "/home/unix/file/C2R-Driver/c2rust-migration-test-01/e2e-e1000-context-logs-01",
+  "totals": {
+    "elapsed_seconds": 18062.747436,
+    "waiting_seconds": 53.862575,
+    "codex_seconds": 17656.28,
+    "codex_calls": 25,
+    "unknown_usage_calls": 0,
+    "unpriced_calls": 0,
+    "usd": 93.675952,
+    "usage": {
+      "input_tokens": 105793475,
+      "cached_input_tokens": 93838080,
+      "output_tokens": 415957
+    }
+  },
+  "stages": [
+    {
+      "stage": "project_init",
+      "status": "PASS",
+      "execution_state": "PASS",
+      "acceptance": null,
+      "elapsed_seconds": 0.0,
+      "waiting_seconds": 0.0,
+      "attempts": 1,
+      "codex_calls": 0,
+      "codex_seconds": 0.0,
+      "usage": {
+        "input_tokens": 0,
+        "cached_input_tokens": 0,
+        "output_tokens": 0
+      },
+      "unknown_usage_calls": 0,
+      "unpriced_calls": 0,
+      "usd": 0.0
+    },
+    {
+      "stage": "request_intake",
+      "status": "PASS",
+      "execution_state": "PASS",
+      "acceptance": null,
+      "elapsed_seconds": 0.005025,
+      "waiting_seconds": 0.0,
+      "attempts": 1,
+      "codex_calls": 0,
+      "codex_seconds": 0.0,
+      "usage": {
+        "input_tokens": 0,
+        "cached_input_tokens": 0,
+        "output_tokens": 0
+      },
+      "unknown_usage_calls": 0,
+      "unpriced_calls": 0,
+      "usd": 0.0
+    },
+    {
+      "stage": "driver_candidate_resolution",
+      "status": "PASS",
+      "execution_state": "PASS",
+      "acceptance": null,
+      "elapsed_seconds": 0.003775,
+      "waiting_seconds": 0.0,
+      "attempts": 1,
+      "codex_calls": 0,
+      "codex_seconds": 0.0,
+      "usage": {
+        "input_tokens": 0,
+        "cached_input_tokens": 0,
+        "output_tokens": 0
+      },
+      "unknown_usage_calls": 0,
+      "unpriced_calls": 0,
+      "usd": 0.0
+    },
+    {
+      "stage": "scope_confirmation",
+      "status": "PASS",
+      "execution_state": "PASS",
+      "acceptance": null,
+      "elapsed_seconds": 0.006936,
+      "waiting_seconds": 53.862575,
+      "attempts": 1,
+      "codex_calls": 0,
+      "codex_seconds": 0.0,
+      "usage": {
+        "input_tokens": 0,
+        "cached_input_tokens": 0,
+        "output_tokens": 0
+      },
+      "unknown_usage_calls": 0,
+      "unpriced_calls": 0,
+      "usd": 0.0
+    },
+    {
+      "stage": "migration_envelope_freeze",
+      "status": "PASS",
+      "execution_state": "PASS",
+      "acceptance": null,
+      "elapsed_seconds": 0.0,
+      "waiting_seconds": 0.0,
+      "attempts": 1,
+      "codex_calls": 0,
+      "codex_seconds": 0.0,
+      "usage": {
+        "input_tokens": 0,
+        "cached_input_tokens": 0,
+        "output_tokens": 0
+      },
+      "unknown_usage_calls": 0,
+      "unpriced_calls": 0,
+      "usd": 0.0
+    },
+    {
+      "stage": "repository_acquisition",
+      "status": "PASS",
+      "execution_state": "PASS",
+      "acceptance": null,
+      "elapsed_seconds": 120.010735,
+      "waiting_seconds": 0.0,
+      "attempts": 1,
+      "codex_calls": 1,
+      "codex_seconds": 63.222,
+      "usage": {
+        "input_tokens": 126595,
+        "cached_input_tokens": 115072,
+        "output_tokens": 2142
+      },
+      "unknown_usage_calls": 0,
+      "unpriced_calls": 0,
+      "usd": 0.1349608
+    },
+    {
+      "stage": "evidence_closure",
+      "status": "PASS",
+      "execution_state": "PASS",
+      "acceptance": null,
+      "elapsed_seconds": 877.751795,
+      "waiting_seconds": 0.0,
+      "attempts": 1,
+      "codex_calls": 6,
+      "codex_seconds": 862.2460000000001,
+      "usage": {
+        "input_tokens": 3685413,
+        "cached_input_tokens": 3324032,
+        "output_tokens": 26785
+      },
+      "unknown_usage_calls": 0,
+      "unpriced_calls": 0,
+      "usd": 3.3108368
+    },
+    {
+      "stage": "environment_recovery",
+      "status": "PASS",
+      "execution_state": "PASS",
+      "acceptance": null,
+      "elapsed_seconds": 366.520107,
+      "waiting_seconds": 0.0,
+      "attempts": 1,
+      "codex_calls": 2,
+      "codex_seconds": 357.993,
+      "usage": {
+        "input_tokens": 2276871,
+        "cached_input_tokens": 1972096,
+        "output_tokens": 9849
+      },
+      "unknown_usage_calls": 0,
+      "unpriced_calls": 0,
+      "usd": 2.2049184
+    },
+    {
+      "stage": "knowledge_base",
+      "status": "PASS",
+      "execution_state": "PASS",
+      "acceptance": null,
+      "elapsed_seconds": 0.060111,
+      "waiting_seconds": 0.0,
+      "attempts": 1,
+      "codex_calls": 0,
+      "codex_seconds": 0.0,
+      "usage": {
+        "input_tokens": 0,
+        "cached_input_tokens": 0,
+        "output_tokens": 0
+      },
+      "unknown_usage_calls": 0,
+      "unpriced_calls": 0,
+      "usd": 0.0
+    },
+    {
+      "stage": "target_platform_study",
+      "status": "PASS",
+      "execution_state": "PASS",
+      "acceptance": null,
+      "elapsed_seconds": 585.96645,
+      "waiting_seconds": 0.0,
+      "attempts": 1,
+      "codex_calls": 1,
+      "codex_seconds": 585.924,
+      "usage": {
+        "input_tokens": 2395048,
+        "cached_input_tokens": 1932544,
+        "output_tokens": 21088
+      },
+      "unknown_usage_calls": 0,
+      "unpriced_calls": 0,
+      "usd": 3.0447936
+    },
+    {
+      "stage": "migration_handoff",
+      "status": "PASS",
+      "execution_state": "PASS",
+      "acceptance": null,
+      "elapsed_seconds": 0.182644,
+      "waiting_seconds": 0.0,
+      "attempts": 1,
+      "codex_calls": 0,
+      "codex_seconds": 0.0,
+      "usage": {
+        "input_tokens": 0,
+        "cached_input_tokens": 0,
+        "output_tokens": 0
+      },
+      "unknown_usage_calls": 0,
+      "unpriced_calls": 0,
+      "usd": 0.0
+    },
+    {
+      "stage": "migration_contracts",
+      "status": "PASS",
+      "execution_state": "PASS",
+      "acceptance": null,
+      "elapsed_seconds": 1555.7613889999998,
+      "waiting_seconds": 0.0,
+      "attempts": 2,
+      "codex_calls": 2,
+      "codex_seconds": 1555.6789999999999,
+      "usage": {
+        "input_tokens": 9938655,
+        "cached_input_tokens": 8545920,
+        "output_tokens": 43924
+      },
+      "unknown_usage_calls": 0,
+      "unpriced_calls": 0,
+      "usd": 9.867788
+    },
+    {
+      "stage": "analysis_review",
+      "status": "PASS",
+      "execution_state": "PASS",
+      "acceptance": null,
+      "elapsed_seconds": 799.910151,
+      "waiting_seconds": 0.0,
+      "attempts": 2,
+      "codex_calls": 2,
+      "codex_seconds": 799.84,
+      "usage": {
+        "input_tokens": 4638025,
+        "cached_input_tokens": 3757056,
+        "output_tokens": 24494
+      },
+      "unknown_usage_calls": 0,
+      "unpriced_calls": 0,
+      "usd": 5.5165784
+    },
+    {
+      "stage": "target_framework_enablement",
+      "status": "PASS",
+      "execution_state": "PASS",
+      "acceptance": null,
+      "elapsed_seconds": 2158.667121,
+      "waiting_seconds": 0.0,
+      "attempts": 1,
+      "codex_calls": 1,
+      "codex_seconds": 2158.538,
+      "usage": {
+        "input_tokens": 16132760,
+        "cached_input_tokens": 14962816,
+        "output_tokens": 42680
+      },
+      "unknown_usage_calls": 0,
+      "unpriced_calls": 0,
+      "usd": 11.5185024
+    },
+    {
+      "stage": "driver_implementation",
+      "status": "PASS",
+      "execution_state": "PASS",
+      "acceptance": null,
+      "elapsed_seconds": 9340.180486000001,
+      "waiting_seconds": 0.0,
+      "attempts": 3,
+      "codex_calls": 3,
+      "codex_seconds": 9297.936,
+      "usage": {
+        "input_tokens": 55409561,
+        "cached_input_tokens": 49822848,
+        "output_tokens": 183703
+      },
+      "unknown_usage_calls": 0,
+      "unpriced_calls": 0,
+      "usd": 45.9500512
+    },
+    {
+      "stage": "artifact_preparation",
+      "status": "PASS",
+      "execution_state": "PASS",
+      "acceptance": null,
+      "elapsed_seconds": 288.509533,
+      "waiting_seconds": 0.0,
+      "attempts": 3,
+      "codex_calls": 1,
+      "codex_seconds": 276.259,
+      "usage": {
+        "input_tokens": 1672534,
+        "cached_input_tokens": 1535488,
+        "output_tokens": 9130
+      },
+      "unknown_usage_calls": 0,
+      "unpriced_calls": 0,
+      "usd": 1.3449792
+    },
+    {
+      "stage": "public_qemu_validation",
+      "status": "PASS",
+      "execution_state": "PASS",
+      "acceptance": null,
+      "elapsed_seconds": 1206.4614820000002,
+      "waiting_seconds": 0.0,
+      "attempts": 3,
+      "codex_calls": 4,
+      "codex_seconds": 935.989,
+      "usage": {
+        "input_tokens": 5516432,
+        "cached_input_tokens": 4746112,
+        "output_tokens": 27190
+      },
+      "unknown_usage_calls": 0,
+      "unpriced_calls": 0,
+      "usd": 5.5235248
+    },
+    {
+      "stage": "final_evidence_review",
+      "status": "PASS",
+      "execution_state": "PASS",
+      "acceptance": null,
+      "elapsed_seconds": 762.749696,
+      "waiting_seconds": 0.0,
+      "attempts": 2,
+      "codex_calls": 2,
+      "codex_seconds": 762.654,
+      "usage": {
+        "input_tokens": 4001581,
+        "cached_input_tokens": 3124096,
+        "output_tokens": 24972
+      },
+      "unknown_usage_calls": 0,
+      "unpriced_calls": 0,
+      "usd": 5.2590184
+    }
+  ],
+  "by_call_reason": {
+    "stage_work": {
+      "codex_calls": 9,
+      "codex_seconds": 7540.385,
+      "usd": 39.16786559999999,
+      "unknown_usage_calls": 0,
+      "unpriced_calls": 0,
+      "usage": {
+        "input_tokens": 44628281,
+        "cached_input_tokens": 39762944,
+        "output_tokens": 190067
+      }
+    },
+    "recovery": {
+      "codex_calls": 6,
+      "codex_seconds": 737.729,
+      "usd": 3.1410264000000003,
+      "unknown_usage_calls": 0,
+      "unpriced_calls": 0,
+      "usage": {
+        "input_tokens": 4204124,
+        "cached_input_tokens": 3915136,
+        "output_tokens": 20951
+      }
+    },
+    "independent_review": {
+      "codex_calls": 1,
+      "codex_seconds": 449.163,
+      "usd": 2.7209472,
+      "unknown_usage_calls": 0,
+      "unpriced_calls": 0,
+      "usage": {
+        "input_tokens": 2654347,
+        "cached_input_tokens": 2256128,
+        "output_tokens": 11281
+      }
+    },
+    "repair": {
+      "codex_calls": 3,
+      "codex_seconds": 7092.4259999999995,
+      "usd": 36.3140184,
+      "unknown_usage_calls": 0,
+      "unpriced_calls": 0,
+      "usage": {
+        "input_tokens": 43989642,
+        "cached_input_tokens": 39553536,
+        "output_tokens": 137409
+      }
+    },
+    "review_followup": {
+      "codex_calls": 3,
+      "codex_seconds": 1113.3310000000001,
+      "usd": 8.0546496,
+      "unknown_usage_calls": 0,
+      "unpriced_calls": 0,
+      "usage": {
+        "input_tokens": 5985259,
+        "cached_input_tokens": 4625024,
+        "output_tokens": 38185
+      }
+    },
+    "execution_self_check": {
+      "codex_calls": 3,
+      "codex_seconds": 723.246,
+      "usd": 4.2774448,
+      "unknown_usage_calls": 0,
+      "unpriced_calls": 0,
+      "usage": {
+        "input_tokens": 4331822,
+        "cached_input_tokens": 3725312,
+        "output_tokens": 18064
+      }
+    }
+  },
+  "jobs": [
+    {
+      "job_id": "cbc5ab5b-a430-4b47-9f3c-c7a1f0724479",
+      "stage": "repository_acquisition",
+      "call_reason": "stage_work",
+      "elapsed_seconds": 63.222,
+      "thread_id": "01a0dcb4-6321-7220-9f33-8e20b2f8c1a6",
+      "context_policy": {
+        "name": "analysis-handoff",
+        "version": 1,
+        "decision": "preserve",
+        "reason": "outside_analysis_boundary"
+      },
+      "context_action": "fresh",
+      "context_epoch": null,
+      "usage": {
+        "input_tokens": 126595,
+        "cached_input_tokens": 115072,
+        "output_tokens": 2142,
+        "cache_write_input_tokens": 0
+      },
+      "estimate": {
+        "usd": 0.1349608,
+        "model": "gpt-5.6-sol",
+        "service_tier": "standard",
+        "source": "https://developers.openai.com/api/docs/pricing",
+        "price_date": "2026-09-19",
+        "basis": "short context assumed with 224k auto-compaction; public API rates, not relay invoice"
+      }
+    },
+    {
+      "job_id": "1ff2136f-b48e-4bc5-9c9a-871f02e0a32e",
+      "stage": "evidence_closure",
+      "call_reason": "stage_work",
+      "elapsed_seconds": 248.818,
+      "thread_id": "01a0dcb4-6321-7220-9f33-8e20b2f8c1a6",
+      "context_policy": {
+        "name": "analysis-handoff",
+        "version": 1,
+        "decision": "preserve",
+        "reason": "outside_analysis_boundary"
+      },
+      "context_action": "resume",
+      "context_epoch": null,
+      "usage": {
+        "input_tokens": 551721,
+        "cached_input_tokens": 465280,
+        "output_tokens": 8676,
+        "cache_write_input_tokens": 0
+      },
+      "estimate": {
+        "usd": 0.705396,
+        "model": "gpt-5.6-sol",
+        "service_tier": "standard",
+        "source": "https://developers.openai.com/api/docs/pricing",
+        "price_date": "2026-09-19",
+        "basis": "short context assumed with 224k auto-compaction; public API rates, not relay invoice"
+      }
+    },
+    {
+      "job_id": "660c8c59-99f3-4ebc-acb1-9c53016eda75",
+      "stage": "evidence_closure",
+      "call_reason": "recovery",
+      "elapsed_seconds": 63.345,
+      "thread_id": "01a0dcb4-6321-7220-9f33-8e20b2f8c1a6",
+      "context_policy": {
+        "name": "analysis-handoff",
+        "version": 1,
+        "decision": "preserve",
+        "reason": "outside_analysis_boundary"
+      },
+      "context_action": "resume",
+      "context_epoch": null,
+      "usage": {
+        "input_tokens": 342976,
+        "cached_input_tokens": 335488,
+        "output_tokens": 1809,
+        "cache_write_input_tokens": 0
+      },
+      "estimate": {
+        "usd": 0.2003272,
+        "model": "gpt-5.6-sol",
+        "service_tier": "standard",
+        "source": "https://developers.openai.com/api/docs/pricing",
+        "price_date": "2026-09-19",
+        "basis": "short context assumed with 224k auto-compaction; public API rates, not relay invoice"
+      }
+    },
+    {
+      "job_id": "f9967292-68ef-49be-ab22-8937c82b8b33",
+      "stage": "evidence_closure",
+      "call_reason": "recovery",
+      "elapsed_seconds": 61.106,
+      "thread_id": "01a0dcb4-6321-7220-9f33-8e20b2f8c1a6",
+      "context_policy": {
+        "name": "analysis-handoff",
+        "version": 1,
+        "decision": "preserve",
+        "reason": "outside_analysis_boundary"
+      },
+      "context_action": "resume",
+      "context_epoch": null,
+      "usage": {
+        "input_tokens": 377017,
+        "cached_input_tokens": 369280,
+        "output_tokens": 2097,
+        "cache_write_input_tokens": 0
+      },
+      "estimate": {
+        "usd": 0.2206,
+        "model": "gpt-5.6-sol",
+        "service_tier": "standard",
+        "source": "https://developers.openai.com/api/docs/pricing",
+        "price_date": "2026-09-19",
+        "basis": "short context assumed with 224k auto-compaction; public API rates, not relay invoice"
+      }
+    },
+    {
+      "job_id": "40286061-7e2a-4c43-9ed6-4a766f18b335",
+      "stage": "evidence_closure",
+      "call_reason": "recovery",
+      "elapsed_seconds": 145.805,
+      "thread_id": "01a0dcb4-6321-7220-9f33-8e20b2f8c1a6",
+      "context_policy": {
+        "name": "analysis-handoff",
+        "version": 1,
+        "decision": "preserve",
+        "reason": "outside_analysis_boundary"
+      },
+      "context_action": "resume",
+      "context_epoch": null,
+      "usage": {
+        "input_tokens": 631662,
+        "cached_input_tokens": 504576,
+        "output_tokens": 3325,
+        "cache_write_input_tokens": 0
+      },
+      "estimate": {
+        "usd": 0.7766744,
+        "model": "gpt-5.6-sol",
+        "service_tier": "standard",
+        "source": "https://developers.openai.com/api/docs/pricing",
+        "price_date": "2026-09-19",
+        "basis": "short context assumed with 224k auto-compaction; public API rates, not relay invoice"
+      }
+    },
+    {
+      "job_id": "81d21b31-27fb-431e-aee4-5eabe3e7085f",
+      "stage": "evidence_closure",
+      "call_reason": "recovery",
+      "elapsed_seconds": 151.611,
+      "thread_id": "01a0dcb4-6321-7220-9f33-8e20b2f8c1a6",
+      "context_policy": {
+        "name": "analysis-handoff",
+        "version": 1,
+        "decision": "preserve",
+        "reason": "outside_analysis_boundary"
+      },
+      "context_action": "resume",
+      "context_epoch": null,
+      "usage": {
+        "input_tokens": 895978,
+        "cached_input_tokens": 885504,
+        "output_tokens": 4335,
+        "cache_write_input_tokens": 0
+      },
+      "estimate": {
+        "usd": 0.4827976,
+        "model": "gpt-5.6-sol",
+        "service_tier": "standard",
+        "source": "https://developers.openai.com/api/docs/pricing",
+        "price_date": "2026-09-19",
+        "basis": "short context assumed with 224k auto-compaction; public API rates, not relay invoice"
+      }
+    },
+    {
+      "job_id": "c10484ac-858a-43ce-82e2-42975147b0eb",
+      "stage": "evidence_closure",
+      "call_reason": "recovery",
+      "elapsed_seconds": 191.561,
+      "thread_id": "01a0dcb4-6321-7220-9f33-8e20b2f8c1a6",
+      "context_policy": {
+        "name": "analysis-handoff",
+        "version": 1,
+        "decision": "preserve",
+        "reason": "outside_analysis_boundary"
+      },
+      "context_action": "resume",
+      "context_epoch": null,
+      "usage": {
+        "input_tokens": 886059,
+        "cached_input_tokens": 763904,
+        "output_tokens": 6543,
+        "cache_write_input_tokens": 0
+      },
+      "estimate": {
+        "usd": 0.9250416,
+        "model": "gpt-5.6-sol",
+        "service_tier": "standard",
+        "source": "https://developers.openai.com/api/docs/pricing",
+        "price_date": "2026-09-19",
+        "basis": "short context assumed with 224k auto-compaction; public API rates, not relay invoice"
+      }
+    },
+    {
+      "job_id": "ffeddbd3-f9c3-44a4-a76c-fdcd2cda252b",
+      "stage": "environment_recovery",
+      "call_reason": "stage_work",
+      "elapsed_seconds": 233.692,
+      "thread_id": "01a0dcb4-6321-7220-9f33-8e20b2f8c1a6",
+      "context_policy": {
+        "name": "analysis-handoff",
+        "version": 1,
+        "decision": "preserve",
+        "reason": "outside_analysis_boundary"
+      },
+      "context_action": "resume",
+      "context_epoch": null,
+      "usage": {
+        "input_tokens": 1206439,
+        "cached_input_tokens": 915712,
+        "output_tokens": 7007,
+        "cache_write_input_tokens": 0
+      },
+      "estimate": {
+        "usd": 1.6693328,
+        "model": "gpt-5.6-sol",
+        "service_tier": "standard",
+        "source": "https://developers.openai.com/api/docs/pricing",
+        "price_date": "2026-09-19",
+        "basis": "short context assumed with 224k auto-compaction; public API rates, not relay invoice"
+      }
+    },
+    {
+      "job_id": "571caafd-81fe-443b-8bf2-f68470c2217a",
+      "stage": "environment_recovery",
+      "call_reason": "recovery",
+      "elapsed_seconds": 124.301,
+      "thread_id": "01a0dcb4-6321-7220-9f33-8e20b2f8c1a6",
+      "context_policy": {
+        "name": "analysis-handoff",
+        "version": 1,
+        "decision": "preserve",
+        "reason": "outside_analysis_boundary"
+      },
+      "context_action": "resume",
+      "context_epoch": null,
+      "usage": {
+        "input_tokens": 1070432,
+        "cached_input_tokens": 1056384,
+        "output_tokens": 2842,
+        "cache_write_input_tokens": 0
+      },
+      "estimate": {
+        "usd": 0.5355856,
+        "model": "gpt-5.6-sol",
+        "service_tier": "standard",
+        "source": "https://developers.openai.com/api/docs/pricing",
+        "price_date": "2026-09-19",
+        "basis": "short context assumed with 224k auto-compaction; public API rates, not relay invoice"
+      }
+    },
+    {
+      "job_id": "fb80ee75-f62d-45bd-b6c0-af44c3896820",
+      "stage": "target_platform_study",
+      "call_reason": "stage_work",
+      "elapsed_seconds": 585.924,
+      "thread_id": "01a0dcb4-6321-7220-9f33-8e20b2f8c1a6",
+      "context_policy": {
+        "name": "analysis-handoff",
+        "version": 1,
+        "decision": "preserve",
+        "reason": "outside_analysis_boundary"
+      },
+      "context_action": "resume",
+      "context_epoch": null,
+      "usage": {
+        "input_tokens": 2395048,
+        "cached_input_tokens": 1932544,
+        "output_tokens": 21088,
+        "cache_write_input_tokens": 0
+      },
+      "estimate": {
+        "usd": 3.0447936,
+        "model": "gpt-5.6-sol",
+        "service_tier": "standard",
+        "source": "https://developers.openai.com/api/docs/pricing",
+        "price_date": "2026-09-19",
+        "basis": "short context assumed with 224k auto-compaction; public API rates, not relay invoice"
+      }
+    },
+    {
+      "job_id": "688f9e94-e019-4cc5-a04e-3430eb41ed44",
+      "stage": "migration_contracts",
+      "call_reason": "stage_work",
+      "elapsed_seconds": 1148.071,
+      "thread_id": "01a0dcb4-6321-7220-9f33-8e20b2f8c1a6",
+      "context_policy": {
+        "name": "analysis-handoff",
+        "version": 1,
+        "decision": "preserve",
+        "reason": "outside_analysis_boundary"
+      },
+      "context_action": "resume",
+      "context_epoch": null,
+      "usage": {
+        "input_tokens": 6748926,
+        "cached_input_tokens": 5996800,
+        "output_tokens": 28954,
+        "cache_write_input_tokens": 0
+      },
+      "estimate": {
+        "usd": 5.986304,
+        "model": "gpt-5.6-sol",
+        "service_tier": "standard",
+        "source": "https://developers.openai.com/api/docs/pricing",
+        "price_date": "2026-09-19",
+        "basis": "short context assumed with 224k auto-compaction; public API rates, not relay invoice"
+      }
+    },
+    {
+      "job_id": "000621a9-f037-46b4-a847-e64aafbc31ab",
+      "stage": "analysis_review",
+      "call_reason": "independent_review",
+      "elapsed_seconds": 449.163,
+      "thread_id": "01a0dce3-ac2d-7da3-a0eb-50cd58e57848",
+      "context_policy": {
+        "name": "analysis-handoff",
+        "version": 1,
+        "decision": "preserve",
+        "reason": "outside_analysis_boundary"
+      },
+      "context_action": "fresh",
+      "context_epoch": null,
+      "usage": {
+        "input_tokens": 2654347,
+        "cached_input_tokens": 2256128,
+        "output_tokens": 11281,
+        "cache_write_input_tokens": 0
+      },
+      "estimate": {
+        "usd": 2.7209472,
+        "model": "gpt-5.6-sol",
+        "service_tier": "standard",
+        "source": "https://developers.openai.com/api/docs/pricing",
+        "price_date": "2026-09-19",
+        "basis": "short context assumed with 224k auto-compaction; public API rates, not relay invoice"
+      }
+    },
+    {
+      "job_id": "eff9ee04-4fc8-4f2a-9cbe-5c383f65bb10",
+      "stage": "migration_contracts",
+      "call_reason": "repair",
+      "elapsed_seconds": 407.608,
+      "thread_id": "01a0dcb4-6321-7220-9f33-8e20b2f8c1a6",
+      "context_policy": {
+        "name": "analysis-handoff",
+        "version": 1,
+        "decision": "preserve",
+        "reason": "outside_analysis_boundary"
+      },
+      "context_action": "resume",
+      "context_epoch": null,
+      "usage": {
+        "input_tokens": 3189729,
+        "cached_input_tokens": 2549120,
+        "output_tokens": 14970,
+        "cache_write_input_tokens": 0
+      },
+      "estimate": {
+        "usd": 3.881484,
+        "model": "gpt-5.6-sol",
+        "service_tier": "standard",
+        "source": "https://developers.openai.com/api/docs/pricing",
+        "price_date": "2026-09-19",
+        "basis": "short context assumed with 224k auto-compaction; public API rates, not relay invoice"
+      }
+    },
+    {
+      "job_id": "41b7095e-dfd9-445a-82ce-10a1ce93bc6c",
+      "stage": "analysis_review",
+      "call_reason": "review_followup",
+      "elapsed_seconds": 350.677,
+      "thread_id": "01a0dce3-ac2d-7da3-a0eb-50cd58e57848",
+      "context_policy": {
+        "name": "analysis-handoff",
+        "version": 1,
+        "decision": "preserve",
+        "reason": "outside_analysis_boundary"
+      },
+      "context_action": "resume",
+      "context_epoch": null,
+      "usage": {
+        "input_tokens": 1983678,
+        "cached_input_tokens": 1500928,
+        "output_tokens": 13213,
+        "cache_write_input_tokens": 0
+      },
+      "estimate": {
+        "usd": 2.7956312,
+        "model": "gpt-5.6-sol",
+        "service_tier": "standard",
+        "source": "https://developers.openai.com/api/docs/pricing",
+        "price_date": "2026-09-19",
+        "basis": "short context assumed with 224k auto-compaction; public API rates, not relay invoice"
+      }
+    },
+    {
+      "job_id": "aabd586f-7e89-4c57-b4bb-520b91f56dc9",
+      "stage": "target_framework_enablement",
+      "call_reason": "stage_work",
+      "elapsed_seconds": 2158.538,
+      "thread_id": "01a0dcb4-6321-7220-9f33-8e20b2f8c1a6",
+      "context_policy": {
+        "name": "analysis-handoff",
+        "version": 1,
+        "decision": "preserve",
+        "reason": "continuation_preserved"
+      },
+      "context_action": "resume",
+      "context_epoch": null,
+      "usage": {
+        "input_tokens": 16132760,
+        "cached_input_tokens": 14962816,
+        "output_tokens": 42680,
+        "cache_write_input_tokens": 0
+      },
+      "estimate": {
+        "usd": 11.5185024,
+        "model": "gpt-5.6-sol",
+        "service_tier": "standard",
+        "source": "https://developers.openai.com/api/docs/pricing",
+        "price_date": "2026-09-19",
+        "basis": "short context assumed with 224k auto-compaction; public API rates, not relay invoice"
+      }
+    },
+    {
+      "job_id": "e641cd77-92c4-49db-85e8-4901e8769908",
+      "stage": "driver_implementation",
+      "call_reason": "stage_work",
+      "elapsed_seconds": 2613.118,
+      "thread_id": "01a0dcb4-6321-7220-9f33-8e20b2f8c1a6",
+      "context_policy": {
+        "name": "analysis-handoff",
+        "version": 1,
+        "decision": "preserve",
+        "reason": "outside_analysis_boundary"
+      },
+      "context_action": "resume",
+      "context_epoch": null,
+      "usage": {
+        "input_tokens": 14609648,
+        "cached_input_tokens": 12818432,
+        "output_tokens": 61264,
+        "cache_write_input_tokens": 0
+      },
+      "estimate": {
+        "usd": 13.5175168,
+        "model": "gpt-5.6-sol",
+        "service_tier": "standard",
+        "source": "https://developers.openai.com/api/docs/pricing",
+        "price_date": "2026-09-19",
+        "basis": "short context assumed with 224k auto-compaction; public API rates, not relay invoice"
+      }
+    },
+    {
+      "job_id": "2bc8185c-a3bf-4243-ad89-2619d89e7968",
+      "stage": "artifact_preparation",
+      "call_reason": "stage_work",
+      "elapsed_seconds": 276.259,
+      "thread_id": "01a0dcb4-6321-7220-9f33-8e20b2f8c1a6",
+      "context_policy": {
+        "name": "analysis-handoff",
+        "version": 1,
+        "decision": "preserve",
+        "reason": "outside_analysis_boundary"
+      },
+      "context_action": "resume",
+      "context_epoch": null,
+      "usage": {
+        "input_tokens": 1672534,
+        "cached_input_tokens": 1535488,
+        "output_tokens": 9130,
+        "cache_write_input_tokens": 0
+      },
+      "estimate": {
+        "usd": 1.3449792,
+        "model": "gpt-5.6-sol",
+        "service_tier": "standard",
+        "source": "https://developers.openai.com/api/docs/pricing",
+        "price_date": "2026-09-19",
+        "basis": "short context assumed with 224k auto-compaction; public API rates, not relay invoice"
+      }
+    },
+    {
+      "job_id": "329e98d9-2ba0-4f0c-9e65-d3e94bb1094f",
+      "stage": "public_qemu_validation",
+      "call_reason": "stage_work",
+      "elapsed_seconds": 212.743,
+      "thread_id": "01a0dcb4-6321-7220-9f33-8e20b2f8c1a6",
+      "context_policy": {
+        "name": "analysis-handoff",
+        "version": 1,
+        "decision": "preserve",
+        "reason": "outside_analysis_boundary"
+      },
+      "context_action": "resume",
+      "context_epoch": null,
+      "usage": {
+        "input_tokens": 1184610,
+        "cached_input_tokens": 1020800,
+        "output_tokens": 9126,
+        "cache_write_input_tokens": 0
+      },
+      "estimate": {
+        "usd": 1.24608,
+        "model": "gpt-5.6-sol",
+        "service_tier": "standard",
+        "source": "https://developers.openai.com/api/docs/pricing",
+        "price_date": "2026-09-19",
+        "basis": "short context assumed with 224k auto-compaction; public API rates, not relay invoice"
+      }
+    },
+    {
+      "job_id": "d197a6de-bf84-4fd6-b87e-c4a54776ebcf",
+      "stage": "driver_implementation",
+      "call_reason": "repair",
+      "elapsed_seconds": 4171.691,
+      "thread_id": "01a0dcb4-6321-7220-9f33-8e20b2f8c1a6",
+      "context_policy": {
+        "name": "analysis-handoff",
+        "version": 1,
+        "decision": "preserve",
+        "reason": "outside_analysis_boundary"
+      },
+      "context_action": "resume",
+      "context_epoch": null,
+      "usage": {
+        "input_tokens": 26976591,
+        "cached_input_tokens": 24625024,
+        "output_tokens": 85071,
+        "cache_write_input_tokens": 0
+      },
+      "estimate": {
+        "usd": 20.9576976,
+        "model": "gpt-5.6-sol",
+        "service_tier": "standard",
+        "source": "https://developers.openai.com/api/docs/pricing",
+        "price_date": "2026-09-19",
+        "basis": "short context assumed with 224k auto-compaction; public API rates, not relay invoice"
+      }
+    },
+    {
+      "job_id": "5b0f94d8-f6a5-497d-a17a-6363082af016",
+      "stage": "public_qemu_validation",
+      "call_reason": "execution_self_check",
+      "elapsed_seconds": 232.092,
+      "thread_id": "01a0dcb4-6321-7220-9f33-8e20b2f8c1a6",
+      "context_policy": {
+        "name": "analysis-handoff",
+        "version": 1,
+        "decision": "preserve",
+        "reason": "outside_analysis_boundary"
+      },
+      "context_action": "resume",
+      "context_epoch": null,
+      "usage": {
+        "input_tokens": 992185,
+        "cached_input_tokens": 734720,
+        "output_tokens": 7185,
+        "cache_write_input_tokens": 0
+      },
+      "estimate": {
+        "usd": 1.467448,
+        "model": "gpt-5.6-sol",
+        "service_tier": "standard",
+        "source": "https://developers.openai.com/api/docs/pricing",
+        "price_date": "2026-09-19",
+        "basis": "short context assumed with 224k auto-compaction; public API rates, not relay invoice"
+      }
+    },
+    {
+      "job_id": "609fe2cc-8c68-4a6d-9336-50cbda9b72eb",
+      "stage": "final_evidence_review",
+      "call_reason": "review_followup",
+      "elapsed_seconds": 420.626,
+      "thread_id": "01a0dce3-ac2d-7da3-a0eb-50cd58e57848",
+      "context_policy": {
+        "name": "analysis-handoff",
+        "version": 1,
+        "decision": "preserve",
+        "reason": "outside_analysis_boundary"
+      },
+      "context_action": "resume",
+      "context_epoch": null,
+      "usage": {
+        "input_tokens": 2506922,
+        "cached_input_tokens": 2142848,
+        "output_tokens": 12965,
+        "cache_write_input_tokens": 0
+      },
+      "estimate": {
+        "usd": 2.5727352,
+        "model": "gpt-5.6-sol",
+        "service_tier": "standard",
+        "source": "https://developers.openai.com/api/docs/pricing",
+        "price_date": "2026-09-19",
+        "basis": "short context assumed with 224k auto-compaction; public API rates, not relay invoice"
+      }
+    },
+    {
+      "job_id": "aa219cec-3cef-4376-88b6-556757067392",
+      "stage": "driver_implementation",
+      "call_reason": "repair",
+      "elapsed_seconds": 2513.127,
+      "thread_id": "01a0dcb4-6321-7220-9f33-8e20b2f8c1a6",
+      "context_policy": {
+        "name": "analysis-handoff",
+        "version": 1,
+        "decision": "preserve",
+        "reason": "outside_analysis_boundary"
+      },
+      "context_action": "resume",
+      "context_epoch": null,
+      "usage": {
+        "input_tokens": 13823322,
+        "cached_input_tokens": 12379392,
+        "output_tokens": 37368,
+        "cache_write_input_tokens": 0
+      },
+      "estimate": {
+        "usd": 11.4748368,
+        "model": "gpt-5.6-sol",
+        "service_tier": "standard",
+        "source": "https://developers.openai.com/api/docs/pricing",
+        "price_date": "2026-09-19",
+        "basis": "short context assumed with 224k auto-compaction; public API rates, not relay invoice"
+      }
+    },
+    {
+      "job_id": "07a22aca-1f59-4420-b344-27a15cc356f1",
+      "stage": "public_qemu_validation",
+      "call_reason": "execution_self_check",
+      "elapsed_seconds": 312.643,
+      "thread_id": "01a0dcb4-6321-7220-9f33-8e20b2f8c1a6",
+      "context_policy": {
+        "name": "analysis-handoff",
+        "version": 1,
+        "decision": "preserve",
+        "reason": "outside_analysis_boundary"
+      },
+      "context_action": "resume",
+      "context_epoch": null,
+      "usage": {
+        "input_tokens": 1961300,
+        "cached_input_tokens": 1664640,
+        "output_tokens": 6632,
+        "cache_write_input_tokens": 0
+      },
+      "estimate": {
+        "usd": 1.985136,
+        "model": "gpt-5.6-sol",
+        "service_tier": "standard",
+        "source": "https://developers.openai.com/api/docs/pricing",
+        "price_date": "2026-09-19",
+        "basis": "short context assumed with 224k auto-compaction; public API rates, not relay invoice"
+      }
+    },
+    {
+      "job_id": "3db1152f-4e15-4001-a2fa-487e75505cfc",
+      "stage": "public_qemu_validation",
+      "call_reason": "execution_self_check",
+      "elapsed_seconds": 178.511,
+      "thread_id": "01a0dcb4-6321-7220-9f33-8e20b2f8c1a6",
+      "context_policy": {
+        "name": "analysis-handoff",
+        "version": 1,
+        "decision": "preserve",
+        "reason": "outside_analysis_boundary"
+      },
+      "context_action": "resume",
+      "context_epoch": null,
+      "usage": {
+        "input_tokens": 1378337,
+        "cached_input_tokens": 1325952,
+        "output_tokens": 4247,
+        "cache_write_input_tokens": 0
+      },
+      "estimate": {
+        "usd": 0.8248608,
+        "model": "gpt-5.6-sol",
+        "service_tier": "standard",
+        "source": "https://developers.openai.com/api/docs/pricing",
+        "price_date": "2026-09-19",
+        "basis": "short context assumed with 224k auto-compaction; public API rates, not relay invoice"
+      }
+    },
+    {
+      "job_id": "4bdfa7f0-e4d7-463f-a7d5-2cb50359545e",
+      "stage": "final_evidence_review",
+      "call_reason": "review_followup",
+      "elapsed_seconds": 342.028,
+      "thread_id": "01a0dce3-ac2d-7da3-a0eb-50cd58e57848",
+      "context_policy": {
+        "name": "analysis-handoff",
+        "version": 1,
+        "decision": "preserve",
+        "reason": "outside_analysis_boundary"
+      },
+      "context_action": "resume",
+      "context_epoch": null,
+      "usage": {
+        "input_tokens": 1494659,
+        "cached_input_tokens": 981248,
+        "output_tokens": 12007,
+        "cache_write_input_tokens": 0
+      },
+      "estimate": {
+        "usd": 2.6862832,
+        "model": "gpt-5.6-sol",
+        "service_tier": "standard",
+        "source": "https://developers.openai.com/api/docs/pricing",
+        "price_date": "2026-09-19",
+        "basis": "short context assumed with 224k auto-compaction; public API rates, not relay invoice"
+      }
+    }
+  ],
+  "context_actions": {
+    "fresh": 2,
+    "resume": 23
+  },
+  "context_decisions": {
+    "outside_analysis_boundary": 24,
+    "continuation_preserved": 1
+  },
+  "manifests": [
+    {
+      "job_id": "000621a9-f037-46b4-a847-e64aafbc31ab",
+      "status": "captured",
+      "snapshots": 6
+    },
+    {
+      "job_id": "07a22aca-1f59-4420-b344-27a15cc356f1",
+      "status": "captured",
+      "snapshots": 6
+    },
+    {
+      "job_id": "1ff2136f-b48e-4bc5-9c9a-871f02e0a32e",
+      "status": "captured",
+      "snapshots": 4
+    },
+    {
+      "job_id": "2bc8185c-a3bf-4243-ad89-2619d89e7968",
+      "status": "captured",
+      "snapshots": 5
+    },
+    {
+      "job_id": "329e98d9-2ba0-4f0c-9e65-d3e94bb1094f",
+      "status": "captured",
+      "snapshots": 4
+    },
+    {
+      "job_id": "3db1152f-4e15-4001-a2fa-487e75505cfc",
+      "status": "captured",
+      "snapshots": 4
+    },
+    {
+      "job_id": "40286061-7e2a-4c43-9ed6-4a766f18b335",
+      "status": "captured",
+      "snapshots": 3
+    },
+    {
+      "job_id": "41b7095e-dfd9-445a-82ce-10a1ce93bc6c",
+      "status": "captured",
+      "snapshots": 6
+    },
+    {
+      "job_id": "4bdfa7f0-e4d7-463f-a7d5-2cb50359545e",
+      "status": "captured",
+      "snapshots": 6
+    },
+    {
+      "job_id": "571caafd-81fe-443b-8bf2-f68470c2217a",
+      "status": "captured",
+      "snapshots": 4
+    },
+    {
+      "job_id": "5b0f94d8-f6a5-497d-a17a-6363082af016",
+      "status": "captured",
+      "snapshots": 5
+    },
+    {
+      "job_id": "609fe2cc-8c68-4a6d-9336-50cbda9b72eb",
+      "status": "captured",
+      "snapshots": 6
+    },
+    {
+      "job_id": "660c8c59-99f3-4ebc-acb1-9c53016eda75",
+      "status": "captured",
+      "snapshots": 3
+    },
+    {
+      "job_id": "688f9e94-e019-4cc5-a04e-3430eb41ed44",
+      "status": "captured",
+      "snapshots": 12
+    },
+    {
+      "job_id": "81d21b31-27fb-431e-aee4-5eabe3e7085f",
+      "status": "captured",
+      "snapshots": 4
+    },
+    {
+      "job_id": "aa219cec-3cef-4376-88b6-556757067392",
+      "status": "captured",
+      "snapshots": 31
+    },
+    {
+      "job_id": "aabd586f-7e89-4c57-b4bb-520b91f56dc9",
+      "status": "captured",
+      "snapshots": 30
+    },
+    {
+      "job_id": "c10484ac-858a-43ce-82e2-42975147b0eb",
+      "status": "captured",
+      "snapshots": 4
+    },
+    {
+      "job_id": "cbc5ab5b-a430-4b47-9f3c-c7a1f0724479",
+      "status": "captured",
+      "snapshots": 2
+    },
+    {
+      "job_id": "d197a6de-bf84-4fd6-b87e-c4a54776ebcf",
+      "status": "captured",
+      "snapshots": 52
+    },
+    {
+      "job_id": "e641cd77-92c4-49db-85e8-4901e8769908",
+      "status": "captured",
+      "snapshots": 35
+    },
+    {
+      "job_id": "eff9ee04-4fc8-4f2a-9cbe-5c383f65bb10",
+      "status": "captured",
+      "snapshots": 7
+    },
+    {
+      "job_id": "f9967292-68ef-49be-ab22-8937c82b8b33",
+      "status": "captured",
+      "snapshots": 2
+    },
+    {
+      "job_id": "fb80ee75-f62d-45bd-b6c0-af44c3896820",
+      "status": "captured",
+      "snapshots": 8
+    },
+    {
+      "job_id": "ffeddbd3-f9c3-44a4-a76c-fdcd2cda252b",
+      "status": "captured",
+      "snapshots": 4
+    }
+  ],
+  "threads": [
+    {
+      "thread_id": "01a0dce3-ac2d-7da3-a0eb-50cd58e57848",
+      "bytes": 9093281,
+      "sha256": "a33a19ef67335a9e7aefc6383f7895102854db0e222a1270a8fe7bff767058d6",
+      "captured_at": "2026-09-26T12:54:27.792963+00:00",
+      "record_types": {
+        "session_meta": 1,
+        "event_msg": 382,
+        "response_item": 239,
+        "world_state": 4,
+        "turn_context": 6,
+        "token_usage_record": 71,
+        "compacted": 2
+      },
+      "native_compacted_records": 2,
+      "invalid_complete_records": 0,
+      "trailing_bytes": 0,
+      "note": "Counts are cumulative within this snapshot, not per-call deltas. Only native top-level compacted records are counted; formats may differ.",
+      "tool_calls": {
+        "exec": 65
+      },
+      "exact_repeated_calls": 0,
+      "repeat_note": "Exact outer call repeats may be polls or necessary rechecks, not proven waste. Nested exec calls are not separately counted."
+    },
+    {
+      "thread_id": "01a0dcb4-6321-7220-9f33-8e20b2f8c1a6",
+      "bytes": 35496884,
+      "sha256": "25ee98d606911366599ad1e55db9aee93eded0788aeac9517b178e09b29b78f5",
+      "captured_at": "2026-09-26T12:48:44.663170+00:00",
+      "record_types": {
+        "session_meta": 1,
+        "event_msg": 2490,
+        "response_item": 2251,
+        "world_state": 14,
+        "turn_context": 29,
+        "token_usage_record": 744,
+        "compacted": 9
+      },
+      "native_compacted_records": 9,
+      "invalid_complete_records": 0,
+      "trailing_bytes": 0,
+      "note": "Counts are cumulative within this snapshot, not per-call deltas. Only native top-level compacted records are counted; formats may differ.",
+      "tool_calls": {
+        "exec": 710,
+        "wait": 4
+      },
+      "exact_repeated_calls": 82,
+      "repeat_note": "Exact outer call repeats may be polls or necessary rechecks, not proven waste. Nested exec calls are not separately counted."
+    }
+  ],
+  "errors": [],
+  "jobs_without_manifest": [],
+  "evidence": {
+    "execution": "PASS",
+    "functional_assessment": "INDEPENDENT_REVIEW_RECORDED",
+    "reports": {
+      "public_qemu_work_report": {
+        "digest": "5079c9d6877dbc49d4e62d0d9b4f9f5b6f24f9c958a20aa4a71b59a0d03c2a44",
+        "path": "/home/unix/file/C2R-Driver/c2rust-migration-test-01/e2e-e1000-context-logs-01/.dpf/cas/objects/sha256/50/79c9d6877dbc49d4e62d0d9b4f9f5b6f24f9c958a20aa4a71b59a0d03c2a44"
+      },
+      "public_qemu_report": {
+        "digest": "57fe70ec586bc8aa8decc6e72464a0a980547b56afb839fbed62a41086e7dd68",
+        "path": "/home/unix/file/C2R-Driver/c2rust-migration-test-01/e2e-e1000-context-logs-01/.dpf/cas/objects/sha256/57/fe70ec586bc8aa8decc6e72464a0a980547b56afb839fbed62a41086e7dd68"
+      },
+      "final_evidence_review_report": {
+        "digest": "8f7e244771488d276aa15e01c76ea215d34e3301205fce7087699240b16bc6b2",
+        "path": "/home/unix/file/C2R-Driver/c2rust-migration-test-01/e2e-e1000-context-logs-01/.dpf/cas/objects/sha256/8f/7e244771488d276aa15e01c76ea215d34e3301205fce7087699240b16bc6b2"
+      }
+    },
+    "note": "Execution PASS records the harness/collector result, not complete device behavior. Read contract/test coverage and limitations in the linked reports; review is not blind testing."
+  },
+  "limitations": [
+    "Recorded controller downtime and user waits are excluded; unfinished calls use recorded checkpoint time unless confirmed live. Older runs may lack interval history. Retries included. Unknown usage is not zero. USD assumes short context with 224k auto-compaction; reasoning output is already included. Not a relay invoice.",
+    "One latest retained snapshot per thread; cumulative snapshots are never summed. Missing logs mean unknown, not zero.",
+    "No causal cost/quality conclusion or automatic rejection. No provider calls, run mutations, prompts or tool output exported."
+  ]
+}

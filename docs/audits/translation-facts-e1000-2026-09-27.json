@@ -1,0 +1,34 @@
+[
+  {
+    "file": "/home/unix/file/C2R-Driver/c2rust-migration-test-01/e2e-e1000-context-logs-01/.dpf/worktrees/source-baseline-source-24dd642f2d9bf083-05f7e89ab9731565d8a62e3b5d1ec206485eeb0b/drivers/net/ethernet/intel/e1000/e1000_main.c",
+    "sha256": "d66b58f174b724595a9d2a0e2de5e6785aae303a7fb6052e48e555cb627c86a0",
+    "bytes": 149219,
+    "seconds": 0.0409,
+    "returned_locations": 112,
+    "total_matches": {
+      "declarations": 234,
+      "queues": 293,
+      "lifecycle": 80,
+      "errors_cleanup": 246,
+      "concurrency": 67,
+      "dma_layout": 107,
+      "io_ordering": 17
+    },
+    "limits": "lexical navigation, not semantic facts; per-file/topic output capped at 16"
+  },
+  {
+    "file": "/home/unix/file/C2R-Driver/c2rust-migration-test-01/e2e-e1000-context-logs-01/.dpf/worktrees/source-baseline-source-24dd642f2d9bf083-05f7e89ab9731565d8a62e3b5d1ec206485eeb0b/drivers/net/ethernet/intel/e1000/e1000_hw.h",
+    "sha256": "e3c8b99f42b640c98560341017474978ca0c23452dc0754eb63fc67009380ea3",
+    "bytes": 134966,
+    "seconds": 0.0353,
+    "returned_locations": 67,
+    "total_matches": {
+      "declarations": 1883,
+      "dma_layout": 36,
+      "lifecycle": 28,
+      "queues": 8,
+      "io_ordering": 11
+    },
+    "limits": "lexical navigation, not semantic facts; per-file/topic output capped at 16"
+  }
+]

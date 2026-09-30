@@ -1,9 +1,16 @@
-# Composite repair task
+# Targeted repair of an existing delivery
 
-This section supplements the current stage objective during an implementation or artifact repair;
-it does not replace that objective or change the frozen migration contract.
-Follow knowledge-guided-driver-port/references/workflow.md phase 9 and its routed references for the recorded findings. Use existing reports for unchanged evidence.
+Repair the current finding and its affected obligations; do not restart the full initial task.
+1. Read the bound finding/failed receipt and the relevant current diff. Identify the smallest causal
+   change; preserve correct source, APIs, build recipes, passing observations and contract IDs.
+2. Fix the cause and run the smallest check that can disprove the fix, plus affected required regressions.
+   Do not expand the matrix or alter its oracle to accept the bug. If the defect is an environment or
+   harness issue, keep the driver unchanged unless evidence shows a driver change is necessary.
+3. Rebuild affected deliverables and update the same current report. Preserve runtime-artifact,
+   presence/smoke/public scripts and helpers needed for normal controller capture. Use matching receipts
+   rather than rerunning unchanged passing cases. Retain diagnostic failures as history, not current PASS.
+4. Submit when current obligations are met. No stylistic cleanup, full reanalysis or extra model review
+   is required. Reopen analysis only when a concrete counterexample invalidates the accepted design.
 
-Controller delivery:
-1. Deliver .dpf-output/runtime-artifact, .dpf-output/check-presence.sh, .dpf-output/implementation-smoke.sh, .dpf-output/public-qemu.sh and needed harness inputs. Put necessary packaged variants under .dpf-output/harness/variants/. The controller performs a generic preflight before QEMU and records every rejected artifact or command with an exact path and line. The implementation smoke must check the current driver through probe/readiness and applicable single data operations before the implementation snapshot passes. Keep failures and repair their causes locally. A missing target capability or framework interface is a prerequisite rework finding; cite the target definition/call site and request target_framework_enablement rather than claiming BLOCKED for a repairable defect.
-2. Complete the repair/preparation checks in the report and submit it with the tool's `pass` decision only after the checks are complete. The controller captures outputs and executes the suite, then returns observations for the Skill final self-check in the same report.
+The driver smoke and final public execution still require actual device evidence. This repair mode
+reduces repeated work, not frozen behavior, input binding or independent final review.

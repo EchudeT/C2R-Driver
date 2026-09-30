@@ -145,8 +145,9 @@ class _RunPersistence:
         configured_role = self.config.actor_role
         with self._connect() as connection:
             row = self._stages.transition_row(connection, name, StageStatus.READY)
-            from .phases import phase_rows, require_local_repair
-            require_local_repair(name, name, phase_rows(connection))
+            from .phases import phase_rows, require_local_repair, allows_evidence_revision
+            if not allows_evidence_revision(self.config, name, name):
+                require_local_repair(name, name, phase_rows(connection))
             allowed = self._stages.allowed_roles(row, name)
             if actor_role not in allowed or actor_role is not configured_role:
                 raise WorkflowError(
@@ -163,7 +164,7 @@ class _RunPersistence:
                 {"stage": name.value, "actor_role": actor_role.value},
             )
 
-    def retry_feedback(self, name: StageKey) -> dict[str, str] | None:
+    def retry_feedback(self, name: StageKey) -> dict[str, object] | None:
         with self._connect() as connection:
             row = connection.execute(
                 "SELECT sequence, event_type, payload FROM events WHERE json_extract(payload, '$.stage') = ? "
@@ -182,8 +183,8 @@ class _RunPersistence:
             ).fetchone()
             state = connection.execute("SELECT status FROM stages WHERE name=?", (root,)).fetchone()
         resolved = completion is not None and state is not None and state["status"] == "PASS"
-        return {**{key: payload[key] for key in ("stage", "trigger", "reason", "repair_root")
-                   if key in payload}, "status": "RESOLVED" if resolved else "OPEN"}
+        return {**{key: payload[key] for key in ("stage", "trigger", "reason", "repair_root", "repair_report")
+                   if key in payload}, "status": "PREREQUISITE_COMPLETED" if resolved else "OPEN"}
 
     def retry_from(
         self,
@@ -193,6 +194,7 @@ class _RunPersistence:
         actor_role: ActorRole,
         reason: str,
         progress: object | None = None,
+        repair_report: dict | None = None,
     ) -> None:
         configured_role = self.config.actor_role
         if not reason.strip():
@@ -200,8 +202,9 @@ class _RunPersistence:
         with self._connect() as connection:
             target = self._stages.transition_row(connection, name, StageStatus.PASS)
             source = self._stages.transition_row(connection, trigger, StageStatus.RUNNING)
-            from .phases import phase_rows, require_local_repair
-            require_local_repair(name, trigger, phase_rows(connection))
+            from .phases import phase_rows, require_local_repair, allows_evidence_revision
+            if not allows_evidence_revision(self.config, name, trigger):
+                require_local_repair(name, trigger, phase_rows(connection))
             if target["position"] >= source["position"]:
                 raise WorkflowError("stage retry target must precede its trigger")
             allowed = self._stages.allowed_roles(target, name)
@@ -260,6 +263,7 @@ class _RunPersistence:
                         "actor_role": actor_role.value,
                         "reason": reason,
                         "repair_fingerprint": fingerprint,
+                        "repair_report": repair_report,
                         "artifact_boundaries": boundaries,
                     },
                 )

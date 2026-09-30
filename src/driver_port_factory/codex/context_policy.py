@@ -48,8 +48,12 @@ def _boundary_reason(project, stage, session, *, continuing: bool,
     if project.config.evaluation_mode is not EvaluationMode.DEVELOPER_EVIDENCE:
         return "ineligible_evaluation_mode"
     analysis = policy == "analysis-handoff"
-    boundary = (MigrationStage.TARGET_FRAMEWORK_ENABLEMENT if analysis
-                else MigrationStage.DRIVER_IMPLEMENTATION)
+    boundary = MigrationStage.TARGET_FRAMEWORK_ENABLEMENT
+    # A project may supply a framework checkpoint without a model task. In that
+    # case implementation is its first real delivery conversation.
+    if (stage is MigrationStage.DRIVER_IMPLEMENTATION
+            and not any((project.control / "codex").glob("target_framework_enablement-*.metrics.json"))):
+        boundary = MigrationStage.DRIVER_IMPLEMENTATION
     if stage is not boundary:
         return "outside_analysis_boundary" if analysis else "outside_implementation_boundary"
     if continuing:

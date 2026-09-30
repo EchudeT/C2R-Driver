@@ -10,6 +10,8 @@ class RunEvent(StrEnum):
     CREATED = "run.created"
     TASK_REUSE = "run.task_reuse"
     REPAIR_PREPARED = "run.repair_prepared"
+    DELIVERY_PREPARED = "run.delivery_prepared"
+    ANALYSIS_PREPARED = "run.analysis_prepared"
     WORKER_SUBMISSION = "run.worker_submission"
 
 

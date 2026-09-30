@@ -306,7 +306,24 @@ class KnowledgeIndex:
         return [token.lower() for token in TOKEN_RE.findall(text)]
 
     def search(
+        self, query: str, *, domain: KnowledgeDomain | None = None,
+        record_id: str | None = None, path_prefix: str | None = None,
+        limit: int = 10, compact: bool = False,
+    ) -> dict[str, Any]:
+        return self._search_chunks(self._load_chunks(), query, domain=domain,
+            record_id=record_id, path_prefix=path_prefix, limit=limit, compact=compact)
+
+    def search_many(self, queries: list[dict], *, compact: bool = True) -> dict[str, Any]:
+        from .search_results import batch_options, shared_results
+        options = batch_options(queries)
+        # This snapshot is local to this request. No validation cache survives it.
+        chunks = self._load_chunks()
+        return shared_results([self._search_chunks(chunks, compact=compact, **option)
+                               for option in options])
+
+    def _search_chunks(
         self,
+        chunks,
         query: str,
         *,
         domain: KnowledgeDomain | None = None,
@@ -323,7 +340,7 @@ class KnowledgeIndex:
         wanted = Counter(query_tokens)
         phrase = query.casefold()
         ranked: list[tuple[float, dict[str, Any]]] = []
-        for chunk in self._load_chunks():
+        for chunk in chunks:
             if domain and chunk["domain"] != domain.value:
                 continue
             if record_id and chunk["record_id"] != record_id:
@@ -339,17 +356,22 @@ class KnowledgeIndex:
             score = overlap + (2.0 * coverage) + (3.0 if phrase in text else 0.0)
             ranked.append((score, chunk))
         ranked.sort(key=lambda item: (-item[0], item[1]["chunk_id"]))
+        from .search_results import distinct_matches, match_summary
+        distinct = distinct_matches(ranked)
         results = []
-        for score, chunk in ranked[:limit]:
+        for score, chunk in distinct[:limit]:
             result = dict(chunk)
             result["score"] = round(score, 6)
             if compact:
-                result["summary"] = " ".join(result.pop("text", "").split())[:240]
+                result.update(match_summary(result.pop("text", ""), query, query_tokens,
+                                            TOKEN_RE, line_start=chunk["line_start"]))
             results.append(result)
         return {
             "status": KnowledgeIndexStatus.READY.value,
             "query": query,
             "count": len(results),
+            "matched_chunks": len(ranked),
+            "unique_matches": len(distinct),
             "results": results,
         }
 

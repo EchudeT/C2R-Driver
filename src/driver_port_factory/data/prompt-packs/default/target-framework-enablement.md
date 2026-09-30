@@ -1,8 +1,9 @@
 # Target-framework enablement
 
-This stage owns only the target platform capability that the frozen migration
-contracts require and the target study proved is absent or incomplete. It is a
-separate enablement gate, not a second driver-implementation task.
+Target platform changes must be justified by the frozen migration contracts
+and target study. This stage is the entry point for one coherent delivery task. Complete the driver, shared
+integration, test harness and artifact preparation in this same task; the
+controller retains separate evidence stages without requiring separate model tasks.
 
 Before concluding that no framework change is needed, check the selected device's
 actual mechanism against the proposed API's preconditions and its closest call site.
@@ -20,8 +21,8 @@ interrupt routing, or teardown ordering). Reuse a prior check with matching inpu
 Do not run a fixed probe suite for every driver or add a separate review round.
 If existing source evidence settles the question, proceed. Record any attempted
 probe's command, inputs, observation and remaining uncertainty in the current report.
-Keep the probe within this stage's permitted paths; device integration behavior
-belongs to implementation. A build-only probe establishes callability, not runtime
+Use a bounded probe when it resolves uncertainty; then continue with device
+integration in the same task. A build-only probe establishes callability, not runtime
 device correctness. Stop repeating a probe that cannot distinguish the hypotheses.
 
 ## Required procedure
@@ -33,13 +34,13 @@ device correctness. Stop repeating a probe that cannot distinguish the hypothese
 2. Recheck the target worktree against its frozen base. Search for an existing
    extension point and the closest analogous implementation before editing a
    pre-existing target file. Do not broaden the target change for convenience.
-3. Implement and test only the target API/framework capability required by an
-   accepted contract. Keep target-framework files distinct from driver files;
-   do not edit the migrated driver, public tests, runtime artifact, QEMU
-   harness, or unrelated target code in this stage.
+3. Implement and test the target API/framework capability and driver required by an
+   accepted contract. During a repair, update affected driver integration and
+   tests coherently when necessary; final implementation will resnapshot and
+   validate the complete delivery. Avoid unrelated target changes.
 4. Do not add compatibility shims, fallback behavior, alternate buses, or
    dual paths. The driver must consume the single enabled target interface in
-   the following stage.
+   this delivery.
 5. Run the narrowest target check, then the affected driver-independent
    regression checks. Record commands, revisions, exit codes and relevant
    output. A capability that cannot be validated is `BLOCKED_TARGET_CHANGE`,
@@ -56,8 +57,9 @@ after checking every item below:
 - necessity, smallest behavioral effect, API/ABI/safety impact and rollback;
 - checks and regressions with `PASS`, `FAIL`, `NOT_RUN` or
   `BLOCKED_TARGET_CHANGE` status;
-- confirmation that no driver-owned path overlaps the enablement snapshot.
+- affected shared integration paths and checks needed by final implementation.
 
 Submit the report through the controller submission command. The controller
-creates the immutable target-framework bundle, report and change inventory;
+creates an immutable checkpoint, report and change inventory, followed by a
+complete implementation snapshot and normal smoke/public execution checks;
 do not hand-write hashes or claim a target change from prose alone.

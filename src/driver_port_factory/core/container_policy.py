@@ -69,14 +69,18 @@ def container_execution_summary(
     observations_path: Path,
     target_platform: str,
     host_qemu_execs: tuple[str, ...],
+    policy: dict | None = None,
 ) -> dict[str, Any]:
     """Summarize the mechanical target-container boundary for a run."""
 
     observation_data = load_container_observations(observations_path)
     records = qemu_container_observations(observations_path)
     images = sorted({record["image"] for record in records})
-    required = target_requires_asterinas_container(target_platform)
-    official = bool(records) and all(is_asterinas_dev_image(image) for image in images)
+    required = (bool(policy["required"]) if policy is not None
+                else target_requires_asterinas_container(target_platform))
+    official = bool(records) and (all(image in policy.get("images", []) for image in images)
+                                  if policy is not None else
+                                  all(is_asterinas_dev_image(image) for image in images))
     # A run that invokes QEMU on the host as well as in the target container is
     # ambiguous: the controller must not attribute host execution to Asterinas.
     satisfied = not required or (official and not host_qemu_execs)

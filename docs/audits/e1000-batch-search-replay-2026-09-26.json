@@ -1,0 +1,75 @@
+{
+  "schema_version": 1,
+  "experiment": "seven actual target-study queries from worker native line 635",
+  "queries": [
+    {
+      "query": "PCI driver register match device BAR common_device capability MSI-X",
+      "domain": "target",
+      "limit": 8
+    },
+    {
+      "query": "network driver trait device transmit receive buffer dma pool",
+      "domain": "target",
+      "limit": 8
+    },
+    {
+      "query": "DMA coherent streaming DmaCoherent DmaStream mapping ownership",
+      "domain": "target",
+      "limit": 8
+    },
+    {
+      "query": "IrqLine callback top half bottom half bind interrupt handler",
+      "domain": "target",
+      "limit": 8
+    },
+    {
+      "query": "component init priority dependency registration init_component",
+      "domain": "target",
+      "limit": 8
+    },
+    {
+      "query": "Components.toml cargo osdk build run initramfs QEMU",
+      "domain": "target",
+      "limit": 8
+    },
+    {
+      "query": "unsafe safety comment memory safety concurrency resource management",
+      "domain": "target",
+      "limit": 8
+    }
+  ],
+  "single": {
+    "index_loads": 7,
+    "serialized_characters": 53799,
+    "median_seconds": 0.22630272950482322
+  },
+  "batch": {
+    "index_loads": 1,
+    "serialized_characters": 49334,
+    "median_seconds": 0.08898563050024677,
+    "shared_chunks": 50,
+    "shared_documents": 30
+  },
+  "hits": 56,
+  "reconstruction_equal": true,
+  "timing_samples_seconds": {
+    "single": [
+      0.2388506870047422,
+      0.22574059100588784,
+      0.2256601800036151,
+      0.2268648680037586
+    ],
+    "batch": [
+      0.08944450700073503,
+      0.08653196900559124,
+      0.09139008200145327,
+      0.08852675399975851
+    ]
+  },
+  "limitations": [
+    "Read-only local replay, four alternating in-process trials; excludes CLI startup and model latency.",
+    "Both routes use the preceding search deduplication/snippet changes.",
+    "Same hits, rankings, aliases and full provenance are reconstructable; this is not a relevance benchmark.",
+    "Character/timing changes are not measured token billing or end-to-end migration savings."
+  ]
+}

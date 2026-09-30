@@ -169,7 +169,10 @@ class PortRunner:
                 continue
             except (ModelInvocationError, RepositoryFetchError, RecoveryPaused):
                 raise
-            except (WorkflowError, OSError, ValueError, subprocess.SubprocessError) as error:
+            except WorkflowError as error:
+                from .core.models import ControllerError
+                if isinstance(error, ControllerError):
+                    raise
                 if project.config.evaluation_mode is not EvaluationMode.DEVELOPER_EVIDENCE:
                     raise
                 # Recovery is only safe with an intact ledger. Never ask the worker
@@ -476,7 +479,8 @@ class PortRunner:
                                 "submitted rework decision names no valid repair stage"
                             )
                         raise PrerequisiteRepair(
-                            target, str(submission.get("file"))
+                            target, str(submission.get("file")),
+                            self._freeze_repair_report(project, stage, submission),
                         )
                 accept(project, pending)
                 return True
@@ -491,7 +495,8 @@ class PortRunner:
                         "Repair locally; --repair-stage must name a passed actual data "
                         "prerequisite in instructions.repair_targets within the current phase."
                     ) from error
-                retry_prerequisite(project, error.target, trigger=stage, reason=str(error))
+                retry_prerequisite(project, error.target, trigger=stage, reason=str(error),
+                                   repair_report=error.repair_report)
                 return False
             except CodexContinuation as progress:
                 context = self._continuation_context(project, stage, pending, progress, context)
@@ -680,11 +685,23 @@ class PortRunner:
                 target = ROUTES.get(submission.get("repair_stage"))
                 if target is None:
                     raise CodexOutputError("submitted rework decision names no valid repair stage")
-                raise PrerequisiteRepair(target, str(submission.get("file")))
+                raise PrerequisiteRepair(target, str(path),
+                    PortRunner._freeze_repair_report(project, stage, submission))
             return path
         raise CodexOutputError(
             "Codex report has no validated submission receipt; submit the report through the tool"
         )
+
+    @staticmethod
+    def _freeze_repair_report(project, stage, submission):
+        import hashlib
+        data = Path(submission["file"]).read_bytes()
+        if hashlib.sha256(data).hexdigest() != submission["sha256"]:
+            raise CodexOutputError("Repair report changed after submission")
+        ref = project.record_artifact(stage, GeneratedArtifact(
+            CodexArtifact.WORK_REPORT, data, "generated:repair-report"))
+        return {"kind": ref.kind, "digest": ref.digest,
+                "path": str(project.artifacts.path_for_digest(ref.digest))}
 
     @staticmethod
     def _submission_for_job(project: Project, stage: StageKey, job: ArtifactOccurrence):
@@ -838,7 +855,19 @@ class PortRunner:
             "knowledge_skill": self._artifact_context(
                 project, KnowledgeStage.KNOWLEDGE_BASE, KnowledgeArtifact.GENERATED_SKILL
             ),
+            "analysis_inputs": {
+                kind.value: self._artifact_context(project, AcquisitionStage.EVIDENCE_CLOSURE, kind)
+                for kind in (AcquisitionArtifact.MATERIALS_MANIFEST,
+                             AcquisitionArtifact.EVIDENCE_GAP_REGISTER,
+                             AcquisitionArtifact.EVIDENCE_RETRIEVAL_LEDGER)
+            },
         }
+        from .knowledge.translation_facts import prepare
+        context["translation_facts"] = prepare(project)
+        from .migration.probes import recent
+        context["recent_early_probes"] = recent(project)
+        from .migration.decision_context import context as decision_context
+        context["accepted_decisions"] = decision_context(project)
         review = self._previous_review(project, MigrationStage.ANALYSIS_REVIEW)
         if review:
             context["analysis_review"] = review
@@ -854,13 +883,26 @@ class PortRunner:
         from .target_study.service import TargetStudyService
         TargetStudyService().accept(project, report)
         from .target_study.reuse import remember
-        remember(project)
+        from .migration.analysis_delivery import record
+        if record(project, job_policy=self._review_job_policy(project, TargetStudyStage.STUDY, job)):
+            remember(project, combined=True)
 
     @staticmethod
     def _handoff(project: Project) -> None:
         MigrationHandoff().create(project)
 
     def _contracts(self, project: Project) -> None:
+        from .migration.analysis_delivery import prepared
+        report = prepared(project)
+        if report is None:
+            from .migration.prepared_recovery import analysis
+            if analysis(project):
+                report = prepared(project)
+        if report is not None:
+            if project.stage(MigrationStage.CONTRACTS).status is StageStatus.READY:
+                project.start(MigrationStage.CONTRACTS)
+            self._capture_contracts(project, report)
+            return
         self._codex_gate(
             project,
             MigrationStage.CONTRACTS,
@@ -879,6 +921,10 @@ class PortRunner:
 
     def _accept_contracts_result(self, project: Project, job: ArtifactOccurrence) -> None:
         report = self._materialize_codex_report(project, MigrationStage.CONTRACTS, job)
+        self._capture_contracts(project, report)
+
+    @staticmethod
+    def _capture_contracts(project: Project, report: Path) -> None:
         project.finalize_stage(
             MigrationStage.CONTRACTS,
             (
@@ -975,20 +1021,29 @@ class PortRunner:
             project, MigrationStage.TARGET_FRAMEWORK_ENABLEMENT, job
         )
         TargetFrameworkEnablementService().snapshot_worktree(project, report)
+        from .migration.repair_execution import prepare_delivery
+        prepare_delivery(project, report, job_policy=self._review_job_policy(
+            project, MigrationStage.TARGET_FRAMEWORK_ENABLEMENT, job),
+            owner=MigrationStage.TARGET_FRAMEWORK_ENABLEMENT)
 
     def _implementation(self, project: Project) -> None:
-        from .migration.repair_execution import active, prepared
-        report = prepared(project) if active(project, MigrationStage.DRIVER_IMPLEMENTATION) else None
+        from .migration.repair_execution import prepared
+        report = prepared(project)
+        if report is None:
+            from .migration.prepared_recovery import delivery
+            if delivery(project):
+                report = prepared(project)
+        smoke_feedback = {}
         if report is not None:
             if project.stage(MigrationStage.DRIVER_IMPLEMENTATION).status is StageStatus.READY:
                 project.start(MigrationStage.DRIVER_IMPLEMENTATION)
             try:
                 DriverImplementationService().snapshot_worktree(project, report)
                 return
-            except CodexContinuation:
-                # A prepared repair still needs the current functional self-test.
-                # Resume the implementation worker to create/fix its harness.
-                pass
+            except CodexContinuation as failure:
+                smoke_feedback = {"controller_execution": str(failure),
+                                  "repair_observation": failure.observation,
+                                  "failure_receipt": failure.receipt}
         self._codex_gate(
             project,
             MigrationStage.DRIVER_IMPLEMENTATION,
@@ -1000,10 +1055,13 @@ class PortRunner:
                     (MigrationStage.CONTRACTS, MigrationArtifact.TEST_PORT_MATRIX),
                     (MigrationStage.TARGET_FRAMEWORK_ENABLEMENT,
                      MigrationArtifact.TARGET_FRAMEWORK_BUNDLE),
+                    (MigrationStage.TARGET_FRAMEWORK_ENABLEMENT,
+                     MigrationArtifact.TARGET_FRAMEWORK_REPORT),
                     (KnowledgeStage.KNOWLEDGE_BASE, KnowledgeArtifact.QUERY_CONTRACT),
                     (KnowledgeStage.KNOWLEDGE_BASE, KnowledgeArtifact.GENERATED_SKILL),
                     (TargetStudyStage.STUDY, TargetStudyArtifact.REPORT),
                 ),
+                extra=smoke_feedback,
             ),
             self._accept_implementation_result,
         )
@@ -1018,8 +1076,11 @@ class PortRunner:
             except WorkflowError as error:
                 raise CodexOutputError(str(error)) from error
         if repair:
-            record(project, report)
+            record(project, report, job_policy=self._review_job_policy(project, MigrationStage.DRIVER_IMPLEMENTATION, job))
         DriverImplementationService().snapshot_worktree(project, report)
+        if not repair:
+            from .migration.repair_execution import prepare_delivery
+            prepare_delivery(project, report, job_policy=self._review_job_policy(project, MigrationStage.DRIVER_IMPLEMENTATION, job))
 
     def _artifact_preparation(self, project: Project) -> None:
         from .migration.repair_execution import prepared
@@ -1109,7 +1170,7 @@ class PortRunner:
             if project.stage(MigrationStage.PUBLIC_QEMU_VALIDATION).status is StageStatus.READY:
                 project.start(MigrationStage.PUBLIC_QEMU_VALIDATION)
             request = project.artifacts.put_bytes(
-                (f"Prepared repair: {prepared_report}\n").encode(),
+                (f"Prepared delivery: {prepared_report}\n").encode(),
                 kind=CodexArtifact.WORK_REPORT.value)
             acquisition = load_repository_acquisition(project)
             worktree = project.root / acquisition.target_worktree.path
@@ -1128,6 +1189,12 @@ class PortRunner:
                 return
             except CodexOutputError as error:
                 result = {"status": "FAIL", "error": str(error)}
+            if result.get("status") == "PASS":
+                from .migration.experiment_ack import acknowledged
+                attempt = service._latest_attempt(project)
+                if attempt and acknowledged(project, prepared_report, attempt[1]):
+                    service.accept_self_review(project, work_report_path=prepared_report)
+                    return
             execution = {"controller_execution": result,
                          "repair_report": str(prepared_report)}
         artifact = project.artifact(
@@ -1234,7 +1301,7 @@ class PortRunner:
                     ),
                 },
             }, include_implementation_bundle=False, include_review_history=False,
-            include_knowledge_skill=False),
+            include_knowledge_skill=True),
             self._accept_runtime_review,
         )
 
@@ -1276,6 +1343,19 @@ class PortRunner:
             context["workspace_paths"]["knowledge_skill"] = self._artifact_context(
                 project, KnowledgeStage.KNOWLEDGE_BASE, KnowledgeArtifact.GENERATED_SKILL
             )["path"]
+        from .knowledge.translation_facts import prepare
+        from .migration.probes import recent
+        context["translation_facts"] = prepare(project)
+        context["recent_early_probes"] = recent(project)
+        from .migration.decision_context import context as decision_context
+        context["accepted_decisions"] = decision_context(project)
+        from .migration.delivery_brief import context as delivery_brief
+        if include_review_history:
+            brief = delivery_brief(project)
+            if brief:
+                context["delivery_essentials"] = brief
+        from .migration.coverage import coverage
+        context["obligation_navigation"] = coverage(project.root / acquisition.target_worktree.path)
         context.update(extra or {})
         from .migration.repair_execution import active
         if any(active(project, stage) for stage in (
@@ -1295,9 +1375,6 @@ class PortRunner:
                            (MigrationStage.FINAL_EVIDENCE_REVIEW, "runtime_review_path")):
             if stage.value not in project.workflow.stage_values:
                 continue
-            repair = project.retry_feedback(stage)
-            if repair and repair["status"] == "RESOLVED":
-                continue
             reports = [ref for ref in project.artifact_refs(stage=stage)
                        if ref.kind == CodexArtifact.WORK_REPORT.value]
             if reports:
@@ -1310,7 +1387,8 @@ class PortRunner:
         project: Project, stage: StageKey, kind: ArtifactKey,
     ) -> dict[str, object]:
         reference = project.artifact(stage, kind)
-        return {"kind": reference.kind, "digest": reference.digest, "size_bytes": reference.size}
+        return {"kind": reference.kind, "digest": reference.digest, "size_bytes": reference.size,
+                "path": str(project.artifacts.path_for_digest(reference.digest))}
 
     @staticmethod
     def _implementation_review_context(project: Project) -> dict[str, object]:

@@ -27,11 +27,40 @@ class FinalEvidenceReviewService:
     @staticmethod
     def review_inputs(project: Project) -> dict:
         bundle = project.load_json_artifact(S.DRIVER_IMPLEMENTATION, A.IMPLEMENTATION_BUNDLE)
+        from .implementation import validate_worktree_snapshot
+        validate_worktree_snapshot(project.root, bundle)
+        runtime = project.artifact(S.ARTIFACT_PREPARATION, A.RUNTIME_ARTIFACT)
+        project.artifacts.read(runtime)
         target_framework = project.load_json_artifact(
             S.TARGET_FRAMEWORK_ENABLEMENT, A.TARGET_FRAMEWORK_BUNDLE
         )
         artifact_identity = project.load_json_artifact(S.ARTIFACT_PREPARATION, A.ARTIFACT_IDENTITY)
         public = project.load_json_artifact(S.PUBLIC_QEMU_VALIDATION, A.PUBLIC_QEMU_REPORT)
+        from ..knowledge.index import file_sha256
+        from ..acquisition.repository import load_repository_acquisition
+        from ..acquisition.frozen_checkout_validation import verify_git_checkout
+        for checkout in load_repository_acquisition(project).checkouts:
+            verify_git_checkout(project.root, checkout)
+        for log in current_public_qemu_run(public).get("logs", []):
+            archive = log.get("archive_path")
+            if archive and (not Path(archive).is_file() or file_sha256(Path(archive)) != log["sha256"]):
+                raise WorkflowError("Archived runtime observation changed before final review")
+        run = current_public_qemu_run(public)
+        for case in run.get("cases", []):
+            path = Path(case["receipt"])
+            if not path.is_file() or file_sha256(path) != case["receipt_sha256"]:
+                raise WorkflowError("Per-case runtime receipt changed before final review")
+            receipt = json.loads(path.read_text())
+            for evidence_path, digest in receipt['evidence'].items():
+                evidence = Path(evidence_path)
+                if not evidence.is_file() or file_sha256(evidence) != digest:
+                    raise WorkflowError("Per-case runtime evidence changed before final review")
+        trace = run.get("exec_trace", {})
+        for path_key, hash_key in (("path", "sha256"), ("container_evidence", "container_evidence_sha256")):
+            if path_key in trace:
+                path = project.root / trace[path_key]
+                if not path.is_file() or file_sha256(path) != trace[hash_key]:
+                    raise WorkflowError("Runtime trace changed before final review")
         return _review_inputs(
             bundle,
             target_framework,

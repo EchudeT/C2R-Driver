@@ -95,14 +95,8 @@ class CodexExecGateway:
             "-c", "sandbox_workspace_write.network_access="
             + ("true" if job.stage in CodexExecutionPolicy.DEPENDENCY_STAGES else "false"),
         ])
-        if job.stage in CodexExecutionPolicy.DEPENDENCY_STAGES:
-            # Dependency downloads belong to the project, not the user's read-only
-            # global cache. Keep source/baseline filesystem restrictions in place.
-            cargo_home = execution_root / ".dpf-output" / "cargo-home"
-            cargo_home.mkdir(parents=True, exist_ok=True)
-            command.extend([
-                "-c", f"shell_environment_policy.set.CARGO_HOME={json.dumps(str(cargo_home))}",
-            ])
+        # Preserve the environment that recovery proved usable. An empty forced
+        # CARGO_HOME can hide installed cargo subcommands and discard warm caches.
         command.extend(relay_overrides())
         # Structured data is exchanged through the file-backed submission
         # command.  The final agent message is only an activity transcript;

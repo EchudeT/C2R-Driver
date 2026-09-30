@@ -208,3 +208,11 @@ class WorkflowError(RuntimeError):
 
 class RepairExhausted(WorkflowError):
     """The same prerequisite repair repeated with identical accepted inputs."""
+
+
+class ObservationFinding(WorkflowError):
+    """A collector observation requiring evidence-based judgment, not an integrity waiver."""
+
+
+class ControllerError(WorkflowError):
+    """Controller configuration or integrity failure, not a paid driver repair."""

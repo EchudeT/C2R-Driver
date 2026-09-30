@@ -16,7 +16,7 @@ from ..core.container_policy import container_execution_summary
 from ..core.container_trace import ContainerTrace
 from ..core.contracts import ArtifactKey
 from ..core.execution import CommandResult, CommandRunner, observed_script_command
-from ..core.models import FileArtifact, GeneratedArtifact, StageStatus, WorkflowError, utc_now
+from ..core.models import FileArtifact, GeneratedArtifact, StageStatus, WorkflowError, ObservationFinding, utc_now
 from ..core.project import Project
 from ..core.trace import qemu_experiment, successful_execs
 from ..core.validation import BundleValidationContext, json_object
@@ -138,6 +138,7 @@ class QemuHarnessResult:
     container_execution: dict[str, Any]
     runtime_bound: bool
     logs: tuple[dict[str, Any], ...]
+    case_results: tuple[dict[str, Any], ...] = ()
 
     @property
     def passed(self) -> bool:
@@ -150,10 +151,11 @@ class QemuHarnessResult:
             and self.runtime_bound
             and bool(self.logs)
             and self.container_execution["satisfied"]
+            and all(case["status"] == "PASS" for case in self.case_results)
         )
 
 
-def run_public_harness(
+def _run_public_harness(
     *,
     attempt_dir: Path,
     script_path: Path,
@@ -161,12 +163,15 @@ def run_public_harness(
     runtime_path: Path,
     target_platform: str,
     timeout_seconds: int = 3600,
+    environment: dict | None = None,
+    execution_policy: dict | None = None,
 ) -> QemuHarnessResult:
     """Run a public harness and mechanically prove its QEMU/runtime/log boundary."""
 
     attempt_dir.mkdir(parents=True, exist_ok=True)
     trace_path = attempt_dir / "execve.log"
     log_root = worktree / ".dpf-output" / "qemu-runs"
+    log_root.mkdir(parents=True, exist_ok=True)
     before = {
         path: (path.stat().st_mtime_ns, path.stat().st_size) for path in evidence_files(log_root)
     }
@@ -175,6 +180,7 @@ def run_public_harness(
             observed_script_command(script_path, trace_path),
             cwd=worktree,
             environment={
+                **(environment or {}),
                 "DPF_RUNTIME_ARTIFACT": str(runtime_path),
                 "DPF_TARGET_WORKTREE": str(worktree),
             },
@@ -203,6 +209,7 @@ def run_public_harness(
         observations_path=attempt_dir / "container-processes.json",
         target_platform=target_platform,
         host_qemu_execs=host_qemu_execs,
+        policy=execution_policy,
     )
     runtime_bound = any(runtime_in_qemu_arguments(line, runtime_path) for line in qemu_lines)
     logs = (
@@ -220,6 +227,18 @@ def run_public_harness(
         if log_root.is_dir()
         else ()
     )
+    # Freeze observation bytes immediately; later worker runs may reuse log names.
+    import shutil
+    archived = []
+    for number, log in enumerate(logs):
+        source = worktree / log["path"]
+        destination = attempt_dir / "evidence" / f"{number}-{log['sha256']}"
+        destination.parent.mkdir(exist_ok=True)
+        shutil.copyfile(source, destination)
+        if file_sha256(destination) != log["sha256"]:
+            raise WorkflowError("Observation changed while being archived")
+        archived.append({**log, "archive_path": str(destination)})
+    logs = tuple(archived)
     return QemuHarnessResult(
         result,
         trace_path,
@@ -231,6 +250,19 @@ def run_public_harness(
         runtime_bound,
         logs,
     )
+
+
+def run_public_harness(**kwargs) -> QemuHarnessResult:
+    kwargs["attempt_dir"].mkdir(parents=True, exist_ok=True)
+    from .experiments import project_for, execute, cases, run_suite
+    project = project_for(kwargs["worktree"])
+    if project is None:
+        return _run_public_harness(**kwargs)
+    if kwargs["script_path"].name == "public-qemu.sh" and cases(kwargs["worktree"]):
+        return run_suite(project, kwargs["worktree"], kwargs["runtime_path"])
+    return execute(project, worktree=kwargs["worktree"], script_path=kwargs["script_path"],
+                   runtime_path=kwargs["runtime_path"],
+                   timeout_seconds=kwargs.get("timeout_seconds", 3600))
 
 
 class PublicQemuService:
@@ -287,12 +319,14 @@ class PublicQemuService:
             ),
             default=-1,
         )
+        from .coverage import coverage
         previous = self._latest_attempt(project)
         if previous is not None:
             ref, saved = previous
             run = current_public_qemu_run(saved)
             if (
                 saved.get("schema_version") == 4
+                and saved.get("coverage") == coverage(worktree, run.get("cases", []))
                 and saved["inputs"] == inputs
                 and run["script"]["sha256"] == script_digest
                 and run.get("helper_inputs") == helpers
@@ -356,6 +390,7 @@ class PublicQemuService:
                 ),
             },
             "logs": list(observed.logs),
+            "cases": list(observed.case_results),
             "evidence_status": (
                 ContractEvidenceStatus.VERIFIED.value
                 if passed
@@ -370,7 +405,9 @@ class PublicQemuService:
                 else PublicRunAttribution.INCONCLUSIVE.value
             ),
         }
+        from .coverage import coverage
         report = {
+            "coverage": coverage(worktree, observed.case_results),
             "schema_version": 4,
             "inputs": inputs,
             "run": run,
@@ -419,6 +456,10 @@ class PublicQemuService:
                     "sha256": file_sha256(path),
                     "mode": stat.S_IMODE(path.stat().st_mode),
                 }
+        manifest = worktree / ".dpf-output/experiments.json"
+        if manifest.is_file():
+            result[".dpf-output/experiments.json"] = {"sha256": file_sha256(manifest),
+                                                     "mode": stat.S_IMODE(manifest.stat().st_mode)}
         return result
 
     def accept_self_review(self, project: Project, *, work_report_path: Path) -> None:
@@ -535,18 +576,19 @@ def validate_public_qemu_bundle(context: BundleValidationContext) -> None:
         report.get("schema_version") != 4
         or report.get("inputs") != expected_inputs
         or report.get("attempt_sha256") != attempt_ref.digest
-        or report.get("status") != StageStatus.PASS.value
     ):
         raise WorkflowError("public QEMU report is detached from its run")
     run = current_public_qemu_run(report)
     worker_ref, worker_data = context.one_current(MigrationArtifact.PUBLIC_QEMU_WORK_REPORT)
     require_self_review(worker_data.decode())
+    if report.get("self_review_sha256") != worker_ref.digest:
+        raise WorkflowError("Public result is detached from its self-check report")
     if (
-        report.get("execution_status") != "PASS"
+        report.get("status") != "PASS"
+        or report.get("execution_status") != "PASS"
         or run.get("execution_status") != "PASS"
-        or report.get("self_review_sha256") != worker_ref.digest
     ):
-        raise WorkflowError("public result must pass and bind the worker's self-check report")
+        raise ObservationFinding("public result must pass and bind the worker's self-check report")
     if run.get("execution_status") == ContractExecutionStatus.PASS.value:
         trace = run.get("exec_trace")
         if (

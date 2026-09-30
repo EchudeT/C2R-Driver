@@ -83,7 +83,7 @@ def test_explicit_context_reset_reloads_rules_and_preserves_frozen_evidence(tmp_
 
     def gateway(job):
         assert job.thread_id is None
-        assert '<skill_document path="knowledge-guided-driver-port/SKILL.md"' in job.prompt
+        assert '<skill_document_reference path="knowledge-guided-driver-port/SKILL.md"' in job.prompt
         assert packet["digest"] in job.prompt
         output = job.execution_root / ".dpf-output"
         output.mkdir(exist_ok=True)

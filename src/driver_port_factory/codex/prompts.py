@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import Any
 
 from ..core.contracts import StageKey
-from ..core.models import ActorRole, WorkflowError
+from ..core.models import ActorRole, ControllerError
 from ..core.workflow import StageCatalog
 
 
@@ -25,6 +25,7 @@ class PromptDocument:
 class PromptStage:
     documents: tuple[str, ...]
     objective: str | None
+    on_demand_documents: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True, slots=True)
@@ -57,23 +58,23 @@ def default_prompt_pack_path() -> Path:
 
 def _load_manifest(path: Path) -> tuple[dict[str, Any], bytes]:
     if not path.is_file():
-        raise WorkflowError(f"prompt pack manifest does not exist: {path}")
+        raise ControllerError(f"prompt pack manifest does not exist: {path}")
     raw = path.read_bytes()
     try:
         value = json.loads(raw.decode("utf-8"))
     except (UnicodeDecodeError, json.JSONDecodeError) as error:
-        raise WorkflowError(f"prompt pack manifest is not valid UTF-8 JSON: {path}") from error
+        raise ControllerError(f"prompt pack manifest is not valid UTF-8 JSON: {path}") from error
     if not isinstance(value, dict) or value.get("schema_version") != 1:
-        raise WorkflowError("prompt pack manifest must be a schema_version=1 object")
+        raise ControllerError("prompt pack manifest must be a schema_version=1 object")
     return value, raw
 
 
 def _pack_file(root: Path, value: Any, label: str) -> tuple[Path, bytes]:
     if not isinstance(value, str) or not value:
-        raise WorkflowError(f"prompt pack {label} must be a relative path")
+        raise ControllerError(f"prompt pack {label} must be a relative path")
     path = (root / value).resolve()
     if root not in path.parents or not path.is_file():
-        raise WorkflowError(f"prompt pack {label} is missing or escapes its root: {value}")
+        raise ControllerError(f"prompt pack {label} is missing or escapes its root: {value}")
     return path, path.read_bytes()
 
 
@@ -83,30 +84,34 @@ def _prompt_stages(
     root: Path,
 ) -> dict[str, PromptStage]:
     if not isinstance(value, dict):
-        raise WorkflowError("prompt pack stages must be an object")
+        raise ControllerError("prompt pack stages must be an object")
     stages: dict[str, PromptStage] = {}
     for stage, specification in value.items():
         if not isinstance(stage, str) or not stage:
-            raise WorkflowError("prompt pack stage names must be non-empty strings")
+            raise ControllerError("prompt pack stage names must be non-empty strings")
         if not catalog.contains(stage):
-            raise WorkflowError(f"prompt pack contains an unknown stage: {stage}")
-        if not isinstance(specification, dict) or set(specification) - {"documents", "objective"}:
-            raise WorkflowError(f"prompt pack stage {stage} must be a stage specification")
+            raise ControllerError(f"prompt pack contains an unknown stage: {stage}")
+        if not isinstance(specification, dict) or set(specification) - {"documents", "objective", "on_demand_documents"}:
+            raise ControllerError(f"prompt pack stage {stage} must be a stage specification")
         documents = specification.get("documents")
         if (
             not isinstance(documents, list)
             or not documents
             or not all(isinstance(document, str) and document for document in documents)
         ):
-            raise WorkflowError(f"prompt pack stage {stage} needs a non-empty document list")
+            raise ControllerError(f"prompt pack stage {stage} needs a non-empty document list")
         objective = specification.get("objective")
         if objective is not None and (
             not isinstance(objective, str) or not objective.strip()
         ):
-            raise WorkflowError(
+            raise ControllerError(
                 f"prompt pack stage {stage} objective must be a non-empty string"
             )
-        stages[stage] = PromptStage(tuple(documents), objective)
+        on_demand = specification.get("on_demand_documents", [])
+        if (not isinstance(on_demand, list) or any(not isinstance(p, str) for p in on_demand)
+                or not set(on_demand) <= set(documents)):
+            raise ControllerError(f"on-demand documents must be selected stage documents: {stage}")
+        stages[stage] = PromptStage(tuple(documents), objective, tuple(on_demand))
     return stages
 
 
@@ -116,23 +121,23 @@ def load_prompt_pack(path: Path | None, stage_catalog: StageCatalog) -> PromptPa
     manifest, raw_manifest = _load_manifest(manifest_path)
     name = manifest.get("name")
     if not isinstance(name, str) or not name.strip():
-        raise WorkflowError("prompt pack name must be a non-empty string")
+        raise ControllerError("prompt pack name must be a non-empty string")
     template_path, template_raw = _pack_file(root, manifest.get("template"), "template")
     _, correction_raw = _pack_file(root, manifest.get("correction_template"), "correction template")
     try:
         template = template_raw.decode("utf-8")
     except UnicodeDecodeError as error:
-        raise WorkflowError(f"prompt pack template is not UTF-8: {template_path}") from error
+        raise ControllerError(f"prompt pack template is not UTF-8: {template_path}") from error
     try:
         correction_template = correction_raw.decode("utf-8")
     except UnicodeDecodeError as error:
-        raise WorkflowError("prompt pack correction template is not UTF-8") from error
+        raise ControllerError("prompt pack correction template is not UTF-8") from error
     if "{{error}}" not in correction_template:
-        raise WorkflowError("prompt pack correction template is missing {{error}}")
+        raise ControllerError("prompt pack correction template is missing {{error}}")
     required_markers = {"{{job_json}}", "{{skill_documents}}"}
     missing_markers = sorted(marker for marker in required_markers if marker not in template)
     if missing_markers:
-        raise WorkflowError(
+        raise ControllerError(
             "prompt pack template is missing structural markers: " + ", ".join(missing_markers)
         )
     stages = _prompt_stages(manifest.get("stages"), stage_catalog, root)
@@ -165,7 +170,7 @@ class SkillPromptComposer:
     ) -> None:
         self.skill_root = skill_root.resolve()
         if not self.skill_root.is_dir():
-            raise WorkflowError(f"Skill root does not exist: {self.skill_root}")
+            raise ControllerError(f"Skill root does not exist: {self.skill_root}")
         self.allowed_stages = frozenset(allowed_stage_names)
         self.prompt_pack = load_prompt_pack(prompt_pack, stage_catalog)
 
@@ -178,14 +183,14 @@ class SkillPromptComposer:
             # files; Skill documents continue to take precedence when present.
             path = (self.prompt_pack.root / relative_path).resolve()
             if self.prompt_pack.root not in path.parents:
-                raise WorkflowError(f"document escapes both Skill and prompt pack roots: {relative_path}")
+                raise ControllerError(f"document escapes both Skill and prompt pack roots: {relative_path}")
         if not path.is_file():
-            raise WorkflowError(f"required prompt document is missing: {path}")
+            raise ControllerError(f"required prompt document is missing: {path}")
         raw = path.read_bytes()
         try:
             content = raw.decode("utf-8")
         except UnicodeDecodeError as error:
-            raise WorkflowError(f"Skill document is not UTF-8: {path}") from error
+            raise ControllerError(f"Skill document is not UTF-8: {path}") from error
         return PromptDocument(
             relative_path=relative_path,
             digest=hashlib.sha256(raw).hexdigest(),
@@ -195,10 +200,10 @@ class SkillPromptComposer:
 
     def documents_for_stage(self, stage: StageKey) -> tuple[PromptDocument, ...]:
         if stage.value not in self.allowed_stages:
-            raise WorkflowError(f"stage {stage.value} is outside the current project workflow")
+            raise ControllerError(f"stage {stage.value} is outside the current project workflow")
         specification = self.prompt_pack.stages.get(stage.value)
         if specification is None:
-            raise WorkflowError(
+            raise ControllerError(
                 f"stage {stage.value} has no document mapping in prompt pack "
                 f"{self.prompt_pack.name}"
             )
@@ -232,10 +237,16 @@ class SkillPromptComposer:
         effective_objective = (
             objective if objective is not None else stage_specification.objective if stage_specification else None
         )
+        if repair_task is not None and objective is None:
+            effective_objective = (
+                "Repair the recorded defect or complete the missing delivery using current source, "
+                "frozen obligations and bound observations. Preserve unaffected passing work; "
+                "perform only necessary changes and affected validation under repair.md. "
+                "The existing delivery scope remains required; this is not a new initial implementation.")
         if deciding and effective_objective is None:
             effective_objective = recovery
         if not isinstance(effective_objective, str) or not effective_objective.strip():
-            raise WorkflowError(
+            raise ControllerError(
                 f"stage {stage.value} needs an objective in the prompt pack or caller"
             )
         prompt_context = dict(context or {})
@@ -253,8 +264,8 @@ class SkillPromptComposer:
             instructions["protocol"]["completion"] = (
                 prompt_context["repair_execution"]["completion"]
             )
-            instructions["repair_task"] = repair_task
-        for key in ("tool_runtime", "phase", "repair_targets", "repair_scope", "repair_execution"):
+            instructions["delivery_repair"] = repair_task
+        for key in ("tool_runtime", "phase", "repair_targets", "repair_execution"):
             if key in prompt_context:
                 instructions[key] = prompt_context.pop(key)
         if prompt_context.get("controller_feedback"):
@@ -262,7 +273,12 @@ class SkillPromptComposer:
                 "See reference_material.controller_feedback for the diagnostic."
             )
         header = {"instructions": instructions, "reference_material": prompt_context}
+        on_demand = set(stage_specification.on_demand_documents) if stage_specification else set()
         embedded_documents = "\n\n".join(
+            (f'<skill_document_reference path="{document.relative_path}" '
+             f'sha256="{document.digest}" source_path="{escape(str(document.source_path), quote=True)}" '
+             f'use="read applicable sections on demand; not assumed read" />')
+            if document.relative_path in on_demand else
             (f'<skill_document path="{document.relative_path}" '
              f'source_path="{escape(str(document.source_path), quote=True)}">\n'
              f"{document.content}\n</skill_document>"
@@ -314,7 +330,29 @@ class SkillPromptComposer:
         specification = self.prompt_pack.stages.get(stage.value)
         documents = self.documents_for_stage(stage) if specification else ()
         recovery = self.prompt_pack.root / "checker-decision.md"
+        execution_rules = (self.prompt_pack.root / "execution.md").read_text() if self._executable(stage.value) else None
+        repair_stages = {"driver_implementation", "artifact_preparation"}
+        repair_rules = None
+        if stage.value in repair_stages:
+            repair_rules = (self.prompt_pack.root / "repair.md").read_text()
+            extra = "knowledge-guided-driver-port/references/qemu-evidence.md"
+            if all(d.relative_path != extra for d in documents):
+                documents = (*documents, self._read_document(extra))
+        from .optional_tools import GUIDE, STAGES
         value = {
+            "optional_tools": GUIDE.read_text() if stage.value in STAGES else None,
+            "composite_rules": {
+                name: {"objective": self.prompt_pack.stages[name].objective,
+                       "document_delivery": list(self.prompt_pack.stages[name].on_demand_documents),
+                       "documents": {path: self._read_document(path).digest
+                                     for path in self.prompt_pack.stages[name].documents}}
+                for name in ({"target_platform_study": ("migration_contracts",),
+                              "target_framework_enablement": ("driver_implementation",)}
+                             .get(stage.value, ()))
+            },
+            "execution_rules": execution_rules,
+            "repair_rules": repair_rules,
+            "document_delivery": list(specification.on_demand_documents) if specification else [],
             "objective": specification.objective if specification else None,
             "template": self.prompt_pack.template,
             "correction": self.prompt_pack.correction_template,

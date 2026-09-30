@@ -24,7 +24,10 @@ from tests.submission_support import submit
 
 @pytest.mark.parametrize("risk", [False, True])
 @pytest.mark.parametrize("append_decision", [False, True])
-def test_two_conversations_complete_with_independent_review(tmp_path, risk, append_decision):
+@pytest.mark.parametrize("prepared_delivery,fused_delivery,ack_delivery",
+                         [(False, False, False), (True, False, False), (True, True, False), (True, True, True)])
+def test_two_conversations_complete_with_independent_review(
+        tmp_path, risk, append_decision, prepared_delivery, fused_delivery, ack_delivery):
     project = ready_implementation(tmp_path, reviewed=False)
     port = runner(project)
     calls = []
@@ -35,19 +38,8 @@ def test_two_conversations_complete_with_independent_review(tmp_path, risk, appe
         output = job.execution_root / ".dpf-output"
         output.mkdir(exist_ok=True)
         report = output / "report.md"
-        text = "Synthetic controller fixture, not real driver evidence.\n"
-        if stage is S.ANALYSIS_REVIEW:
-            assert job.thread_id is None
-            assert job.sandbox.value == "danger-full-access"
-            report.write_text("Synthetic analysis evidence checked.\n")
-            submit(project, job, report, kind="report", decision="pass")
-            return CodexResult(job.job_id, "", "reviewer")
-        elif stage is S.TARGET_FRAMEWORK_ENABLEMENT:
-            report.write_text(
-                "Synthetic target framework enablement; no target edits required.\n"
-                "DPF_SELF_REVIEW: PASS\n"
-            )
-        elif stage is S.DRIVER_IMPLEMENTATION:
+        text = "Synthetic controller fixture, not real driver evidence.\nDPF_SELF_REVIEW: PASS\n"
+        def build_delivery():
             assert project.stage(S.ANALYSIS_REVIEW).status.value == "PASS"
             (job.execution_root / "driver.rs").write_text(
                 "pub unsafe fn init() {}\n" if risk else "pub fn init() {}\n"
@@ -57,6 +49,35 @@ def test_two_conversations_complete_with_independent_review(tmp_path, risk, appe
             integration.write_text(integration.read_text() + "pub fn register_driver() {}\n")
             from tests.migration_support import smoke_fixture
             smoke_fixture(job.execution_root)
+            if prepared_delivery:
+                variants = output / "harness/variants"
+                variants.mkdir(parents=True, exist_ok=True)
+                (variants / "fault-image").write_bytes(b"synthetic instrumented image")
+                qemu = output / "qemu-system-fixture"
+                qemu.symlink_to("/bin/true")
+                (output / "public-qemu.sh").write_text(
+                    f'"{qemu}" -kernel "$DPF_RUNTIME_ARTIFACT"\n'
+                    f'"{qemu}" -kernel "{variants / "fault-image"}"\n'
+                    "echo synthetic > .dpf-output/qemu-runs/serial.log\n")
+
+        if stage is S.ANALYSIS_REVIEW:
+            assert job.thread_id is None
+            assert job.sandbox.value == "danger-full-access"
+            report.write_text("Synthetic analysis evidence checked.\n")
+            submit(project, job, report, kind="report", decision="pass")
+            return CodexResult(job.job_id, "", "reviewer")
+        elif stage is S.TARGET_FRAMEWORK_ENABLEMENT:
+            # Shared integration is deliberately modified at both checkpoints.
+            integration = job.execution_root / "src/driver-api.rs"
+            integration.write_text(integration.read_text() + "pub fn framework_api() {}\n")
+            report.write_text(
+                "Synthetic target framework enablement; no target edits required.\n"
+                "DPF_SELF_REVIEW: PASS\n"
+            )
+            if fused_delivery:
+                build_delivery()
+        elif stage is S.DRIVER_IMPLEMENTATION:
+            build_delivery()
         elif stage is S.ARTIFACT_PREPARATION:
             variants = output / "harness/variants"
             variants.mkdir(parents=True, exist_ok=True)
@@ -79,9 +100,9 @@ def test_two_conversations_complete_with_independent_review(tmp_path, risk, appe
                 "echo synthetic > .dpf-output/qemu-runs/serial.log\n"
             )
         elif stage is S.FINAL_EVIDENCE_REVIEW:
-            assert job.thread_id == "reviewer"
+            assert job.thread_id is None  # final review starts independently of analysis
             assert job.sandbox.value == "danger-full-access"
-            assert "frozen contract/test IDs" in job.prompt
+            assert "current contract/test IDs" in job.prompt
             payload = json.loads(job.prompt.split("<job>")[1].split("</job>")[0])
             reference_material = payload["reference_material"]
             frozen_inputs = reference_material["frozen_inputs"]
@@ -119,6 +140,15 @@ def test_two_conversations_complete_with_independent_review(tmp_path, risk, appe
                 assert service._latest_attempt(project)[0].digest == previous
                 text += "Previous request captured and inspected.\n"
         report.write_text(text)
+        if ack_delivery and stage is S.TARGET_FRAMEWORK_ENABLEMENT:
+            from driver_port_factory.migration.experiments import execute
+            from driver_port_factory.migration.experiment_ack import record_seen, acknowledge
+            observation = execute(project, worktree=job.execution_root,
+                script_path=output / "public-qemu.sh", runtime_path=output / "runtime-artifact",
+                timeout_seconds=3600)
+            assert observation.passed
+            record_seen(project, job.job_id, [{"id": "public-qemu.sh", "status": "PASS", "observation": observation}])
+            acknowledge(project, job.job_id, report)
         thread = "worker"
         assert job.thread_id in (None, thread)
         if stage is S.PUBLIC_QEMU_VALIDATION:
@@ -147,21 +177,23 @@ def test_two_conversations_complete_with_independent_review(tmp_path, risk, appe
     from pathlib import Path
 
     assert Path(outcome.report_path).read_text().strip()
-    assert [job.stage for job in calls].count(S.DRIVER_IMPLEMENTATION) == 1
+    assert [job.stage for job in calls].count(S.DRIVER_IMPLEMENTATION) == (0 if fused_delivery else 1)
     assert S.COMPLETION_AUDIT.value not in project.workflow.stage_values
     assert [job.stage for job in calls].count(S.FINAL_EVIDENCE_REVIEW) == 1
     assert calls[0].stage is S.ANALYSIS_REVIEW
     worker = [job for job in calls if job.stage not in {S.FINAL_EVIDENCE_REVIEW, S.ANALYSIS_REVIEW}]
-    assert len(worker) == 5
+    assert len(worker) == (1 if ack_delivery else 2 if fused_delivery else 3 if prepared_delivery else 5)
+    assert [j.stage for j in calls].count(S.ARTIFACT_PREPARATION) == (
+        0 if prepared_delivery else 1)
     from driver_port_factory.control.statistics import project_statistics
 
     stats = project_statistics(project)
     assert stats["evidence"]["functional_assessment"] == "INDEPENDENT_REVIEW_RECORDED"
     groups = stats["by_call_reason"]
-    assert groups["stage_work"]["codex_calls"] == 4
-    assert groups["execution_self_check"]["codex_calls"] == 1
-    assert groups["independent_review"]["codex_calls"] == 1
-    assert groups["review_followup"]["codex_calls"] == 1
+    assert groups["stage_work"]["codex_calls"] == (1 if fused_delivery else 2 if prepared_delivery else 4)
+    assert groups.get("execution_self_check", {}).get("codex_calls", 0) == (0 if ack_delivery else 1)
+    assert groups["independent_review"]["codex_calls"] == 2
+    assert groups.get("review_followup", {}).get("codex_calls", 0) == 0
     assert sum(g["codex_calls"] for g in groups.values()) == stats["totals"]["codex_calls"]
     metric_path = next((project.control / "codex").glob("*.metrics.json"))
     original_metric = metric_path.read_text()
@@ -402,6 +434,38 @@ def test_prepared_repair_ignores_report_only_refresh(tmp_path):
 
     report.write_text("Refreshed human-readable receipt; substantive files unchanged.\n")
     assert prepared(project) == report.resolve()
+
+
+def test_initial_delivery_falls_back_and_invalidates_changed_inputs(tmp_path):
+    from driver_port_factory.migration.repair_execution import prepare_delivery, prepared
+    from tests.migration_support import implemented
+    project, worktree, report = implemented(tmp_path)
+    assert not prepare_delivery(project, report)
+    assert prepared(project) is None
+    script = worktree / '.dpf-output/public-qemu.sh'
+    script.write_text('#!/bin/sh\nexit 0\n')
+    assert prepare_delivery(project, report)
+    assert prepared(project) == report.resolve()
+    assert prepared(open_project(project.root)) == report.resolve()
+    script.write_text('#!/bin/sh\nexit 1\n')
+    assert prepared(project) is None
+
+
+def test_initial_delivery_checker_failure_requires_worker_repair(tmp_path):
+    from driver_port_factory.core.checker_decision import CheckerDecisionRequired, pending_decision
+    from driver_port_factory.migration.repair_execution import prepare_delivery
+    from tests.migration_support import implemented
+    project, worktree, report = implemented(tmp_path)
+    (worktree / '.dpf-output/public-qemu.sh').write_text('#!/bin/sh\nexit 0\n')
+    (worktree / '.dpf-output/check-presence.sh').write_text('#!/bin/sh\nexit 1\n')
+    assert prepare_delivery(project, report)
+    port = runner(project)
+    with patch.object(port, '_codex_gate') as gate:
+        with pytest.raises(CheckerDecisionRequired, match='presence checker failed'):
+            port._artifact_preparation(project)
+    gate.assert_not_called()
+    assert pending_decision(open_project(project.root), S.ARTIFACT_PREPARATION) is not None
+    assert project.stage(S.ARTIFACT_PREPARATION).status.value != 'PASS'
 
 
 def test_public_qemu_recovery_inputs_ignore_artifact_receipts(tmp_path):

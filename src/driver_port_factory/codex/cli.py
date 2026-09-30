@@ -107,11 +107,12 @@ def run_codex_stage(
     grant = CodexExecutionPolicy().grant(project, stage_key)
     key, session = stage_session(project, stage_key, grant, model, backend.value)
     from .context_policy import prepare_context
+    repair = project.retry_feedback(stage_key)
     session, context_policy = prepare_context(
         project, stage_key, key, session,
         continuing=bool(thread_id or follow_up or (context or {}).get("checker_decision")
                         or (context or {}).get("controller_execution")
-                        or project.retry_feedback(stage_key)),
+                        or (repair and repair.get("status") != "PREREQUISITE_COMPLETED")),
     )
     from .context_reset import attach_handoff
     context, thread_id = attach_handoff(project, session, context, thread_id)
@@ -148,6 +149,12 @@ def run_codex_stage(
             "execution_root": str(grant.execution_root),
             "sandbox": grant.sandbox.value,
             "evidence_locator": [sys.executable, "-m", "driver_port_factory.review_evidence"],
+            "text_reader": [sys.executable, "-m", "driver_port_factory.read_evidence",
+                             "--path", "<PATH>", "--budget", "6000"],
+            "managed_experiment": [sys.executable, "-m", "driver_port_factory.cli",
+                                   "experiment", "run", str(project.root), "--job-id", job_id],
+            "experiment_self_review": [sys.executable, "-m", "driver_port_factory.cli",
+                                       "experiment", "acknowledge", str(project.root), "--job-id", job_id],
             "project_root": str(project.root),
             "stage": stage_key.value,
             "job_id": job_id,
@@ -160,57 +167,80 @@ def run_codex_stage(
         },
         "available_inputs": [d.value for d in project.workflow.spec(stage_key).dependencies],
     }
+    from .optional_tools import context as optional_context
+    context["tool_runtime"].update(optional_context(project, stage_key))
+    if stage_key not in CodexExecutionPolicy.WRITABLE_STAGES:
+        for name in ("managed_experiment", "experiment_self_review"):
+            context["tool_runtime"].pop(name, None)
     from ..environment.contracts import EnvironmentStage, EnvironmentArtifact
     if (EnvironmentStage.RECOVERY.value in project.workflow.stage_values
             and project.stage(EnvironmentStage.RECOVERY).status is StageStatus.PASS):
         context["environment_evidence"] = {}
-        for kind in (EnvironmentArtifact.INVENTORY, EnvironmentArtifact.MODE_RECORD):
+        for kind in (EnvironmentArtifact.INVENTORY, EnvironmentArtifact.MODE_RECORD,
+                     EnvironmentArtifact.EXPERIMENT_ROUTE):
             ref = project.artifact(EnvironmentStage.RECOVERY, kind)
             context["environment_evidence"][kind.value] = {
                 "kind": kind.value, "digest": ref.digest,
                 "path": str(project.artifacts.path_for_digest(ref.digest)),
             }
+    from ..acquisition.contracts import AcquisitionStage
+    if project.stage(AcquisitionStage.EVIDENCE_CLOSURE).status is StageStatus.PASS:
+        from ..acquisition.failure_summary import summary as retrieval_failures
+        context["retrieval_failures"] = retrieval_failures(project)
+    from ..platform_assets import references as platform_references
+    context["platform_assets"] = platform_references(project)
+    from ..build_cache import environment as build_cache_environment
+    cache_env = build_cache_environment(project)
+    if cache_env:
+        context["tool_runtime"]["build_cache_environment"] = cache_env
     if stage_key in CodexExecutionPolicy.DEPENDENCY_STAGES:
         context["tool_runtime"]["cargo_home"] = str(
             grant.execution_root / ".dpf-output" / "cargo-home"
         )
+        context["tool_runtime"]["cargo_home_note"] = (
+            "Suggested cache directory, not proof that tools are installed there. Preserve "
+            "the working environment from experiment_route and current framework/build reports; "
+            "do not replace a proven container tool home solely to match this suggestion.")
     if follow_up:
         context = {**(context or {}), "controller_feedback": follow_up}
     repair = project.retry_feedback(stage_key)
     if repair:
-        context["repair_state"] = repair
+        context["repair_state"] = {k: v for k, v in repair.items() if k != "repair_report"}
+        from .repair_handoff import repair_task
+        task = repair_task(project, repair, stage=stage_key.value)
+        if task:
+            context["repair_task"] = task
         prior = [r for r in project.artifact_refs(stage=stage_key)
                  if r.kind == CodexArtifact.WORK_REPORT.value]
         if prior:
             ref = max(prior, key=lambda r: r.ordinal)
             context["previous_work_report"] = str(project.artifacts.path_for_digest(ref.digest))
-        context["repair_scope"] = (
-            "The prerequisite repair is complete. Continue with current frozen inputs; the historical "
-            "reason is not an outstanding defect. Revalidate only affected downstream results."
-            if repair["status"] == "RESOLVED" else
-            "Repair the causal defect and recheck only affected claims. Preserve code, reports, "
-            "compile commands, builds and passing tests whose inputs are unchanged. "
-            "Reusing a report is allowed; do not restart the whole phase investigation."
-        )
     from ..orchestration.protocol import REPAIR_TARGETS
-    from ..core.phases import phase
+    from ..core.phases import phase, allows_evidence_revision
     context["phase"] = phase(stage_key)
     context["repair_targets"] = [s.name.value for s in project.stages()
         if s.name.value in REPAIR_TARGETS and s.status is StageStatus.PASS
-        and phase(s.name) == phase(stage_key)
+        and (phase(s.name) == phase(stage_key) or allows_evidence_revision(project.config, s.name, stage_key))
         and stage_key.value in project.workflow.descendants(s.name)]
     known_inputs = session.get("inputs", {}) if thread_id == session.get("thread_id") else {}
-    from .context_focus import compact_feedback, reading_plan, repair_focus
+    from .compaction import CURSOR, refresh_inputs
+    known_inputs, compaction_cursor, native_compaction = refresh_inputs(thread_id, known_inputs)
+    from .context_focus import compact_feedback, compact_delivery_brief, reading_plan, repair_focus
     context = compact_feedback(project, context)
     context, supplied_inputs = input_changes(context, known_inputs)
-    plan = reading_plan(stage_key, context)
-    if plan:
-        context["reading_plan"] = plan
+    if compaction_cursor is not None:
+        supplied_inputs[CURSOR] = compaction_cursor
+    context = compact_delivery_brief(context)
     if any(context.get(k) for k in ("controller_execution", "controller_feedback",
                                     "checker_decision", "repair_state", "repair_observation")):
         focus = repair_focus(project, stage_key, context)
         if focus:
             context["repair_focus"] = focus
+    from .repair_handoff import organize_repair_context
+    context = organize_repair_context(context, stage_key.value, known_inputs, supplied_inputs)
+    plan = reading_plan(stage_key, context)
+    if plan:
+        context["reading_plan"] = plan
     rendered = _render_prompt(
         project,
         stage_key,
@@ -251,6 +281,7 @@ def run_codex_stage(
     reported_usage = []
     first_event_seconds = None
     metrics = {
+        "native_compaction": native_compaction,
         "stage": stage_key.value, "job_id": job.job_id, "thread_id": thread_id,
         "started_at": utc_now(), "completed_at": None,
         "invocation_state": "RUNNING",
@@ -276,8 +307,12 @@ def run_codex_stage(
             "execution_self_check" if context.get("controller_execution") else
             "repair" if repair and repair["status"] == "OPEN" else "stage_work"
         ),
+        "repair_origin": ({k: repair.get(k) for k in ("trigger", "repair_root", "status")} if repair else None),
         "usage_semantics": "cumulative thread counters; subtract usage_baseline",
     }
+
+    from ..checkpoints import capture_invocation
+    capture_invocation(project, stage_key.value, metrics, prompt)
 
     def persist_metrics() -> None:
         metrics.update(elapsed_seconds=round(time.monotonic() - started, 3),

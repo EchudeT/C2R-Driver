@@ -12,7 +12,7 @@ from .contracts import MigrationStage
 from .public_qemu import PublicQemuService, current_public_qemu_run
 
 
-def retry_prerequisite(project, target, *, trigger, reason):
+def retry_prerequisite(project, target, *, trigger, reason, repair_report=None):
     """Keep evidence in feedback; count unchanged executable premises, not new reports."""
     from ..core.models import ArtifactDirection
     refs = project.current_artifact_refs(stage=target, direction=ArtifactDirection.OUTPUT)
@@ -63,7 +63,7 @@ def retry_prerequisite(project, target, *, trigger, reason):
         progress = sorted((ref.kind, ref.digest) for ref in refs if ref.kind in kinds)
         if {kind for kind, _ in progress} != kinds:
             raise CodexOutputError(f"Missing prerequisite progress inputs for {target.value}")
-    project.retry_from(target, trigger=trigger, reason=reason, progress=progress)
+    project.retry_from(target, trigger=trigger, reason=reason, progress=progress, repair_report=repair_report)
 
 ROUTES = {stage.value: stage for stage in (
     AcquisitionStage.EVIDENCE_CLOSURE,
@@ -84,6 +84,7 @@ class WorkerBlocked(WorkflowError):
 
 
 class PrerequisiteRepair(WorkflowError):
-    def __init__(self, target: StageKey, report: str) -> None:
+    def __init__(self, target: StageKey, report: str, repair_report=None) -> None:
         super().__init__(f"worker requested {target.value}; frozen report: {report}")
         self.target = target
+        self.repair_report = repair_report

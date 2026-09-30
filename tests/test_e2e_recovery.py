@@ -132,7 +132,7 @@ def test_repaired_model_deliverable_is_consumed_once(tmp_path, restart):
     def worker(job):
         payload = json.loads(job.prompt.split("<job>")[1].split("</job>")[0])
         assert (
-            "references/workflow.md phases 3–5" in payload["instructions"]["objective"]
+            "current migration contracts" in payload["instructions"]["objective"]
         )
         assert Path(payload["instructions"]["skill_root"]) == references.parent.parent
         assert "source_path=" in job.prompt

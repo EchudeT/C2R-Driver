@@ -67,16 +67,13 @@ def test_smoke_reuses_report_edits_but_rechecks_source_and_runtime(tmp_path):
     assert len(list((project.control / "implementation-smoke").glob("*/receipt.json"))) == 3
 
 
-def test_asterinas_host_smoke_is_rejected(tmp_path):
-    from dataclasses import replace
+def test_selected_container_route_rejects_host_smoke(tmp_path):
     from unittest.mock import patch
-
-    from driver_port_factory.core.project import Project
-
     project, _tree, report = setup_smoke(tmp_path)
-    config = replace(project.config, target_platform="asterinas")
     with (
-        patch.object(Project, "config", property(lambda _: config)),
+        patch("driver_port_factory.migration.experiments.execution_policy",
+              return_value={"required": True, "images": ["asterinas/dev:fixture"]}),
+        patch("driver_port_factory.migration.experiments.current_images", return_value={}),
         pytest.raises(CodexContinuation),
     ):
         DriverImplementationService().snapshot_worktree(project, report)

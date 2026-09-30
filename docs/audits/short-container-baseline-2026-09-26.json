@@ -1,0 +1,79 @@
+{
+  "root": "/tmp/dpf-short-container-tjsm7k2k",
+  "image": "asterinas/dev:0.18.1-20260805",
+  "rows": [
+    {
+      "exit_code": 0,
+      "timed_out": false,
+      "qmp_device_observed": true,
+      "bound_qemu_count": 0,
+      "elapsed_ms": 265
+    },
+    {
+      "exit_code": 0,
+      "timed_out": false,
+      "qmp_device_observed": true,
+      "bound_qemu_count": 0,
+      "elapsed_ms": 214
+    },
+    {
+      "exit_code": 0,
+      "timed_out": false,
+      "qmp_device_observed": true,
+      "bound_qemu_count": 0,
+      "elapsed_ms": 265
+    },
+    {
+      "exit_code": 0,
+      "timed_out": false,
+      "qmp_device_observed": true,
+      "bound_qemu_count": 0,
+      "elapsed_ms": 265
+    },
+    {
+      "exit_code": 0,
+      "timed_out": false,
+      "qmp_device_observed": true,
+      "bound_qemu_count": 0,
+      "elapsed_ms": 265
+    },
+    {
+      "exit_code": 0,
+      "timed_out": false,
+      "qmp_device_observed": true,
+      "bound_qemu_count": 0,
+      "elapsed_ms": 215
+    },
+    {
+      "exit_code": 0,
+      "timed_out": false,
+      "qmp_device_observed": true,
+      "bound_qemu_count": 0,
+      "elapsed_ms": 214
+    },
+    {
+      "exit_code": 0,
+      "timed_out": false,
+      "qmp_device_observed": true,
+      "bound_qemu_count": 0,
+      "elapsed_ms": 215
+    },
+    {
+      "exit_code": 0,
+      "timed_out": false,
+      "qmp_device_observed": true,
+      "bound_qemu_count": 0,
+      "elapsed_ms": 265
+    },
+    {
+      "exit_code": 0,
+      "timed_out": false,
+      "qmp_device_observed": true,
+      "bound_qemu_count": 0,
+      "elapsed_ms": 215
+    }
+  ],
+  "passed": false,
+  "limitation": "Model-only collector probe, not migrated-driver validation; finite sampling cannot guarantee observing every short process.",
+  "factory_collector": "main:d4f2a32"
+}

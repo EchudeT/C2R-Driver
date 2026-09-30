@@ -1,0 +1,119 @@
+{
+  "method": "Read-only retrieval from historical accepted artifacts and verified corpus; no model calls, no source writes. Not a quality or billing experiment.",
+  "project": "/home/unix/file/C2R-Driver/c2rust-migration-test-01/e2e-e1000-context-logs-01",
+  "results": [
+    {
+      "question": "C-RX e1000_clean_rx_irq 接收长度和错误描述符如何处理？",
+      "seconds": 0.1081,
+      "packet_bytes": 8224,
+      "packet_sha256": "cf5e1cb7e75134676e9f31b08e2b7ee1850754d9eb462084391c4da096b5de36",
+      "groups": {
+        "obligations": {
+          "status": "SELECTED",
+          "items": [
+            {
+              "path": "/home/unix/file/C2R-Driver/c2rust-migration-test-01/e2e-e1000-context-logs-01/.dpf/cas/objects/sha256/7f/2c66f0955d57e08b00203c8b171812bffc933c71a6d9465bc04be83b6beaa8",
+              "sha256": "7f2c66f0955d57e08b00203c8b171812bffc933c71a6d9465bc04be83b6beaa8",
+              "line": 163,
+              "text_bytes": 432,
+              "match": null,
+              "joined_chunks": []
+            }
+          ]
+        },
+        "source": {
+          "status": "SELECTED",
+          "items": [
+            {
+              "path": ".dpf/worktrees/source-baseline-source-24dd642f2d9bf083-05f7e89ab9731565d8a62e3b5d1ec206485eeb0b/drivers/net/ethernet/intel/e1000/e1000_main.c",
+              "sha256": "d66b58f174b724595a9d2a0e2de5e6785aae303a7fb6052e48e555cb627c86a0",
+              "line": 4355,
+              "text_bytes": 1879,
+              "match": "definition_heuristic",
+              "joined_chunks": [
+                "source.driver_entry.59f67b86bf84d109-L4321-L4400",
+                "source.driver_entry.59f67b86bf84d109-L4381-L4460"
+              ]
+            }
+          ]
+        },
+        "target": {
+          "status": "SELECTED",
+          "items": [
+            {
+              "path": ".dpf/worktrees/target-baseline-target-2a776150366acae2-d924a9635a66c7c3bb43e563eaafa2c61d6ee9d5/kernel/core/comps/network/src/buffer.rs",
+              "sha256": "5842e406e0c2070e9a6904d78668bea3a2322396a0b1dce76ca727e14abbdeee",
+              "line": 103,
+              "text_bytes": 1524,
+              "match": "definition_heuristic",
+              "joined_chunks": [
+                "target.asterinas_network_driver_analogue.1c3139f622eedd44-L61-L140",
+                "target.asterinas_network_driver_analogue.1c3139f622eedd44-L121-L164"
+              ]
+            }
+          ]
+        },
+        "test": {
+          "status": "NO_LITERAL_MATCH",
+          "items": []
+        }
+      }
+    },
+    {
+      "question": "C-BOUNDARY 描述符边界如何实现和验收？",
+      "seconds": 0.0644,
+      "packet_bytes": 8859,
+      "packet_sha256": "45e8606a27edbbc292e6f4240c097ad44c709e20743899326baf0cbd1325ef1b",
+      "groups": {
+        "obligations": {
+          "status": "SELECTED",
+          "items": [
+            {
+              "path": "/home/unix/file/C2R-Driver/c2rust-migration-test-01/e2e-e1000-context-logs-01/.dpf/cas/objects/sha256/7f/2c66f0955d57e08b00203c8b171812bffc933c71a6d9465bc04be83b6beaa8",
+              "sha256": "7f2c66f0955d57e08b00203c8b171812bffc933c71a6d9465bc04be83b6beaa8",
+              "line": 172,
+              "text_bytes": 366,
+              "match": null,
+              "joined_chunks": []
+            }
+          ]
+        },
+        "source": {
+          "status": "SELECTED",
+          "items": [
+            {
+              "path": ".dpf/worktrees/source-baseline-source-24dd642f2d9bf083-05f7e89ab9731565d8a62e3b5d1ec206485eeb0b/drivers/net/ethernet/intel/e1000/e1000_main.c",
+              "sha256": "d66b58f174b724595a9d2a0e2de5e6785aae303a7fb6052e48e555cb627c86a0",
+              "line": 2883,
+              "text_bytes": 1654,
+              "match": null,
+              "joined_chunks": [
+                "source.driver_entry.59f67b86bf84d109-L2821-L2900",
+                "source.driver_entry.59f67b86bf84d109-L2881-L2960"
+              ]
+            },
+            {
+              "path": ".dpf/worktrees/source-baseline-source-24dd642f2d9bf083-05f7e89ab9731565d8a62e3b5d1ec206485eeb0b/drivers/net/ethernet/intel/e1000/e1000_main.c",
+              "sha256": "d66b58f174b724595a9d2a0e2de5e6785aae303a7fb6052e48e555cb627c86a0",
+              "line": 3005,
+              "text_bytes": 2136,
+              "match": null,
+              "joined_chunks": [
+                "source.driver_entry.59f67b86bf84d109-L2941-L3020",
+                "source.driver_entry.59f67b86bf84d109-L3001-L3080"
+              ]
+            }
+          ]
+        },
+        "target": {
+          "status": "NO_LITERAL_MATCH",
+          "items": []
+        },
+        "test": {
+          "status": "NO_LITERAL_MATCH",
+          "items": []
+        }
+      }
+    }
+  ]
+}

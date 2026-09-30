@@ -6,6 +6,7 @@ from pathlib import Path
 
 from ..cli_support import CommandRegistry, command_registry
 from ..composition import open_project
+from ..core.models import WorkflowError
 from .contracts import KnowledgeDomain
 from .index import KnowledgeIndex
 
@@ -79,11 +80,36 @@ def command_show(arguments: argparse.Namespace) -> None:
     )
 
 
+def command_search_batch(arguments: argparse.Namespace) -> None:
+    try:
+        queries = json.loads(arguments.queries_file.read_text(encoding="utf-8"))
+    except (OSError, ValueError) as error:
+        raise WorkflowError(f"cannot read batch query file: {error}") from error
+    print(json.dumps(_query_index(arguments).search_many(queries, compact=not arguments.full),
+                     ensure_ascii=False, sort_keys=True, indent=2))
+
+
 def register_commands(commands: CommandRegistry) -> None:
     knowledge = commands.add_parser(
         "knowledge", help="manage the provenance-checked local knowledge base"
     )
     subcommands = command_registry(knowledge, dest="knowledge_command")
+    from .problem_packet import register as register_packet
+    register_packet(subcommands)
+    from .translation_facts import TOPICS
+    facts = subcommands.add_parser("facts", help="bounded source/target translation navigation")
+    facts.add_argument("path")
+    facts.add_argument("--topic", choices=list(TOPICS))
+    facts.add_argument("--domain", type=KnowledgeDomain, choices=list(KnowledgeDomain))
+    facts.add_argument("--limit", type=int, default=12)
+    facts.set_defaults(handler=command_facts)
+    semantic = subcommands.add_parser("semantic", help="on-demand Clang exact-symbol query")
+    semantic.add_argument("path")
+    semantic.add_argument("--compile-db", required=True)
+    semantic.add_argument("--file", required=True)
+    semantic.add_argument("--symbol", required=True)
+    semantic.add_argument("--limit", type=int, default=8)
+    semantic.set_defaults(handler=command_semantic)
     rebuild = subcommands.add_parser("rebuild")
     rebuild.add_argument("path")
     rebuild.set_defaults(handler=command_rebuild)
@@ -105,7 +131,26 @@ def register_commands(commands: CommandRegistry) -> None:
         "--full", action="store_true", help="include full chunks instead of summaries"
     )
     search.set_defaults(handler=command_search)
+    batch = subcommands.add_parser("search-batch", help="query one verified snapshot with shared evidence")
+    batch.add_argument("path")
+    batch.add_argument("--queries-file", type=Path, required=True)
+    batch.add_argument("--full", action="store_true")
+    batch.set_defaults(handler=command_search_batch)
     show = subcommands.add_parser("show")
     show.add_argument("path")
     show.add_argument("--chunk-id", required=True)
     show.set_defaults(handler=command_show)
+
+
+def command_facts(arguments):
+    from .translation_facts import query
+    project = open_project(Path(arguments.path), read_only=True, verify_artifacts=False)
+    print(json.dumps(query(project, topic=arguments.topic, domain=arguments.domain,
+                           limit=arguments.limit), ensure_ascii=False, indent=2))
+
+
+def command_semantic(arguments):
+    from .semantic import query
+    project = open_project(Path(arguments.path), read_only=True, verify_artifacts=False)
+    print(json.dumps(query(project, arguments.compile_db, arguments.file, arguments.symbol,
+                           limit=arguments.limit), indent=2))

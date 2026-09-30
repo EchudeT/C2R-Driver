@@ -25,6 +25,8 @@ def model_settings(model: str | None) -> dict:
     return {
         "model": model or config.get("model"),
         "service_tier": config.get("service_tier") or "standard",
+        "reasoning_effort": config.get("model_reasoning_effort"),
+        "provider": config.get("model_provider", "openai"),
     }
 
 

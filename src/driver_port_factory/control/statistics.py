@@ -157,6 +157,7 @@ def project_statistics(project, *, pricing_model=None, pricing_tier=None) -> dic
                 "stage": job["stage"],
                 "job_id": job["job_id"],
                 "call_reason": reason,
+                "repair_origin": job.get("repair_origin"),
                 "thread_id": thread,
                 "resumed": job.get("resumed"),
                 "usage": usage,
@@ -192,8 +193,10 @@ def project_statistics(project, *, pricing_model=None, pricing_tier=None) -> dic
         )
     }
     totals["usage"] = {field: sum(row["usage"][field] for row in rows.values()) for field in FIELDS}
+    from .work_costs import summarize as work_costs
     return {
         "schema_version": 1,
+        "by_work_episode": work_costs(jobs),
         "stages": list(rows.values()),
         "totals": totals,
         "jobs": jobs,

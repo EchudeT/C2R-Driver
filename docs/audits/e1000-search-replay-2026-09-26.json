@@ -1,0 +1,102 @@
+{
+  "schema_version": 1,
+  "experiment": "read-only search replay on frozen E1000 corpus",
+  "comparisons": [
+    {
+      "before": {
+        "query": "e1000_clean_rx_irq",
+        "results": 10,
+        "unique_spans": 5,
+        "summaries_with_literal_query": 0,
+        "serialized_characters": 8084
+      },
+      "after": {
+        "query": "e1000_clean_rx_irq",
+        "results": 5,
+        "unique_spans": 5,
+        "summaries_with_literal_query": 5,
+        "serialized_characters": 5097,
+        "matched_chunks": 10,
+        "unique_matches": 5
+      }
+    },
+    {
+      "before": {
+        "query": "e1000_xmit_frame",
+        "results": 8,
+        "unique_spans": 4,
+        "summaries_with_literal_query": 0,
+        "serialized_characters": 6469
+      },
+      "after": {
+        "query": "e1000_xmit_frame",
+        "results": 4,
+        "unique_spans": 4,
+        "summaries_with_literal_query": 4,
+        "serialized_characters": 4110,
+        "matched_chunks": 8,
+        "unique_matches": 4
+      }
+    },
+    {
+      "before": {
+        "query": "DmaStream sync",
+        "results": 10,
+        "unique_spans": 9,
+        "summaries_with_literal_query": 0,
+        "serialized_characters": 7878
+      },
+      "after": {
+        "query": "DmaStream sync",
+        "results": 10,
+        "unique_spans": 10,
+        "summaries_with_literal_query": 0,
+        "serialized_characters": 8395,
+        "matched_chunks": 32,
+        "unique_matches": 31
+      }
+    },
+    {
+      "before": {
+        "query": "IrqLine request",
+        "results": 10,
+        "unique_spans": 10,
+        "summaries_with_literal_query": 0,
+        "serialized_characters": 7864
+      },
+      "after": {
+        "query": "IrqLine request",
+        "results": 10,
+        "unique_spans": 10,
+        "summaries_with_literal_query": 0,
+        "serialized_characters": 9147,
+        "matched_chunks": 55,
+        "unique_matches": 39
+      }
+    },
+    {
+      "before": {
+        "query": "RCTL EN",
+        "results": 10,
+        "unique_spans": 10,
+        "summaries_with_literal_query": 0,
+        "serialized_characters": 7702
+      },
+      "after": {
+        "query": "RCTL EN",
+        "results": 10,
+        "unique_spans": 10,
+        "summaries_with_literal_query": 0,
+        "serialized_characters": 8021,
+        "matched_chunks": 69,
+        "unique_matches": 41
+      }
+    }
+  ],
+  "limitations": [
+    "Five developer-selected diagnostic queries, not a held-out retrieval benchmark.",
+    "Literal-query visibility is a navigation metric, not semantic relevance or correctness.",
+    "No native index, historical artifact or original source was changed.",
+    "More distinct results and explicit aliases can increase response size; no dollar savings are measured."
+  ]
+}

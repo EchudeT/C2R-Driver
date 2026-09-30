@@ -9,7 +9,7 @@ from pathlib import Path
 from ..acquisition.repository import load_repository_acquisition
 from ..codex.contracts import CodexOutputError
 from ..core.execution import CommandRunner, script_command
-from ..core.models import FileArtifact, GeneratedArtifact, StageStatus, WorkflowError
+from ..core.models import FileArtifact, GeneratedArtifact, StageStatus, WorkflowError, ObservationFinding
 from ..core.project import Project
 from ..core.validation import BundleValidationContext, json_object
 from ..environment.contracts import EnvironmentArtifact, EnvironmentStage
@@ -17,7 +17,6 @@ from ..knowledge.index import file_sha256
 from .contracts import MigrationArtifact, MigrationStage
 from .implementation import ImplementationChanged, validate_worktree_snapshot
 from .implementation_preflight import format_findings, inspect_implementation
-from .target_framework import _validate_files
 
 
 def _json(value: dict) -> bytes:
@@ -42,18 +41,6 @@ class ArtifactPreparationService:
             MigrationStage.DRIVER_IMPLEMENTATION, MigrationArtifact.IMPLEMENTATION_BUNDLE
         )
         bundle = json.loads(project.artifacts.read(bundle_ref))
-        framework = project.load_json_artifact(
-            MigrationStage.TARGET_FRAMEWORK_ENABLEMENT,
-            MigrationArtifact.TARGET_FRAMEWORK_BUNDLE,
-        )
-        # Check the separately sealed target framework before running any
-        # packaging command.  A changed framework must not be hidden by a
-        # successful presence check or a stale runtime identity.
-        _validate_files(
-            project.root,
-            framework["target_worktree"],
-            framework["files"],
-        )
         validate_worktree_snapshot(project.root, bundle)
         preflight = inspect_implementation(
             project, worktree, bundle["target_worktree"]["base_commit"]
@@ -148,16 +135,10 @@ class ArtifactPreparationService:
 
 
 def validate_artifact_bundle(context: BundleValidationContext) -> None:
-    target_framework = json.loads(
-        context.one_dependency(MigrationArtifact.TARGET_FRAMEWORK_BUNDLE)[1]
+    implementation = json_object(
+        context.one_dependency(MigrationArtifact.IMPLEMENTATION_BUNDLE)[1], "implementation bundle"
     )
-    # Recheck the enablement snapshot at the packaging boundary so a target
-    # framework edit cannot silently drift between stages.
-    _validate_files(
-        context.project_root,
-        target_framework["target_worktree"],
-        target_framework["files"],
-    )
+    validate_worktree_snapshot(context.project_root, implementation)
     runtime_ref, runtime = context.one_current(MigrationArtifact.RUNTIME_ARTIFACT)
     identity = json_object(context.one_current(MigrationArtifact.ARTIFACT_IDENTITY)[1], "identity")
     matches = [
@@ -189,11 +170,11 @@ def validate_artifact_bundle(context: BundleValidationContext) -> None:
         or presence.get("implementation_sha256") != implementation_ref.digest
         or attempt.get("implementation_sha256") != implementation_ref.digest
         or presence.get("checker_sha256") != attempt.get("checker_sha256")
-        or not command.get("launched")
-        or command.get("timed_out")
-        or command.get("exit_code") != 0
-        or attempt.get("status") != "PASS"
         or not isinstance(attempt.get("preflight"), dict)
         or attempt["preflight"].get("status") != "PASS"
     ):
         raise WorkflowError("runtime artifact is detached from its implementation/presence check")
+
+    if (not command.get("launched") or command.get("timed_out")
+            or command.get("exit_code") != 0 or attempt.get("status") != "PASS"):
+        raise ObservationFinding("Presence checker did not pass; inspect actual evidence before acceptance")

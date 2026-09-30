@@ -8,6 +8,7 @@ from typing import Any
 from .artifacts import ArtifactStore
 from .contracts import ArtifactKey, EventKey, StageKey
 from .models import (
+    ObservationFinding,
     ActorRole,
     ArtifactDirection,
     ArtifactRef,
@@ -127,7 +128,7 @@ class Project:
             data, source = self._materialize(artifact)
             try:
                 self.validators.validate(artifact.kind, data)
-            except WorkflowError as error:
+            except ObservationFinding as error:
                 findings.append(str(error))
             content = self.artifacts.put_bytes(data, kind=artifact.kind.value)
             ref = ArtifactRef(content, source)
@@ -135,7 +136,7 @@ class Project:
         if self.validators.has_bundle_validator(stage):
             try:
                 self._validate_stage_bundle(stage, tuple(artifacts_with_data))
-            except WorkflowError as error:
+            except ObservationFinding as error:
                 findings.append(str(error))
         refs = [ref for ref, _ in artifacts_with_data]
         if findings:
@@ -196,16 +197,16 @@ class Project:
     def start(self, stage: StageKey) -> None:
         self._persistence.start_stage(stage, self.config.actor_role)
 
-    def retry_feedback(self, stage: StageKey) -> dict[str, str] | None:
+    def retry_feedback(self, stage: StageKey) -> dict[str, object] | None:
         return self._persistence.retry_feedback(stage)
 
     def retry_from(self, stage: StageKey, *, trigger: StageKey, reason: str,
-                   progress: object | None = None) -> None:
+                   progress: object | None = None, repair_report: dict | None = None) -> None:
         from .phases import PhaseBoundaryError
         try:
             self._persistence.retry_from(
                 stage, trigger=trigger, actor_role=self.config.actor_role, reason=reason,
-                progress=progress,
+                progress=progress, repair_report=repair_report,
             )
         except RepairExhausted as error:
             self.complete(trigger, StageStatus.BLOCKED, message=str(error))

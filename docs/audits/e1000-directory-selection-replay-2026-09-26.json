@@ -1,0 +1,101 @@
+{
+  "proposal_digest": "18a2c505ed486561ec48d92d1b945fb00f62d6b2ed8e038283063bad0c980a78",
+  "facets": [
+    {
+      "lane": "hardware",
+      "facet": "intel_8254x_programming_manual",
+      "selected": 3,
+      "expanded": 3
+    },
+    {
+      "lane": "hardware",
+      "facet": "intel_publisher_original_gap",
+      "selected": 2,
+      "expanded": 2
+    },
+    {
+      "lane": "qemu",
+      "facet": "qemu_e1000_device_model",
+      "selected": 9,
+      "expanded": 9
+    },
+    {
+      "lane": "source",
+      "facet": "driver_entry",
+      "selected": 1,
+      "expanded": 8
+    },
+    {
+      "lane": "source",
+      "facet": "e1000_driver_build_closure",
+      "selected": 3,
+      "expanded": 10
+    },
+    {
+      "lane": "source",
+      "facet": "linux_framework_contracts",
+      "selected": 11,
+      "expanded": 11
+    },
+    {
+      "lane": "target",
+      "facet": "asterinas_coding_safety_policy",
+      "selected": 1,
+      "expanded": 33
+    },
+    {
+      "lane": "target",
+      "facet": "asterinas_dma_irq_lifecycle",
+      "selected": 8,
+      "expanded": 35
+    },
+    {
+      "lane": "target",
+      "facet": "asterinas_network_driver_analogue",
+      "selected": 5,
+      "expanded": 24
+    },
+    {
+      "lane": "target",
+      "facet": "asterinas_pci_infrastructure",
+      "selected": 1,
+      "expanded": 12
+    },
+    {
+      "lane": "test",
+      "facet": "asterinas_network_tests",
+      "selected": 2,
+      "expanded": 38
+    },
+    {
+      "lane": "test",
+      "facet": "qemu_e1000_tests",
+      "selected": 4,
+      "expanded": 4
+    },
+    {
+      "lane": "test",
+      "facet": "source_tests",
+      "selected": 4,
+      "expanded": 4
+    },
+    {
+      "lane": "tooling",
+      "facet": "asterinas_build_runtime_tooling",
+      "selected": 12,
+      "expanded": 20
+    }
+  ],
+  "schema_version": 1,
+  "mode": "read_only_historical_proposal_replay",
+  "original_repository_selections": 60,
+  "manual_repair_repository_selections": 143,
+  "original_proposal_ordinal": 17,
+  "expanded_locator_count": 213,
+  "selected_locator_count": 66,
+  "limitations": [
+    "Includes the controller-injected source driver entry and five external gap locators.",
+    "Directory expansion can select more files than the later manually narrowed 143-path proposal.",
+    "No network retrieval, model invocation, or evidence finalization was performed; this is not a migration PASS or a cost measurement."
+  ]
+}

@@ -53,7 +53,7 @@ def test_boundary_rotates_once_and_retry_resumes_after_restart(tmp_path):
         assert job.thread_id == expected_thread.pop(0)
         if job.thread_id is None:
             assert "context_handoff" in job.prompt
-            assert '<skill_document path="knowledge-guided-driver-port/SKILL.md"' in job.prompt
+            assert '<skill_document_reference path="knowledge-guided-driver-port/SKILL.md"' in job.prompt
         report = job.execution_root / ".dpf-output/context-report.md"
         report.parent.mkdir(exist_ok=True)
         report.write_text("Synthetic result; device operation remains unverified.")

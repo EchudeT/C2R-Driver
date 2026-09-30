@@ -43,7 +43,7 @@ def observe_source(worktree, base):
 def repair_inputs(project, stage):
     state = {}
     roots = [project.root / "work" / "stage-work" / stage.value]
-    if stage.value in {"driver_implementation", "artifact_preparation", "public_qemu_validation"}:
+    if stage.value in {"target_framework_enablement", "driver_implementation", "artifact_preparation", "public_qemu_validation"}:
         from ..acquisition.repository import load_repository_acquisition
         target = load_repository_acquisition(project).target_worktree
         worktree = project.root / target.path
@@ -52,7 +52,7 @@ def repair_inputs(project, stage):
     files = {}
     for root in roots:
         candidates = [root / name for name in (
-            "environment-smoke.sh", "public-qemu.sh", "check-presence.sh", "runtime-artifact")]
+            "environment-smoke.sh", "implementation-smoke.sh", "public-qemu.sh", "check-presence.sh", "runtime-artifact")]
         if stage.value in {"target_platform_study", "migration_contracts"}:
             candidates.extend(root.rglob("*.md"))
         helpers = root / "harness"

@@ -1,0 +1,21 @@
+{
+  "schema_version": 1,
+  "source_sha256": "76269b03e5b283fcb265f5c06e510a879839afdd5d990cdd9e772fece55b788a",
+  "start": "2026-09-14T13:02:47+00:00",
+  "end": "2026-09-14T17:19:00+00:00",
+  "interactions": {
+    "job_id": "native_interval",
+    "stage": null,
+    "tool_calls": 434,
+    "output_characters": 2483479,
+    "truncated_outputs": 16,
+    "unmatched_outputs": 0,
+    "poll_wrappers": 74,
+    "poll_wrappers_requesting_under_5s": 2
+  },
+  "compactions": 4,
+  "invalid_lines": 0,
+  "limitations": [
+    "Outer calls only, using the same metrics as factory sidecar intervals. Output characters are not tokens or costs. Short requested waits are not measured waste. Hidden reasoning and message contents are not inspected or exported. This interval does not remove the benefit of preexisting session context."
+  ]
+}

@@ -51,3 +51,11 @@ def require_local_repair(target, trigger, rows):
             raise PhaseBoundaryError(
                 f"Phase {target_phase} is sealed: later phase {later} has started. "
                 "An explicit phase-reopen decision is required; evidence is unchanged.")
+
+
+def allows_evidence_revision(config, target, trigger):
+    """Developer findings may revise evidence; scope and sealed evaluation stay fixed."""
+    from .models import EvaluationMode
+    mutable = {"evidence_and_design", "delivery"}
+    return (config.evaluation_mode is EvaluationMode.DEVELOPER_EVIDENCE
+            and phase(target) in mutable and phase(trigger) in mutable)

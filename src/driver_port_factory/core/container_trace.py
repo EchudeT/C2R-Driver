@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import json
+import http.client
+import os
 import shlex
 import shutil
 import subprocess
@@ -24,6 +26,10 @@ class ContainerTrace:
         self.thread = None
         self.before: set[str] = set()
         self.seen: set[tuple] = set()
+        self.events = None
+        self.lock = threading.Lock()
+        self.inspect_cache = {}
+        self.api = None
 
     def _call(self, *args: str) -> str:
         result = subprocess.run([self.docker, *args], capture_output=True, text=True, timeout=3)
@@ -32,6 +38,7 @@ class ContainerTrace:
         return result.stdout
 
     def __enter__(self):
+        started = utc_now()
         if self.docker:
             try:
                 # Include stopped containers: a previously existing run is not fresh evidence.
@@ -40,6 +47,21 @@ class ContainerTrace:
                 self.errors.append(str(error))
                 self.docker = None
         if self.docker:
+            from .docker_inspection import DockerInspection
+            try:
+                endpoint = os.environ.get("DOCKER_HOST")
+                if not endpoint or os.environ.get("DOCKER_CONTEXT"):
+                    endpoint = self._call("context", "inspect", "--format",
+                                          "{{.Endpoints.docker.Host}}").strip()
+                self.api = DockerInspection(endpoint)
+            except (OSError, ValueError, RuntimeError, subprocess.TimeoutExpired):
+                pass  # Remote/custom endpoints retain the CLI observation route.
+            from .container_events import ContainerEvents
+            try:
+                self.events = ContainerEvents(self.docker, started, self._observe,
+                                              self._append_error)
+            except OSError as error:
+                self._append_error(f"container events unavailable: {error}")
             self.thread = threading.Thread(target=self._watch, daemon=True)
             self.thread.start()
         return self
@@ -48,40 +70,77 @@ class ContainerTrace:
         while not self.stop.is_set():
             try:
                 for identifier in set(self._call("ps", "-q", "--no-trunc").split()) - self.before:
-                    info = json.loads(self._call("inspect", identifier))[0]
-                    mounts = [m for m in info.get("Mounts", []) if m.get("Type") == "bind"]
-                    if not any(Path(m["Source"]).resolve() == self.workspace for m in mounts):
-                        continue
-                    top = self._call("top", identifier, "-eo", "pid,args")
-                    for row in top.splitlines()[1:]:
-                        try:
-                            pid, command = row.strip().split(None, 1)
-                            if not pid.isdigit():
-                                continue
-                            argv = shlex.split(command)
-                        except ValueError:
-                            continue
-                        if not argv or not Path(argv[0]).name.startswith("qemu-system-"):
-                            continue
-                        key = (identifier, tuple(argv))
-                        if key in self.seen:
-                            continue
-                        self.seen.add(key)
-                        self.records.append({"container_id": identifier,
-                            "image": info["Config"]["Image"], "image_id": info["Image"],
-                            "mounts": mounts, "argv": argv, "top": top,
-                            "observed_at": utc_now()})
-            except (OSError, RuntimeError, subprocess.TimeoutExpired, ValueError, KeyError) as error:
-                message = str(error)[:400]
-                if message not in self.errors:
-                    self.errors.append(message)
+                    self._observe(identifier)
+            except (OSError, RuntimeError, subprocess.TimeoutExpired,
+                    ValueError, KeyError) as error:
+                self._append_error(str(error)[:400])
             self.stop.wait(.2)
+
+    def _observe(self, identifier):
+        if identifier in self.before or self.stop.is_set():
+            return
+        try:
+            info = self.inspect_cache.get(identifier)
+            if info is None:
+                info = self._inspect_container(identifier)
+                self.inspect_cache[identifier] = info
+            mounts = [m for m in info.get("Mounts", []) if m.get("Type") == "bind"]
+            if not any(Path(m["Source"]).resolve() == self.workspace for m in mounts):
+                return
+            top = self._inspect_container(identifier, top=True)
+            self._record_top(identifier, info, mounts, top)
+        except (OSError, RuntimeError, subprocess.TimeoutExpired, ValueError, KeyError,
+                http.client.HTTPException) as error:
+            self._append_error(str(error)[:400])
+
+    def _inspect_container(self, identifier, *, top=False):
+        from .docker_inspection import DockerInspectionError
+        api = self.api
+        if api is not None:
+            try:
+                return api.top(identifier) if top else api.inspect(identifier)
+            except DockerInspectionError as error:
+                if error.status in {404, 409}:
+                    raise  # Gone/stopped is not an API compatibility failure.
+                self._disable_api(error)
+            except (OSError, ValueError, KeyError, TypeError, http.client.HTTPException) as error:
+                self._disable_api(error)
+        return (self._call("top", identifier, "-eo", "pid,args") if top else
+                json.loads(self._call("inspect", identifier))[0])
+
+    def _disable_api(self, error):
+        with self.lock:
+            if self.api is not None:
+                self.api = None
+                self.errors.append(f"Direct Docker inspection unavailable; using CLI: "
+                                   f"{type(error).__name__}: {str(error)[:200]}")
+
+    def _record_top(self, identifier, info, mounts, top):
+        for row in top.splitlines()[1:]:
+            try:
+                pid, command = row.strip().split(None, 1)
+                argv = shlex.split(command)
+            except ValueError:
+                continue
+            if not pid.isdigit() or not argv or not Path(argv[0]).name.startswith("qemu-system-"):
+                continue
+            key = (identifier, pid, tuple(argv))
+            with self.lock:
+                if key in self.seen:
+                    continue
+                self.seen.add(key)
+                self.records.append({"container_id": identifier,
+                    "image": info["Config"]["Image"], "image_id": info["Image"],
+                    "mounts": mounts, "argv": argv, "pid": pid, "top": top,
+                    "observed_at": utc_now()})
 
     def __exit__(self, *args):
         self.stop.set()
         if self.thread:
             self.thread.join()
-        self.output.write_text(json.dumps({"observations": self.records, "errors": self.errors}, indent=2))
+        if self.events:
+            self.events.close()
+        self._write_output()
 
     def executions(self, host_trace: Path) -> tuple[tuple[str, str], ...]:
         host = successful_execs(host_trace.read_text(errors="replace").splitlines())
@@ -147,8 +206,9 @@ class ContainerTrace:
             )
 
     def _append_error(self, message: str) -> None:
-        if message not in self.errors:
-            self.errors.append(message)
+        with self.lock:
+            if message not in self.errors:
+                self.errors.append(message)
 
     def _has_workspace_bind(self, arguments: list[str]) -> bool:
         """Return whether Docker ``run`` arguments bind-mount this workspace."""

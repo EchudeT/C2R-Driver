@@ -1,0 +1,501 @@
+{
+  "branch": "fix/delivery-workflow-audit-20260927",
+  "inherited_dirty_baseline": true,
+  "source_worktree": "/home/unix/file/C2R-Driver/c2rust-migration-test-01/driver-port-factory",
+  "fix_worktree": "/home/unix/file/C2R-Driver/c2rust-migration-test-01/driver-port-factory-delivery-fix-20260927",
+  "validation": "Full offline suite: 305 passed in 396.46s; src/tests Ruff F and git diff --check passed. Native synthetic pilot: functional checks passed, no evidence of interleaved implementation/checking; standard-rate estimate $0.3017016. Old E1000 stopped via controller SIGTERM; processes exited and no exact-target containers remained.",
+  "files": [
+    {
+      "path": "README.md",
+      "before_sha256": "8d893e576cd98f59100e8a6e357fe448a1d03c9875fd578d38cdfb01da4ef61e",
+      "after_sha256": "35a707d6e929131ca2dc2ef032161d9c08c9a47f478611f9277c79c8b6f4c2e3"
+    },
+    {
+      "path": "docs/ANALYSIS_HANDOFF_POLICY.zh-CN.md",
+      "before_sha256": "206587da880bc55f78cde74ddf3a64f8b94d5b830ff18391f798481201b98cc8",
+      "after_sha256": "fbd0c12522450d5a2d70b10da58d80f1dad9cb7bbf540d88fce1ecea564dfbc3"
+    },
+    {
+      "path": "docs/E1000_DELIVERY_WORKFLOW_AUDIT_2026-09-27.zh-CN.md",
+      "before_sha256": "674e2c3052664a37ebad22e58f51e1491461906f8af7a61c5efa6581dcf56d42",
+      "after_sha256": "04be65473100784c378c4e0ac346475b22e2cc2c0a73d447981d999d754ffd4b"
+    },
+    {
+      "path": "docs/E1000_STOP_AND_REFORM_TESTS_2026-09-27.zh-CN.md",
+      "before_sha256": null,
+      "after_sha256": "1d904b72becfb50edb6df4136b62996927c98d78a7c9ed2f51d6f299ca4c6ad9"
+    },
+    {
+      "path": "docs/EXPERIMENT_NAVIGATION_2026-09-27.zh-CN.md",
+      "before_sha256": null,
+      "after_sha256": "99ddec6ed10bfca5cf196e5f204c55590c7f69eb506d95e0a6c9f4df8c2f2e26"
+    },
+    {
+      "path": "docs/IMPLEMENTATION_BASIS_2026-09-27.zh-CN.md",
+      "before_sha256": null,
+      "after_sha256": "b8e259d7f21564549bdb3345882cfcb3f7c0a5d8617385f3a84d6f962ca50a05"
+    },
+    {
+      "path": "docs/MECHANISM_DRIVEN_WORKFLOW_2026-09-27.zh-CN.md",
+      "before_sha256": null,
+      "after_sha256": "d2fe47fefe3f75e6bc2bb3df91980e06080322c4f9866ef7b1babe6b73f9dcf4"
+    },
+    {
+      "path": "docs/STAGE_GUIDE.md",
+      "before_sha256": "4b80ea5a5bd0dd7d51d4d65a05541cd06c8050dd314cc358f1e5e8c0bf003009",
+      "after_sha256": "10cdd105aed2b12ae73c9a0d1832488ee15363e62c8191c30abfd701fbe6911b"
+    },
+    {
+      "path": "docs/WORKFLOW.md",
+      "before_sha256": "2af1d11e0b79795af2102053c2654092182db4be620f6a989a5539f5e3235a05",
+      "after_sha256": "dd4549d35e9e233ee03cf552761730d7910f9e8d76f8a84c7e8e487aeda206f2"
+    },
+    {
+      "path": "docs/WORKFLOW_ARCHITECTURE_REVIEW_2026-09-27.zh-CN.md",
+      "before_sha256": null,
+      "after_sha256": "a821cb6b08a7977dd332d54af31822497bc82393b2d07f65ca4ef47b2ff349a4"
+    },
+    {
+      "path": "docs/experiments/mechanism-native-20260927-01/audit.json",
+      "before_sha256": null,
+      "after_sha256": "612e077855c6c1ed6c20a088529bec0e56f20809f36d8dd6fab70e09116b21ed"
+    },
+    {
+      "path": "docs/experiments/mechanism-native-20260927-01/audit/driver.rs",
+      "before_sha256": null,
+      "after_sha256": "f4e8edabbcc97948d7169f1d4ca6c27e60c7988ebf338507628b7c45de84bc62"
+    },
+    {
+      "path": "docs/experiments/mechanism-native-20260927-01/audit/tests.rs",
+      "before_sha256": null,
+      "after_sha256": "1735d0ad256f25a361fb073015156fccee34ff0cd0c2852f43a0bc1322e8600f"
+    },
+    {
+      "path": "docs/experiments/mechanism-native-20260927-01/events.jsonl",
+      "before_sha256": null,
+      "after_sha256": "4def798d4065fc25ccdc8ffb9d8cab07f52aa2b7922e44a3d999c07e280aa89a"
+    },
+    {
+      "path": "docs/experiments/mechanism-native-20260927-01/prompt.txt",
+      "before_sha256": null,
+      "after_sha256": "c4995a8b723363f9b5e061c7d041e05f4d2cc6a091d8acb0e5b04219e53af583"
+    },
+    {
+      "path": "docs/experiments/mechanism-native-20260927-01/protocol.json",
+      "before_sha256": null,
+      "after_sha256": "30b1dc80d9431b5346ba4d00adbf3ef178aa1f7e0a18a7742910df78ea3f749a"
+    },
+    {
+      "path": "docs/experiments/mechanism-native-20260927-01/stderr.log",
+      "before_sha256": null,
+      "after_sha256": "dc7b6308f6cbf704294fbdd7d13b919800e66468586e253af7550bd769585be9"
+    },
+    {
+      "path": "docs/experiments/mechanism-native-20260927-01/work/.dpf-output/report.md",
+      "before_sha256": null,
+      "after_sha256": "5dd726bd38efed3be5c34295debcedc7b9d4bf6827eb4af19e17bd7983e456d7"
+    },
+    {
+      "path": "docs/experiments/mechanism-native-20260927-01/work/check.py",
+      "before_sha256": null,
+      "after_sha256": "c355bbb6005c5632505ccce998518dec7078f10226f6275d784d1aee91794d1f"
+    },
+    {
+      "path": "docs/experiments/mechanism-native-20260927-01/work/driver.rs",
+      "before_sha256": null,
+      "after_sha256": "f4e8edabbcc97948d7169f1d4ca6c27e60c7988ebf338507628b7c45de84bc62"
+    },
+    {
+      "path": "docs/experiments/mechanism-native-20260927-01/work/observations/001.json",
+      "before_sha256": null,
+      "after_sha256": "c44a3beca9d9f6029d120e2e777be190cab8e25d81d581e49ea9eeff6baf6f47"
+    },
+    {
+      "path": "docs/experiments/mechanism-native-20260927-01/work/observations/001.rs",
+      "before_sha256": null,
+      "after_sha256": "f4e8edabbcc97948d7169f1d4ca6c27e60c7988ebf338507628b7c45de84bc62"
+    },
+    {
+      "path": "docs/experiments/mechanism-native-20260927-01/work/observations/002.json",
+      "before_sha256": null,
+      "after_sha256": "b44251cecb79d33aa5a48acd9543148d70cc9ff361c0a7204001d0e205975b4c"
+    },
+    {
+      "path": "docs/experiments/mechanism-native-20260927-01/work/observations/002.rs",
+      "before_sha256": null,
+      "after_sha256": "f4e8edabbcc97948d7169f1d4ca6c27e60c7988ebf338507628b7c45de84bc62"
+    },
+    {
+      "path": "docs/experiments/mechanism-native-20260927-01/work/observations/003.json",
+      "before_sha256": null,
+      "after_sha256": "0c28632cb5d9b91241302c5493f839f14b2d4dba35c0c0340939da6e682c08cd"
+    },
+    {
+      "path": "docs/experiments/mechanism-native-20260927-01/work/observations/003.rs",
+      "before_sha256": null,
+      "after_sha256": "f4e8edabbcc97948d7169f1d4ca6c27e60c7988ebf338507628b7c45de84bc62"
+    },
+    {
+      "path": "docs/experiments/mechanism-native-20260927-01/work/source.c",
+      "before_sha256": null,
+      "after_sha256": "e00d8d3d00b1d48caf2a37b2f202a84fbb0ecf4eff961f431d26de3ada152630"
+    },
+    {
+      "path": "docs/experiments/mechanism-native-20260927-01/work/tests.rs",
+      "before_sha256": null,
+      "after_sha256": "1735d0ad256f25a361fb073015156fccee34ff0cd0c2852f43a0bc1322e8600f"
+    },
+    {
+      "path": "src/driver_port_factory.egg-info/PKG-INFO",
+      "before_sha256": "fc0ba3cc8ea971dea5e10239a7be2878a7ec53b3ef8ae0bb6d92b0ec94238847",
+      "after_sha256": null
+    },
+    {
+      "path": "src/driver_port_factory.egg-info/SOURCES.txt",
+      "before_sha256": "ebefd7e95993a04b32a382f3544fa66cc02dce49d73ba63679acf446112e85f1",
+      "after_sha256": null
+    },
+    {
+      "path": "src/driver_port_factory.egg-info/dependency_links.txt",
+      "before_sha256": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b",
+      "after_sha256": null
+    },
+    {
+      "path": "src/driver_port_factory.egg-info/entry_points.txt",
+      "before_sha256": "735ba8f80ec6ca4c2f9b2ad97e0baed771474994bbc6d84f8526ffbab327596f",
+      "after_sha256": null
+    },
+    {
+      "path": "src/driver_port_factory.egg-info/requires.txt",
+      "before_sha256": "fa3b022b919eb104b45981829cb3abab9e225b87196174a3907bcc46fd0f9db8",
+      "after_sha256": null
+    },
+    {
+      "path": "src/driver_port_factory.egg-info/top_level.txt",
+      "before_sha256": "79de65e2b83dba9e451728491c44e32f87f56468ea107a17a04ea73b70935458",
+      "after_sha256": null
+    },
+    {
+      "path": "src/driver_port_factory/checkpoints.py",
+      "before_sha256": "f2d2c1d4535df4ae77135e483743ada5620b9d1d7e4d1a8afc951c5e4d722e1e",
+      "after_sha256": "bcd274bf0a73386bb649eaa2977126578318ce4a3c880fdcd02dae2d0433a7e1"
+    },
+    {
+      "path": "src/driver_port_factory/codex/cli.py",
+      "before_sha256": "743e0213aa350cbb8f050bf30c25681596899e3c73d1ea47fea98587535c8b02",
+      "after_sha256": "08f74362ade050ccfd8df410029d04cebd2f8a8984e67b995792ddb342579ee1"
+    },
+    {
+      "path": "src/driver_port_factory/codex/context_focus.py",
+      "before_sha256": "d1170e554d8843db2b69f2fb1857cab684f432822a60655bef190dd0c165d910",
+      "after_sha256": "1a903b6fb773d41a9360ce6022e68321e6e2f081f342296f831e77d44a0ca0ad"
+    },
+    {
+      "path": "src/driver_port_factory/codex/context_policy.py",
+      "before_sha256": "dce104e95a0d07bc5364fe5ee2f7482d47d598119ce6b39d89f6f2520063c4f3",
+      "after_sha256": "4301256b0faa873eff30474c527ec8620159347d09d87ed2e77a83b778ab8f4c"
+    },
+    {
+      "path": "src/driver_port_factory/codex/current_work.py",
+      "before_sha256": null,
+      "after_sha256": "ccd6631ee4469e75cf191cd045e6ad2ae61c8c12c301f02df4c998a829cf9e12"
+    },
+    {
+      "path": "src/driver_port_factory/codex/optional_tools.py",
+      "before_sha256": "046b2d3142180fb5a1469d09fecdda881012f4e2a0899c46638ae22d224dc580",
+      "after_sha256": "9e8ba893423dfe348d36f00ff4ed96ad4fa1a5344ece96d0e891523680f04131"
+    },
+    {
+      "path": "src/driver_port_factory/codex/policy.py",
+      "before_sha256": "ae63fbcfa6a43fbd80cd4baaa01103179fdca59641e7c02752f9b0b9ee5e73eb",
+      "after_sha256": "f16e2ebfb26fa27748455bcfea5087a9d67e7d8a380f9b5136362298c9c3d195"
+    },
+    {
+      "path": "src/driver_port_factory/codex/prompts.py",
+      "before_sha256": "81ae82cf67982e41493f93880d010ee64a2d32730fc893912e9f8ac9458a7bf7",
+      "after_sha256": "ea23993225774fee5710b65749f04003ca98179bf3a20753fe4584201e4729ee"
+    },
+    {
+      "path": "src/driver_port_factory/control/cli.py",
+      "before_sha256": "135eca52bc0059cfce99c452a0a66b3225bf4802cd1473012b0bc85c87f15029",
+      "after_sha256": "0269c796244479a8ad05762a5921f7856a2a1c2399b58c4a507c77bbac930e76"
+    },
+    {
+      "path": "src/driver_port_factory/control/statistics.py",
+      "before_sha256": "d31308799295a7d60ba1856face32a6d446d1f8fce5bc94daa0fe849fc350dda",
+      "after_sha256": "f4bcb5a6163c1202ba14dda31176df01678cd3be40835c7d87430258d9b9d3e1"
+    },
+    {
+      "path": "src/driver_port_factory/control/work_costs.py",
+      "before_sha256": "2c6ca02a8fa653ac996d1c5444b572bb7f2eb2321c3064ec93c414ed3c78478f",
+      "after_sha256": "625b860208e1fc0bb24b31f6f824837a3c847855bcc4276d83c256f7aaec70ee"
+    },
+    {
+      "path": "src/driver_port_factory/core/checker_decision.py",
+      "before_sha256": "d266862322cc6dad996485100e1629c62735f0c72050bb1cda86d23020d4e1e9",
+      "after_sha256": "273dc38267cd0934ffc58579bae228358100ae291adfa5f28d785f4a0042be79"
+    },
+    {
+      "path": "src/driver_port_factory/core/owned_containers.py",
+      "before_sha256": null,
+      "after_sha256": "2f9689d59d1cc4525e7e9491ff2bca5c0c0cf3c22507b20e68c6d1a7d78b4a6d"
+    },
+    {
+      "path": "src/driver_port_factory/core/phases.py",
+      "before_sha256": "b5eb9a72dcc084fcd31057da5063c4ea43f9f871e8d638ddf9c0505a9386fa89",
+      "after_sha256": "7d0d77e9c9c7b14c9e9e6182a05c5dcff51ac250191f62a236a220878963413b"
+    },
+    {
+      "path": "src/driver_port_factory/core/recovery_state.py",
+      "before_sha256": "1ca97326a0765d3b7918ec4e7da8455ed51fdc3e41f4ce30cdf8599351d5fb5e",
+      "after_sha256": "eeaa19892d945e4aebadd4373dc97360358aaa9f568474eeb578e3acb9faf817"
+    },
+    {
+      "path": "src/driver_port_factory/core/store.py",
+      "before_sha256": "05f8fcbcb92656eed862e47be963912f68a8dfc3baa9dbed78619db118f4849f",
+      "after_sha256": "06a0a3748fec825f5fb6b09c70b5632703f49a15a1e5e1b8e9aed7d0a9339564"
+    },
+    {
+      "path": "src/driver_port_factory/data/prompt-packs/default/analysis-task.md",
+      "before_sha256": "08d5b29cd36582006fb67a25a70106c0f1ad8c44328137b0fc70581a9376e361",
+      "after_sha256": "9dfb013b803c3d923d7502bd4cc46e17fadeb3ef6ae9e6f96d70600e13069866"
+    },
+    {
+      "path": "src/driver_port_factory/data/prompt-packs/default/delivery-task.md",
+      "before_sha256": "9d707751fce27ad51c57d52ea42e0f1b52aeea2a2de95944966e018346a828e9",
+      "after_sha256": "e6d70ef7348c79b0b698ec5f5893640925b76f38c748d39e5ba17943f0f0d117"
+    },
+    {
+      "path": "src/driver_port_factory/data/prompt-packs/default/execution.md",
+      "before_sha256": "3da348b783fe8019807d7da8027e04b83a48d0ee6f9b9291a0f9822f21c65263",
+      "after_sha256": "b93f65c44a2dc149c3201863075e6580a18467d86fc3308d81ed56956a4e7260"
+    },
+    {
+      "path": "src/driver_port_factory/data/prompt-packs/default/final-evidence-review.md",
+      "before_sha256": "ae34c43fd3ecfd9717cbec604f926cba429d82a8f763af0d2266e032618bc7c6",
+      "after_sha256": "01802f52592e8fc25d3ec668d6e1b06e5ce4ea19f8c7ad5a7c4e836ae0fa57c9"
+    },
+    {
+      "path": "src/driver_port_factory/data/prompt-packs/default/job.md",
+      "before_sha256": "167b855d6be0dcd9d15a2df7d4ebc7848265d2c4bf033d1712db6a932473596c",
+      "after_sha256": "76ce45f61c29e86caa50fc3e6e0d19264c87fd2a69712eab8a3ffc268d863d07"
+    },
+    {
+      "path": "src/driver_port_factory/data/prompt-packs/default/manifest.json",
+      "before_sha256": "53f38591a9c5c0e4f9c3e05a15014a0c396ccca289fa66470ff44a4c68fe7ce7",
+      "after_sha256": "34e522723298dbb5c53bb7a1db8d1c856e06fc92dc87c9ec3a3609e7d96e0359"
+    },
+    {
+      "path": "src/driver_port_factory/data/prompt-packs/default/optional-tools.md",
+      "before_sha256": "f66c64634c030993f1bca7523ce31c80e1d5d137df6709f90a1eff3bb1e5e91f",
+      "after_sha256": "8de803d392f497419ada1994c575e33aa33a06fd45189b5ace910df44ceb8fb3"
+    },
+    {
+      "path": "src/driver_port_factory/data/prompt-packs/default/review.md",
+      "before_sha256": "f947cb8490b859539dba732ba800179b859634ad38dc6e43f2cbb535d3c6647b",
+      "after_sha256": "e5a5c4e04a0cad723de710da53da8eea4c2a14749ddf1d35dbb9083b23b1d5bd"
+    },
+    {
+      "path": "src/driver_port_factory/data/prompt-packs/default/target-framework-enablement.md",
+      "before_sha256": "6fc0f528f6a667375673312e94c2342169b5d322fb700d9f7c408726d28ee39d",
+      "after_sha256": null
+    },
+    {
+      "path": "src/driver_port_factory/environment/execution.py",
+      "before_sha256": "6aa5fbc3dcd09d91fdc369f053a4aef8c18d7a50a4d589df3ac95a23dab7b72f",
+      "after_sha256": "ea13a06371ccf3e5098fc2d8140535a1d810c3dbb2bc19527564caada3e93d7c"
+    },
+    {
+      "path": "src/driver_port_factory/knowledge/problem_packet.py",
+      "before_sha256": "d848d498134b5792c29b7ac05c962ff09ea1e2b270b8ed43616dbadaf5c51565",
+      "after_sha256": "7cff5e308905c9505ae769a0dedb455fda373f5b0c4882abe9bbd80f1f3c4127"
+    },
+    {
+      "path": "src/driver_port_factory/migration/completion_audit.py",
+      "before_sha256": "338a12ca0c28fbb8db10b2cf5dd489c9de0412419dac864dd468b60f0dcb75d1",
+      "after_sha256": "f01c9f22f955ff5605e3a908be41a2a7235f1166d879c869a843cabb460ae5c7"
+    },
+    {
+      "path": "src/driver_port_factory/migration/contracts.py",
+      "before_sha256": "1331bdff68519c1527847d6054c1a8699226ea5755bdd96dd58c29bc8ca1e997",
+      "after_sha256": "76fd982482a02ebf741960556782ca90d82fd614639431970b07f50c23f28dee"
+    },
+    {
+      "path": "src/driver_port_factory/migration/delivery_brief.py",
+      "before_sha256": "0a259a68e5e9d8935aeab3fbb4c80f5f89a69b929f193f5c64550fee5741baa3",
+      "after_sha256": "2914963a3312e82d207700693d6b35e3fca88ccc284e816f431d5a62eb402a4b"
+    },
+    {
+      "path": "src/driver_port_factory/migration/diagnostics.py",
+      "before_sha256": "d8b5069fec4e9802f657dd3ca9cf0b45a92cd9dc6978600d02910d11704acb54",
+      "after_sha256": "7629d9d53566c088cee6694e2833d054fb269a616f42b44df8b844ac1f570f32"
+    },
+    {
+      "path": "src/driver_port_factory/migration/experiment_ack.py",
+      "before_sha256": "e284f5ca5b2d90046fb303088ca970aeecf19d672a34ef1f98669a6b2133b997",
+      "after_sha256": "67a1a45fe6b3c607f4302ab7aea6e296902de1fb56bdb90fa05d01964cbb4c5f"
+    },
+    {
+      "path": "src/driver_port_factory/migration/experiment_cli.py",
+      "before_sha256": "fbed0278c5ca4f42c4219ef92189be8f1e61e173f10c02fcea7132a301606a66",
+      "after_sha256": "ae1f9ad292cf415de0281e3de158767fdc46c2f67ace29d83b307e6e026c5f9b"
+    },
+    {
+      "path": "src/driver_port_factory/migration/experiment_navigation.py",
+      "before_sha256": null,
+      "after_sha256": "914583213af17cd205e9f642f1d64d507f65981098449a62741ed5c3d3de4757"
+    },
+    {
+      "path": "src/driver_port_factory/migration/experiments.py",
+      "before_sha256": "45852323e9b7933775aa533f84da9a000446e5e70f166c726c83c7aa4c7891cc",
+      "after_sha256": "b8be30c8e22fa5e3f9e29b88e33865f7dc63ad244a6a747cf393d1cd25eaaad5"
+    },
+    {
+      "path": "src/driver_port_factory/migration/final_evidence_review.py",
+      "before_sha256": "58da39233b02182bca6e7012f53a8ef4f07c6aa41de858fe315372c45456a159",
+      "after_sha256": "fa1ff29af300b554838839daecf7f3138e93428013fe49f59ad25deed1dff53c"
+    },
+    {
+      "path": "src/driver_port_factory/migration/implementation.py",
+      "before_sha256": "5ed474a4185b09eac8cc138237942f014424cd0897b1973a37d88ca8037f552a",
+      "after_sha256": "fdfd3759c1592381b8b3c096ce0869f02fee34d1cf49121c654f558033279b70"
+    },
+    {
+      "path": "src/driver_port_factory/migration/implementation_basis.py",
+      "before_sha256": null,
+      "after_sha256": "0dc866a4a2bdd37c57f7531a0a73dff1a29a0adeab4338966769f06bce9fbd6c"
+    },
+    {
+      "path": "src/driver_port_factory/migration/prepared_recovery.py",
+      "before_sha256": "6a2a7e8e8397a4027f805259cb9384e3a4cf166c0e0813e68fc7b73be8d08a6e",
+      "after_sha256": "927c464ae25e6f4adbe822b732d1ed743680e54393a702fe540a879235762c36"
+    },
+    {
+      "path": "src/driver_port_factory/migration/probes.py",
+      "before_sha256": "30947c67f8e1063188513fc2ee643a3bfc759a65cdda31bbb2e760c30db56031",
+      "after_sha256": "7fe7a9d940ef76aef7dc6734181db53933a7fb649ce4bcd3681f722c27aecdb3"
+    },
+    {
+      "path": "src/driver_port_factory/migration/public_qemu.py",
+      "before_sha256": "cdd1f0aeb48742233bb7deb90535f647e1ab341c922ac46c2e47379c9fc81ef6",
+      "after_sha256": "480d9eb3e73087f4b89bae408999ac49040d11035bac90b8437242f8ff56faf6"
+    },
+    {
+      "path": "src/driver_port_factory/migration/repair_execution.py",
+      "before_sha256": "07e133c736abf7746f101d356d16ae102962fb3cd8faeccaaef130372d742161",
+      "after_sha256": "8f2adb57c7bdeef6a7cb36dd9cb06aa5e79bba57e8c1d828a53b6af64f248ea8"
+    },
+    {
+      "path": "src/driver_port_factory/migration/repair_routing.py",
+      "before_sha256": "fe8c4a4b53a2698b523aba8e676405e4a855892c84f3f26ddc0893032ae1e1b3",
+      "after_sha256": "3302e936ae88cf2b447ae6328aa4052bb5eefe6e57f908d2866cfd9defe079b0"
+    },
+    {
+      "path": "src/driver_port_factory/migration/target_framework.py",
+      "before_sha256": "15d9d0a54f0f81d6d9d8271968dc45615b993b52d5b1c3f8261428f1d0e01d84",
+      "after_sha256": null
+    },
+    {
+      "path": "src/driver_port_factory/migration/validation.py",
+      "before_sha256": "160dbf89f1703cd270bb2373a39a4d23e2607ef151b192acae73854e89efde03",
+      "after_sha256": "bcecac1554be2cb0785891e614d7b6f00a4ab5050da5723e02413ff425a74191"
+    },
+    {
+      "path": "src/driver_port_factory/orchestration/migration.py",
+      "before_sha256": "ee2e23ad7a4351da3543bbd69c768d474aecb2c0aaa4a30e21cd58831242de48",
+      "after_sha256": "f672d818fc2529a58140a670e2d5e510ff07a0278fa3fd3dd87004d5aef6c667"
+    },
+    {
+      "path": "src/driver_port_factory/orchestration/protocol.py",
+      "before_sha256": "83f2b9d47b16a0eeffb186f681e89ea5f25016ea25e3d9e0309ea22f84361038",
+      "after_sha256": "d55d059aba93931ee7e03aecaf9644cac829c96fcc40515cf79b8914d82edfaa"
+    },
+    {
+      "path": "src/driver_port_factory/port.py",
+      "before_sha256": "95e9c7d1e264c855afb7980ae65aef2f61a7667fe80f4671cfd80d00fdd607a8",
+      "after_sha256": "d9da3132afb779fb19ab735ac80aa66113bcfff0021b8b4f0db62aef4276376b"
+    },
+    {
+      "path": "src/driver_port_factory/sealing/candidate.py",
+      "before_sha256": "337b5a51b8ebef75bb10a9a22126e558859029a8d2e3d6cb592f2842c69a32e6",
+      "after_sha256": "9944f7b20076c184d7e73e27d2e68f63b9d40abdc629d6b496143649047d23d7"
+    },
+    {
+      "path": "tests/acquisition_support.py",
+      "before_sha256": "84142c45f9e3d69611aa319b2cb4d5abe6f0996d951c913c57ef7ed8cd2cb83b",
+      "after_sha256": "5c94ee969f3c3bde9cef0ec24fc37f5154cad120e616f27f461f524b07b90cb1"
+    },
+    {
+      "path": "tests/test_analysis_review.py",
+      "before_sha256": "40e2e12f17f353b4313c7f5a03640c9f133c8690b325f0bb7e88275d8562aabe",
+      "after_sha256": "9e9e93268a94067ac4cf63b7174e2ef3b9c4fda5e9c13137a2260845fd2c3679"
+    },
+    {
+      "path": "tests/test_context_focus.py",
+      "before_sha256": "0cc2cba0b31531058d3e73506e3279b126fb1b5f0b7f9ddb73039d68de3d1b8c",
+      "after_sha256": "40187c0fad53c3068e5342d19de535d38d1f27755071c5ffd9b858b20be698d3"
+    },
+    {
+      "path": "tests/test_context_policy.py",
+      "before_sha256": "f38051a9c07d509792b98d5d07e150b1658e6f8673f27ba06a5f99f77909c023",
+      "after_sha256": "ab9c0edb172d25961f2dde86cd7a1c657c53cd7c7c5eba596485edd7ea82c717"
+    },
+    {
+      "path": "tests/test_current_work.py",
+      "before_sha256": null,
+      "after_sha256": "2b0b9406675c28ada24a3b915e334a68a7e3d80a14ec8272da88aaa493ac53a2"
+    },
+    {
+      "path": "tests/test_delivery_audit_fixes.py",
+      "before_sha256": null,
+      "after_sha256": "cdea345562993114ee6cc0f54080fe61368bbb527e5bee505fb3009905580c0d"
+    },
+    {
+      "path": "tests/test_e2e_acquisition.py",
+      "before_sha256": "742be558d3fcf9b1d4137e9a01863ec03122d3f4d6a44aaa0b59a552ab89a406",
+      "after_sha256": "e20cc8199f7081a8c4afe15d67a0845d5b5ab6870c27f0c722b2f6a1e0c42df5"
+    },
+    {
+      "path": "tests/test_e2e_delivery.py",
+      "before_sha256": "efe01f7184e212aa5e361bf9818b201284561ac2bd64225f03fd8bde94b0e008",
+      "after_sha256": "0c40546ee250f9ebefcdd70254d0e3b296abed9ee606a94745f7cf151d935b7f"
+    },
+    {
+      "path": "tests/test_experiment_navigation.py",
+      "before_sha256": null,
+      "after_sha256": "bb625179f2c512cf888f6099c8349c23dae1ba77e76e3b431a7593702e7b117b"
+    },
+    {
+      "path": "tests/test_high_cost_delivery.py",
+      "before_sha256": "d181a12266b56ca94ec4dbcba601941a8915ea101275767e1b0f901668d8701d",
+      "after_sha256": "bade038b7fc6748984d4d7daae4b931bb5e10b36ed3fd4bc85ff7a8e2b9d53cf"
+    },
+    {
+      "path": "tests/test_implementation_basis.py",
+      "before_sha256": null,
+      "after_sha256": "0b95a6529e8d7aeae7feb5acddc0c71df9e52d59d59cdf590ef20ed064cd2c37"
+    },
+    {
+      "path": "tests/test_incremental_delivery.py",
+      "before_sha256": null,
+      "after_sha256": "40daf7d8be7cc553a72cbfe9f28c07bc3ea334b8a656e85fa12a7084de397319"
+    },
+    {
+      "path": "tests/test_problem_packet.py",
+      "before_sha256": "e890744e5ffa31e7eb684699694e3fa427e74d91f4af9c15bb36130176896a5d",
+      "after_sha256": "cdc7b92ff1bd6cfe139ad91f3add202541d0b889f55d574d1b45e123325b0a45"
+    },
+    {
+      "path": "tests/test_workflow_structural.py",
+      "before_sha256": "5574cb4ca2ad5b70c1751e39f51670e6af34ac883c3e275b3014229560f03169",
+      "after_sha256": "7b44089c6f9a012706bb4f7f8d4a15b8f210d419888728b57048189a984d2ca3"
+    },
+    {
+      "path": "tests/workflow_support.py",
+      "before_sha256": "b684f20f6732c4f7c1d47a33960214ffd1b4029951152f1ace87aa86a903ac0c",
+      "after_sha256": "c534b105e052e3482bcda588869dd0ea0502a9bf36365242f0dd8526345a0ab1"
+    }
+  ],
+  "navigation_validation": "Navigation regressions and existing end-to-end delivery tests passed; no paid model calls.",
+  "cleanup_validation": "57 related tests passed; full src/tests Ruff F and diff check passed"
+}

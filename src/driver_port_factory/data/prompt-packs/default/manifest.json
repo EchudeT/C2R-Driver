@@ -52,17 +52,33 @@
     },
     "target_platform_study": {
       "documents": [
+        "analysis-task.md",
         "knowledge-guided-driver-port/SKILL.md",
         "knowledge-guided-driver-port/references/workflow.md",
         "knowledge-guided-driver-port/references/target-platform-study.md",
         "knowledge-guided-driver-port/references/knowledge-contract.md",
         "knowledge-guided-driver-port/references/target-changes.md",
-        "knowledge-guided-driver-port/assets/target-platform-profile.md"
+        "knowledge-guided-driver-port/assets/target-platform-profile.md",
+        "knowledge-guided-driver-port/references/translation.md",
+        "knowledge-guided-driver-port/references/test-porting.md",
+        "knowledge-guided-driver-port/references/qemu-evidence.md"
       ],
-      "objective": "Complete knowledge-guided-driver-port/references/target-platform-study.md, including its referenced profile, using the supplied originals and project KB Skill. This stage owns target API definitions and call sites, the analogous target path, initialization/ownership/context facts, packaging route evidence and the necessity of any target change. Explicitly record every driver prerequisite whose target interface is absent or incomplete in a capability-gap register, linking each gap to direct target evidence, affected contract area, alternatives considered and the exact enablement work required; do not implement the change in this stage. The report must also name the concrete runtime insertion boundary for this driver class, exact target files/lines or build/package commands, the artifact identity that would carry the driver, and an executable first probe. If that route is not evidenced, record a capability gap and do not claim the study is ready for implementation. It does not implement Rust, close the C translation contracts or test provenance, prepare the final runtime artifact, or run the public QEMU ladder. Optional aid for Linux-to-Asterinas tasks: if useful and available, you may consult linux-asterinas-driver-map/SKILL.md under instructions.skill_root, selecting Asterinas pages for relevant bus/device/mechanism questions. These are guides to the original kernels, not evidence of the current migration implementation. Reading or recording use of this optional guide is not required for stage acceptance; rely on this run's frozen originals for conclusions. Do not load the whole collection. For the highest-impact unresolved prerequisite, trace the selected device mechanism through target API preconditions and an analogous call site; cite small original excerpts and a bounded check that could falsify the proposed mapping. An optional capability API is not proof the selected device exposes that capability; preserve unknown mappings without inferring platform-wide absence."
+      "objective": "Complete one evidence-backed source/target analysis and contract/test plan under analysis-task.md. Resolve design-changing unknowns, expose all required delivery entrypoints and preserve frozen scope. Submit one report; controller bookkeeping does not need another analysis task.",
+      "on_demand_documents": [
+        "knowledge-guided-driver-port/SKILL.md",
+        "knowledge-guided-driver-port/references/workflow.md",
+        "knowledge-guided-driver-port/references/target-platform-study.md",
+        "knowledge-guided-driver-port/references/knowledge-contract.md",
+        "knowledge-guided-driver-port/references/target-changes.md",
+        "knowledge-guided-driver-port/assets/target-platform-profile.md",
+        "knowledge-guided-driver-port/references/translation.md",
+        "knowledge-guided-driver-port/references/test-porting.md",
+        "knowledge-guided-driver-port/references/qemu-evidence.md"
+      ]
     },
     "migration_contracts": {
       "documents": [
+        "analysis-task.md",
         "knowledge-guided-driver-port/SKILL.md",
         "knowledge-guided-driver-port/references/workflow.md",
         "knowledge-guided-driver-port/references/translation.md",
@@ -70,21 +86,43 @@
         "knowledge-guided-driver-port/references/test-porting.md",
         "knowledge-guided-driver-port/references/qemu-evidence.md"
       ],
-      "objective": "Complete knowledge-guided-driver-port/references/workflow.md phases 3–5, following translation.md, knowledge-contract.md and test-porting.md. This stage owns source closure, bounded compiler/preprocessor/layout/effect evidence, migration contracts and test stimulus/assertion provenance; use the accepted target study as an input. Include explicit contracts for runtime insertion/driver presence and for the first probe/data operation, each tied to a target source location, an artifact identity and a QEMU oracle. A missing target prerequisite belongs in the capability-gap/repair record and cannot be silently deferred to driver_implementation. It does not implement Rust, change the target tree, prepare the runtime artifact or run public QEMU. Submit source analysis, contracts and test selection in the stage report. Do not end with DPF_SELF_REVIEW: PASS while a required compiler/configuration/layout/effect fact, translation contract, or test assertion provenance is explicitly left as a future gate; complete the bounded check or report a concrete blocker. Optional aid for Linux-to-Asterinas tasks: if useful and available, you may consult linux-asterinas-driver-map/SKILL.md under instructions.skill_root, selecting Linux pages for source paths and comparison pages for migration mappings. These are guides to the original kernels, not evidence of the current migration implementation. Reading or recording use of this optional guide is not required for stage acceptance; rely on this run's frozen originals for conclusions. Do not load the whole collection."
+      "objective": "Complete or repair the current migration contracts and acceptance plan under analysis-task.md using the accepted source/target evidence. Focus on unresolved or contradicted claims and their dependents; do not repeat settled platform discovery.",
+      "on_demand_documents": [
+        "knowledge-guided-driver-port/SKILL.md",
+        "knowledge-guided-driver-port/references/workflow.md",
+        "knowledge-guided-driver-port/references/translation.md",
+        "knowledge-guided-driver-port/references/knowledge-contract.md",
+        "knowledge-guided-driver-port/references/test-porting.md",
+        "knowledge-guided-driver-port/references/qemu-evidence.md"
+      ]
     },
     "target_framework_enablement": {
       "documents": [
-        "target-framework-enablement.md",
+        "delivery-task.md",
         "knowledge-guided-driver-port/SKILL.md",
         "knowledge-guided-driver-port/references/workflow.md",
         "knowledge-guided-driver-port/references/target-platform-study.md",
         "knowledge-guided-driver-port/references/target-changes.md",
-        "knowledge-guided-driver-port/references/knowledge-contract.md"
+        "knowledge-guided-driver-port/references/knowledge-contract.md",
+        "knowledge-guided-driver-port/references/translation.md",
+        "knowledge-guided-driver-port/references/test-porting.md",
+        "knowledge-guided-driver-port/references/qemu-evidence.md"
       ],
-      "objective": "Complete the target-framework enablement stage described by target-framework-enablement.md. Consume the frozen target study and migration contracts, implement only the minimal evidenced target API/framework capabilities they require, validate the target change and affected regressions, and submit a report. Do not edit the migrated driver, runtime artifact, QEMU harness or unrelated target code; do not introduce a fallback or dual path."
+      "objective": "Complete the first coherent delivery under delivery-task.md: necessary framework changes, driver implementation, runtime insertion, required testing interfaces, artifact and harness. Separate ledger checkpoints do not require separate model tasks. Resolve only actual capability gaps and verify the current required behavior.",
+      "on_demand_documents": [
+        "knowledge-guided-driver-port/SKILL.md",
+        "knowledge-guided-driver-port/references/workflow.md",
+        "knowledge-guided-driver-port/references/target-platform-study.md",
+        "knowledge-guided-driver-port/references/target-changes.md",
+        "knowledge-guided-driver-port/references/knowledge-contract.md",
+        "knowledge-guided-driver-port/references/translation.md",
+        "knowledge-guided-driver-port/references/test-porting.md",
+        "knowledge-guided-driver-port/references/qemu-evidence.md"
+      ]
     },
     "driver_implementation": {
       "documents": [
+        "delivery-task.md",
         "knowledge-guided-driver-port/SKILL.md",
         "knowledge-guided-driver-port/references/workflow.md",
         "knowledge-guided-driver-port/references/translation.md",
@@ -93,7 +131,16 @@
         "knowledge-guided-driver-port/references/test-porting.md",
         "knowledge-guided-driver-port/references/qemu-evidence.md"
       ],
-      "objective": "Complete knowledge-guided-driver-port/references/workflow.md phases 6–7, following translation.md, target-changes.md and test-porting.md. Use the existing target study and migration contracts as frozen design inputs. This stage owns the Rust driver, necessary target changes, public tests, compliance self-check and implementation snapshot. Before submission, build the current implementation and run a bounded target functional smoke under qemu-evidence.md: component initialization, exact device identity, registration, probe/binding/readiness and one applicable data operation, including externally observed TX/RX for network drivers. Prepare implementation-smoke.sh, runtime-artifact and check-presence.sh under .dpf-output for controller execution. The controller performs a generic deterministic preflight before QEMU; it reports every finding with an exact path and line and rejects high-confidence non-runtime marker artifacts. Apparent -S pauses or missing runtime-variable usage are advisory because helpers or external control may supply continuation or binding; use actual runtime evidence to decide whether a repair is needed. Diagnose and repair smoke failures locally until passing; if the evidence proves a missing target capability or framework interface, request rework to target_framework_enablement with the cited target source lines. Do not silently revise scope, target study, contracts or test provenance. Artifact preparation reuses the resulting image when valid; the full public QEMU ladder remains in public_qemu_validation."
+      "objective": "Complete the required driver delivery under delivery-task.md. If this is a repair or continuation, preserve working code and resolve the cited defects or missing deliverables; do not restart the initial analysis or framework task. Keep the full frozen behavior and evidence obligations.",
+      "on_demand_documents": [
+        "knowledge-guided-driver-port/SKILL.md",
+        "knowledge-guided-driver-port/references/workflow.md",
+        "knowledge-guided-driver-port/references/translation.md",
+        "knowledge-guided-driver-port/references/target-changes.md",
+        "knowledge-guided-driver-port/references/knowledge-contract.md",
+        "knowledge-guided-driver-port/references/test-porting.md",
+        "knowledge-guided-driver-port/references/qemu-evidence.md"
+      ]
     },
     "artifact_preparation": {
       "documents": [
@@ -265,6 +312,7 @@
     },
     "analysis_review": {
       "documents": [
+        "analysis-task.md",
         "knowledge-guided-driver-port/SKILL.md",
         "knowledge-guided-driver-port/references/workflow.md",
         "knowledge-guided-driver-port/references/knowledge-contract.md",

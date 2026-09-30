@@ -1,4 +1,4 @@
-"""Target-framework enablement gate and immutable target-change snapshot."""
+"""Delivery entry checkpoint; final implementation seals the complete source tree."""
 from __future__ import annotations
 
 import json
@@ -9,8 +9,8 @@ from ..codex.contracts import CodexOutputError
 from ..core.models import FileArtifact, GeneratedArtifact, StageStatus, WorkflowError
 from ..core.project import Project
 from ..core.validation import BundleValidationContext, json_object, require_fields
-from ..knowledge.contracts import KnowledgeArtifact, KnowledgeStage
-from ..target_study.contracts import TargetStudyArtifact, TargetStudyStage
+from ..knowledge.contracts import KnowledgeArtifact
+from ..target_study.contracts import TargetStudyArtifact
 from .contracts import MigrationArtifact, MigrationStage
 from .implementation import worktree_files
 from .review_policy import require_self_review
@@ -81,33 +81,8 @@ def _validate_files(root: Path, target: dict[str, Any], files: list[dict[str, An
             raise WorkflowError(f"target framework file has invalid state: {path}")
 
 
-def _previous_driver_files(project: Project) -> set[str]:
-    """Return the last sealed driver paths when delivery is being repaired.
-
-    A delivery-phase retry leaves the target worktree intact while invalidating
-    stage occurrences.  Without this distinction the next enablement snapshot
-    would absorb the already-written driver into the framework bundle.  Verify
-    those files against the old snapshot first, so a framework repair cannot
-    silently rewrite a driver-owned path.
-    """
-    refs = [
-        ref for ref in project.artifact_refs(stage=MigrationStage.DRIVER_IMPLEMENTATION)
-        if ref.kind == MigrationArtifact.IMPLEMENTATION_BUNDLE.value
-    ]
-    if not refs:
-        return set()
-    ref = max(refs, key=lambda item: item.ordinal or 0)
-    bundle = json.loads(project.artifacts.read(ref))
-    target = bundle.get("target_worktree")
-    files = bundle.get("files")
-    if not isinstance(target, dict) or not isinstance(files, list):
-        raise WorkflowError("historical driver snapshot is malformed")
-    _validate_files(project.root, target, files)
-    return {item["path"] for item in files}
-
-
 class TargetFrameworkEnablementService:
-    """Freeze target-framework changes separately from the driver snapshot."""
+    """Record the target checkpoint; final implementation owns the complete delivery."""
 
     def snapshot_worktree(self, project: Project, report_path: Path) -> None:
         stage = MigrationStage.TARGET_FRAMEWORK_ENABLEMENT
@@ -121,8 +96,6 @@ class TargetFrameworkEnablementService:
         acquisition = load_repository_acquisition(project)
         worktree = (project.root / acquisition.target_worktree.path).resolve()
         files = worktree_files(worktree, acquisition.target_worktree.base_commit)
-        driver_paths = _previous_driver_files(project)
-        files = [item for item in files if item["path"] not in driver_paths]
         inputs = _input_refs(project)
         report = {
             "path": str(report_path.relative_to(project.root)),
@@ -133,16 +106,16 @@ class TargetFrameworkEnablementService:
             "base_commit": acquisition.target_worktree.base_commit,
         }
         bundle = {
-            "schema_version": 1,
-            "change_level": "target-api-framework",
+            "schema_version": 2,
+            "change_level": "delivery-checkpoint",
             "inputs": inputs,
             "target_worktree": target,
             "files": files,
             "work_report": report,
         }
         inventory = {
-            "schema_version": 1,
-            "change_level": "target-api-framework",
+            "schema_version": 2,
+            "change_level": "delivery-checkpoint",
             "inputs": inputs,
             "target_worktree": target,
             "files": files,
@@ -191,7 +164,7 @@ def validate_target_framework_bundle(context: BundleValidationContext) -> None:
     required = {"schema_version", "change_level", "inputs", "target_worktree", "files", "work_report"}
     for value, label in ((bundle, "target framework bundle"), (inventory, "target framework inventory")):
         require_fields(value, required, label)
-        if value["schema_version"] != 1 or value["change_level"] != "target-api-framework":
+        if value["schema_version"] != 2 or value["change_level"] != "delivery-checkpoint":
             raise WorkflowError(f"{label} has an invalid schema")
         if value["inputs"] != expected_inputs or value["target_worktree"] != bundle["target_worktree"]:
             raise WorkflowError(f"{label} is detached from frozen enablement inputs")

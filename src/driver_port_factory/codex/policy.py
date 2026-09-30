@@ -35,7 +35,7 @@ class CodexExecutionPolicy:
         }
     )
     DEPENDENCY_STAGES = WRITABLE_STAGES | frozenset(
-        {EnvironmentStage.RECOVERY, MigrationStage.CONTRACTS}
+        {EnvironmentStage.RECOVERY, TargetStudyStage.STUDY, MigrationStage.CONTRACTS}
     )
     REPORT_WORKSPACE_STAGES = frozenset(
         {

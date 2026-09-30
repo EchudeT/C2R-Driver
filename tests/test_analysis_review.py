@@ -52,8 +52,11 @@ def test_locator_reads_exact_frozen_content_and_does_not_guess(tmp_path):
 
 
 @pytest.mark.parametrize('repair_target', [S.CONTRACTS, TargetStudyStage.STUDY])
-def test_analysis_returns_all_findings_to_worker_before_sealing(tmp_path, repair_target):
+@pytest.mark.parametrize('policy', ['analysis-handoff', 'persistent'])
+def test_analysis_returns_all_findings_to_worker_before_sealing(tmp_path, repair_target, policy):
     project = ready_implementation(tmp_path, reviewed=False)
+    from driver_port_factory.codex.context_policy import configure_policy
+    configure_policy(project, policy, reason='exercise handoff after upstream repair')
     port = runner(project)
     calls, review_count = [], 0
     with pytest.raises(WorkflowError):
@@ -84,11 +87,20 @@ def test_analysis_returns_all_findings_to_worker_before_sealing(tmp_path, repair
                 submit(project, job, report, kind='report', decision='rework',
                        repair_stage=repair_target.value)
             else:
-                assert payload['reference_material']['previous_review']
+                assert payload['reference_material'].get('previous_review') or payload['reference_material']['repair_task']['source']
                 report.write_text('F1 and F2 resolved against corrected evidence.\n')
                 submit(project, job, report, kind='report', decision='pass')
             return CodexResult(job.job_id, '', 'reviewer')
         if job.stage is S.TARGET_FRAMEWORK_ENABLEMENT:
+            assert project.retry_feedback(job.stage)['status'] == 'PREREQUISITE_COMPLETED'
+            assert 'F2:' in payload['reference_material']['repair_task']['report_excerpt']
+            assert job.thread_id == (None if policy == 'analysis-handoff' else 'worker')
+            if policy == 'analysis-handoff':
+                handoff = payload['reference_material']['context_handoff']
+                packet_path = project.artifacts.path_for_digest(handoff['digest'])
+                packet = json.loads(packet_path.read_text())
+                assert packet['automatic_boundary'] == 'analysis_to_execution'
+                assert packet['history_lookup']['previous_thread'] == 'worker'
             report = job.execution_root / '.dpf-output' / 'report.md'
             report.parent.mkdir(parents=True, exist_ok=True)
             report.write_text(
@@ -100,6 +112,13 @@ def test_analysis_returns_all_findings_to_worker_before_sealing(tmp_path, repair
         assert job.stage in {S.CONTRACTS, TargetStudyStage.STUDY}
         assert job.thread_id in {None, 'worker'}
         assert 'analysis_review' in job.prompt
+        task = payload['reference_material']['repair_task']
+        assert 'F1:' in task['report_excerpt'] and 'F2:' in task['report_excerpt']
+        assert task['complete']
+        assert task['source']['path'] == str(project.artifacts.path_for_digest(task['source']['digest']))
+        # Overwriting the reviewer's mutable file must not change repair evidence.
+        (project.root / 'work/stage-work/analysis_review/report.md').write_text('overwritten')
+        assert 'F2:' in open(task['source']['path']).read()
         report.write_text('Corrected both F1 and F2; retained valid evidence.\n')
         submit(project, job, report, kind='report', decision='pass')
         return CodexResult(job.job_id, '', 'worker')
@@ -108,7 +127,7 @@ def test_analysis_returns_all_findings_to_worker_before_sealing(tmp_path, repair
         with pytest.raises(ReachedImplementation):
             port._run_project(project)
     assert review_count == 2
-    assert sum(job.stage is S.CONTRACTS for job in calls) == 1
+    assert sum(job.stage is S.CONTRACTS for job in calls) == (repair_target is S.CONTRACTS)
     assert sum(job.stage is TargetStudyStage.STUDY for job in calls) == (repair_target is TargetStudyStage.STUDY)
     open_project(project.root).verify_integrity()
 
@@ -129,3 +148,18 @@ def test_analysis_blocker_prevents_implementation(tmp_path):
     assert outcome.status is StageStatus.BLOCKED
     assert project.stage(S.DRIVER_IMPLEMENTATION).status is StageStatus.PENDING
     assert model.call_count == 1
+
+
+def test_repair_packet_keeps_late_findings_bounded_and_source_intact(tmp_path):
+    from driver_port_factory.codex.repair_handoff import repair_task
+    project = ready_implementation(tmp_path, reviewed=False)
+    text = '# Review\n' + 'intro ' * 3000 + '\n### F1\n' + 'first ' * 3000 + '\n### F2\nlate defect\n'
+    ref = project.artifacts.put_bytes(text.encode(), kind='codex_work_report')
+    feedback = {'repair_report': {'kind': ref.kind, 'digest': ref.digest},
+                'trigger': 'analysis_review', 'repair_root': 'environment_recovery'}
+    packet = repair_task(project, feedback, budget=2000)
+    assert not packet['complete']
+    assert len(packet['report_excerpt']) <= 2000
+    assert '### F2' in packet['report_excerpt']
+    assert project.artifacts.path_for_digest(ref.digest).read_text() == text
+    assert repair_task(project, {'reason': 'operator repair'}) is None

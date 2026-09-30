@@ -76,8 +76,6 @@ def validate_worktree_snapshot(root: Path, bundle: dict) -> Path:
         raise WorkflowError("implementation worktree escapes project")
     try:
         files = worktree_files(worktree, bundle["target_worktree"]["base_commit"])
-        excluded = set(bundle.get("target_framework_files", ()))
-        files = [item for item in files if item["path"] not in excluded]
     except CodexOutputError as error:
         raise ImplementationChanged(str(error)) from error
     if files != bundle["files"]:
@@ -102,20 +100,12 @@ class DriverImplementationService:
             MigrationArtifact.TARGET_FRAMEWORK_BUNDLE,
         )
         framework_paths = {item["path"] for item in framework.get("files", ())}
-        # The target worktree contains both snapshots after enablement.  Validate
-        # the framework snapshot before filtering it; checking path names alone
-        # would reject every legitimate framework change as an overlap, while
-        # filtering without validation would let a driver edit a sealed target
-        # API file pass silently.
-        from .target_framework import _validate_files
-        try:
-            _validate_files(project.root, framework["target_worktree"], framework["files"])
-        except WorkflowError as error:
-            raise ImplementationChanged(str(error)) from error
+        # Framework evidence describes an earlier checkpoint, not file ownership.
+        # The final delivery seals every changed path, including shared integration.
         all_files = worktree_files(worktree, acquisition.target_worktree.base_commit)
         from .implementation_smoke import implementation_smoke
         smoke = implementation_smoke(project, worktree, acquisition.target_worktree.base_commit)
-        files = [item for item in all_files if item["path"] not in framework_paths]
+        files = all_files
         if not files:
             project.note_check("implementation has no changes relative to frozen upstream")
         inputs = self._inputs(project)
@@ -124,7 +114,7 @@ class DriverImplementationService:
             "sha256": file_sha256(report_path),
         }
         bundle = {
-            "schema_version": 1,
+            "schema_version": 2,
             "inputs": inputs,
             "functional_smoke": smoke,
             "target_worktree": {
@@ -132,11 +122,11 @@ class DriverImplementationService:
                 "base_commit": acquisition.target_worktree.base_commit,
             },
             "files": files,
-            "target_framework_files": sorted(framework_paths),
+            "framework_checkpoint_paths": sorted(framework_paths),
             "work_report": report,
         }
         inventory = {
-            "schema_version": 1,
+            "schema_version": 2,
             "inputs": inputs,
             "modified_preexisting_files": [item for item in files if item["preexisting"]],
             "new_files": [item for item in files if not item["preexisting"]],
@@ -204,8 +194,8 @@ def validate_implementation_bundle(context: BundleValidationContext) -> None:
         kind.value: context.one_dependency(kind)[0].to_dict() for kind in IMPLEMENTATION_INPUTS
     }
     if (
-        bundle.get("schema_version") != 1
-        or inventory.get("schema_version") != 1
+        bundle.get("schema_version") != 2
+        or inventory.get("schema_version") != 2
         or bundle.get("inputs") != expected_inputs
         or inventory.get("inputs") != expected_inputs
     ):

@@ -11,6 +11,20 @@ Use `{{search_command_template}}` for bounded locators, then `{{show_command_tem
 for selected evidence. Inspect the cited original source range or PDF page before relying on a
 claim. Keep hardware, source framework, target API and QEMU model evidence distinct. Record useful
 locators and unresolved assumptions in the current report; no separate evidence ledger is required.
+Compact summaries point near the literal query or a matched token; summary_line_start/end locate
+that excerpt, not the whole claim. Identical chunks from the same provenance may share one result
+with also_indexed_as listing the other record/chunk IDs. Those IDs remain available through show;
+different revisions, sources and evidence metadata remain separate. Summaries are navigation aids,
+not substitutes for the original evidence.
+
+For several independent questions, write a JSON list such as
+`[{"query":"DMA ownership","domain":"target","limit":5},{"query":"interrupt teardown","domain":"source","limit":5}]`
+and run `{{batch_search_command_template}}`. Each question accepts query plus optional domain,
+record_id, path_prefix and limit. One batch validates and loads the index once; no validation cache
+survives the command. The output's queries retain individual hits, scores and excerpts; each hit's
+chunk_id points into the shared evidence map, whose document_id references the documents provenance
+map. Keep batches small and limits focused so their combined
+output remains readable. Use single search for follow-up questions that depend on earlier results.
 
 Queries validate their own frozen inputs. Use `{{status_command}}` to diagnose integrity problems,
 not before every query. The controller owns manifest changes and rebuild operations; worker queries

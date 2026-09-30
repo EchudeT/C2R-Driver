@@ -2,7 +2,7 @@ import json
 import shutil
 
 
-def test_composite_repair_keeps_the_stage_objective(tmp_path):
+def test_composite_repair_targets_existing_delivery_without_restarting(tmp_path):
     from driver_port_factory.codex.prompts import SkillPromptComposer, default_prompt_pack_path
     from driver_port_factory.composition import WORKFLOW_STAGE_CATALOG
     from driver_port_factory.core.models import ActorRole
@@ -42,9 +42,10 @@ def test_composite_repair_keeps_the_stage_objective(tmp_path):
     )
     job = json.loads(rendered.text.split("<job>", 1)[1].split("</job>", 1)[0])
     instructions = job["instructions"]
-    assert "phases 6–7" in instructions["objective"]
-    assert instructions["repair_task"].startswith("# Composite repair task")
-    assert "runtime-artifact" in instructions["repair_task"]
+    assert "Repair the recorded defect" in instructions["objective"]
+    assert "existing delivery scope remains required" in instructions["objective"]
+    assert instructions["delivery_repair"].startswith("# Targeted repair")
+    assert "runtime-artifact" in instructions["delivery_repair"]
 
 
 def test_public_qemu_objective_consumes_artifact_preparation_output():

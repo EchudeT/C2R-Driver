@@ -1,0 +1,29 @@
+{
+  "comparison": "Offline empty-context fresh prompt render, identical document catalog; not historical prompts, tokens, dollars or proof of equal model behavior. On-demand reading can add costs later.",
+  "stages": [
+    {
+      "stage": "target_platform_study",
+      "on_demand_prompt_bytes": 16115,
+      "same_catalog_all_inline_prompt_bytes": 67588,
+      "reference_documents": 9
+    },
+    {
+      "stage": "migration_contracts",
+      "on_demand_prompt_bytes": 14813,
+      "same_catalog_all_inline_prompt_bytes": 57043,
+      "reference_documents": 6
+    },
+    {
+      "stage": "target_framework_enablement",
+      "on_demand_prompt_bytes": 26528,
+      "same_catalog_all_inline_prompt_bytes": 76456,
+      "reference_documents": 8
+    },
+    {
+      "stage": "driver_implementation",
+      "on_demand_prompt_bytes": 26749,
+      "same_catalog_all_inline_prompt_bytes": 72539,
+      "reference_documents": 7
+    }
+  ]
+}

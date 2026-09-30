@@ -18,6 +18,7 @@ INPUTS = (
     (S.HANDOFF, A.HANDOFF),
     (AcquisitionStage.EVIDENCE_CLOSURE, AcquisitionArtifact.MATERIALS_MANIFEST),
     (AcquisitionStage.EVIDENCE_CLOSURE, AcquisitionArtifact.EVIDENCE_GAP_REGISTER),
+    (AcquisitionStage.EVIDENCE_CLOSURE, AcquisitionArtifact.EVIDENCE_RETRIEVAL_LEDGER),
     (EnvironmentStage.RECOVERY, EnvironmentArtifact.MODE_RECORD),
     (EnvironmentStage.RECOVERY, EnvironmentArtifact.EXPERIMENT_ROUTE),
 )
