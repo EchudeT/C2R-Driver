@@ -1,0 +1,14 @@
+{
+  "devices": [
+    "pvpanic-pci"
+  ],
+  "timeout_seconds": 45,
+  "steps": [
+    {
+      "wait_serial": "# "
+    },
+    {
+      "guest_assert": "test 1 = 2"
+    }
+  ]
+}

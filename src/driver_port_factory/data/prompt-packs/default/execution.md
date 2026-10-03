@@ -6,21 +6,21 @@ observations, not a functional verdict. Follow the Skill for execution and evide
 Preflight advisories are hints, not rejected outputs: helpers or external controllers can
 supply runtime binding or QMP continuation. Use actual observations to resolve them; do not
 rewrite a working harness merely to silence a text heuristic. A preflight PASS is not boot proof.
-Before broad implementation, establish the target build/insertion route and the first applicable
-device operation. In the existing report, map required contract/test IDs to observations and
+Reuse the verified target build/boot route. In the selected behavior, establish its required
+insertion and applicable device operation; do not redo a standalone framework or platform survey. In the existing report, map required contract/test IDs to observations and
 keep BLOCKED/NOT_RUN explicit. Registration, model enumeration, or host-printed success strings
 cannot stand in for device operations. Preserve the frozen scope; repair a failed oracle without
 silently removing its required behavior. N/A needs a device/target reason, not a missing implementation.
 
 Implement a small end-to-end path early: actual target insertion, device initialization,
-then the first applicable operation, before expanding to all required behavior. Choose
-the next bounded probe by the most consequential unresolved assumption, not a fixed
-DMA/interrupt checklist; some driver classes need neither. Reuse valid evidence and
+then its applicable operation. With behavior scheduling, stop at the current behavior boundary.
+Probe only a specific unresolved premise that changes this behavior or a required assertion;
+existing evidence can resolve it without a probe. Never use a fixed DMA/interrupt checklist; some driver classes need neither. Reuse valid evidence and
 existing scripts. This order does not reduce the final contract or add another submission
 gate. Record what the probe establishes and what it leaves untested in the existing report.
 
-During driver implementation, use the frozen test matrix to identify which later public
-stimuli require driver-owned entrypoints or observable state. Implement those applicable
+For the current behavior, use the frozen test matrix to identify which required public
+stimuli need driver-owned entrypoints or observable state. Implement those applicable
 hooks before freezing the image; reuse existing interfaces where they suffice. In the
 existing compliance report, map each required runnable row to its entrypoint, observable
 assertion and remaining execution owner. A passing first-operation smoke does not cover
@@ -31,7 +31,15 @@ and test immediately outside the legal boundary. Assert promised state/effects r
 than merely printing the branch taken; a read/write test needs readback, and a negative
 control needs evidence that its stimulus actually occurred. Reuse unchanged valid checks.
 
-For long builds and QEMU runs, retain the process/session handle and inspect bounded
+Prefer driver_checks.check when supplied: one tool call waits for the managed result and
+returns direct receipt and raw-log navigation. It uses the same executor and acknowledgment
+as managed_experiment. Runtime case selection is not a full-suite verdict; development script
+success is not runtime evidence. No PASS can be uploaded. Never edit/build concurrently with it.
+When platform_execution is supplied, use driver_checks.platform for format/build/run_case.
+It waits inside the tool; do not shell-launch those operations or poll write_stdin. Prepare the
+current behavior's required assertions and locally check linkage, resource lifetime and lock scope
+before the first build/run. Existing platform entrypoint scripts remain for delivery harnesses.
+For other long builds and QEMU runs, retain the process/session handle and inspect bounded
 log tails. When the process is healthy and no input is needed, use a longer supported
 wait (typically 10–30 seconds) instead of repeated one-second empty polls. Short waits
 remain appropriate for interactive input or early failure diagnosis. Do useful independent
@@ -63,7 +71,7 @@ its exact image reference and image ID, and invoke QEMU inside it. A host run ca
 for evidence from a required container route. The usual Asterinas bootstrap uses the official
 `asterinas/dev:<pinned-tag>` image; consult the current route rather than inferring a different
 boundary from the platform name. Use --device /dev/kvm only when the route requires it; TCG is
-a valid bounded fallback. Smoke and public experiments must follow the selected target route.
+a separately selected route, not an automatic fallback. Smoke and public experiments must follow the selected target route.
 
 Use tool_runtime.managed_experiment followed by --script .dpf-output/implementation-smoke.sh
 --timeout 300 to get an authoritative observation inside this task. Inspect the returned receipt,
@@ -91,16 +99,16 @@ When a complete public suite has been run through managed_experiment in this tas
 actual receipts, assertions and limits and finish the self-review in the same report you will submit.
 Then invoke tool_runtime.experiment_self_review --report <REPORT_PATH> and submit that unchanged
 report. This is an explicit assertion that you reviewed the returned execution, not merely planned
-it. Matching controller capture will reuse both execution and this self-check; independent final
-review remains. Changing report bytes or execution inputs requires a fresh acknowledgment or the
+it. Matching controller capture will reuse both execution and this self-check; final model
+review follows the frozen optional-review setting. Changing report bytes or execution inputs requires a fresh acknowledgment or the
 normal downstream worker self-check. For a single public-qemu.sh use --timeout 3600 to match the
 controller; suite cases use their declared timeouts. Do not acknowledge unexecuted or failed work.
 
-Implement in dependency order inside this task: resolve uncertain target interfaces, establish
-minimal working behavior, then extend to required concurrency, boundary and failure cases. Choose
+Implement in controller-selected dependency order. Inside the current behavior, resolve necessary
+target interfaces and its applicable concurrency, boundary and failure cases. Choose
 increments appropriate to this device, not a fixed network-driver checklist. Compile/test early
-enough to falsify design assumptions before expanding the implementation; do not create a new
-model task or report for each increment.
+enough to falsify the relevant assumptions. Progress handoffs follow behavior_progress when supplied;
+helper edits and local checks do not create additional model tasks or reports.
 
 For portable pure logic or modeled register traces, tool_runtime.early_probe accepts --reference
 <original-C-adapter-script> --script <Rust-adapter-script> --inputs <fixed-case-file> --contract ID.

@@ -1,0 +1,4 @@
+/nix/store/y0kkiknzihr0a5wwjxb04x0ypipjgb5h-initramfs
+/nix/store/wnlxq9gqm7wn106rjzz5604iqsnfq2n8-initramfs-image
+[Info] [normal] Forwarded QEMU guest port: 7587->22; 50743->8080 54557->6379 24987->5201 62472->31234 19134->31236 24947->11211
+[Info] [test] Forwarded QEMU guest port: 34107->22; 59371->8080 48808->6379 50518->5201 22430->31234 21877->31236 18871->11211

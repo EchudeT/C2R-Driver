@@ -4,7 +4,7 @@
 
 DPF 是证据驱动的工作流控制器，不是拥有全局权限的长对话。其不可弱化的约束是：
 
-1. 阶段、必需输出和角色顺序直接映射三套上游 Skill；代码整洁不能绕过证据门禁；
+1. 必需证据和角色隔离映射上游 Skill；允许将同一工作者的实现步骤合并为一个原子阶段；代码整洁不能绕过证据门禁；
 2. 程序拥有状态、哈希、运行和封存，Codex 只提交当前阶段允许的有类型产物；
 3. 产物只有一条成功登记路径，缺失、未知或不合法的产物必须 fail closed；
 4. 硬件协议、来源平台机制、目标平台机制和 QEMU 行为是不同证据域；
@@ -71,13 +71,12 @@ WorkflowDefinition   ValidationRegistry
 | 4 编码前迁移合同 | `migration_contracts` |
 | 5 公开测试筛选与映射 | 同一个 `migration_contracts` 调用和报告 |
 | 2–5 分析证据核验 | `analysis_review`：封存设计阶段前由独立审查者合并核对原文、契约与测试断言 |
-| 6 目标框架能力补齐 | `target_framework_enablement`：实现合同确认的缺失接口，封存目标快照 |
-| 7 Rust 设计与实现 | `driver_implementation`，只消费目标框架快照，含测试适配 |
-| 8 目标合规复核 | 工作者在实现阶段自检，无独立模型节点 |
-| 9 runtime artifact 与公开 QEMU ladder | `artifact_preparation` → `public_qemu_validation` |
-| 10 归因与窄修复 | 原工作者归因、自检与窄修复；独立检查者核对功能和原始证据，最终报告替代程序汇总 |
-| 11 盲测候选封存 | 仅 blind mode 增加 candidate sealing 与 export/transfer |
-| 12 最终证据审计 | 开发模式为 `final_evidence_review` 独立功能审查；blind mode 另保留 `completion_audit` |
+| 6 Rust 设计与实现 | 统一 `driver_implementation`：框架适配与驱动集成一次验收，保留最小目标变更依据；旧项目保留原检查点 |
+| 7 目标合规复核 | 工作模型在第一次包装前与受影响修复后自检、按需复查目标原文；无独立模型节点 |
+| 8 runtime artifact 与公开 QEMU ladder | `artifact_preparation` → `public_qemu_validation`；复用当前制品与收据 |
+| 9 归因与窄修复 | 原工作者修复具体原因，测试受影响行为；开发模式允许反证推翻分析前提 |
+| 10 最终证据审计 | 工作报告逐契约/测例记录；可选 `final_evidence_review` 增加独立检查 |
+| 盲评扩展（不属于上述两套迁移 Skill 的阶段编号） | 封存、transfer/export、`completion_audit`；保持公共执行与独立私测的界限 |
 
 `PROSPECTIVE_BLIND` 在迁移前增加 public bundle/commitment binding；
 `POST_HOC_SEALED_BLIND` 只在候选封存后导出 opaque digest。curator、evaluator、auditor 使用
@@ -154,7 +153,7 @@ CLI 不接受 thread ID 或 resume 参数。正式独立性还要求新进程/�
 ## 7. CLI adapters
 
 根 `cli.py` 只负责命令组装、dispatch 和统一错误边界。完整开发迁移只由 `dpf port run` 驱动；
-源码闭包、结构化分析和迁移阶段由 `PortRunner` 直接调用领域服务，不再暴露第二套阶段 CLI。
+源码理解、按需语义探测和迁移阶段由 `PortRunner` 直接调用领域服务，不再暴露第二套阶段 CLI。
 其他 bounded context 的维护命令仍在各自 `cli.py` 中完成参数转换，例如 environment 的盘点、
 计划登记和执行，以及 knowledge 的材料登记、probe、Skill 生成和 bootstrap 编排。
 
@@ -175,3 +174,38 @@ checker、fault schedule 和私有结果。
 证据结论另用
 `VERIFIED/INFERRED/PLANNED/NOT_RUN/NOT_APPLICABLE/BLOCKED/FAIL/PASS`。
 `NON_INDEPENDENT` 和 `HARNESS_INVALID` 是评测分类，不能被普通失败覆盖。
+
+目标研究现在要求与同一报告绑定的 `target_knowledge_quality`。它重放查询和核对原文，不证明语义正确；工作模型自检和实际测例承担质量责任。RAG 与 reviewer 开关的边界见 [对齐记录](SKILL_ALIGNMENT_2026-10-02.zh-CN.md)。
+
+07 负责固定材料，后续研究负责语义分析；08 的通用容器执行包装可由控制器生成。失败 attempt 在返回原因前保存，不走 PASS 登记。配方复用要求版本/镜像匹配及当前执行，不能导入旧验收。接口与验证见 [前置阶段优化](BOOTSTRAP_OPTIMIZATION.zh-CN.md)。
+
+新任务默认启用 `unified_implementation`；开发 CLI 同时默认启用 `behavior_scheduling`，
+每轮只推进一个可观察行为及其必要框架适配、测试和清理；不再单列框架使能或全面能力探测。缺少该字段的历史配置恢复为旧 DAG。框架与驱动产物在同一事务提交，校验同一源码、worktree 和报告；下游仍验证制品身份和实际运行。详见 [合并实现与去重规则](UNIFIED_IMPLEMENTATION.zh-CN.md)。
+
+## 平台执行层
+
+模型长命令入口统一为阻塞式 `driver_checks.platform`，复用原执行器、身份检查和清理。
+依赖解析先于构建输入冻结；按需组件接入导航引用当前源码；guest shell 条件使用带新标记的
+退出码断言。进展由监视器读取，不由模型轮询。详见 [交互重构](PLATFORM_WORKER_EXECUTION.zh-CN.md)。
+
+`platform/profile.py` 定义固定平台命令，`executor.py` 隔离 Docker/构建执行，`guest.py` 提供有时限的 QMP/串口传输，`service.py` 绑定项目、源码、镜像与收据。新 Asterinas 项目在环境阶段验证干净基线，后续实现直接调用同一执行层；设备刺激和断言保留给迁移工作。平台通过与驱动验收分离。当前能力、接口与真实验证边界见 [PLATFORM_EXECUTION.zh-CN.md](PLATFORM_EXECUTION.zh-CN.md)。
+
+## 实现内局部前提修正
+
+统一逐功能 developer-evidence 运行中，目标 API/平台设计选择的修正由当前实现行为拥有，
+`local_adaptation` 保存问题证据并续接原会话，不级联撤销全部后继阶段。
+这不是变更冻结合同、环境或验收标准的权限；它们仍走显式前置修复。
+行为完成与最终验收分离，详见 [局部适配](LOCAL_ADAPTATION_COST.zh-CN.md)。
+
+## 按需实现与基础设施交接（2026-10-03）
+
+实现回合实际接收 `tool_runtime.platform_execution` 的 build/format/run-case 命令和 JSON 接口。当前行为使用专用任务模板；收齐全部行为后才切换完整交付。检查返回有界反馈，完整日志和收据仍由控制器保留。分析检索采用显式 focused 规格，七主题是可选分类而非调查配额；空检索不声称语义覆盖，原文/报告身份校验继续生效。详见 [实现成本审计](IMPLEMENTATION_COST.zh-CN.md)。这不改变冻结范围、当前行为调度或最终接受条件。
+
+环境执行已完成[采集重构与 OVMF 兼容修复](OVMF_AND_EXECUTION_REFACTOR.zh-CN.md)：托管容器内跟踪替代短命进程轮询，基础设施故障不进入付费返修。OVMF 的 pvpanic BAR 兼容补丁作为显式本地派生镜像提供，原 QEMU 与目标内核不变。真实平台检查通过，端到端驱动成本仍待新实验。
+
+## 分析上下文与功能边界
+
+新项目将环境、分析分别置于持久专用会话，分析首轮使用显式输入而非采集历史。
+功能范围和设备身份分开冻结；目标 kernel 接入与 callback harness 的验证层级不能混用。
+前置分析停止于源义务、目标承担关系、必要前提和验收设计明确，局部实现调查由当前行为承担。
+实现调度与最终验收不变，详细规则及能力限制见 [分析边界](ANALYSIS_BOUNDARY.zh-CN.md)。

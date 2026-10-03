@@ -1,0 +1,20 @@
+{
+  "argv": [
+    "docker",
+    "rm",
+    "-f",
+    "dpf-platform-b5e4ab485d0f4aae808865fe2cc71951"
+  ],
+  "completed_at": "2026-10-03T08:29:24.662040+00:00",
+  "cwd": "/tmp/dpf-platform-validation-20261003/target",
+  "duration_milliseconds": 34,
+  "exit_code": 0,
+  "launch_error": null,
+  "launched": true,
+  "started_at": "2026-10-03T08:29:24.628141+00:00",
+  "stderr_path": "/tmp/dpf-platform-validation-20261003/target/.dpf-output/final-build/cleanup/0147e2b9906b03a13113/stderr.bin",
+  "stderr_sha256": "359ac3c89afb42f3230382ae44d9119a32cedd13bd9a54bc7c9ed04b56db824d",
+  "stdout_path": "/tmp/dpf-platform-validation-20261003/target/.dpf-output/final-build/cleanup/0147e2b9906b03a13113/stdout.bin",
+  "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "timed_out": false
+}

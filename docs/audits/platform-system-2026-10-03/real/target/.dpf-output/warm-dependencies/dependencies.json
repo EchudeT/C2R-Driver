@@ -1,0 +1,140 @@
+{
+  "status": "DEPENDENCIES_RESOLVED",
+  "profile": "059f74e09b7699b8bf46574617f170437ef46f66810c253b67d19c7689236ad2",
+  "before": [
+    {
+      "path": "Cargo.toml",
+      "preexisting": true,
+      "state": "file",
+      "sha256": "d1a2b9fc4851bedcb6bcdfed06b31d72c8acfa0f6163e69dfacfabacb89433bb",
+      "executable": false
+    },
+    {
+      "path": "Components.toml",
+      "preexisting": true,
+      "state": "file",
+      "sha256": "e4a35618690478e5a034bc6dfd8214adcb46a96085578f50e49c4a80aace085f",
+      "executable": false
+    },
+    {
+      "path": "kernel/core/Cargo.toml",
+      "preexisting": true,
+      "state": "file",
+      "sha256": "bb906bbc5bc4904e1d167eab3b26cce8ef40c6397e5e5b03fe27865ac54d8257",
+      "executable": false
+    },
+    {
+      "path": "kernel/core/comps/pvpanic/Cargo.toml",
+      "preexisting": false,
+      "state": "file",
+      "sha256": "3b9cf84ec164513993a1e03e1b65347b70614f4c98484670c8902b3a6fc78991",
+      "executable": false
+    },
+    {
+      "path": "kernel/core/comps/pvpanic/src/lib.rs",
+      "preexisting": false,
+      "state": "file",
+      "sha256": "b6472d8270e5067601d39a79c3d8f4ce6ae9d06b375ea27bc094769c8b72b759",
+      "executable": false
+    },
+    {
+      "path": "kernel/core/src/lib.rs",
+      "preexisting": true,
+      "state": "file",
+      "sha256": "ed513a2575ce51c413c715f6c78f3a9a3455fdbcae889d51d19e9c47cb5bb5c1",
+      "executable": false
+    }
+  ],
+  "command": {
+    "argv": [
+      "docker",
+      "run",
+      "--rm",
+      "--pull=never",
+      "--name",
+      "dpf-platform-f9b55253e9414f49ba9390700866af72",
+      "-i",
+      "--network",
+      "host",
+      "--mount",
+      "type=bind,source=/tmp/dpf-platform-validation-20261003/target,target=/tmp/dpf-platform-validation-20261003/target",
+      "-w",
+      "/tmp/dpf-platform-validation-20261003/target",
+      "--mount",
+      "type=volume,source=dpf-system-validation-20261003-cargo,target=/root/.cargo",
+      "--mount",
+      "type=volume,source=dpf-system-validation-20261003-rustup,target=/root/.rustup",
+      "-e",
+      "VDSO_LIBRARY_DIR=/root/linux_vdso",
+      "asterinas/dev:0.18.1-20260805-dpf-ovmf-bar-v1",
+      "cargo",
+      "metadata",
+      "--offline",
+      "--format-version",
+      "1"
+    ],
+    "cwd": "/tmp/dpf-platform-validation-20261003/target",
+    "started_at": "2026-10-03T08:22:08.735214+00:00",
+    "completed_at": "2026-10-03T08:22:09.402770+00:00",
+    "exit_code": 0,
+    "launched": true,
+    "launch_error": null,
+    "timed_out": false,
+    "duration_milliseconds": 667,
+    "stdout_sha256": "5fccbacdf395e2fff9ec848d59b85c6458a0d2c7bc70cfa138ad568ff280a2c6",
+    "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "stdout_path": "/tmp/dpf-platform-validation-20261003/target/.dpf-output/warm-dependencies/command/323fc77aa0a7bd3d4a75/stdout.bin",
+    "stderr_path": "/tmp/dpf-platform-validation-20261003/target/.dpf-output/warm-dependencies/command/323fc77aa0a7bd3d4a75/stderr.bin"
+  },
+  "after": [
+    {
+      "path": "Cargo.lock",
+      "preexisting": true,
+      "state": "file",
+      "sha256": "cd5a1b926bdfd2a2b25bef7b9150287ab5020d511ee1a42498a0696cc908e670",
+      "executable": false
+    },
+    {
+      "path": "Cargo.toml",
+      "preexisting": true,
+      "state": "file",
+      "sha256": "d1a2b9fc4851bedcb6bcdfed06b31d72c8acfa0f6163e69dfacfabacb89433bb",
+      "executable": false
+    },
+    {
+      "path": "Components.toml",
+      "preexisting": true,
+      "state": "file",
+      "sha256": "e4a35618690478e5a034bc6dfd8214adcb46a96085578f50e49c4a80aace085f",
+      "executable": false
+    },
+    {
+      "path": "kernel/core/Cargo.toml",
+      "preexisting": true,
+      "state": "file",
+      "sha256": "bb906bbc5bc4904e1d167eab3b26cce8ef40c6397e5e5b03fe27865ac54d8257",
+      "executable": false
+    },
+    {
+      "path": "kernel/core/comps/pvpanic/Cargo.toml",
+      "preexisting": false,
+      "state": "file",
+      "sha256": "3b9cf84ec164513993a1e03e1b65347b70614f4c98484670c8902b3a6fc78991",
+      "executable": false
+    },
+    {
+      "path": "kernel/core/comps/pvpanic/src/lib.rs",
+      "preexisting": false,
+      "state": "file",
+      "sha256": "b6472d8270e5067601d39a79c3d8f4ce6ae9d06b375ea27bc094769c8b72b759",
+      "executable": false
+    },
+    {
+      "path": "kernel/core/src/lib.rs",
+      "preexisting": true,
+      "state": "file",
+      "sha256": "ed513a2575ce51c413c715f6c78f3a9a3455fdbcae889d51d19e9c47cb5bb5c1",
+      "executable": false
+    }
+  ]
+}

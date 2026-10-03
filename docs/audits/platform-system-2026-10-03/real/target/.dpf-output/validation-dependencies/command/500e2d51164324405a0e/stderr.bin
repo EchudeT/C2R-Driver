@@ -1,0 +1,16 @@
+info: syncing channel updates for nightly-2026-07-21-x86_64-unknown-linux-gnu
+info: latest update on 2026-07-21 for version 1.99.0-nightly (87e5904f5 2026-07-20)
+info: component llvm-tools is up to date
+info: component rust-src is up to date
+info: component rustc-dev is up to date
+info: downloading 3 components
+error: failed to get `inherit-methods-macro` as a dependency of package `ostd v0.18.1 (/tmp/dpf-platform-validation-20261003/target/ostd)`
+
+Caused by:
+  failed to load source for dependency `inherit-methods-macro`
+
+Caused by:
+  unable to update https://github.com/asterinas/inherit-methods-macro?rev=98f7e3e#98f7e3eb
+
+Caused by:
+  can't checkout from 'https://github.com/asterinas/inherit-methods-macro': you are in the offline mode (--offline)

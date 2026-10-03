@@ -1,0 +1,412 @@
+[
+  {
+    "original": "/tmp/dpf-platform-validation-20261003/target/.dpf-output/validation-dependencies/dependencies.json",
+    "archive": "real/target/.dpf-output/validation-dependencies/dependencies.json",
+    "sha256": "c2dbc2eafe9ccb34ca67b6d56dc154aa640913413ef0d55c3914288516879033"
+  },
+  {
+    "original": "/tmp/dpf-platform-validation-20261003/target/.dpf-output/validation-dependencies/Cargo.lock.after",
+    "archive": "real/target/.dpf-output/validation-dependencies/Cargo.lock.after",
+    "sha256": "7a813df75dfde7f2b78f5e2b37c1f9fad939b3df40f87007018a6427bc10ecef"
+  },
+  {
+    "original": "/tmp/dpf-platform-validation-20261003/target/.dpf-output/validation-dependencies/Cargo.lock.before",
+    "archive": "real/target/.dpf-output/validation-dependencies/Cargo.lock.before",
+    "sha256": "7a813df75dfde7f2b78f5e2b37c1f9fad939b3df40f87007018a6427bc10ecef"
+  },
+  {
+    "original": "/tmp/dpf-platform-validation-20261003/target/.dpf-output/validation-dependencies/cleanup/72f51db98ab1700a0967/result.json",
+    "archive": "real/target/.dpf-output/validation-dependencies/cleanup/72f51db98ab1700a0967/result.json",
+    "sha256": "23ad556b577317be9ec288f62cbafd98ca6743d0e7bc14a5c40f0df16c18d7d3"
+  },
+  {
+    "original": "/tmp/dpf-platform-validation-20261003/target/.dpf-output/validation-dependencies/cleanup/72f51db98ab1700a0967/stdout.bin",
+    "archive": "real/target/.dpf-output/validation-dependencies/cleanup/72f51db98ab1700a0967/stdout.bin",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "original": "/tmp/dpf-platform-validation-20261003/target/.dpf-output/validation-dependencies/cleanup/72f51db98ab1700a0967/stderr.bin",
+    "archive": "real/target/.dpf-output/validation-dependencies/cleanup/72f51db98ab1700a0967/stderr.bin",
+    "sha256": "b49c7cb487a12733d1f3bb32dcec5b24cabf7ede330f6f32fbc96986b1f3ad3f"
+  },
+  {
+    "original": "/tmp/dpf-platform-validation-20261003/target/.dpf-output/validation-dependencies/command/500e2d51164324405a0e/result.json",
+    "archive": "real/target/.dpf-output/validation-dependencies/command/500e2d51164324405a0e/result.json",
+    "sha256": "46e24262167c508b6d9e904bb2ffae2f0fc9baf7f6c208bad610a954b4e48b6a"
+  },
+  {
+    "original": "/tmp/dpf-platform-validation-20261003/target/.dpf-output/validation-dependencies/command/500e2d51164324405a0e/stdout.bin",
+    "archive": "real/target/.dpf-output/validation-dependencies/command/500e2d51164324405a0e/stdout.bin",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "original": "/tmp/dpf-platform-validation-20261003/target/.dpf-output/validation-dependencies/command/500e2d51164324405a0e/stderr.bin",
+    "archive": "real/target/.dpf-output/validation-dependencies/command/500e2d51164324405a0e/stderr.bin",
+    "sha256": "e8f438f9a278cc55a31d2ad60fa7fa4d20072e4021ea27db812558c9b8b70d10"
+  },
+  {
+    "original": "/tmp/dpf-platform-validation-20261003/target/.dpf-output/warm-dependencies/dependencies.json",
+    "archive": "real/target/.dpf-output/warm-dependencies/dependencies.json",
+    "sha256": "4a5ea179e657c3434f58af465cbb50e495718196df953925d73b8ad3fcc20050"
+  },
+  {
+    "original": "/tmp/dpf-platform-validation-20261003/target/.dpf-output/warm-dependencies/Cargo.lock.after",
+    "archive": "real/target/.dpf-output/warm-dependencies/Cargo.lock.after",
+    "sha256": "cd5a1b926bdfd2a2b25bef7b9150287ab5020d511ee1a42498a0696cc908e670"
+  },
+  {
+    "original": "/tmp/dpf-platform-validation-20261003/target/.dpf-output/warm-dependencies/Cargo.lock.before",
+    "archive": "real/target/.dpf-output/warm-dependencies/Cargo.lock.before",
+    "sha256": "7a813df75dfde7f2b78f5e2b37c1f9fad939b3df40f87007018a6427bc10ecef"
+  },
+  {
+    "original": "/tmp/dpf-platform-validation-20261003/target/.dpf-output/warm-dependencies/cleanup/ba1d9ddc930802dfbbeb/result.json",
+    "archive": "real/target/.dpf-output/warm-dependencies/cleanup/ba1d9ddc930802dfbbeb/result.json",
+    "sha256": "ba3a9d5d960d6bbfb4cd125fad8b3907ca6f07d6705e2ef04f2bd1447aa7777e"
+  },
+  {
+    "original": "/tmp/dpf-platform-validation-20261003/target/.dpf-output/warm-dependencies/cleanup/ba1d9ddc930802dfbbeb/stdout.bin",
+    "archive": "real/target/.dpf-output/warm-dependencies/cleanup/ba1d9ddc930802dfbbeb/stdout.bin",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "original": "/tmp/dpf-platform-validation-20261003/target/.dpf-output/warm-dependencies/cleanup/ba1d9ddc930802dfbbeb/stderr.bin",
+    "archive": "real/target/.dpf-output/warm-dependencies/cleanup/ba1d9ddc930802dfbbeb/stderr.bin",
+    "sha256": "0620ba2edfabd96eacedb2d465ce62a9e49f684d6efa6d29fecd749cd3ee2ac7"
+  },
+  {
+    "original": "/tmp/dpf-platform-validation-20261003/target/.dpf-output/warm-dependencies/command/323fc77aa0a7bd3d4a75/result.json",
+    "archive": "real/target/.dpf-output/warm-dependencies/command/323fc77aa0a7bd3d4a75/result.json",
+    "sha256": "9e630b60412e66fbbc27db3d04472fbc85e794a8e67eec3eda5a55ae18371f01"
+  },
+  {
+    "original": "/tmp/dpf-platform-validation-20261003/target/.dpf-output/warm-dependencies/command/323fc77aa0a7bd3d4a75/stdout.bin",
+    "archive": "real/target/.dpf-output/warm-dependencies/command/323fc77aa0a7bd3d4a75/stdout.bin",
+    "sha256": "5fccbacdf395e2fff9ec848d59b85c6458a0d2c7bc70cfa138ad568ff280a2c6"
+  },
+  {
+    "original": "/tmp/dpf-platform-validation-20261003/target/.dpf-output/warm-dependencies/command/323fc77aa0a7bd3d4a75/stderr.bin",
+    "archive": "real/target/.dpf-output/warm-dependencies/command/323fc77aa0a7bd3d4a75/stderr.bin",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "original": "/tmp/dpf-platform-validation-20261003/target/.dpf-output/validation-build/build.json",
+    "archive": "real/target/.dpf-output/validation-build/build.json",
+    "sha256": "dd281e36f9a65d45d8076f19198b214258152762138f88b516ab2476a98420ae"
+  },
+  {
+    "original": "/tmp/dpf-platform-validation-20261003/target/.dpf-output/validation-build/cleanup/41bda038ad5dbccf4f8c/result.json",
+    "archive": "real/target/.dpf-output/validation-build/cleanup/41bda038ad5dbccf4f8c/result.json",
+    "sha256": "a55207ac3dceeef0367f6ec6df2feb8d0178f49a0586cb172be4914a49f4c402"
+  },
+  {
+    "original": "/tmp/dpf-platform-validation-20261003/target/.dpf-output/validation-build/cleanup/41bda038ad5dbccf4f8c/stdout.bin",
+    "archive": "real/target/.dpf-output/validation-build/cleanup/41bda038ad5dbccf4f8c/stdout.bin",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "original": "/tmp/dpf-platform-validation-20261003/target/.dpf-output/validation-build/cleanup/41bda038ad5dbccf4f8c/stderr.bin",
+    "archive": "real/target/.dpf-output/validation-build/cleanup/41bda038ad5dbccf4f8c/stderr.bin",
+    "sha256": "e6fb13eeaa620433978bfe6e44698d46976aea5ed6d8f3f450868ed50eaf3599"
+  },
+  {
+    "original": "/tmp/dpf-platform-validation-20261003/target/.dpf-output/validation-build/command/1e289cd36b2fea9b41f9/result.json",
+    "archive": "real/target/.dpf-output/validation-build/command/1e289cd36b2fea9b41f9/result.json",
+    "sha256": "67dc725c283ea99908dd5bee8793dd771c7d3eb781886af5ca633225d82afacd"
+  },
+  {
+    "original": "/tmp/dpf-platform-validation-20261003/target/.dpf-output/validation-build/command/1e289cd36b2fea9b41f9/stdout.bin",
+    "archive": "real/target/.dpf-output/validation-build/command/1e289cd36b2fea9b41f9/stdout.bin",
+    "sha256": "4dfac6f96cb5d789749d7191291498fb2f75ca9e352ad71893a18837fdb4e78c"
+  },
+  {
+    "original": "/tmp/dpf-platform-validation-20261003/target/.dpf-output/validation-build/command/1e289cd36b2fea9b41f9/stderr.bin",
+    "archive": "real/target/.dpf-output/validation-build/command/1e289cd36b2fea9b41f9/stderr.bin",
+    "sha256": "c915307d6e3faec5c02cdb8514a36b274b08aa9c67aff74d45c5952cb46da6f4"
+  },
+  {
+    "original": "/tmp/dpf-platform-validation-20261003/target/.dpf-output/final-build/build.json",
+    "archive": "real/target/.dpf-output/final-build/build.json",
+    "sha256": "d34aad15e3474a93d545ddb7c1dd84a1f391c70897179e08e37611ca31945a46"
+  },
+  {
+    "original": "/tmp/dpf-platform-validation-20261003/target/.dpf-output/final-build/cleanup/0147e2b9906b03a13113/result.json",
+    "archive": "real/target/.dpf-output/final-build/cleanup/0147e2b9906b03a13113/result.json",
+    "sha256": "31850f7176374abcc6dba21ce9bdfe967bf62789c68b29c0fccef46281e3b4dc"
+  },
+  {
+    "original": "/tmp/dpf-platform-validation-20261003/target/.dpf-output/final-build/cleanup/0147e2b9906b03a13113/stdout.bin",
+    "archive": "real/target/.dpf-output/final-build/cleanup/0147e2b9906b03a13113/stdout.bin",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "original": "/tmp/dpf-platform-validation-20261003/target/.dpf-output/final-build/cleanup/0147e2b9906b03a13113/stderr.bin",
+    "archive": "real/target/.dpf-output/final-build/cleanup/0147e2b9906b03a13113/stderr.bin",
+    "sha256": "359ac3c89afb42f3230382ae44d9119a32cedd13bd9a54bc7c9ed04b56db824d"
+  },
+  {
+    "original": "/tmp/dpf-platform-validation-20261003/target/.dpf-output/final-build/command/04822014fa6aa310e762/result.json",
+    "archive": "real/target/.dpf-output/final-build/command/04822014fa6aa310e762/result.json",
+    "sha256": "439e37942ca06b4f9262d2a8b64d20664a4dc034be1f189cbd616459cb362862"
+  },
+  {
+    "original": "/tmp/dpf-platform-validation-20261003/target/.dpf-output/final-build/command/04822014fa6aa310e762/stdout.bin",
+    "archive": "real/target/.dpf-output/final-build/command/04822014fa6aa310e762/stdout.bin",
+    "sha256": "40974c10564bcac351c830e0737202eee17843e5c0afbb0848e86c52a6cd3fd1"
+  },
+  {
+    "original": "/tmp/dpf-platform-validation-20261003/target/.dpf-output/final-build/command/04822014fa6aa310e762/stderr.bin",
+    "archive": "real/target/.dpf-output/final-build/command/04822014fa6aa310e762/stderr.bin",
+    "sha256": "6127ff1bcb0dd1246a4485f8995071dff1dd4a0e6c0a8527ae457aad266b861f"
+  },
+  {
+    "original": "/tmp/dpf-platform-validation-20261003/target/.dpf-output/assertion-positive/argv.json",
+    "archive": "real/target/.dpf-output/assertion-positive/argv.json",
+    "sha256": "a94ab37c75a398d0035e04f607da253ee22b7a121a9a29e785ea5c28274f4b7d"
+  },
+  {
+    "original": "/tmp/dpf-platform-validation-20261003/target/.dpf-output/assertion-positive/qemu-stderr.log",
+    "archive": "real/target/.dpf-output/assertion-positive/qemu-stderr.log",
+    "sha256": "bcde68ea3041f3cfbf6cc9cb5a2c44a9ab253a9e5b016985803a77ca3a40a099"
+  },
+  {
+    "original": "/tmp/dpf-platform-validation-20261003/target/.dpf-output/assertion-positive/serial.log",
+    "archive": "real/target/.dpf-output/assertion-positive/serial.log",
+    "sha256": "e05258d4ec6669df316dad076fb16c9d703bf6ba092d6e6d575d2d78a919c030"
+  },
+  {
+    "original": "/tmp/dpf-platform-validation-20261003/target/.dpf-output/assertion-positive/boot.json",
+    "archive": "real/target/.dpf-output/assertion-positive/boot.json",
+    "sha256": "fdfa69e5aa557b5c4b4be68a7debe7319ddbaa884125b8c2fe092b0222a52d83"
+  },
+  {
+    "original": "/tmp/dpf-platform-validation-20261003/target/.dpf-output/assertion-positive/profile.json",
+    "archive": "real/target/.dpf-output/assertion-positive/profile.json",
+    "sha256": "f1073fa2df4425301bde9df794776700049bad0ef3f5f65bfd217a9cb5b49594"
+  },
+  {
+    "original": "/tmp/dpf-platform-validation-20261003/target/.dpf-output/assertion-positive/case.json",
+    "archive": "real/target/.dpf-output/assertion-positive/case.json",
+    "sha256": "976e1dfdacec6ab06fa6233a3c6dc35103e449fb6aefd3eada3be2d97fa86636"
+  },
+  {
+    "original": "/tmp/dpf-platform-validation-20261003/target/.dpf-output/assertion-positive/qmp.jsonl",
+    "archive": "real/target/.dpf-output/assertion-positive/qmp.jsonl",
+    "sha256": "43a29b540dbec4458cf21dbbe338e5c4f829872b15f40b3de4d878e5a4b5ae71"
+  },
+  {
+    "original": "/tmp/dpf-platform-validation-20261003/target/.dpf-output/assertion-positive/guest.py",
+    "archive": "real/target/.dpf-output/assertion-positive/guest.py",
+    "sha256": "0af0e2f990fdb59e9d6e3ed006bfe35b62fadc615b914ee6c0e703eb3e361618"
+  },
+  {
+    "original": "/tmp/dpf-platform-validation-20261003/target/.dpf-output/assertion-positive/guest-result.json",
+    "archive": "real/target/.dpf-output/assertion-positive/guest-result.json",
+    "sha256": "d392dec5aa5b474617b7e4827c83a89d8dd6da26951c0b34a7ef96e4e6b5906b"
+  },
+  {
+    "original": "/tmp/dpf-platform-validation-20261003/target/.dpf-output/assertion-positive/cleanup/c2278a4b2da4720320a9/result.json",
+    "archive": "real/target/.dpf-output/assertion-positive/cleanup/c2278a4b2da4720320a9/result.json",
+    "sha256": "f41af10c381d0ac8978f83ab97b1998e431f3c990e5f8e3c79fa1e2caf67283c"
+  },
+  {
+    "original": "/tmp/dpf-platform-validation-20261003/target/.dpf-output/assertion-positive/cleanup/c2278a4b2da4720320a9/stdout.bin",
+    "archive": "real/target/.dpf-output/assertion-positive/cleanup/c2278a4b2da4720320a9/stdout.bin",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "original": "/tmp/dpf-platform-validation-20261003/target/.dpf-output/assertion-positive/cleanup/c2278a4b2da4720320a9/stderr.bin",
+    "archive": "real/target/.dpf-output/assertion-positive/cleanup/c2278a4b2da4720320a9/stderr.bin",
+    "sha256": "25ca02f7db5e911ccfcad79b00f44a9bb77bda3a93319fe9533fee44130e765e"
+  },
+  {
+    "original": "/tmp/dpf-platform-validation-20261003/target/.dpf-output/assertion-positive/command/6886df724e23cdfbc272/result.json",
+    "archive": "real/target/.dpf-output/assertion-positive/command/6886df724e23cdfbc272/result.json",
+    "sha256": "3273e94618cd5647fb127e19f94d530bc037c3d3dec182ad0ce2dc68f639ca5a"
+  },
+  {
+    "original": "/tmp/dpf-platform-validation-20261003/target/.dpf-output/assertion-positive/command/6886df724e23cdfbc272/stdout.bin",
+    "archive": "real/target/.dpf-output/assertion-positive/command/6886df724e23cdfbc272/stdout.bin",
+    "sha256": "95f749c9c7abddcb3ac8692c29d7450f38875eae3d45000c7b254aa34276ebea"
+  },
+  {
+    "original": "/tmp/dpf-platform-validation-20261003/target/.dpf-output/assertion-positive/command/6886df724e23cdfbc272/stderr.bin",
+    "archive": "real/target/.dpf-output/assertion-positive/command/6886df724e23cdfbc272/stderr.bin",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "original": "/tmp/dpf-platform-validation-20261003/target/.dpf-output/assertion-positive-fixed/argv.json",
+    "archive": "real/target/.dpf-output/assertion-positive-fixed/argv.json",
+    "sha256": "9ff3a6069146c9d0519c31d9bbf72f8cbe8850eb554f0ff504112b4401691770"
+  },
+  {
+    "original": "/tmp/dpf-platform-validation-20261003/target/.dpf-output/assertion-positive-fixed/qemu-stderr.log",
+    "archive": "real/target/.dpf-output/assertion-positive-fixed/qemu-stderr.log",
+    "sha256": "bcde68ea3041f3cfbf6cc9cb5a2c44a9ab253a9e5b016985803a77ca3a40a099"
+  },
+  {
+    "original": "/tmp/dpf-platform-validation-20261003/target/.dpf-output/assertion-positive-fixed/serial.log",
+    "archive": "real/target/.dpf-output/assertion-positive-fixed/serial.log",
+    "sha256": "f22f4a350495f059a175839854214dcf7a142f99d5b92bdffc6fbfd44db30e92"
+  },
+  {
+    "original": "/tmp/dpf-platform-validation-20261003/target/.dpf-output/assertion-positive-fixed/boot.json",
+    "archive": "real/target/.dpf-output/assertion-positive-fixed/boot.json",
+    "sha256": "a05054280555ce0ae585e738dd5a2414708a6984f1ac5992d8459e11b0044178"
+  },
+  {
+    "original": "/tmp/dpf-platform-validation-20261003/target/.dpf-output/assertion-positive-fixed/profile.json",
+    "archive": "real/target/.dpf-output/assertion-positive-fixed/profile.json",
+    "sha256": "f1073fa2df4425301bde9df794776700049bad0ef3f5f65bfd217a9cb5b49594"
+  },
+  {
+    "original": "/tmp/dpf-platform-validation-20261003/target/.dpf-output/assertion-positive-fixed/case.json",
+    "archive": "real/target/.dpf-output/assertion-positive-fixed/case.json",
+    "sha256": "976e1dfdacec6ab06fa6233a3c6dc35103e449fb6aefd3eada3be2d97fa86636"
+  },
+  {
+    "original": "/tmp/dpf-platform-validation-20261003/target/.dpf-output/assertion-positive-fixed/qmp.jsonl",
+    "archive": "real/target/.dpf-output/assertion-positive-fixed/qmp.jsonl",
+    "sha256": "0efd1449b5c48fcaad7f1e90608b859fd018b3cd213a525a0d549220e16fae17"
+  },
+  {
+    "original": "/tmp/dpf-platform-validation-20261003/target/.dpf-output/assertion-positive-fixed/guest.py",
+    "archive": "real/target/.dpf-output/assertion-positive-fixed/guest.py",
+    "sha256": "2abb53fddf7e021b5ec64d471ac430d35667db12e6c8860b4fc76b7fb959dc97"
+  },
+  {
+    "original": "/tmp/dpf-platform-validation-20261003/target/.dpf-output/assertion-positive-fixed/guest-assertions.jsonl",
+    "archive": "real/target/.dpf-output/assertion-positive-fixed/guest-assertions.jsonl",
+    "sha256": "7f4145c0574d428d44e05971993a195a7fceddc6e7d7fbfd5e85ee324fa69474"
+  },
+  {
+    "original": "/tmp/dpf-platform-validation-20261003/target/.dpf-output/assertion-positive-fixed/guest-result.json",
+    "archive": "real/target/.dpf-output/assertion-positive-fixed/guest-result.json",
+    "sha256": "7f63af51ca35ae2424d0d4d7ee5d5097e215f5364af4461c4b1a33ac01384f01"
+  },
+  {
+    "original": "/tmp/dpf-platform-validation-20261003/target/.dpf-output/assertion-positive-fixed/cleanup/1833933b36ce49e54b25/result.json",
+    "archive": "real/target/.dpf-output/assertion-positive-fixed/cleanup/1833933b36ce49e54b25/result.json",
+    "sha256": "0ac0011f0c63ea1657dd6e43eadd6d4db4d4373dd5d51d99f25c39666eb57ede"
+  },
+  {
+    "original": "/tmp/dpf-platform-validation-20261003/target/.dpf-output/assertion-positive-fixed/cleanup/1833933b36ce49e54b25/stdout.bin",
+    "archive": "real/target/.dpf-output/assertion-positive-fixed/cleanup/1833933b36ce49e54b25/stdout.bin",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "original": "/tmp/dpf-platform-validation-20261003/target/.dpf-output/assertion-positive-fixed/cleanup/1833933b36ce49e54b25/stderr.bin",
+    "archive": "real/target/.dpf-output/assertion-positive-fixed/cleanup/1833933b36ce49e54b25/stderr.bin",
+    "sha256": "e47aae622cb7d0cd022e12a7f5e47be0e1d4e6b072a8ba96b286620d51191a94"
+  },
+  {
+    "original": "/tmp/dpf-platform-validation-20261003/target/.dpf-output/assertion-positive-fixed/command/92970600ea8e22fca399/result.json",
+    "archive": "real/target/.dpf-output/assertion-positive-fixed/command/92970600ea8e22fca399/result.json",
+    "sha256": "a93f543e09061c44e862e840ff16a4614a9b4e16093a3ca2540ed472aedab805"
+  },
+  {
+    "original": "/tmp/dpf-platform-validation-20261003/target/.dpf-output/assertion-positive-fixed/command/92970600ea8e22fca399/stdout.bin",
+    "archive": "real/target/.dpf-output/assertion-positive-fixed/command/92970600ea8e22fca399/stdout.bin",
+    "sha256": "9ab87d5cc3c8df979a442a45449c507d1782b069405c14b5d3abf40bbc38bfc2"
+  },
+  {
+    "original": "/tmp/dpf-platform-validation-20261003/target/.dpf-output/assertion-positive-fixed/command/92970600ea8e22fca399/stderr.bin",
+    "archive": "real/target/.dpf-output/assertion-positive-fixed/command/92970600ea8e22fca399/stderr.bin",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "original": "/tmp/dpf-platform-validation-20261003/target/.dpf-output/assertion-negative/argv.json",
+    "archive": "real/target/.dpf-output/assertion-negative/argv.json",
+    "sha256": "6c3ee83f161f9320431c0657439a79a26adb6943b0c8bd79cc2c2caebb5e01c5"
+  },
+  {
+    "original": "/tmp/dpf-platform-validation-20261003/target/.dpf-output/assertion-negative/qemu-stderr.log",
+    "archive": "real/target/.dpf-output/assertion-negative/qemu-stderr.log",
+    "sha256": "bcde68ea3041f3cfbf6cc9cb5a2c44a9ab253a9e5b016985803a77ca3a40a099"
+  },
+  {
+    "original": "/tmp/dpf-platform-validation-20261003/target/.dpf-output/assertion-negative/serial.log",
+    "archive": "real/target/.dpf-output/assertion-negative/serial.log",
+    "sha256": "8ef41b0e03f80747e77f8979bee88655e08028a72e935f4156018378a79895ee"
+  },
+  {
+    "original": "/tmp/dpf-platform-validation-20261003/target/.dpf-output/assertion-negative/boot.json",
+    "archive": "real/target/.dpf-output/assertion-negative/boot.json",
+    "sha256": "8004a0a96ab13022fa8a7ec30df9cbd221caa0bc610b2d83c478f8b41869586b"
+  },
+  {
+    "original": "/tmp/dpf-platform-validation-20261003/target/.dpf-output/assertion-negative/profile.json",
+    "archive": "real/target/.dpf-output/assertion-negative/profile.json",
+    "sha256": "f1073fa2df4425301bde9df794776700049bad0ef3f5f65bfd217a9cb5b49594"
+  },
+  {
+    "original": "/tmp/dpf-platform-validation-20261003/target/.dpf-output/assertion-negative/case.json",
+    "archive": "real/target/.dpf-output/assertion-negative/case.json",
+    "sha256": "46fc09047ca168d1f98ef1dcbee2b67a81817300f12ce0d3a6a179e04bebd9c7"
+  },
+  {
+    "original": "/tmp/dpf-platform-validation-20261003/target/.dpf-output/assertion-negative/qmp.jsonl",
+    "archive": "real/target/.dpf-output/assertion-negative/qmp.jsonl",
+    "sha256": "bc880ed8d85079bbec1a29000dda4247969b7a8e196f7a51bcc8e4ff945c4eda"
+  },
+  {
+    "original": "/tmp/dpf-platform-validation-20261003/target/.dpf-output/assertion-negative/guest.py",
+    "archive": "real/target/.dpf-output/assertion-negative/guest.py",
+    "sha256": "2abb53fddf7e021b5ec64d471ac430d35667db12e6c8860b4fc76b7fb959dc97"
+  },
+  {
+    "original": "/tmp/dpf-platform-validation-20261003/target/.dpf-output/assertion-negative/guest-assertions.jsonl",
+    "archive": "real/target/.dpf-output/assertion-negative/guest-assertions.jsonl",
+    "sha256": "22c42006427f0de617e2d184ae231e769ccf442c467983cf78f536df3e19b68f"
+  },
+  {
+    "original": "/tmp/dpf-platform-validation-20261003/target/.dpf-output/assertion-negative/guest-result.json",
+    "archive": "real/target/.dpf-output/assertion-negative/guest-result.json",
+    "sha256": "55719b4a56eaebf3833f4a44f57a5a9d6ba2643b6e82462fab922cc8e11b0cd2"
+  },
+  {
+    "original": "/tmp/dpf-platform-validation-20261003/target/.dpf-output/assertion-negative/cleanup/4115e6b47a219d5fed0b/result.json",
+    "archive": "real/target/.dpf-output/assertion-negative/cleanup/4115e6b47a219d5fed0b/result.json",
+    "sha256": "268086b560266545de09b2204d9bf229dc4c6f34bb1d7120e46a5fe26f2a14da"
+  },
+  {
+    "original": "/tmp/dpf-platform-validation-20261003/target/.dpf-output/assertion-negative/cleanup/4115e6b47a219d5fed0b/stdout.bin",
+    "archive": "real/target/.dpf-output/assertion-negative/cleanup/4115e6b47a219d5fed0b/stdout.bin",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "original": "/tmp/dpf-platform-validation-20261003/target/.dpf-output/assertion-negative/cleanup/4115e6b47a219d5fed0b/stderr.bin",
+    "archive": "real/target/.dpf-output/assertion-negative/cleanup/4115e6b47a219d5fed0b/stderr.bin",
+    "sha256": "2e26c7b83ff44921cebd57f7b0e5c87581aa2338f030faac344862f0507175df"
+  },
+  {
+    "original": "/tmp/dpf-platform-validation-20261003/target/.dpf-output/assertion-negative/command/070e1aa434c8b84abda4/result.json",
+    "archive": "real/target/.dpf-output/assertion-negative/command/070e1aa434c8b84abda4/result.json",
+    "sha256": "d0fec630ca273a0a5e231ea13d763456b64cd39308d258c97bd85c79e3064cba"
+  },
+  {
+    "original": "/tmp/dpf-platform-validation-20261003/target/.dpf-output/assertion-negative/command/070e1aa434c8b84abda4/stdout.bin",
+    "archive": "real/target/.dpf-output/assertion-negative/command/070e1aa434c8b84abda4/stdout.bin",
+    "sha256": "f55433ab25c76a628866a030a4d07a3c609f2d720246655801e5569d105bc81f"
+  },
+  {
+    "original": "/tmp/dpf-platform-validation-20261003/target/.dpf-output/assertion-negative/command/070e1aa434c8b84abda4/stderr.bin",
+    "archive": "real/target/.dpf-output/assertion-negative/command/070e1aa434c8b84abda4/stderr.bin",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "original": "/tmp/dpf-platform-validation-20261003/profile.json",
+    "archive": "real/profile.json",
+    "sha256": "0c2884c9c43e70c8261c2774e6ad83e59c639cc21a6d50f8119ee3a996b31f0e"
+  },
+  {
+    "original": "/tmp/dpf-platform-validation-20261003/build-input-check.json",
+    "archive": "real/build-input-check.json",
+    "sha256": "ff5cc0c8c99786d05c53a41046533cd1c5e2d428378a86c43a4cf07d5443ce63"
+  },
+  {
+    "original": "/tmp/dpf-platform-validation-20261003/runtime-checks.json",
+    "archive": "real/runtime-checks.json",
+    "sha256": "d8948dd74f02472419af7c1c402574d2356f4308b492a4e686bd7be91b77b416"
+  }
+]

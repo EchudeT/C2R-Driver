@@ -26,7 +26,7 @@ driver-port-factory/
 └── tests/                         单元测试和合成控制器测试
 ```
 
-每个实验使用单独的 workspace，例如 `runs/e1000` 或 `/tmp/e2e-e1000-01`。workspace 的 `.dpf/` 是控制面：`project.json` 保存冻结请求，`run.sqlite3` 保存事件账本，CAS 保存不可变 artifact，`codex/` 保存调用 sidecar、事件和结果。不要把实验 workspace 复制回 `configs/`，也不要手工编辑 `.dpf/` 状态。
+每个实验使用单独的 workspace，例如 `runs/e1000` 或 `/tmp/e2e-e1000-01`。workspace 的 `.dpf/` 是控制面：`project.json` 保存冻结请求，`run.sqlite3` 保存事件账本，CAS 保存不可变 artifact，`codex/` 保存调用 sidecar、事件和结果。不要把实验 workspace 复制回 `configs/`，也不要手工编辑 `.dpf/` 状态。新任务使用 `work/target` 等简短目录，模型读取证据使用 `.dpf/e/E15` 等短入口；完整版本与哈希保留在控制器记录中。详见 [短引用与路径](docs/SHORT_REFERENCES.zh-CN.md)。
 
 ## 环境准备
 
@@ -70,6 +70,28 @@ Codex 模型可用 `--model` 指定，也可在 `CODEX_HOME` 中配置默认值�
 
 这些路径按角色冻结到 workspace。控制器只导入所选 commit；找不到 commit 时失败，不会悄悄回到网络。详见 [`docs/ACQUISITION.md`](docs/ACQUISITION.md)。
 
+07 采集恢复已补充具体失败路径诊断、未完成采集时的提案提交约束和按工作者响应计数的重复失败停止规则；详见 [证据采集恢复](docs/EVIDENCE_RECOVERY.zh-CN.md)。离线控制器回归与真实驱动实验结果分开记录。
+
+可通过 `--max-model-cost-usd 10` 配置每次模型调用前的累计估算费用检查；未知费用会停止续调，单次调用仍可能超出剩余额度。
+
+统一逐功能实现已加入[局部适配与成本优化](docs/LOCAL_ADAPTATION_COST.zh-CN.md)：目标平台设计前提的修正留在当前功能和会话，短进度由 `driver_checks.progress` 交回，避免级联重置。冻结合同/环境修订与最终验收仍保留；离线回归和真实降本效果分开记录。
+
+实现长回合的真实成本已完成[专项审计与优化](docs/IMPLEMENTATION_COST.zh-CN.md)：补齐模型实际收到的平台接口、提供固定容器内格式化、按行为提供提示与精简检查反馈，并取消固定七主题检索配额。离线回归 377 项通过；实验 05 已重新启动，真实降本效果待完整结果；实验 04 保持停止。
+
+新开发项目已加入[分析边界重构](docs/ANALYSIS_BOUNDARY.zh-CN.md)：分析会话与采集/环境分离，
+显式交付当前请求、源码入口和功能范围；`--behavior-scope` 可冻结行为子集与接入层级。
+前置分析只解决源义务和关键适配前提，局部实现细节留在当前行为。08 提供合并 bootstrap 和简短反馈。
+真实降本效果尚未验证；实验 06 在累计约 $11.66 时因 $10 调用间预算停止，尚未完成驱动交付。
+
+## 平台执行层
+
+开发版本已将平台长命令统一到等待终态的 `driver_checks.platform`，监视器直接显示执行日志；
+构建前先解析依赖并记录锁文件变化，再冻结输入。新增按需组件接入源码导航，以及防止
+串口命令回显误通过的 `guest_assert`。见[平台交互重构](docs/PLATFORM_WORKER_EXECUTION.zh-CN.md)。
+真实降本尚未测量；本地执行器验证与完整模型翻译实验分开报告，冻结实验不热更新。
+
+新建 Asterinas x86_64 项目现在由控制器提供固定构建、镜像与缓存挂载、ISO 身份、QMP/串口、超时和清理工具。第 08 阶段须完成干净目标基线的实际构建与启动验证；模型负责驱动适配和设备特定测试。已实测官方镜像下 KVM 路线；其他平台/启动方式未通用化，TCG 未声称通过。旧冻结任务不受影响。实际 CLI 接入曾出现项目校验模式错误，已修复并补充命令入口、失败恢复及损坏证据拒绝回归；运行中的冻结实验不热更新。详见 [平台执行层与实测记录](docs/PLATFORM_EXECUTION.zh-CN.md)。
+
 ## 启动一个实验
 
 推荐使用封装脚本。它使用仓库内 Skill、保持 controller 在前台，并清除可能由旧受限 Codex 运行遗留的 `CODEX_SANDBOX_NETWORK_DISABLED`：
@@ -95,7 +117,7 @@ configs/drivers/linux-e1000.catalog.json
 configs/drivers/linux-pvpanic-pci.catalog.json
 ```
 
-默认开启分析审查和最终证据审查。此次开发实验明确不需要它们时，可以传：
+迁移质量主体是工作模型自检和实际验收测例。分析审查、最终证据审查是可选辅助，当前默认开启；开发实验关闭它们时传：
 
 ```sh
 --no-analysis-review --no-final-evidence-review
@@ -115,7 +137,7 @@ PYTHONPATH=src .venv/bin/python -m driver_port_factory.cli port run ./runs/e1000
 
 ## 阶段和构建路径
 
-一次默认开发运行最多有 18 个阶段；关闭两个可选审查后是 16 个阶段：
+一次默认开发运行默认有 17 个账本阶段；关闭两个可选审查后是 15 个阶段（配置 benchmark 另加一个静态验收阶段）。这不是模型调用次数：分析合并交付，框架/实现/包装连续工作，控制器复用已有收据。
 
 | 阶段 | 作用 |
 | --- | --- |
@@ -128,17 +150,16 @@ PYTHONPATH=src .venv/bin/python -m driver_port_factory.cli port run ./runs/e1000
 | `evidence_closure` | 关闭源代码、目标 API、设备协议和环境证据缺口。 |
 | `environment_recovery` | 验证主机、官方容器、QEMU 和可运行路线；不把启动成功当成驱动成功。 |
 | `knowledge_base` | 建立带 provenance 的本地知识库和查询契约。 |
-| `target_platform_study` | 研究设备注册、I/O、DMA、IRQ、网络/块设备和构建入口。 |
+| `target_platform_study` | 围绕当前源义务确定目标承担者、关键适配前提和验收依据；局部实现调查留在对应行为。 |
 | `migration_handoff` | 将研究、证据和范围交给实现阶段。 |
 | `migration_contracts` | 固化源码行为、迁移设计、测试计划和验收契约。 |
 | `analysis_review`（可选） | 独立 AI 按核心代码位置、行号和证据审查分析材料。 |
-| `target_framework_enablement` | 补齐目标框架最小 integration wiring，并验证编译/注册前置。 |
-| `driver_implementation` | 工作者实现 Rust 驱动、运行自检、处理反馈和记录每次修复。 |
+| `driver_implementation` | 默认每轮一个行为，随需补齐框架、驱动接入及对应测试；最终统一提交源码证据。 |
 | `artifact_preparation` | 生成可运行制品、manifest、身份和 presence receipt；这里发生目标工程构建。 |
 | `public_qemu_validation` | 执行公开 QEMU 阶梯，保存命令、设备身份、日志、退出码和归因。 |
 | `final_evidence_review`（可选） | 独立 AI 一次性审查交付证据、代码定位和原始运行结果。 |
 
-目标框架能力在 `target_framework_enablement` 准备，驱动实现之后由 `artifact_preparation` 准备制品并固定身份，`public_qemu_validation` 在 QEMU 中执行公开测试。实现自检在调用 QEMU 前执行通用检查：高置信度 marker 制品会被拦截；脚本里找不到 QMP 继续命令或 runtime 变量仅产生 advisory，由实际执行证据判定，避免误拒绝 helper／外部控制器。失败记录包含精确位置与实际观察。三个不同提交在输入和观察均相同时暂停续调，计数跨重启保存，同一提交重放不重复计数；helper 修复或新观察允许继续。可恢复修复只在当前允许的阶段进行，已封存的大阶段不会被静默回退。详见 [`docs/STAGE_GUIDE.md`](docs/STAGE_GUIDE.md)、[`docs/WORKFLOW.md`](docs/WORKFLOW.md) 和 [`docs/EXECUTION_RECOVERY.md`](docs/EXECUTION_RECOVERY.md)。
+新开发任务默认逐行为调度，框架适配在需要它的行为中完成；统一在 `driver_implementation` 验收。旧工作区仍按原 DAG 续跑，不迁移正在运行的实验。详见 [合并实现与去重规则](docs/UNIFIED_IMPLEMENTATION.zh-CN.md)。实现之后由 `artifact_preparation` 准备制品并固定身份，`public_qemu_validation` 在 QEMU 中执行公开测试。实现自检在调用 QEMU 前执行通用检查：高置信度 marker 制品会被拦截；脚本里找不到 QMP 继续命令或 runtime 变量仅产生 advisory，由实际执行证据判定，避免误拒绝 helper／外部控制器。失败记录包含精确位置与实际观察。三个不同提交在输入和观察均相同时暂停续调，计数跨重启保存，同一提交重放不重复计数；helper 修复或新观察允许继续。开发模式可因具体反证修订早期证据或设计，按数据依赖失效受影响结果并保留源码与失败记录；封存模式仍遵循其冻结边界。详见 [`docs/STAGE_GUIDE.md`](docs/STAGE_GUIDE.md)、[`docs/WORKFLOW.md`](docs/WORKFLOW.md) 和 [`docs/EXECUTION_RECOVERY.md`](docs/EXECUTION_RECOVERY.md)。
 
 `status` 分开展示执行结果和功能评估来源，机械执行 PASS 不代表所有设备行为已覆盖。默认继续复用会话；如果需要摆脱过期诊断，可以在控制器停止后使用 `dpf codex reset-session RUN STAGE --reason "具体原因"`，为当前 provider/model 的 worker 或 reviewer 会话建立新上下文。旧会话归档，冻结证据和未完成状态通过 CAS 交接，代码和阶段状态保持原样，不调用模型。详见 [成本与质量优化说明](docs/COST_QUALITY_OPTIMIZATION_2026-09-26.zh-CN.md)。
 
@@ -150,11 +171,14 @@ PYTHONPATH=src .venv/bin/python -m driver_port_factory.cli port run ./runs/e1000
 ./scripts/status.sh ./runs/e1000
 ```
 
-每 5 秒刷新：
+默认使用左右分栏：左侧阶段状态和当前调用成本，右侧模型消息、命令及输出。每 5 秒刷新：
 
 ```sh
 ./scripts/watch.sh ./runs/e1000 --interval 5
 ```
+
+方向键选择阶段，`f` 恢复跟随最新调用，`PgUp/PgDn` 翻阅输出，`End` 回到末尾，`q` 退出。
+`--classic` 保留原完整状态视图，`--once` 输出一次分栏快照（可重定向）。监视器只读，不启动模型或续跑。
 
 只看成本和 token：
 
@@ -254,7 +278,7 @@ PYTHONPATH=src .venv/bin/python -m driver_port_factory.cli port run ./runs/e1000
 | Codex 没返回或费用不完整 | `.dpf/codex/*.metrics.json`、对应 `.events.jsonl`、`.result`；`unknown_usage` 不能当作零 |
 | checker/recovery 有争议 | `.dpf/checker-decisions/`、submission artifact、`scripts/transcript.sh` |
 | 源/目标/QEMU 版本不对 | acquisition manifest、`.dpf` CAS artifact、[`docs/ACQUISITION.md`](docs/ACQUISITION.md) |
-| 目标工程编译失败 | `target_framework_enablement` 或 `artifact_preparation` 的报告、目标 worktree、`implementation-smoke/*/receipt.json` |
+| 目标工程编译失败 | `driver_implementation`（旧任务还包括 `target_framework_enablement`）或 `artifact_preparation` 的报告、目标 worktree、`implementation-smoke/*/receipt.json` |
 | QEMU 启动或设备观察失败 | `.dpf/public-qemu/*`、attempt receipt、原始 stdout/stderr、`execve.log` |
 | Docker 执行失败 | `container-processes.json`、`container_execution.observation_errors`；若出现 bind mount 缺失，检查 workspace 和仓库是否按精确路径挂载 |
 | 内存或磁盘异常 | `scripts/processes.sh` 的 Codex/Docker/QEMU 进程、workspace 大小和 `.dpf/codex` 事件文件 |
@@ -271,6 +295,8 @@ PYTHONPATH=src .venv/bin/python -m driver_port_factory.cli ledger verify ./runs/
 
 ## 开发和验证 DPF 本身
 
+后续工作流改进建议见 [借鉴 Driver Port Lab：减少契约遗漏与实现返工](docs/DRIVER_PORT_LAB_LESSONS_2026-10-02.zh-CN.md)。实现接口见 [benchmark 与开发工具](docs/BENCHMARK_AND_DELIVERY_TOOLS.zh-CN.md)：支持配置冻结的 benchmark 程序验收、受控检查工具和新开发任务默认启用的行为调度。模型审查保持可选；benchmark 用例由使用方定义。
+
 源码编辑后：
 
 ```sh
@@ -281,7 +307,7 @@ bash -n scripts/*.sh
 
 完整测试依赖 `.[dev]`。测试不能替代真实 Linux/Asterinas/QEMU 证据；合成 controller fixture 只验证流程和契约。阶段协议、artifact 类型、角色门禁和 Skill 对齐见 [`docs/SKILL_TRACEABILITY.md`](docs/SKILL_TRACEABILITY.md)、[`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)、[`docs/CODEX_JOBS.md`](docs/CODEX_JOBS.md) 和 [`docs/WORKFLOW_ALIGNMENT.md`](docs/WORKFLOW_ALIGNMENT.md)。
 
-新建 developer-evidence 项目默认 `analysis-handoff`：分析材料、契约及已启用的分析审查完成后，在首次框架使能前交接一次；框架使能、驱动实现及连续修复复用新会话。已有项目保留其设置，未记录策略的旧项目仍为 `persistent`。可用 `--context-policy persistent` 关闭交接，或选 `implementation-handoff` 将交接推迟至首次驱动实现前。用 `dpf codex context-report RUN [--compare OTHER_RUN] [--stage STAGE]` 查看费用、缓存、会话连续性与证据，不调用模型，也不把执行 PASS 当成质量等价。详见 [分析到执行的上下文交接](docs/ANALYSIS_HANDOFF_POLICY.zh-CN.md)。
+新建 developer-evidence 项目默认 `analysis-handoff`：分析材料、契约及已启用的分析审查完成后，在首次实现前交接一次；逐行为实现、局部框架适配及连续修复复用新会话。已有项目保留其设置，未记录策略的旧项目仍为 `persistent`。可用 `--context-policy persistent` 关闭交接，或选 `implementation-handoff` 将交接推迟至首次驱动实现前。用 `dpf codex context-report RUN [--compare OTHER_RUN] [--stage STAGE]` 查看费用、缓存、会话连续性与证据，不调用模型，也不把执行 PASS 当成质量等价。详见 [分析到执行的上下文交接](docs/ANALYSIS_HANDOFF_POLICY.zh-CN.md)。
 
 提示现支持阶段阅读导航、修复观测差异及长反馈按需读取；没有新信息时省略空摘要。高风险接口探针在现有节点内按需选择，不增加固定验收清单。实现范围、成本边界和只读回放工具见 [阅读导航与变化驱动修复](docs/CONTEXT_FOCUS_AND_PROBES.zh-CN.md)。
 
@@ -292,3 +318,21 @@ bash -n scripts/*.sh
 第二轮限额探针发现当前中转在请求输出上限 64 时实际返回 403 token，因此已停止后续付费实验；信息更对等的四组实验材料已冻结为 dry-run。执行器限额诊断与列表证据变化跟踪已改进，见 [第二轮实验记录](docs/CONTEXT_EXPERIMENT_ROUND2_2026-09-26.zh-CN.md)。
 
 用户随后授权适量实验，已用显式观察用量策略完成四组共 8 次调用：补充短机制证据比单纯删历史更有诊断价值，默认仍复用会话。本轮同时保留重复快照之前的关键观察转变，并统一 preflight advisory 提示。数据与适用边界见 [四组实验结果](docs/CONTEXT_FACTORIAL_RESULTS_2026-09-26.zh-CN.md)。
+
+知识库现支持代码符号BM25与本地embedding混合RAG，输出有界、带原文行号的生成上下文。
+通过`DPF_KB_EMBEDDING_MODEL`在controller建库时配置固定本地模型；工作者使用
+`knowledge rag`或`tool_runtime.knowledge_rag`按需取证。索引过期不会静默降级。
+配置、真实检索探针及能力边界见[RAG说明](docs/RAG.zh-CN.md)。
+
+本轮已落实目标知识查询重放与原文绑定、工作者合规自检职责和封存审计归因修复。
+具体边界及新 workspace 要求见 [Skill 对齐记录](docs/SKILL_ALIGNMENT_2026-10-02.zh-CN.md)。
+
+指南要求的资料类型、机制与实际语料准备状态见 [知识库指南核对](docs/KNOWLEDGE_BASE_GUIDE_ALIGNMENT.zh-CN.md)。
+
+跨驱动共享库现可积累固定原文、公开实验观察及有证据引用的经验。07 资料收集前即固定快照并提供初始检索结果，优先复用共享库导航和本地固定版本原文，缺失部分再由控制器获取；后续建库沿用同一快照。初始真实内容与使用方法见 [共享知识库](docs/SHARED_KNOWLEDGE.zh-CN.md)。
+
+模型接口现支持工作区短引用、自动 job 绑定及保留查询条件的续读游标；完整哈希仍由控制器保存和校验。接口与适用边界见 [短引用说明](docs/SHORT_REFERENCES.zh-CN.md)。
+
+07/08 现提供有界仓库/环境导航、可复用的 Docker smoke 入口和具体失败原因；设备断言与实际验收保留。已验证能力及同驱动重跑尚未闭合的研究复用边界见 [前置阶段优化](docs/BOOTSTRAP_OPTIMIZATION.zh-CN.md)。
+
+环境执行已完成[采集重构与 OVMF 兼容修复](docs/OVMF_AND_EXECUTION_REFACTOR.zh-CN.md)：托管容器内跟踪替代短命进程轮询，基础设施故障不进入付费返修。OVMF 的 pvpanic BAR 兼容补丁作为显式本地派生镜像提供，原 QEMU 与目标内核不变。真实平台检查通过，端到端驱动成本仍待新实验。

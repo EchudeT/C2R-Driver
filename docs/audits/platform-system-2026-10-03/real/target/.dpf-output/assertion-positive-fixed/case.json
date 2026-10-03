@@ -1,0 +1,23 @@
+{
+  "devices": [
+    "pvpanic-pci"
+  ],
+  "timeout_seconds": 120,
+  "steps": [
+    {
+      "wait_serial": "pvpanic: initialized PCI device 1b36:0011 with capability 07"
+    },
+    {
+      "wait_serial": "# "
+    },
+    {
+      "guest_assert": "test \"$(cat /sys/pvpanic/capability)\" = 07 && test \"$(cat /sys/pvpanic/events)\" = 07"
+    },
+    {
+      "guest_assert": "echo 5 > /sys/pvpanic/events && test \"$(cat /sys/pvpanic/events)\" = 05"
+    },
+    {
+      "guest_assert": "if echo 8 > /sys/pvpanic/events; then exit 1; else test \"$(cat /sys/pvpanic/events)\" = 05; fi"
+    }
+  ]
+}

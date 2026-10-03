@@ -1,0 +1,6 @@
+{"QMP": {"version": {"qemu": {"micro": 1, "minor": 2, "major": 10}, "package": ""}, "capabilities": ["oob"]}}
+{"return": {}, "id": 1}
+{"return": {"status": "prelaunch", "running": false}, "id": 2}
+{"timestamp": {"seconds": 1791016331, "microseconds": 879155}, "event": "RESUME"}
+{"return": {}, "id": 3}
+{"timestamp": {"seconds": 1791016332, "microseconds": 160986}, "event": "RTC_CHANGE", "data": {"offset": -1, "qom-path": "/machine/unattached/device[3]/rtc"}}

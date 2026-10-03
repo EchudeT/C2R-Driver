@@ -1,0 +1,97 @@
+{
+  "scope": "Current-target source navigation; not a tested new component or acceptance",
+  "target_revision": "d924a9635a66c7c3bb43e563eaafa2c61d6ee9d5",
+  "guide": "# Component integration: on-demand implementation guidance\n\nFor a new component, connect workspace membership and dependency, Components.toml, the consuming\ncrate dependency AND an actual Rust reference from a linked crate. A Cargo dependency alone need\nnot retain an otherwise unused component initializer. Match the target's init_component mechanism\nand required initialization ordering; source examples below identify the current target version.\n\nBefore the first run, locally check actual linkage/initialization, ownership/lifetime and lock\nscope. Encode the current behavior's initial state, valid transition and applicable rejection or\ncleanup assertions together. Observe the initializer and required device behavior; compilation or\na booted shell alone is insufficient. Later concrete defects still require repair and verification.\n\nThese are navigation and implementation checks, not a new report or acceptance gate. Do not copy\nanother driver's protocol, resource model or initialization stage. No mandatory knowledge query\nor full platform survey is required. Current evidence takes precedence over prior experience.\n",
+  "package": "aster-nvme",
+  "evidence": [
+    {
+      "path": "Cargo.toml",
+      "sha256": "d1a2b9fc4851bedcb6bcdfed06b31d72c8acfa0f6163e69dfacfabacb89433bb",
+      "excerpts": [
+        {
+          "line": 171,
+          "text": "aster-network = { path = \"kernel/core/comps/network\" }\naster-nvme = { path = \"kernel/core/comps/nvme\" }\naster-pci = { path = \"kernel/core/comps/pci\" }\naster-pvpanic = { path = \"kernel/core/comps/pvpanic\" }\naster-softirq = { path = \"kernel/core/comps/softirq\" }\naster-systree = { path = \"kernel/core/comps/systree\" }",
+          "start_line": 170
+        }
+      ]
+    },
+    {
+      "path": "Components.toml",
+      "sha256": "e4a35618690478e5a034bc6dfd8214adcb46a96085578f50e49c4a80aace085f",
+      "excerpts": [
+        {
+          "line": 13,
+          "text": "network = { name = \"aster-network\" }\nnvme = { name = \"aster-nvme\" }\npci = { name = \"aster-pci\" }\npvpanic = { name = \"aster-pvpanic\" }\nsoftirq = { name = \"aster-softirq\" }\nsystree = { name = \"aster-systree\" }",
+          "start_line": 12
+        }
+      ]
+    },
+    {
+      "path": "kernel/core/comps/nvme/Cargo.toml",
+      "sha256": "fdf0ff4e6d7f060cdc93d15a1a493d4181dc9bc43aaedfb2787469e13404d0a9",
+      "excerpts": [
+        {
+          "line": 2,
+          "text": "[package]\nname = \"aster-nvme\"\nversion = \"0.1.0\"\nedition.workspace = true\n\n[dependencies]",
+          "start_line": 1
+        },
+        {
+          "line": 10,
+          "text": "aster-util.workspace = true\ncomponent.workspace = true\ndevice-id.workspace = true\nio-util.workspace = true\nostd.workspace = true\nostd-pod.workspace = true",
+          "start_line": 9
+        }
+      ]
+    },
+    {
+      "path": "kernel/core/comps/nvme/src/lib.rs",
+      "sha256": "5f3d59da65b03053bca4df52b88da960512bbf4372725012d474976719b22a0b",
+      "excerpts": [
+        {
+          "line": 24,
+          "text": "use aster_block::MajorIdOwner;\nuse component::{ComponentInitError, init_component};\nuse spin::Once;\nuse transport::pci::NVME_PCI_DRIVER;\n\npub use self::device::block_device::NvmeBlockDevice;",
+          "start_line": 23
+        },
+        {
+          "line": 41,
+          "text": "\n#[init_component]\nfn nvme_init() -> Result<(), ComponentInitError> {\n    let major = aster_block::allocate_major().map_err(|_| ComponentInitError::Unknown)?;\n    NVME_BLOCK_MAJOR_ID.call_once(|| major);\n",
+          "start_line": 40
+        },
+        {
+          "line": 42,
+          "text": "#[init_component]\nfn nvme_init() -> Result<(), ComponentInitError> {\n    let major = aster_block::allocate_major().map_err(|_| ComponentInitError::Unknown)?;\n    NVME_BLOCK_MAJOR_ID.call_once(|| major);\n\n    transport::init();",
+          "start_line": 41
+        }
+      ]
+    },
+    {
+      "path": "kernel/core/Cargo.toml",
+      "sha256": "bb906bbc5bc4904e1d167eab3b26cce8ef40c6397e5e5b03fe27865ac54d8257",
+      "excerpts": [
+        {
+          "line": 20,
+          "text": "aster-network.workspace = true\naster-nvme.workspace = true\naster-pvpanic.workspace = true\naster-rights.workspace = true\naster-rights-proc.workspace = true\naster-softirq.workspace = true",
+          "start_line": 19
+        }
+      ]
+    }
+  ],
+  "consumers": [
+    {
+      "manifest": "kernel/core/Cargo.toml",
+      "rust_references": [
+        {
+          "path": "kernel/core/src/device/registry/block.rs",
+          "sha256": "d6d5ad4902f20294662045fd0a42931ac30a26a08c7cece35ec28fb03756673c",
+          "excerpts": [
+            {
+              "line": 4,
+              "text": "use aster_block::{BLOCK_SIZE, BlockDevice, SECTOR_SIZE};\nuse aster_nvme::NvmeBlockDevice;\nuse aster_virtio::device::block::device::BlockDevice as VirtIoBlockDevice;\nuse device_id::DeviceId;\nuse ostd::mm::VmIo;\n",
+              "start_line": 3
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "limits": "Examples are bounded current source excerpts with identities; missing references are not proof of absence. Generated/conditional linkage and initialization order may need a focused lookup. This tool does not modify or approve code."
+}
