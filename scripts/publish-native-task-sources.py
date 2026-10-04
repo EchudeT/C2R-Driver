@@ -3,7 +3,6 @@
 
 import argparse
 import json
-import shutil
 import subprocess
 from pathlib import Path
 
@@ -35,10 +34,30 @@ def main():
     parser.add_argument("--suite", type=Path, required=True)
     parser.add_argument("--repository", type=Path, required=True)
     parser.add_argument(
-        "--linux", type=Path, required=True, help="Pinned Linux Git repository for license notices"
+        "--linux", type=Path, required=True, help="Complete pinned Linux Git repository"
     )
     args = parser.parse_args()
     suite, repository = args.suite.resolve(), args.repository.resolve()
+    config = json.loads((suite / "config.json").read_text())
+    revision = config["source_revision"]
+    linux = args.linux.resolve()
+    (repository / "source").mkdir(exist_ok=True)
+    archive(linux, repository / "source/linux", revision)
+    tree = subprocess.check_output(
+        ["git", "-C", str(linux), "rev-parse", revision + "^{tree}"], text=True
+    ).strip()
+    (repository / "source/PROVENANCE.json").write_text(
+        json.dumps(
+            {
+                "upstream": "https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git",
+                "revision": revision,
+                "tree": tree,
+                "scope": "complete-linux-tree",
+            },
+            indent=2,
+        )
+        + "\n"
+    )
     for name in ["virtio-rng", "virtio-blk", "virtio-net", "nvme-pci"]:
         seed = suite / "seeds" / name
         metadata = json.loads((seed / "task.json").read_text())
@@ -47,21 +66,17 @@ def main():
             raise ValueError("Not an audited seed: " + name)
         directory = repository / "tasks" / name
         directory.mkdir(parents=True, exist_ok=False)
-        for role in ["source", "target"]:
-            head = subprocess.check_output(
-                ["git", "-C", str(seed / role), "rev-parse", "HEAD"], text=True
-            ).strip()
-            if head != metadata[role + "_root_commit"]:
-                raise ValueError("Seed root changed: " + name + "/" + role)
-            archive(seed / role, directory / role)
-        shutil.copyfile(seed / "task.json", directory / "task.json")
-        (directory / "licenses").mkdir()
-        archive(
-            args.linux.resolve(),
-            directory / "licenses/linux",
-            metadata["upstream_linux"],
-            ("COPYING", "LICENSES"),
+        head = subprocess.check_output(
+            ["git", "-C", str(seed / "target"), "rev-parse", "HEAD"], text=True
+        ).strip()
+        if head != metadata["target_root_commit"]:
+            raise ValueError("Seed root changed: " + name + "/target")
+        archive(seed / "target", directory / "target")
+        (directory / "source").symlink_to("../../source/linux", target_is_directory=True)
+        metadata.update(
+            source_root_commit=revision, source_tree=tree, source_scope="complete-linux-tree"
         )
+        (directory / "task.json").write_text(json.dumps(metadata, indent=2) + "\n")
         (directory / ".gitignore").write_text(".runtime/\n__pycache__/\n*.py[cod]\n")
         for action in ["prepare", "build", "check"]:
             path = directory / (action + ".sh")
@@ -82,7 +97,10 @@ def main():
             "integrate it with the retained Asterinas frameworks, "
             "and pass the complete public suite "
             "using ./build.sh and ./check.sh on one final version, within the operator-set budget. "
-            "Plan, investigate, implement and repair autonomously. Do not modify assertions, "
+            "source/ contains the complete pinned Linux tree. Locate the driver and trace callers, "
+            "subsystems and kernel implementations as needed. Source entry paths are hints, "
+            "not reading boundaries. Plan, investigate, implement and repair autonomously. "
+            "Do not modify assertions, "
             "boot configuration or runner code. Do not consult withheld original Rust code, "
             "other task targets or prior candidates. No DPF workflow, specialized migration skill, "
             "shared knowledge base or reviewer is supplied for this baseline. Report failure "
@@ -90,10 +108,10 @@ def main():
         )
         (directory / "README.md").write_text(
             "# " + name + " translation input\n\n"
-            "`source/` contains the pinned Linux source subset. `target/` is the verified "
+            "`source/` links to the complete pinned Linux tree shared in ../../source/linux/. `target/` is the verified "
             "single-driver hollow Asterinas baseline. `task.json` records upstream revisions and "
-            "the audited seed commits. These are source snapshots, not translated candidates. "
-            "Linux license notices are in licenses/linux/; Asterinas notices remain in target/.\n\n"
+            "the source commit/tree and audited target seed commit. These are source snapshots, not translated candidates. "
+            "Linux license notices are in source/COPYING and source/LICENSES/; Asterinas notices remain in target/.\n\n"
             "From the distribution root, export only this task:\n\n```sh\n"
             "python3.11 scripts/export-task.py " + name + " /path/to/worker-task\n"
             "cd /path/to/worker-task\n./prepare.sh\n# Or reuse existing shared tools/media: "

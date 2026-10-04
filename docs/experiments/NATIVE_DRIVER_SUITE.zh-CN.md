@@ -202,3 +202,24 @@ GitHub 提交任务源码、配置、工具、文档、验证摘要；不上传 
 共享下载缓存；构建峰值另计。不得将此数误报为首次安装全部工具链的大小。
 WSL 删除文件不保证 D盘上的 VHDX立即缩小；本机 D盘仍只剩约5.2GB。离线压缩需关闭发行版，
 未在实验运行过程中执行。当前源码准备没有再复制数十GB环境。
+
+## 完整 Linux 源码输入
+
+仓库的 `source/linux/` 保存固定 commit
+`587858367581b9c55c3690f4e63382ad622719d4` 的**完整 Linux 源码树**，
+包括所有驱动、`kernel/`、`mm/`、`fs/`、`net/`、`block/`、`arch/`、头文件、文档与构建文件。
+这是真实源码快照，不是裁剪集合、下载占位符或需要额外初始化的 submodule。
+来源 commit 和原始 Git tree ID 记录在 `source/PROVENANCE.json`。
+
+四个 `tasks/<driver>/source` 链接到这一份完整源码；仓库不保存四份 Linux 工作树。
+`export-task.py` 导出的工作区将完整源码实体化为自己的 `source/`，不链接回全任务分发库。
+每次独立导出需要约 1.6 GB 源码内容及其 Git 对象，请按实际实验需要导出，不提前复制全部 trial。
+
+模型自行搜索驱动及相关调用者、子系统、同步/内存管理等内核实现；`source_entries` 仅为定位提示，
+不限制阅读范围。DPF 和纯 Codex＋goal 都使用这个完整版本；限制的是驱动修改范围，
+不是源码调查范围。按需读取，无需把整个内核载入提示词。
+
+操作者通过 `native-experiment.py publish` 制作输入时，source seed 复用传入的完整 Linux
+Git 仓库，并固定 acquisition ref；Codex trial 导出该 ref 的完整源码，DPF 获取同一 ref。
+旧版裁剪输入不得作为这版完整上下文实验的等价输入。已有构建和正负控制仍用于说明目标环境，
+不构成模型在完整源码输入下完成翻译的结果。

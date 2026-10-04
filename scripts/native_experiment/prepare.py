@@ -28,9 +28,9 @@ def export(repository, revision, target, paths=()):
             process.wait()
 
 
-def root_commit(target):
+def root_commit(target, *, force=False):
     git(target, "-c", "init.defaultBranch=main", "init", "-q")
-    git(target, "add", ".")
+    git(target, "add", *(["-f"] if force else []), ".")
     subprocess.run(
         [
             "git",
@@ -254,11 +254,12 @@ def publish(root, name, source):
         seed / "target/.native-task.json", {"driver": name, "upstream": config["target_revision"]}
     )
     base = root_commit(seed / "target")
-    common = ["include", "drivers/virtio"]
-    paths = list(dict.fromkeys([*task["source_entries"], *common]))
-    # Git archive tolerates overlapping pathspecs; Linux contains no target Rust implementation.
-    export(source, config["source_revision"], seed / "source", paths)
-    source_base = root_commit(seed / "source")
+    # Linux is public input: keep the complete pinned repository available to both methods.
+    # Reuse the operator's repository; acquisition reads committed bytes at this exact ref.
+    source = source.resolve()
+    git(source, "cat-file", "-e", config["source_revision"] + "^{commit}")
+    (seed / "source").symlink_to(source, target_is_directory=True)
+    source_base = config["source_revision"]
     write(
         seed / "task.json",
         {
@@ -268,6 +269,8 @@ def publish(root, name, source):
             "upstream_asterinas": config["target_revision"],
             "target_root_commit": base,
             "source_root_commit": source_base,
+            "source_tree": git(source, "rev-parse", source_base + "^{tree}"),
+            "source_scope": "complete-linux-tree",
             "environment": read(root / "environment.json"),
         },
     )
@@ -283,12 +286,14 @@ def create_trial(root, name, method, qemu, factory=None, trial_name="01"):
         raise ValueError("Trial requires a successfully audited sanitized seed")
     trial = root / "trials" / method / name / trial_name
     trial.mkdir(parents=True, exist_ok=False)
-    for role in ("target", "source") if method == "codex" else ():
+    if method == "codex":
         subprocess.run(
-            ["git", "clone", "-q", "--no-hardlinks", str(seed / role), str(trial / role)],
+            ["git", "clone", "-q", "--no-hardlinks", str(seed / "target"), str(trial / "target")],
             check=True,
         )
-        git(trial / role, "remote", "remove", "origin")
+        git(trial / "target", "remote", "remove", "origin")
+        export(seed / "source", task["source_root_commit"], trial / "source")
+        root_commit(trial / "source", force=True)
     shutil.copy2(seed / "task.json", trial / "task.json")
     if method == "codex":
         setup_assets(root, trial / "target")

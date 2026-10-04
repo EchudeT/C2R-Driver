@@ -25,6 +25,8 @@ def extract(prefix, destination):
                 relative = parts[len(prefix_parts) :]
                 if not relative:
                     continue
+                if prefix.startswith("tasks/") and relative == ("source",):
+                    continue
                 member.name = str(Path(*relative))
                 archive.extract(member, destination, filter="data")
         if process.wait():
@@ -46,10 +48,14 @@ def main():
         parser.error("Export outside the distribution checkout so workers see only their task")
     destination.mkdir(parents=True, exist_ok=False)
     extract("tasks/" + args.driver, destination)
+    # The distribution shares one Linux tree; the worker receives the complete tree.
+    extract("source/linux", destination / "source")
     for path in ["scripts", "src", "configs"]:
         extract(path, destination / ".environment" / path)
     subprocess.run(["git", "init", "-q", "-b", "main", str(destination)], check=True)
     subprocess.run(["git", "-C", str(destination), "add", "."], check=True)
+    # Include every upstream file, even paths matched by inherited ignore rules.
+    subprocess.run(["git", "-C", str(destination), "add", "-f", "source"], check=True)
     subprocess.run(
         [
             "git",

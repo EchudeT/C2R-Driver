@@ -31,3 +31,10 @@ Distribution update:
 - Four source-only tasks and portable prepare/build/check entry points are published together.
 - The RNG task was exported to a new Git root with no remote or unreachable objects; shared SDK/test media reuse succeeded.
 - The additional exported-workspace build/check was stopped at the user’s request before completion. It is not a passing validation; the earlier control results above remain the only completed real-driver checks.
+
+Source-input correction:
+
+- Initial task publication included a Linux subset. It was inadequate for autonomous kernel-context investigation and is superseded by a complete pinned Linux tree shared across the four tasks.
+- Distribution completeness is checked against the upstream Git tree ID (paths, bytes and file modes), rather than just the presence of selected directories.
+- DPF source pins and Codex exports now use the same complete Linux revision. Driver entry hints do not restrict source reading.
+- No additional build, QEMU suite or paid model experiment was run for this source-distribution correction.

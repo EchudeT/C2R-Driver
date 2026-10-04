@@ -105,7 +105,10 @@ def prepare_launch(root, name, method, trial, qemu, factory=None):
             "Translate the supplied Linux C driver into the hollow Asterinas target in Rust.\n\n"
             + task["scope"]
             + "\n\n"
-            "Read source/ and target/ on demand. Only this task's removed driver and necessary "
+            "source/ contains the complete pinned Linux tree. Locate the driver and trace callers, "
+            "subsystems and kernel implementation context on demand; source_entries are navigation "
+            "hints, not reading boundaries. Read target/ on demand. Only this task's removed driver "
+            "and necessary "
             "integration are implementation scope. Retain other drivers and platform frameworks. "
             "Do not obtain or consult the withheld upstream Rust implementation, other task seeds, "
             "operator controls, other candidates or previous translation results.\n\n"

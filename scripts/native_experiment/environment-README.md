@@ -18,10 +18,10 @@ VirtIO Vsock 因验证主机缺少 `/dev/vhost-vsock` 排除。
 
 | 任务 | Linux 源码 | 空心星绽源码 | 运行入口 |
 | --- | --- | --- | --- |
-| RNG | [source](tasks/virtio-rng/source) | [target](tasks/virtio-rng/target) | [build.sh](tasks/virtio-rng/build.sh)、[check.sh](tasks/virtio-rng/check.sh) |
-| Block | [source](tasks/virtio-blk/source) | [target](tasks/virtio-blk/target) | [build.sh](tasks/virtio-blk/build.sh)、[check.sh](tasks/virtio-blk/check.sh) |
-| Network | [source](tasks/virtio-net/source) | [target](tasks/virtio-net/target) | [build.sh](tasks/virtio-net/build.sh)、[check.sh](tasks/virtio-net/check.sh) |
-| NVMe | [source](tasks/nvme-pci/source) | [target](tasks/nvme-pci/target) | [build.sh](tasks/nvme-pci/build.sh)、[check.sh](tasks/nvme-pci/check.sh) |
+| RNG | [source](source/linux) | [target](tasks/virtio-rng/target) | [build.sh](tasks/virtio-rng/build.sh)、[check.sh](tasks/virtio-rng/check.sh) |
+| Block | [source](source/linux) | [target](tasks/virtio-blk/target) | [build.sh](tasks/virtio-blk/build.sh)、[check.sh](tasks/virtio-blk/check.sh) |
+| Network | [source](source/linux) | [target](tasks/virtio-net/target) | [build.sh](tasks/virtio-net/build.sh)、[check.sh](tasks/virtio-net/check.sh) |
+| NVMe | [source](source/linux) | [target](tasks/nvme-pci/target) | [build.sh](tasks/nvme-pci/build.sh)、[check.sh](tasks/nvme-pci/check.sh) |
 
 每项还有 `prepare.sh`、`PROMPT.md`、`task.json`。目标树一次只扣掉对应一个驱动；
 被扣掉的驱动尚未实现，因此构建应成功，而其功能验收在翻译前应失败。
@@ -152,3 +152,24 @@ DPF 的工作者使用相同公开用例，最终验收绑定控制器发布的�
   DPF 集成时核对运行器身份，防止两个方法悄悄使用不同测试环境。
 - 更新配置或运行器后，重新验证受影响控制并发布新版本。保留失败记录，不把环境故障当作负向通过。
 - Python 标准库准备器可离线使用已备好的源码、镜像和下载缓存；首次依赖缺失时需要联网下载。
+
+## 完整 Linux 源码输入
+
+仓库的 [`source/linux/`](source/linux/) 保存固定 commit
+`587858367581b9c55c3690f4e63382ad622719d4` 的**完整 Linux 源码树**，
+包括所有驱动、`kernel/`、`mm/`、`fs/`、`net/`、`block/`、`arch/`、头文件、文档与构建文件。
+这是真实源码快照，不是裁剪集合、下载占位符或需要额外初始化的 submodule。
+来源 commit 和原始 Git tree ID 记录在 `source/PROVENANCE.json`。
+
+四个 `tasks/<driver>/source` 链接到这一份完整源码；仓库不保存四份 Linux 工作树。
+`export-task.py` 导出的工作区将完整源码实体化为自己的 `source/`，不链接回全任务分发库。
+每次独立导出需要约 1.6 GB 源码内容及其 Git 对象，请按实际实验需要导出，不提前复制全部 trial。
+
+模型自行搜索驱动及相关调用者、子系统、同步/内存管理等内核实现；`source_entries` 仅为定位提示，
+不限制阅读范围。DPF 和纯 Codex＋goal 都使用这个完整版本；限制的是驱动修改范围，
+不是源码调查范围。按需读取，无需把整个内核载入提示词。
+
+操作者通过 `native-experiment.py publish` 制作输入时，source seed 复用传入的完整 Linux
+Git 仓库，并固定 acquisition ref；Codex trial 导出该 ref 的完整源码，DPF 获取同一 ref。
+旧版裁剪输入不得作为这版完整上下文实验的等价输入。已有构建和正负控制仍用于说明目标环境，
+不构成模型在完整源码输入下完成翻译的结果。
