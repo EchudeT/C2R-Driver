@@ -9,12 +9,14 @@ from pathlib import Path
 from ..codex.contracts import CodexOutputError
 from ..core.container_policy import (
     container_execution_summary,
+    target_requires_asterinas_container,
 )
 from ..core.container_trace import ContainerTrace
 from ..core.execution import CommandRunner, observed_script_command
 from ..core.models import (
     ActorRole,
     ArtifactDirection,
+    ControllerError,
     FileArtifact,
     StageStatus,
     WorkflowError,
@@ -24,6 +26,7 @@ from ..core.project import Project
 from ..core.trace import qemu_experiment, successful_execs
 from ..knowledge.index import file_sha256
 from .contracts import EnvironmentArtifact, EnvironmentStage, ExperimentRouteMilestone
+from .diagnostics import failures, message, platform_failures
 from .documents import json_artifact, json_bytes, plan_path
 from .evidence import (
     executable_identity,
@@ -32,6 +35,84 @@ from .evidence import (
     workspace_path,
 )
 from .models import ArtifactMode, ExperimentPlan, ExperimentReadiness
+from .smoke_recipe import archive
+from .smoke_recipe import inputs as recipe_inputs
+
+
+def _platform_binding(project):
+    from ..platform.service import acceptance_binding
+
+    try:
+        return acceptance_binding(project)
+    except WorkflowError as error:
+        raise CodexOutputError(
+            f"{error}. Use environment platform prepare/verify in this stage; "
+            "a device-model probe cannot substitute for target baseline build/boot."
+        ) from error
+
+
+def _capture_harness(script_path, attempt_dir, recipe):
+    trace_path = attempt_dir / "execve.log"
+    infrastructure_errors = []
+    if recipe:
+        from .managed_smoke import run as run_managed_smoke
+        from .smoke_recipe import NAME, read_recipe
+
+        prepared = read_recipe(script_path.parent / NAME)
+        capture = run_managed_smoke(
+            script_path.parent,
+            attempt_dir,
+            recipe,
+            script_path.parent / prepared["probe"],
+        )
+        result = capture.command
+        host_executions = ()
+        executions = capture.executions
+        container_output = capture.output
+        infrastructure_errors = capture.infrastructure_errors
+    else:
+        with ContainerTrace(
+            script_path.parent, attempt_dir / "container-processes.json"
+        ) as containers:
+            result = CommandRunner(attempt_dir / "command").run(
+                observed_script_command(script_path, trace_path),
+                cwd=script_path.parent,
+                environment={
+                    "DPF_PROJECT_ROOT": str(script_path.parents[3]),
+                    "DPF_ENVIRONMENT_WORKDIR": str(script_path.parent),
+                },
+                timeout_seconds=3600,
+            )
+        host_executions = (
+            successful_execs(trace_path.read_text(errors="replace").splitlines())
+            if trace_path.is_file()
+            else ()
+        )
+        executions = host_executions + containers.executions(trace_path)
+        container_output = containers.output
+    return result, host_executions, executions, container_output, infrastructure_errors
+
+
+def _input_changes(project, script_path, script_digest, recipe, container_summary):
+    reasons = []
+    if recipe:
+        if container_summary["image_ids"] and set(container_summary["image_ids"]) != {
+            recipe["image_id"]
+        }:
+            reasons.append("Observed container image differs from the prepared recipe")
+        try:
+            unchanged = recipe_inputs(project, script_path) == recipe
+        except (WorkflowError, OSError, ValueError):
+            unchanged = False
+        if not unchanged:
+            reasons.append("Recipe/probe changed during the smoke; rerun the current inputs")
+    try:
+        script_unchanged = file_sha256(script_path) == script_digest
+    except OSError:
+        script_unchanged = False
+    if not script_unchanged:
+        reasons.append("Smoke script changed during execution; rerun current inputs")
+    return reasons
 
 
 @dataclass(frozen=True, slots=True)
@@ -60,42 +141,41 @@ class ExperimentExecutor:
             raise WorkflowError("environment_recovery is not RUNNING")
         if not script_path.is_file():
             raise CodexOutputError("environment work did not create environment-smoke.sh")
-        if not work_report_path.is_file() or not work_report_path.read_text(
-            encoding="utf-8"
-        ).strip():
+        if (
+            not work_report_path.is_file()
+            or not work_report_path.read_text(encoding="utf-8").strip()
+        ):
             raise CodexOutputError("environment work report is missing or blank")
 
+        _platform_binding(project)
+        recipe = recipe_inputs(project, script_path)
+        if recipe is None and target_requires_asterinas_container(project.config.target_platform):
+            raise CodexOutputError(
+                "Official container smoke requires environment prepare-smoke and a device probe; "
+                "the controller owns execution and capture. Do not write a Docker wrapper."
+            )
         script_digest = file_sha256(script_path)
         attempt_dir = project.control / "environment" / "codex-harness" / str(uuid.uuid4())
         attempt_dir.mkdir(parents=True, exist_ok=True)
+        if recipe:
+            archive(script_path, attempt_dir)
         trace_path = attempt_dir / "execve.log"
-        with ContainerTrace(script_path.parent, attempt_dir / "container-processes.json") as containers:
-            result = CommandRunner(attempt_dir / "command").run(
-                observed_script_command(script_path, trace_path),
-                cwd=script_path.parent,
-                environment={
-                    "DPF_PROJECT_ROOT": str(project.root),
-                    "DPF_ENVIRONMENT_WORKDIR": str(script_path.parent),
-                },
-                timeout_seconds=3600,
-            )
-        host_executions = (
-            successful_execs(trace_path.read_text(errors="replace").splitlines())
-            if trace_path.is_file() else ()
+        result, host_executions, executions, container_output, infrastructure_errors = (
+            _capture_harness(script_path, attempt_dir, recipe)
         )
-        container_executions = containers.executions(trace_path)
-        executions = host_executions + container_executions
         executed = list(dict.fromkeys(path for path, _ in executions))
         qemu_programs = [
-            path for path, line in executions
+            path
+            for path, line in executions
             if Path(path).name.startswith("qemu-system-") and qemu_experiment(line)
         ]
         host_qemu_programs = [
-            path for path, line in host_executions
+            path
+            for path, line in host_executions
             if Path(path).name.startswith("qemu-system-") and qemu_experiment(line)
         ]
         container_summary = container_execution_summary(
-            observations_path=containers.output,
+            observations_path=container_output,
             target_platform=project.config.target_platform,
             host_qemu_execs=tuple(host_qemu_programs),
         )
@@ -119,11 +199,27 @@ class ExperimentExecutor:
             and bool(qemu_programs)
             and container_summary["satisfied"]
         )
+        collector = json.loads(trace_path.with_suffix(".collector.json").read_text())
+        reasons = (
+            failures(result, qemu_programs, container_summary, collector) if not ready else []
+        ) + platform_failures(project, container_summary)
+        reasons.extend(
+            _input_changes(project, script_path, script_digest, recipe, container_summary)
+        )
+        if not recipe and (
+            not collector.get("available")
+            or (container_summary["required"] and not container_summary["satisfied"])
+        ):
+            infrastructure_errors.append(
+                "Legacy execution collector could not establish provenance"
+            )
+        reasons.extend(infrastructure_errors)
+        ready = ready and not reasons
         readiness = ExperimentReadiness.PASS if ready else ExperimentReadiness.FAIL
         route_id = f"codex-harness-{script_digest[:16]}"
         attempt = {
             "schema_version": 3,
-            "repair_inputs": {"script_sha256": script_digest},
+            "repair_inputs": {"script_sha256": script_digest, "container_recipe": recipe},
             "route": {
                 "route_id": route_id,
                 "artifact_mode": artifact_mode,
@@ -139,17 +235,21 @@ class ExperimentExecutor:
                 "sha256": file_sha256(work_report_path),
             },
             "exec_trace": {
-                "collector": json.loads(trace_path.with_suffix(".collector.json").read_text()),
+                "collector": collector,
                 "path": str(trace_path.relative_to(project.root)),
                 "sha256": file_sha256(trace_path),
                 "executed_programs": executed,
                 "qemu_programs": qemu_programs,
                 "host_qemu_programs": host_qemu_programs,
                 "container_execution": container_summary,
-                "container_evidence": str(containers.output),
-                "container_evidence_sha256": file_sha256(containers.output),
+                "container_evidence": str(container_output),
+                "container_evidence_sha256": file_sha256(container_output),
             },
             "readiness": readiness.value,
+            "failure_reasons": reasons,
+            "failure_class": "INFRASTRUCTURE"
+            if infrastructure_errors
+            else (None if ready else "PROBE"),
             "recorded_at": utc_now(),
         }
         attempt_path = attempt_dir / "attempt.json"
@@ -158,17 +258,21 @@ class ExperimentExecutor:
             EnvironmentStage.RECOVERY,
             FileArtifact(EnvironmentArtifact.RECOVERY_ATTEMPT, attempt_path),
         )
+        if infrastructure_errors:
+            detail = message(reasons, attempt_path, result)
+            project.note_check(detail)
+            raise ControllerError(
+                "Environment infrastructure failed; no worker repair or automatic retry. " + detail
+            )
         if not ready:
-            project.note_check(
-                (f"smoke harness exit={result.exit_code}, timed_out={result.timed_out}, "
-                 f"observed QEMU experiment execs={len(qemu_programs)} (version/help is not smoke). "
-                 "Acceptance requires successful script execution, an observed non-discovery QEMU run, "
-                 "and for Asterinas an official asterinas/dev container execution; "
-                 "no boot/device argument whitelist applies. Route assertions belong to the harness. "
-                 "If QEMU ran but was not captured, diagnose the collector evidence, not the driver. "
-                 f"Container observations/errors={containers.output}. "
-                 f"Inspect stdout={result.stdout_path}, stderr={result.stderr_path}, "
-                 f"trace={trace_path}"),
+            detail = message(reasons, attempt_path, result)
+            project.note_check(detail)
+            return EnvironmentRunResult(
+                route_id,
+                readiness,
+                StageStatus.RUNNING,
+                str(attempt_path),
+                detail,
             )
 
         inventory = project.load_json_artifact(
@@ -188,6 +292,7 @@ class ExperimentExecutor:
             "work_report": attempt["work_report"],
         }
         route = {
+            "platform_execution": _platform_binding(project),
             "schema_version": 3,
             "milestone": ExperimentRouteMilestone.READY,
             "route_id": route_id,
@@ -229,6 +334,7 @@ class ExperimentExecutor:
         if project.stage(EnvironmentStage.RECOVERY).status is not StageStatus.RUNNING:
             raise WorkflowError("environment_recovery is not RUNNING")
         plan = self._load_plan(project, route_id)
+        _platform_binding(project)
         self._require_frozen_inputs(project, plan)
         attempt_path = project.control / "environment" / "attempts" / f"{route_id}.json"
         if attempt_path.exists():
@@ -256,7 +362,9 @@ class ExperimentExecutor:
             "repair_inputs": {
                 "route": {key: value for key, value in plan.to_dict().items() if key != "route_id"},
                 "executable": executable,
-                "runner_evidence": [file_identity(project, item) for item in plan.runner_evidence_paths],
+                "runner_evidence": [
+                    file_identity(project, item) for item in plan.runner_evidence_paths
+                ],
             },
             "route": plan.to_dict(),
             "frozen_repositories": plan.frozen_repositories,
@@ -347,6 +455,7 @@ class ExperimentExecutor:
             "runner_evidence": evidence,
         }
         route = {
+            "platform_execution": _platform_binding(project),
             "schema_version": 3,
             "milestone": ExperimentRouteMilestone.READY,
             "route_id": plan.route_id,

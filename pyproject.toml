@@ -14,6 +14,7 @@ dependencies = []
 
 [project.optional-dependencies]
 codex = ["openai-codex"]
+rag = ["sentence-transformers>=3,<6"]
 dev = ["jsonschema>=4.23", "pytest>=8", "referencing>=0.37", "ruff>=0.6"]
 
 [project.scripts]
@@ -29,6 +30,9 @@ driver_port_factory = [
   "data/prompt-packs/*/*.json",
   "data/prompt-packs/*/*.md",
   "data/schemas/acquisition/*.json",
+  "data/public-tests/*/*.json",
+  "data/public-tests/*/*.md",
+  "data/public-tests/*/*.rs",
 ]
 
 [tool.pytest.ini_options]

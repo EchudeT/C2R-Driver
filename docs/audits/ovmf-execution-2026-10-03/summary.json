@@ -1,0 +1,127 @@
+{
+  "pytest": "384 passed in 650.90s",
+  "scoped_ruff": "11 files passed check and format",
+  "global_ruff": "581 existing findings, 139 files require formatting; no unrelated sweep",
+  "managed_container_real": "20 short-lived QEMU runs and 4 negative/status cases matched expectations",
+  "firmware_real": {
+    "upstream": {
+      "status": "PASS",
+      "scope": "firmware and QEMU model, not translated driver",
+      "expected": "unassigned",
+      "devices": 1,
+      "observations": [
+        {
+          "slot": 3,
+          "raw_bar0": 0,
+          "qmp_bar": {
+            "prefetch": false,
+            "mem_type_64": false,
+            "bar": 0,
+            "size": 2,
+            "address": -1,
+            "type": "memory"
+          }
+        }
+      ]
+    },
+    "patched": {
+      "status": "PASS",
+      "scope": "firmware and QEMU model, not translated driver",
+      "expected": "assigned",
+      "devices": 1,
+      "observations": [
+        {
+          "slot": 3,
+          "raw_bar0": 2164805632,
+          "qmp_bar": {
+            "prefetch": false,
+            "mem_type_64": false,
+            "bar": 0,
+            "size": 2,
+            "address": 2164805632,
+            "type": "memory"
+          },
+          "capability": 7,
+          "observed_event": "GUEST_PANICKED"
+        }
+      ]
+    },
+    "derived-crash": {
+      "status": "PASS",
+      "scope": "firmware and QEMU model, not translated driver",
+      "expected": "assigned",
+      "devices": 2,
+      "observations": [
+        {
+          "slot": 3,
+          "raw_bar0": 2164809728,
+          "qmp_bar": {
+            "prefetch": false,
+            "mem_type_64": false,
+            "bar": 0,
+            "size": 2,
+            "address": 2164809728,
+            "type": "memory"
+          },
+          "capability": 7,
+          "observed_event": "GUEST_CRASHLOADED"
+        },
+        {
+          "slot": 4,
+          "raw_bar0": 2164805632,
+          "qmp_bar": {
+            "prefetch": false,
+            "mem_type_64": false,
+            "bar": 0,
+            "size": 2,
+            "address": 2164805632,
+            "type": "memory"
+          },
+          "capability": 7
+        }
+      ]
+    },
+    "derived-shutdown": {
+      "status": "PASS",
+      "scope": "firmware and QEMU model, not translated driver",
+      "expected": "assigned",
+      "devices": 1,
+      "observations": [
+        {
+          "slot": 3,
+          "raw_bar0": 2164805632,
+          "qmp_bar": {
+            "prefetch": false,
+            "mem_type_64": false,
+            "bar": 0,
+            "size": 2,
+            "address": 2164805632,
+            "type": "memory"
+          },
+          "capability": 7,
+          "observed_event": "GUEST_PVSHUTDOWN"
+        }
+      ]
+    },
+    "derived-absent": {
+      "status": "PASS",
+      "scope": "firmware and QEMU model, not translated driver",
+      "expected": "assigned",
+      "devices": 0,
+      "observations": []
+    }
+  },
+  "limits": "Real unmodified-kernel baseline and QEMU model observations, not translated-driver acceptance. No paid model calls during these checks.",
+  "image": "asterinas/dev:0.18.1-20260805-dpf-ovmf-bar-v1",
+  "image_id": "sha256:41b92d5cb6cb5884b104dad31a348c695c6a866bcad7974480d9acf396f037c5",
+  "experiment06": {
+    "directory": "/home/unix/file/C2R-Driver/c2rust-migration-test-01/experiments/pvpanic-behavior-sol-medium-20261003-06",
+    "launch": {
+      "pid": 1473497,
+      "started_at": "2026-10-03T06:44:49.656557+00:00",
+      "command": "/home/unix/file/C2R-Driver/c2rust-migration-test-01/experiments/pvpanic-behavior-sol-medium-20261003-06/start.sh",
+      "policy": "Fresh frozen run; read-only observation; no live intervention"
+    },
+    "status": "LAUNCHED_NO_FINAL_DRIVER_RESULT"
+  }
+}

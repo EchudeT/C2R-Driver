@@ -97,8 +97,18 @@ class ProjectConfig:
     local_source_repository: str | None = None
     local_target_repository: str | None = None
     local_qemu_repository: str | None = None
-    enable_analysis_review: bool = True
-    enable_final_evidence_review: bool = True
+    enable_analysis_review: bool = False
+    enable_final_evidence_review: bool = False
+    benchmark: dict[str, Any] | None = None
+    # Low-level construction stays explicit; developer CLI entrypoints enable scheduling.
+    behavior_scheduling: bool = False
+    unified_implementation: bool = True
+    managed_platform: bool = True
+    platform_image: str | None = None
+    platform_accelerator: str | None = None
+    compact_paths: bool = True
+    scoped_worker_sessions: bool = True
+    behavior_scope: dict[str, Any] | None = None
     created_at: str = field(default_factory=utc_now)
 
     def to_dict(self) -> dict[str, Any]:
@@ -116,8 +126,13 @@ class ProjectConfig:
         data["local_source_repository"] = data.get("local_source_repository")
         data["local_target_repository"] = data.get("local_target_repository")
         data["local_qemu_repository"] = data.get("local_qemu_repository")
-        data["enable_analysis_review"] = data.get("enable_analysis_review", True)
-        data["enable_final_evidence_review"] = data.get("enable_final_evidence_review", True)
+        data["scoped_worker_sessions"] = data.get("scoped_worker_sessions", False)
+        data["compact_paths"] = data.get("compact_paths", False)
+        data["managed_platform"] = data.get("managed_platform", False)
+        data["behavior_scheduling"] = data.get("behavior_scheduling", False)
+        data["unified_implementation"] = data.get("unified_implementation", False)
+        data["enable_analysis_review"] = data.get("enable_analysis_review", False)
+        data["enable_final_evidence_review"] = data.get("enable_final_evidence_review", False)
         return cls(**data)
 
 

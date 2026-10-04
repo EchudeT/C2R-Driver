@@ -1,0 +1,6 @@
+{
+  "status": "FAIL",
+  "scope": "guest-transport-and-declared-assertions",
+  "error": "GUEST_ASSERT_FAILED: exit=1; command='test 1 = 2'",
+  "duration_seconds": 18.787
+}

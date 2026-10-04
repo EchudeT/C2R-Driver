@@ -31,18 +31,25 @@
     },
     "evidence_closure": {
       "documents": [
+        "knowledge-base-guide.md",
         "open-kernel-driver-port/SKILL.md",
         "open-kernel-driver-port/references/acquisition.md",
-        "open-kernel-driver-port/references/handoff.md"
+        "open-kernel-driver-port/references/handoff.md",
+        "evidence-selection.md"
       ],
-      "objective": "Follow open-kernel-driver-port/references/acquisition.md and handoff.md to choose the task-relevant evidence facets. This stage owns the material selection, rationale, source/provenance requirements and explicit gaps; the controller acquires content and records hashes and provenance. Do not use this stage for compiler/layout probes, C semantic closure, target API study, migration contracts, implementation or QEMU execution. Submit selections through the controller protocol and preserve valid selections on repair."
+      "objective": "Follow open-kernel-driver-port/references/acquisition.md and handoff.md to choose the task-relevant evidence facets. Apply knowledge-base-guide.md to cover hardware, complete task-relevant source/test dependencies, target definitions plus callers and coding/safety/runtime originals, and pinned QEMU observations/limits. A cloned repository is available evidence, not automatically indexed corpus; select required originals and record explicit gaps without claiming completeness from facet names. This stage owns the material selection, rationale, source/provenance requirements and explicit gaps; the controller acquires content and records hashes and provenance. Do not use this stage for compiler/layout probes, C semantic closure, target API study, migration contracts, implementation or QEMU execution. Submit selections through the controller protocol and preserve valid selections on repair."
     },
     "environment_recovery": {
       "documents": [
         "open-kernel-driver-port/SKILL.md",
-        "open-kernel-driver-port/references/environment-recovery.md"
+        "open-kernel-driver-port/references/environment-recovery.md",
+        "environment-task.md"
       ],
-      "objective": "Follow open-kernel-driver-port/references/environment-recovery.md using frozen repositories and inventory.local_probes. This stage owns the artifact mode, executable experiment route and environment entrypoint; it does not perform target API study, source-contract design or driver implementation. Submit the environment report and entrypoint through the controller protocol."
+      "objective": "Validate the configured environment under environment-task.md. Managed bootstrap owns baseline build, boot and transport; submit its report without writing or running an extra device probe. Use technical references only for a concrete environment prerequisite.",
+      "on_demand_documents": [
+        "open-kernel-driver-port/SKILL.md",
+        "open-kernel-driver-port/references/environment-recovery.md"
+      ]
     },
     "knowledge_base": {
       "documents": [
@@ -58,19 +65,17 @@
         "knowledge-guided-driver-port/references/target-platform-study.md",
         "knowledge-guided-driver-port/references/knowledge-contract.md",
         "knowledge-guided-driver-port/references/target-changes.md",
-        "knowledge-guided-driver-port/assets/target-platform-profile.md",
         "knowledge-guided-driver-port/references/translation.md",
         "knowledge-guided-driver-port/references/test-porting.md",
         "knowledge-guided-driver-port/references/qemu-evidence.md"
       ],
-      "objective": "Complete one evidence-backed source/target analysis and contract/test plan under analysis-task.md. Resolve design-changing unknowns, expose all required delivery entrypoints and preserve frozen scope. Submit one report; controller bookkeeping does not need another analysis task.",
+      "objective": "Resolve source obligations, a coarse target route and design-changing premises in one analysis under analysis-task.md. Use original definitions first and minimal probes only for concrete gaps. Save one Markdown report and its route reference index; the controller seeds behavior scheduling from that plan. No full platform survey or second planning task.",
       "on_demand_documents": [
         "knowledge-guided-driver-port/SKILL.md",
         "knowledge-guided-driver-port/references/workflow.md",
         "knowledge-guided-driver-port/references/target-platform-study.md",
         "knowledge-guided-driver-port/references/knowledge-contract.md",
         "knowledge-guided-driver-port/references/target-changes.md",
-        "knowledge-guided-driver-port/assets/target-platform-profile.md",
         "knowledge-guided-driver-port/references/translation.md",
         "knowledge-guided-driver-port/references/test-porting.md",
         "knowledge-guided-driver-port/references/qemu-evidence.md"
@@ -86,7 +91,7 @@
         "knowledge-guided-driver-port/references/test-porting.md",
         "knowledge-guided-driver-port/references/qemu-evidence.md"
       ],
-      "objective": "Complete or repair the current migration contracts and acceptance plan under analysis-task.md using the accepted source/target evidence. Focus on unresolved or contradicted claims and their dependents; do not repeat settled platform discovery.",
+      "objective": "Controller checkpoint: bind the accepted joint analysis as contracts and test oracles. A substantive correction returns to that same joint analysis; do not author a separate contract report.",
       "on_demand_documents": [
         "knowledge-guided-driver-port/SKILL.md",
         "knowledge-guided-driver-port/references/workflow.md",
@@ -157,7 +162,7 @@
         "knowledge-guided-driver-port/references/workflow.md",
         "knowledge-guided-driver-port/references/qemu-evidence.md"
       ],
-      "objective": "Consume the artifact and identity fixed by artifact_preparation and complete knowledge-guided-driver-port/references/workflow.md phase 8's public QEMU evidence ladder plus phase 9's narrow failure attribution under qemu-evidence.md. This stage owns the public runner, harness/oracles and interpretation of controller receipts; it does not rebuild or redesign the driver artifact on the normal path. Update the same report with each required result, attribution and limit, then complete the worker self-check. The independent final evidence audit is final_evidence_review, not a second artifact-preparation task."
+      "objective": "Controller acceptance consumes the captured artifact, the same required runtime suite used by implementation, and the existing worker notes. Run the complete public suite once on the final source snapshot and artifact; do not combine earlier per-case results. Reuse an already-passing final batch on resume regardless of temporary paths or report metadata. Do not run a second model self-check on the normal path. A worker is called only for a concrete failed gate or missing necessary fact. Preserve operator-prepared assertions: analysis prose cannot add required ktests, mocks or fault injection. Resolve the specific issue and update the existing report; do not restart a survey, expand acceptance or rerun unchanged passing tests. Independent final_evidence_review remains optional under the frozen configuration."
     },
     "final_evidence_review": {
       "documents": [
@@ -165,7 +170,7 @@
         "knowledge-guided-driver-port/references/workflow.md",
         "knowledge-guided-driver-port/references/qemu-evidence.md"
       ],
-      "objective": "Independently perform knowledge-guided-driver-port/references/workflow.md phase 11 (Final evidence audit) over the current implementation, target changes, runtime artifact and public QEMU evidence. Treat the supplied contract and test-matrix digests as frozen acceptance oracles; do not re-review target study, handoff, source closure or contract provenance. Apply the final-evidence-review rules, cite precise code and authoritative execution evidence, and return all delivery findings together. Treat human-readable artifact receipts and worker summaries as derived metadata; a receipt-only mismatch is not a packaging defect and must not trigger artifact preparation or a new QEMU run. Accept only complete agreed functionality, otherwise request the smallest evidenced repair or report a genuine external blocker."
+      "objective": "Independently perform knowledge-guided-driver-port/references/workflow.md phase 10 (Final evidence audit) over the current implementation, target changes, runtime artifact and public QEMU evidence. Treat the supplied contract and test-matrix digests as frozen acceptance oracles; do not routinely repeat accepted analysis. If concrete evidence contradicts target study, source scope, handoff or contract provenance, inspect the affected originals and request the smallest permitted prerequisite repair without silently weakening acceptance criteria. Apply the final-evidence-review rules, cite precise code and authoritative execution evidence, and return all delivery findings together. Treat human-readable artifact receipts and worker summaries as derived metadata; a receipt-only mismatch is not a packaging defect and must not trigger artifact preparation or a new QEMU run. Accept only complete agreed functionality, otherwise request the smallest evidenced repair or report a genuine external blocker."
     },
     "completion_audit": {
       "documents": [

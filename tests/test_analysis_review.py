@@ -2,6 +2,7 @@
 import json
 import subprocess
 import sys
+from pathlib import Path
 from unittest.mock import patch
 
 import pytest
@@ -94,10 +95,20 @@ def test_analysis_returns_all_findings_to_worker_before_sealing(tmp_path, repair
         if job.stage is S.TARGET_FRAMEWORK_ENABLEMENT:
             assert project.retry_feedback(job.stage)['status'] == 'PREREQUISITE_COMPLETED'
             assert 'F2:' in payload['reference_material']['repair_task']['report_excerpt']
-            assert job.thread_id == (None if policy == 'analysis-handoff' else 'worker')
-            if policy == 'analysis-handoff':
+            if project.config.scoped_worker_sessions:
+                # Analysis repair lives in its own conversation; this fixture has
+                # never started an execution worker, so no history needs rotation.
+                assert job.thread_id is None
+                assert 'context_handoff' not in payload['reference_material']
+                assert payload['reference_material']['frozen_inputs']
+                assert payload['reference_material']['functional_scope']['boundary']
+            else:
+                assert job.thread_id == (None if policy == 'analysis-handoff' else 'worker')
+            if policy == 'analysis-handoff' and not project.config.scoped_worker_sessions:
                 handoff = payload['reference_material']['context_handoff']
-                packet_path = project.artifacts.path_for_digest(handoff['digest'])
+                from driver_port_factory.short_refs import References
+                bound = References(project.root).get(handoff['evidence_ref'])
+                packet_path = project.artifacts.path_for_digest(bound['digest'])
                 packet = json.loads(packet_path.read_text())
                 assert packet['automatic_boundary'] == 'analysis_to_execution'
                 assert packet['history_lookup']['previous_thread'] == 'worker'
@@ -115,7 +126,9 @@ def test_analysis_returns_all_findings_to_worker_before_sealing(tmp_path, repair
         task = payload['reference_material']['repair_task']
         assert 'F1:' in task['report_excerpt'] and 'F2:' in task['report_excerpt']
         assert task['complete']
-        assert task['source']['path'] == str(project.artifacts.path_for_digest(task['source']['digest']))
+        from driver_port_factory.short_refs import References
+        bound = References(project.root).get(task['source']['evidence_ref'])
+        assert Path(task['source']['path']).resolve() == project.artifacts.path_for_digest(bound['digest'])
         # Overwriting the reviewer's mutable file must not change repair evidence.
         (project.root / 'work/stage-work/analysis_review/report.md').write_text('overwritten')
         assert 'F2:' in open(task['source']['path']).read()
@@ -127,8 +140,8 @@ def test_analysis_returns_all_findings_to_worker_before_sealing(tmp_path, repair
         with pytest.raises(ReachedImplementation):
             port._run_project(project)
     assert review_count == 2
-    assert sum(job.stage is S.CONTRACTS for job in calls) == (repair_target is S.CONTRACTS)
-    assert sum(job.stage is TargetStudyStage.STUDY for job in calls) == (repair_target is TargetStudyStage.STUDY)
+    assert sum(job.stage is S.CONTRACTS for job in calls) == 0
+    assert sum(job.stage is TargetStudyStage.STUDY for job in calls) == 1
     open_project(project.root).verify_integrity()
 
 

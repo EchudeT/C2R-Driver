@@ -1,0 +1,19 @@
+{
+  "scope": "Offline controller, local executor and synthetic driver fixtures; no real-driver verdict",
+  "final_pytest": "377 passed in 657.39s (0:10:57)",
+  "focused_lint": "13 new/small modified files and audit helpers passed",
+  "repository_lint": "581 findings and 140 files needing formatting remain in existing repository code, including large touched cli/prompts modules; no unrelated sweep",
+  "earlier_full_run": "374 passed, 3 failed: two failures from platform runtime loading in the pure optional-tool navigation helper, fixed by injecting at model invocation; one captured input drift while source was being edited, with retry hitting a non-idempotent fixture. E2E delivery subset subsequently passed; final full run after edits is authoritative.",
+  "paid_calls_during_optimization": 0,
+  "experiment_status": "LAUNCHED_ACTIVE",
+  "next_run": "/home/unix/file/C2R-Driver/c2rust-migration-test-01/experiments/pvpanic-behavior-sol-medium-20261003-05",
+  "knowledge_seed": "Unchanged: 121 ORIGINAL, 1 EXPERIENCE; actual worker use to be audited from events",
+  "limits": "No cost reduction measured yet. Budget USD10 remains a call-boundary estimate guard; a running call can overshoot.",
+  "launch": {
+    "pid": 1344886,
+    "started_at": "2026-10-03T04:44:00.083408+00:00",
+    "command": "/home/unix/file/C2R-Driver/c2rust-migration-test-01/experiments/pvpanic-behavior-sol-medium-20261003-05/start.sh",
+    "policy": "Fresh frozen run; read-only observation; no live intervention"
+  },
+  "observed_controller_state": "ACTIVE"
+}

@@ -59,7 +59,8 @@ class ContainerTrace:
             from .container_events import ContainerEvents
             try:
                 self.events = ContainerEvents(self.docker, started, self._observe,
-                                              self._append_error)
+                                              self._append_error,
+                                              self.output.with_suffix(".docker-events.stderr"))
             except OSError as error:
                 self._append_error(f"container events unavailable: {error}")
             self.thread = threading.Thread(target=self._watch, daemon=True)

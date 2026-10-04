@@ -1,0 +1,408 @@
+  Installing cargo-osdk v0.18.1 (/tmp/dpf-platform-validation-20261003/target/osdk)
+warning: default toolchain implicitly overridden with `nightly-2026-07-21-x86_64-unknown-linux-gnu` by rustup toolchain file
+  |
+  = help: use `cargo +stable install` if you meant to use the stable toolchain
+  = note: rustup selects the toolchain based on the parent environment and not the environment of the package being installed
+    Updating crates.io index
+     Locking 164 packages to latest Rust 1.99.0-nightly compatible versions
+      Adding indicatif v0.17.11 (available: v0.18.6)
+      Adding inferno v0.11.21 (available: v0.12.8)
+      Adding shlex v1.3.0 (available: v2.0.1)
+      Adding syn v2.0.119 (available: v3.0.6)
+      Adding toml v0.8.23 (available: v1.1.6+spec-1.1.0)
+      Adding whoami v1.6.1 (available: v2.1.3)
+   Compiling quote v1.0.47
+   Compiling proc-macro2 v1.0.107
+   Compiling unicode-ident v1.0.26
+   Compiling libc v0.2.190
+   Compiling memchr v2.8.3
+   Compiling cfg-if v1.0.5
+   Compiling serde_core v1.0.229
+   Compiling equivalent v1.0.2
+   Compiling serde v1.0.229
+   Compiling once_cell v1.21.4
+   Compiling zerocopy v0.8.59
+   Compiling utf8parse v0.2.2
+   Compiling regex-syntax v0.8.11
+   Compiling is_terminal_polyfill v1.70.2
+   Compiling colorchoice v1.0.5
+   Compiling anstyle-query v1.1.5
+   Compiling anstyle v1.0.14
+   Compiling crossbeam-utils v0.8.23
+   Compiling autocfg v1.5.1
+   Compiling parking_lot_core v0.9.12
+   Compiling getrandom v0.3.4
+   Compiling version_check v0.9.5
+   Compiling hashbrown v0.17.1
+   Compiling foldhash v0.2.0
+   Compiling allocator-api2 v0.2.21
+   Compiling crc32fast v1.5.2
+   Compiling smallvec v1.16.2
+   Compiling rle-decode-fast v1.0.3
+   Compiling itoa v1.0.18
+   Compiling scopeguard v1.2.0
+   Compiling rustix v1.1.5
+   Compiling log v0.4.34
+   Compiling anstyle-parse v1.0.0
+   Compiling zmij v1.0.23
+   Compiling strsim v0.11.1
+   Compiling clap_lex v1.1.1
+   Compiling jiff-core v0.1.1
+   Compiling portable-atomic v1.15.0
+   Compiling getrandom v0.4.3
+   Compiling heck v0.5.0
+   Compiling lock_api v0.4.14
+   Compiling arrayvec v0.7.8
+   Compiling serde_json v1.0.151
+   Compiling bitflags v2.13.2
+   Compiling winnow v0.7.15
+   Compiling anstream v1.0.0
+   Compiling ahash v0.8.12
+   Compiling bytemuck v1.25.2
+   Compiling toml_write v0.1.2
+   Compiling unicode-width v0.2.2
+   Compiling linux-raw-sys v0.12.1
+   Compiling aho-corasick v1.1.5
+   Compiling no_std_io2 v0.9.4
+   Compiling num-traits v0.2.19
+   Compiling adler32 v1.2.0
+   Compiling dary_heap v0.3.9
+   Compiling hashbrown v0.14.5
+   Compiling zero v0.1.3
+   Compiling hashbrown v0.16.1
+   Compiling num-format v0.4.4
+   Compiling quick-xml v0.26.0
+   Compiling rgb v0.8.53
+   Compiling clap_builder v4.6.7
+   Compiling bitflags v1.3.2
+   Compiling align_ext v0.1.0 (/tmp/dpf-platform-validation-20261003/target/ostd/libs/align_ext)
+   Compiling xmas-elf v0.10.0
+   Compiling fastrand v2.5.0
+   Compiling semver v1.0.28
+   Compiling iana-time-zone v0.1.65
+   Compiling str_stack v0.1.1
+   Compiling number_prefix v0.4.0
+   Compiling indexmap v2.14.2
+   Compiling rev_buf_reader v0.3.0
+   Compiling shlex v1.3.0
+   Compiling whoami v1.6.1
+   Compiling crossbeam-channel v0.5.17
+   Compiling rustc_version v0.4.1
+   Compiling syn v2.0.119
+   Compiling jiff v0.2.37
+   Compiling syn v3.0.6
+   Compiling libflate_lz77 v2.3.0
+   Compiling chrono v0.4.45
+   Compiling libflate v2.3.2
+   Compiling is-terminal v0.4.17
+   Compiling console v0.15.11
+   Compiling which v8.0.6
+   Compiling regex-automata v0.4.18
+   Compiling dashmap v6.2.1
+   Compiling indicatif v0.17.11
+   Compiling tempfile v3.27.0
+   Compiling serde_derive v1.0.229
+   Compiling clap_derive v4.6.7
+   Compiling zerocopy-derive v0.8.59
+   Compiling ostd-pod-macros v0.4.0 (/tmp/dpf-platform-validation-20261003/target/ostd/libs/ostd-pod/macros)
+   Compiling padding-struct v0.2.0 (/tmp/dpf-platform-validation-20261003/target/ostd/libs/padding-struct)
+   Compiling regex v1.13.1
+   Compiling env_filter v2.0.0
+   Compiling clap v4.6.7
+   Compiling env_logger v0.11.11
+   Compiling toml_datetime v0.6.11
+   Compiling serde_spanned v0.6.9
+   Compiling toml_edit v0.22.27
+   Compiling toml v0.8.23
+   Compiling ostd-pod v0.4.0 (/tmp/dpf-platform-validation-20261003/target/ostd/libs/ostd-pod)
+   Compiling linux-bzimage-builder v0.18.1 (/tmp/dpf-platform-validation-20261003/target/ostd/libs/linux-bzimage/builder)
+   Compiling inferno v0.11.21
+   Compiling cargo-osdk v0.18.1 (/tmp/dpf-platform-validation-20261003/target/osdk)
+    Finished `release` profile [optimized] target(s) in 32.77s
+   Replacing /root/.cargo/bin/cargo-osdk
+    Replaced package `cargo-osdk v0.18.1 (/home/unix/file/C2R-Driver/c2rust-migration-test-01/experiments/pvpanic-behavior-sol-medium-20261003-06/run/work/target/osdk)` with `cargo-osdk v0.18.1 (/tmp/dpf-platform-validation-20261003/target/osdk)` (executable `cargo-osdk`)
+unpacking 'https://github.com/NixOS/nixpkgs/archive/c0bebd16e69e631ac6e52d6eb439daba28ac50cd.tar.gz' into the Git cache...
+these 3 derivations will be built:
+  /nix/store/kjg6n7inng6i19z15i4sc1jgykwxz8p1-resolv-conf.drv
+  /nix/store/x8bvxzllh5nzm7fv2clw0mdlg95sxfw2-runtime-deps.drv
+  /nix/store/ngp2iikwcsms8hrwg6khdly8i8h9cr38-initramfs.drv
+building '/nix/store/kjg6n7inng6i19z15i4sc1jgykwxz8p1-resolv-conf.drv'...
+resolv.conf is generated from the host's /etc/resolv.conf
+building '/nix/store/x8bvxzllh5nzm7fv2clw0mdlg95sxfw2-runtime-deps.drv'...
+structuredAttrs is enabled
+building '/nix/store/ngp2iikwcsms8hrwg6khdly8i8h9cr38-initramfs.drv'...
+this derivation will be built:
+  /nix/store/y7richhzhz18dz347w2ldxqwbz1bxl6y-initramfs-image.drv
+building '/nix/store/y7richhzhz18dz347w2ldxqwbz1bxl6y-initramfs-image.drv'...
+/nix/var/nix/builds/nix-2276-1785419661/tmp.eNvblHSar3 /nix/var/nix/builds/nix-2276-1785419661
+66618 blocks
+/nix/var/nix/builds/nix-2276-1785419661
+0+1 records in
+0+1 records out
+2147479552 bytes (2.1 GB, 2.0 GiB) copied, 13.3221 s, 161 MB/s
+mke2fs 1.47.0 (5-Feb-2023)
+1+0 records in
+1+0 records out
+536870912 bytes (537 MB, 512 MiB) copied, 0.659346 s, 814 MB/s
+mke2fs 1.47.0 (5-Feb-2023)
+1+0 records in
+1+0 records out
+268435456 bytes (268 MB, 256 MiB) copied, 0.295888 s, 907 MB/s
+mke2fs 1.47.0 (5-Feb-2023)
+    Updating crates.io index
+    Updating git repository `https://github.com/asterinas/inherit-methods-macro`
+    Updating git repository `https://github.com/asterinas/smoltcp`
+     Locking 201 packages to latest Rust 1.99.0-nightly compatible versions
+      Adding minicov v0.3.8 (available: v0.3.9)
+   Compiling compiler_builtins v0.1.160 (/root/.rustup/toolchains/nightly-2026-07-21-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/compiler-builtins/compiler-builtins)
+   Compiling core v0.0.0 (/root/.rustup/toolchains/nightly-2026-07-21-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/core)
+   Compiling proc-macro2 v1.0.107
+   Compiling unicode-ident v1.0.26
+   Compiling quote v1.0.47
+   Compiling syn v1.0.109
+   Compiling zerocopy v0.8.59
+   Compiling autocfg v1.5.1
+   Compiling libc v0.2.190
+   Compiling getrandom v0.3.4
+   Compiling cfg-if v1.0.5
+   Compiling rustversion v1.0.23
+   Compiling const_fn v0.4.12
+   Compiling strsim v0.10.0
+   Compiling ident_case v1.0.1
+   Compiling radium v0.7.0
+   Compiling thiserror v2.0.21
+   Compiling fnv v1.0.7
+   Compiling x86 v0.52.0
+   Compiling serde_core v1.0.229
+   Compiling serde v1.0.229
+   Compiling either v1.18.0
+   Compiling equivalent v1.0.2
+   Compiling hashbrown v0.17.1
+   Compiling winnow v0.5.40
+   Compiling json v0.12.4
+   Compiling paste v1.0.15
+   Compiling heapless v0.8.0
+   Compiling smoltcp v0.11.0 (https://github.com/asterinas/smoltcp?tag=r_2024-11-08_f07e5b5#b10671de)
+   Compiling version_check v0.9.5
+   Compiling macro_rules_attribute-proc_macro v0.1.3
+   Compiling unicode-xid v0.2.6
+   Compiling itertools v0.10.5
+   Compiling num-traits v0.2.19
+   Compiling memoffset v0.9.1
+   Compiling ahash v0.8.12
+   Compiling indexmap v2.14.2
+   Compiling syn v2.0.119
+   Compiling syn v3.0.6
+   Compiling const_format_proc_macros v0.2.34
+   Compiling rand_core v0.9.5
+   Compiling toml_datetime v0.6.11
+   Compiling serde_spanned v0.6.9
+   Compiling toml_edit v0.19.15
+   Compiling ppv-lite86 v0.2.21
+   Compiling darling_core v0.13.4
+   Compiling rand_chacha v0.9.0
+   Compiling thiserror-impl v2.0.21
+   Compiling ptr_meta_derive v0.3.2
+   Compiling rand v0.9.5
+   Compiling zerocopy-derive v0.8.59
+   Compiling int-to-c-enum-derive v0.1.0 (/tmp/dpf-platform-validation-20261003/target/ostd/libs/int-to-c-enum/derive)
+   Compiling padding-struct v0.2.0 (/tmp/dpf-platform-validation-20261003/target/ostd/libs/padding-struct)
+   Compiling ostd-pod-macros v0.4.0 (/tmp/dpf-platform-validation-20261003/target/ostd/libs/ostd-pod/macros)
+   Compiling typeflags v0.1.0 (/tmp/dpf-platform-validation-20261003/target/kernel/libs/typeflags)
+   Compiling aster-rights-proc v0.1.0 (/tmp/dpf-platform-validation-20261003/target/kernel/libs/aster-rights-proc)
+   Compiling short-vis-path v0.1.0 (/tmp/dpf-platform-validation-20261003/target/kernel/libs/short-vis-path)
+   Compiling atomic-integer-wrapper v0.1.0 (/tmp/dpf-platform-validation-20261003/target/kernel/libs/atomic-integer-wrapper)
+   Compiling getset v0.1.7
+   Compiling ostd-macros v0.18.1 (/tmp/dpf-platform-validation-20261003/target/ostd/libs/ostd-macros)
+   Compiling ptr_meta_derive v0.2.0
+   Compiling ext-trait-proc_macros v1.0.1
+   Compiling nougat-proc_macros v0.2.4
+   Compiling lending-iterator-proc_macros v0.1.7
+   Compiling toml v0.7.8
+   Compiling darling_macro v0.13.4
+   Compiling component-macro v0.1.0 (/tmp/dpf-platform-validation-20261003/target/kernel/libs/comp-sys/component-macro)
+   Compiling darling v0.13.4
+   Compiling inherit-methods-macro v0.1.0 (https://github.com/asterinas/inherit-methods-macro?rev=98f7e3e#98f7e3eb)
+   Compiling alloc v0.0.0 (/root/.rustup/toolchains/nightly-2026-07-21-x86_64-unknown-linux-gnu/lib/rustlib/src/rust/library/alloc)
+   Compiling bitflags v2.13.2
+   Compiling bitflags v1.3.2
+   Compiling scopeguard v1.2.0
+   Compiling log v0.4.34
+   Compiling bit_field v0.10.3
+   Compiling uguid v2.2.1
+   Compiling tap v1.0.1
+   Compiling funty v2.0.0
+   Compiling ptr_meta v0.3.2
+   Compiling volatile v0.4.6
+   Compiling ptr_meta v0.2.0
+   Compiling smallvec v1.16.2
+   Compiling gimli v0.34.0
+   Compiling int-to-c-enum v0.1.0 (/tmp/dpf-platform-validation-20261003/target/ostd/libs/int-to-c-enum)
+   Compiling gimli v0.28.1
+   Compiling ostd-test v0.18.1 (/tmp/dpf-platform-validation-20261003/target/ostd/libs/ostd-test)
+   Compiling linux-boot-params v0.18.1 (/tmp/dpf-platform-validation-20261003/target/ostd/libs/linux-bzimage/boot-params)
+   Compiling align_ext v0.1.0 (/tmp/dpf-platform-validation-20261003/target/ostd/libs/align_ext)
+   Compiling volatile v0.6.1
+   Compiling inventory v0.3.24
+   Compiling typeflags-util v0.1.0 (/tmp/dpf-platform-validation-20261003/target/kernel/libs/typeflags-util)
+   Compiling byteorder v1.5.0
+   Compiling stable_deref_trait v1.2.1
+   Compiling managed v0.8.0
+   Compiling jhash v0.1.0 (/tmp/dpf-platform-validation-20261003/target/kernel/libs/jhash)
+   Compiling raw-cpuid v10.7.0
+warning: unstable feature specified for `-Ctarget-feature`: `ermsb`
+  |
+  = note: this feature is not stably supported; its behavior can change in the future
+
+   Compiling multiboot2-common v0.3.0
+   Compiling wyz v0.5.1
+   Compiling lock_api v0.4.14
+warning: `int-to-c-enum` (lib) generated 1 warning
+   Compiling intrusive-collections v0.9.7
+   Compiling allocator-api2 v0.2.21
+   Compiling ext-trait v1.0.1
+   Compiling takeable v0.2.2
+   Compiling macro_rules_attribute v0.1.3
+   Compiling component v0.1.0 (/tmp/dpf-platform-validation-20261003/target/kernel/libs/comp-sys/component)
+   Compiling aster-rights v0.1.0 (/tmp/dpf-platform-validation-20261003/target/kernel/libs/aster-rights)
+warning: `align_ext` (lib) generated 1 warning (1 duplicate)
+   Compiling uefi-raw v0.12.0
+   Compiling x86_64 v0.15.5
+   Compiling uefi-raw v0.8.0
+   Compiling acpi v5.2.0
+   Compiling extension-traits v1.0.1
+   Compiling nougat v0.2.4
+warning: `linux-boot-params` (lib) generated 1 warning (1 duplicate)
+warning: `typeflags-util` (lib) generated 1 warning (1 duplicate)
+   Compiling never-say-never v6.6.666
+   Compiling once_cell v1.21.4
+warning: `jhash` (lib) generated 1 warning (1 duplicate)
+   Compiling foldhash v0.2.0
+   Compiling konst_macro_rules v0.2.19
+   Compiling hash32 v0.3.1
+   Compiling polonius-the-crab v0.2.1
+   Compiling time-core v0.1.9
+   Compiling font8x8 v0.2.7
+   Compiling powerfmt v0.2.0
+   Compiling simd-adler32 v0.3.10
+   Compiling io-util v0.1.0 (/tmp/dpf-platform-validation-20261003/target/kernel/libs/io-util)
+   Compiling lending-iterator v0.1.7
+   Compiling zero v0.1.3
+   Compiling owo-colors v4.4.0
+   Compiling deranged v0.5.8
+   Compiling spin v0.9.9
+   Compiling konst v0.2.20
+   Compiling num-conv v0.2.2
+   Compiling xmas-elf v0.10.0
+   Compiling logo-ascii-art v0.1.0 (/tmp/dpf-platform-validation-20261003/target/kernel/libs/logo-ascii-art)
+   Compiling zune-inflate v0.2.54
+warning: `aster-rights` (lib) generated 1 warning (1 duplicate)
+   Compiling keyable-arc v0.1.0 (/tmp/dpf-platform-validation-20261003/target/kernel/libs/keyable-arc)
+warning: `logo-ascii-art` (lib) generated 1 warning (1 duplicate)
+   Compiling sparse-id-alloc v0.1.0 (/tmp/dpf-platform-validation-20261003/target/kernel/libs/sparse-id-alloc)
+warning: `keyable-arc` (lib) generated 1 warning (1 duplicate)
+   Compiling hashbrown v0.16.1
+   Compiling cpio-decoder v0.1.0 (/tmp/dpf-platform-validation-20261003/target/kernel/libs/cpio-decoder)
+   Compiling lazy_static v1.5.1
+   Compiling bitvec v1.1.1
+warning: `ostd-test` (lib) generated 1 warning (1 duplicate)
+   Compiling iced-x86 v1.21.0
+   Compiling const_format v0.2.36
+warning: `io-util` (lib) generated 1 warning (1 duplicate)
+warning: `cpio-decoder` (lib) generated 1 warning (1 duplicate)
+warning: `sparse-id-alloc` (lib) generated 1 warning (1 duplicate)
+warning: `component` (lib) generated 1 warning (1 duplicate)
+   Compiling lru v0.16.4
+   Compiling time v0.3.55
+   Compiling unwinding v0.2.10
+   Compiling id-alloc v0.1.0 (/tmp/dpf-platform-validation-20261003/target/ostd/libs/id-alloc)
+   Compiling multiboot2 v0.24.1
+warning: `id-alloc` (lib) generated 1 warning (1 duplicate)
+   Compiling ostd-pod v0.4.0 (/tmp/dpf-platform-validation-20261003/target/ostd/libs/ostd-pod)
+   Compiling hashbrown v0.14.5
+warning: `ostd-pod` (lib) generated 1 warning (1 duplicate)
+   Compiling tdx-guest v0.4.0
+   Compiling ostd v0.18.1 (/tmp/dpf-platform-validation-20261003/target/ostd)
+   Compiling osdk-heap-allocator v0.18.1 (/tmp/dpf-platform-validation-20261003/target/osdk/deps/heap-allocator)
+   Compiling aster-pci v0.1.0 (/tmp/dpf-platform-validation-20261003/target/kernel/core/comps/pci)
+   Compiling aster-console v0.1.0 (/tmp/dpf-platform-validation-20261003/target/kernel/core/comps/console)
+   Compiling aster-cmdline v0.1.0 (/tmp/dpf-platform-validation-20261003/target/kernel/core/comps/cmdline)
+   Compiling aster-input v0.1.0 (/tmp/dpf-platform-validation-20261003/target/kernel/core/comps/input)
+   Compiling aster-fuse v0.1.0 (/tmp/dpf-platform-validation-20261003/target/kernel/libs/aster-fuse)
+   Compiling aster-framebuffer v0.1.0 (/tmp/dpf-platform-validation-20261003/target/kernel/core/comps/framebuffer)
+   Compiling osdk-frame-allocator v0.18.1 (/tmp/dpf-platform-validation-20261003/target/osdk/deps/frame-allocator)
+   Compiling xarray v0.1.0 (/tmp/dpf-platform-validation-20261003/target/kernel/libs/xarray)
+   Compiling ring-buffer v0.1.0 (/tmp/dpf-platform-validation-20261003/target/kernel/libs/ring-buffer)
+   Compiling aster-logger v0.1.0 (/tmp/dpf-platform-validation-20261003/target/kernel/core/comps/logger)
+   Compiling aster-uart v0.1.0 (/tmp/dpf-platform-validation-20261003/target/kernel/core/comps/uart)
+warning: `ring-buffer` (lib) generated 1 warning (1 duplicate)
+warning: `xarray` (lib) generated 1 warning (1 duplicate)
+   Compiling aster-util v0.1.0 (/tmp/dpf-platform-validation-20261003/target/kernel/libs/aster-util)
+warning: `aster-logger` (lib) generated 1 warning (1 duplicate)
+   Compiling aster-i8042 v0.1.0 (/tmp/dpf-platform-validation-20261003/target/kernel/core/comps/i8042)
+warning: `aster-console` (lib) generated 1 warning (1 duplicate)
+warning: `aster-uart` (lib) generated 1 warning (1 duplicate)
+warning: `osdk-frame-allocator` (lib) generated 1 warning (1 duplicate)
+   Compiling aster-softirq v0.1.0 (/tmp/dpf-platform-validation-20261003/target/kernel/core/comps/softirq)
+   Compiling device-id v0.1.0 (/tmp/dpf-platform-validation-20261003/target/kernel/libs/device-id)
+   Compiling aster-systree v0.1.0 (/tmp/dpf-platform-validation-20261003/target/kernel/core/comps/systree)
+   Compiling aster-time v0.1.0 (/tmp/dpf-platform-validation-20261003/target/kernel/core/comps/time)
+warning: `aster-framebuffer` (lib) generated 1 warning (1 duplicate)
+   Compiling aster-block v0.1.0 (/tmp/dpf-platform-validation-20261003/target/kernel/core/comps/block)
+warning: `device-id` (lib) generated 1 warning (1 duplicate)
+warning: `osdk-heap-allocator` (lib) generated 1 warning (1 duplicate)
+warning: `aster-input` (lib) generated 1 warning (1 duplicate)
+   Compiling aster-bigtcp v0.1.0 (/tmp/dpf-platform-validation-20261003/target/kernel/libs/aster-bigtcp)
+warning: `aster-pci` (lib) generated 1 warning (1 duplicate)
+warning: `aster-cmdline` (lib) generated 1 warning (1 duplicate)
+warning: `aster-util` (lib) generated 1 warning (1 duplicate)
+   Compiling aster-pvpanic v0.1.0 (/tmp/dpf-platform-validation-20261003/target/kernel/core/comps/pvpanic)
+warning: `aster-i8042` (lib) generated 1 warning (1 duplicate)
+warning: `aster-time` (lib) generated 1 warning (1 duplicate)
+warning: field `bar` is never read
+  --> /tmp/dpf-platform-validation-20261003/target/kernel/core/comps/pvpanic/src/lib.rs:54:5
+   |
+53 | struct PvPanicState {
+   |        ------------ field in this struct
+54 |     bar: BarAccess,
+   |     ^^^
+   |
+   = note: `PvPanicState` has a derived impl for the trait `Debug`, but this is intentionally ignored during dead code analysis
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `aster-softirq` (lib) generated 1 warning (1 duplicate)
+   Compiling aster-network v0.1.0 (/tmp/dpf-platform-validation-20261003/target/kernel/core/comps/network)
+   Compiling aster-nvme v0.1.0 (/tmp/dpf-platform-validation-20261003/target/kernel/core/comps/nvme)
+warning: `aster-pvpanic` (lib) generated 2 warnings (1 duplicate)
+warning: `aster-systree` (lib) generated 1 warning (1 duplicate)
+warning: `aster-bigtcp` (lib) generated 1 warning (1 duplicate)
+   Compiling aster-virtio v0.1.0 (/tmp/dpf-platform-validation-20261003/target/kernel/core/comps/virtio)
+warning: `ostd` (lib) generated 1 warning (1 duplicate)
+warning: `aster-network` (lib) generated 1 warning (1 duplicate)
+warning: `aster-block` (lib) generated 1 warning (1 duplicate)
+warning: `aster-fuse` (lib) generated 1 warning (1 duplicate)
+warning: `aster-nvme` (lib) generated 1 warning (1 duplicate)
+   Compiling aster-core v0.1.0 (/tmp/dpf-platform-validation-20261003/target/kernel/core)
+warning: `aster-virtio` (lib) generated 1 warning (1 duplicate)
+   Compiling asterinas v0.1.0 (/tmp/dpf-platform-validation-20261003/target/kernel)
+warning: `asterinas` (lib) generated 1 warning (1 duplicate)
+warning: `aster-core` (lib) generated 1 warning (1 duplicate)
+   Compiling asterinas-osdk-bin v0.1.0 (/tmp/dpf-platform-validation-20261003/target/target/osdk/asterinas-run-base)
+warning: `asterinas-osdk-bin` (bin "asterinas-osdk-bin") generated 1 warning (1 duplicate)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 1m 23s
+grub-mkrescue: warning: cannot open directory `/usr/local/grub/share/locale': No such file or directory.
+xorriso 1.5.6 : RockRidge filesystem manipulator, libburnia project.
+
+Drive current: -outdev 'stdio:/tmp/dpf-platform-validation-20261003/target/target/osdk/asterinas-osdk-bin.iso'
+Media current: stdio file, overwriteable
+Media status : is blank
+Media summary: 0 sessions, 0 data blocks, 0 data,  607g free
+Added to ISO image: directory '/'='/tmp/grub.FkzxWD'
+xorriso : UPDATE :     298 files added in 1 seconds
+Added to ISO image: directory '/'='/tmp/dpf-platform-validation-20261003/target/target/osdk/iso_root'
+xorriso : UPDATE :     303 files added in 1 seconds
+xorriso : UPDATE :  50.13% done
+ISO image produced: 80391 sectors
+Written to medium : 80391 sectors at LBA 0
+Writing to 'stdio:/tmp/dpf-platform-validation-20261003/target/target/osdk/asterinas-osdk-bin.iso' completed successfully.
+

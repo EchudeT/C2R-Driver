@@ -18,7 +18,8 @@ def identity(project):
               (S.EVIDENCE_CLOSURE, A.MATERIALS_MANIFEST),
               (S.EVIDENCE_CLOSURE, A.EVIDENCE_GAP_REGISTER),
               (ES.RECOVERY, E.MODE_RECORD), (ES.RECOVERY, E.EXPERIMENT_ROUTE),
-              (KS.KNOWLEDGE_BASE, K.QUERY_CONTRACT), (TS.STUDY, T.REPORT))
+              (KS.KNOWLEDGE_BASE, K.QUERY_CONTRACT), (TS.STUDY, T.REPORT),
+              (TS.STUDY, T.KNOWLEDGE_QUALITY), (TS.STUDY, T.ROUTE))
     return {"inputs": {kind.value: project.artifact(stage, kind).digest for stage, kind in inputs},
             "rules": {stage.value: review_policy_digest(project, None, stage)
                       for stage in (TS.STUDY, MigrationStage.CONTRACTS)}}

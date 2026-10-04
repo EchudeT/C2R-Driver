@@ -1,0 +1,37 @@
+[
+  {
+    "slot": 0,
+    "id": "OK 0x29c08086",
+    "command": "OK 0x0007",
+    "bar0": "OK 0x0000",
+    "bar1": "OK 0x0000"
+  },
+  {
+    "slot": 1,
+    "id": "OK 0x11111234",
+    "command": "OK 0x0007",
+    "bar0": "OK 0x80000008",
+    "bar1": "OK 0x0000"
+  },
+  {
+    "slot": 2,
+    "id": "OK 0x10d38086",
+    "command": "OK 0x100007",
+    "bar0": "OK 0x81060000",
+    "bar1": "OK 0x81040000"
+  },
+  {
+    "slot": 3,
+    "id": "OK 0x111b36",
+    "command": "OK 0x0007",
+    "bar0": "OK 0x0000",
+    "bar1": "OK 0x0000"
+  },
+  {
+    "slot": 31,
+    "id": "OK 0x29188086",
+    "command": "OK 0x0007",
+    "bar0": "OK 0x0000",
+    "bar1": "OK 0x0000"
+  }
+]

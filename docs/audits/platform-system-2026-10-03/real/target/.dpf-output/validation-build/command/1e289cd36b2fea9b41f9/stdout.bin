@@ -1,0 +1,46 @@
+/nix/store/y0kkiknzihr0a5wwjxb04x0ypipjgb5h-initramfs
+/nix/store/wnlxq9gqm7wn106rjzz5604iqsnfq2n8-initramfs-image
+Discarding device blocks:      0/524287             done                            
+Creating filesystem with 524287 4k blocks and 131072 inodes
+Filesystem UUID: 31e933bf-3613-4ba2-8099-acb7d8e382d6
+Superblock backups stored on blocks: 
+	32768, 98304, 163840, 229376, 294912
+
+Allocating group tables:  0/16     done                            
+Writing inode tables:  0/16     done                            
+Writing superblocks and filesystem accounting information:  0/16     done
+
+exfatprogs version : 1.2.2
+Creating exFAT filesystem(/tmp/dpf-platform-validation-20261003/target/test/initramfs/build/exfat.img, cluster size=32768)
+
+Writing volume boot record: done
+Writing backup volume boot record: done
+Fat table creation: done
+Allocation bitmap creation: done
+Upcase table creation: done
+Writing root directory entry: done
+Synchronizing...
+
+exFAT format complete!
+Discarding device blocks:      0/131072             done                            
+Creating filesystem with 131072 4k blocks and 32768 inodes
+Filesystem UUID: 6bf9ba71-2bd5-4207-943e-3a7c8bab4ca7
+Superblock backups stored on blocks: 
+	32768, 98304
+
+Allocating group tables: 0/4   done                            
+Writing inode tables: 0/4   done                            
+Writing superblocks and filesystem accounting information: 0/4   done
+
+Discarding device blocks:     0/65536           done                            
+Creating filesystem with 65536 4k blocks and 65536 inodes
+Filesystem UUID: 23e245be-a350-4442-963a-8f41a9e10b0b
+Superblock backups stored on blocks: 
+	32768
+
+Allocating group tables: 0/2   done                            
+Writing inode tables: 0/2   done                            
+Writing superblocks and filesystem accounting information: 0/2   done
+
+[Info] [normal] Forwarded QEMU guest port: 5356->22; 45056->8080 25813->6379 58465->5201 22755->31234 60018->31236 28685->11211
+[Info] [test] Forwarded QEMU guest port: 29029->22; 21946->8080 12916->6379 7304->5201 57986->31234 58585->31236 61606->11211

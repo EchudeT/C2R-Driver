@@ -1,0 +1,832 @@
+[
+  {
+    "cell": null,
+    "code": "I001",
+    "end_location": {
+      "column": 41,
+      "row": 13
+    },
+    "filename": "/home/unix/file/C2R-Driver/c2rust-migration-test-01/driver-port-factory/src/driver_port_factory/codex/prompts.py",
+    "fix": {
+      "applicability": "safe",
+      "edits": [
+        {
+          "content": "from __future__ import annotations\n\nimport hashlib\nimport json\nimport re\nfrom dataclasses import dataclass\nfrom html import escape\nfrom pathlib import Path\nfrom typing import Any\n\nfrom ..core.contracts import StageKey\nfrom ..core.models import ActorRole, ControllerError\nfrom ..core.workflow import StageCatalog\n\n\n",
+          "end_location": {
+            "column": 1,
+            "row": 16
+          },
+          "location": {
+            "column": 1,
+            "row": 1
+          }
+        }
+      ],
+      "message": "Organize imports"
+    },
+    "location": {
+      "column": 1,
+      "row": 1
+    },
+    "message": "Import block is un-sorted or un-formatted",
+    "name": "unsorted-imports",
+    "noqa_row": 1,
+    "severity": "error",
+    "url": "https://docs.astral.sh/ruff/rules/unsorted-imports"
+  },
+  {
+    "cell": null,
+    "code": "E501",
+    "end_location": {
+      "column": 122,
+      "row": 94
+    },
+    "filename": "/home/unix/file/C2R-Driver/c2rust-migration-test-01/driver-port-factory/src/driver_port_factory/codex/prompts.py",
+    "fix": null,
+    "location": {
+      "column": 101,
+      "row": 94
+    },
+    "message": "Line too long (121 > 100)",
+    "name": "line-too-long",
+    "noqa_row": 94,
+    "severity": "error",
+    "url": "https://docs.astral.sh/ruff/rules/line-too-long"
+  },
+  {
+    "cell": null,
+    "code": "E501",
+    "end_location": {
+      "column": 109,
+      "row": 186
+    },
+    "filename": "/home/unix/file/C2R-Driver/c2rust-migration-test-01/driver-port-factory/src/driver_port_factory/codex/prompts.py",
+    "fix": null,
+    "location": {
+      "column": 101,
+      "row": 186
+    },
+    "message": "Line too long (108 > 100)",
+    "name": "line-too-long",
+    "noqa_row": 186,
+    "severity": "error",
+    "url": "https://docs.astral.sh/ruff/rules/line-too-long"
+  },
+  {
+    "cell": null,
+    "code": "C901",
+    "end_location": {
+      "column": 15,
+      "row": 212
+    },
+    "filename": "/home/unix/file/C2R-Driver/c2rust-migration-test-01/driver-port-factory/src/driver_port_factory/codex/prompts.py",
+    "fix": null,
+    "location": {
+      "column": 9,
+      "row": 212
+    },
+    "message": "`render` is too complex (15 > 12)",
+    "name": "complex-structure",
+    "noqa_row": 212,
+    "severity": "error",
+    "url": "https://docs.astral.sh/ruff/rules/complex-structure"
+  },
+  {
+    "cell": null,
+    "code": "PLR0912",
+    "end_location": {
+      "column": 15,
+      "row": 212
+    },
+    "filename": "/home/unix/file/C2R-Driver/c2rust-migration-test-01/driver-port-factory/src/driver_port_factory/codex/prompts.py",
+    "fix": null,
+    "location": {
+      "column": 9,
+      "row": 212
+    },
+    "message": "Too many branches (14 > 12)",
+    "name": "too-many-branches",
+    "noqa_row": 212,
+    "severity": "error",
+    "url": "https://docs.astral.sh/ruff/rules/too-many-branches"
+  },
+  {
+    "cell": null,
+    "code": "E501",
+    "end_location": {
+      "column": 115,
+      "row": 238
+    },
+    "filename": "/home/unix/file/C2R-Driver/c2rust-migration-test-01/driver-port-factory/src/driver_port_factory/codex/prompts.py",
+    "fix": null,
+    "location": {
+      "column": 101,
+      "row": 238
+    },
+    "message": "Line too long (114 > 100)",
+    "name": "line-too-long",
+    "noqa_row": 238,
+    "severity": "error",
+    "url": "https://docs.astral.sh/ruff/rules/line-too-long"
+  },
+  {
+    "cell": null,
+    "code": "E501",
+    "end_location": {
+      "column": 107,
+      "row": 245
+    },
+    "filename": "/home/unix/file/C2R-Driver/c2rust-migration-test-01/driver-port-factory/src/driver_port_factory/codex/prompts.py",
+    "fix": null,
+    "location": {
+      "column": 101,
+      "row": 245
+    },
+    "message": "Line too long (106 > 100)",
+    "name": "line-too-long",
+    "noqa_row": 245,
+    "severity": "error",
+    "url": "https://docs.astral.sh/ruff/rules/line-too-long"
+  },
+  {
+    "cell": null,
+    "code": "E501",
+    "end_location": {
+      "column": 142,
+      "row": 317
+    },
+    "filename": "/home/unix/file/C2R-Driver/c2rust-migration-test-01/driver-port-factory/src/driver_port_factory/codex/prompts.py",
+    "fix": null,
+    "location": {
+      "column": 101,
+      "row": 317
+    },
+    "message": "Line too long (141 > 100)",
+    "name": "line-too-long",
+    "noqa_row": 317,
+    "severity": "error",
+    "url": "https://docs.astral.sh/ruff/rules/line-too-long"
+  },
+  {
+    "cell": null,
+    "code": "E501",
+    "end_location": {
+      "column": 108,
+      "row": 345
+    },
+    "filename": "/home/unix/file/C2R-Driver/c2rust-migration-test-01/driver-port-factory/src/driver_port_factory/codex/prompts.py",
+    "fix": null,
+    "location": {
+      "column": 101,
+      "row": 345
+    },
+    "message": "Line too long (107 > 100)",
+    "name": "line-too-long",
+    "noqa_row": 345,
+    "severity": "error",
+    "url": "https://docs.astral.sh/ruff/rules/line-too-long"
+  },
+  {
+    "cell": null,
+    "code": "E501",
+    "end_location": {
+      "column": 122,
+      "row": 364
+    },
+    "filename": "/home/unix/file/C2R-Driver/c2rust-migration-test-01/driver-port-factory/src/driver_port_factory/codex/prompts.py",
+    "fix": null,
+    "location": {
+      "column": 101,
+      "row": 364
+    },
+    "message": "Line too long (121 > 100)",
+    "name": "line-too-long",
+    "noqa_row": 364,
+    "severity": "error",
+    "url": "https://docs.astral.sh/ruff/rules/line-too-long"
+  },
+  {
+    "cell": null,
+    "code": "C901",
+    "end_location": {
+      "column": 21,
+      "row": 139
+    },
+    "filename": "/home/unix/file/C2R-Driver/c2rust-migration-test-01/driver-port-factory/src/driver_port_factory/port.py",
+    "fix": null,
+    "location": {
+      "column": 9,
+      "row": 139
+    },
+    "message": "`_run_project` is too complex (18 > 12)",
+    "name": "complex-structure",
+    "noqa_row": 139,
+    "severity": "error",
+    "url": "https://docs.astral.sh/ruff/rules/complex-structure"
+  },
+  {
+    "cell": null,
+    "code": "PLR0912",
+    "end_location": {
+      "column": 21,
+      "row": 139
+    },
+    "filename": "/home/unix/file/C2R-Driver/c2rust-migration-test-01/driver-port-factory/src/driver_port_factory/port.py",
+    "fix": null,
+    "location": {
+      "column": 9,
+      "row": 139
+    },
+    "message": "Too many branches (17 > 12)",
+    "name": "too-many-branches",
+    "noqa_row": 139,
+    "severity": "error",
+    "url": "https://docs.astral.sh/ruff/rules/too-many-branches"
+  },
+  {
+    "cell": null,
+    "code": "E501",
+    "end_location": {
+      "column": 109,
+      "row": 147
+    },
+    "filename": "/home/unix/file/C2R-Driver/c2rust-migration-test-01/driver-port-factory/src/driver_port_factory/port.py",
+    "fix": null,
+    "location": {
+      "column": 101,
+      "row": 147
+    },
+    "message": "Line too long (108 > 100)",
+    "name": "line-too-long",
+    "noqa_row": 147,
+    "severity": "error",
+    "url": "https://docs.astral.sh/ruff/rules/line-too-long"
+  },
+  {
+    "cell": null,
+    "code": "E501",
+    "end_location": {
+      "column": 108,
+      "row": 214
+    },
+    "filename": "/home/unix/file/C2R-Driver/c2rust-migration-test-01/driver-port-factory/src/driver_port_factory/port.py",
+    "fix": null,
+    "location": {
+      "column": 101,
+      "row": 214
+    },
+    "message": "Line too long (107 > 100)",
+    "name": "line-too-long",
+    "noqa_row": 214,
+    "severity": "error",
+    "url": "https://docs.astral.sh/ruff/rules/line-too-long"
+  },
+  {
+    "cell": null,
+    "code": "E501",
+    "end_location": {
+      "column": 114,
+      "row": 236
+    },
+    "filename": "/home/unix/file/C2R-Driver/c2rust-migration-test-01/driver-port-factory/src/driver_port_factory/port.py",
+    "fix": null,
+    "location": {
+      "column": 101,
+      "row": 236
+    },
+    "message": "Line too long (113 > 100)",
+    "name": "line-too-long",
+    "noqa_row": 236,
+    "severity": "error",
+    "url": "https://docs.astral.sh/ruff/rules/line-too-long"
+  },
+  {
+    "cell": null,
+    "code": "C901",
+    "end_location": {
+      "column": 20,
+      "row": 465
+    },
+    "filename": "/home/unix/file/C2R-Driver/c2rust-migration-test-01/driver-port-factory/src/driver_port_factory/port.py",
+    "fix": null,
+    "location": {
+      "column": 9,
+      "row": 465
+    },
+    "message": "`_codex_gate` is too complex (13 > 12)",
+    "name": "complex-structure",
+    "noqa_row": 465,
+    "severity": "error",
+    "url": "https://docs.astral.sh/ruff/rules/complex-structure"
+  },
+  {
+    "cell": null,
+    "code": "E501",
+    "end_location": {
+      "column": 110,
+      "row": 515
+    },
+    "filename": "/home/unix/file/C2R-Driver/c2rust-migration-test-01/driver-port-factory/src/driver_port_factory/port.py",
+    "fix": null,
+    "location": {
+      "column": 101,
+      "row": 515
+    },
+    "message": "Line too long (109 > 100)",
+    "name": "line-too-long",
+    "noqa_row": 515,
+    "severity": "error",
+    "url": "https://docs.astral.sh/ruff/rules/line-too-long"
+  },
+  {
+    "cell": null,
+    "code": "E501",
+    "end_location": {
+      "column": 111,
+      "row": 708
+    },
+    "filename": "/home/unix/file/C2R-Driver/c2rust-migration-test-01/driver-port-factory/src/driver_port_factory/port.py",
+    "fix": null,
+    "location": {
+      "column": 101,
+      "row": 708
+    },
+    "message": "Line too long (110 > 100)",
+    "name": "line-too-long",
+    "noqa_row": 708,
+    "severity": "error",
+    "url": "https://docs.astral.sh/ruff/rules/line-too-long"
+  },
+  {
+    "cell": null,
+    "code": "E501",
+    "end_location": {
+      "column": 108,
+      "row": 720
+    },
+    "filename": "/home/unix/file/C2R-Driver/c2rust-migration-test-01/driver-port-factory/src/driver_port_factory/port.py",
+    "fix": null,
+    "location": {
+      "column": 101,
+      "row": 720
+    },
+    "message": "Line too long (107 > 100)",
+    "name": "line-too-long",
+    "noqa_row": 720,
+    "severity": "error",
+    "url": "https://docs.astral.sh/ruff/rules/line-too-long"
+  },
+  {
+    "cell": null,
+    "code": "E501",
+    "end_location": {
+      "column": 111,
+      "row": 824
+    },
+    "filename": "/home/unix/file/C2R-Driver/c2rust-migration-test-01/driver-port-factory/src/driver_port_factory/port.py",
+    "fix": null,
+    "location": {
+      "column": 101,
+      "row": 824
+    },
+    "message": "Line too long (110 > 100)",
+    "name": "line-too-long",
+    "noqa_row": 824,
+    "severity": "error",
+    "url": "https://docs.astral.sh/ruff/rules/line-too-long"
+  },
+  {
+    "cell": null,
+    "code": "SIM102",
+    "end_location": {
+      "column": 33,
+      "row": 880
+    },
+    "filename": "/home/unix/file/C2R-Driver/c2rust-migration-test-01/driver-port-factory/src/driver_port_factory/port.py",
+    "fix": null,
+    "location": {
+      "column": 9,
+      "row": 879
+    },
+    "message": "Use a single `if` statement instead of nested `if` statements",
+    "name": "collapsible-if",
+    "noqa_row": 879,
+    "severity": "error",
+    "url": "https://docs.astral.sh/ruff/rules/collapsible-if"
+  },
+  {
+    "cell": null,
+    "code": "I001",
+    "end_location": {
+      "column": 56,
+      "row": 929
+    },
+    "filename": "/home/unix/file/C2R-Driver/c2rust-migration-test-01/driver-port-factory/src/driver_port_factory/port.py",
+    "fix": {
+      "applicability": "safe",
+      "edits": [
+        {
+          "content": "        from .migration.analysis_delivery import record\n        from .target_study.reuse import remember\n",
+          "end_location": {
+            "column": 1,
+            "row": 930
+          },
+          "location": {
+            "column": 1,
+            "row": 928
+          }
+        }
+      ],
+      "message": "Organize imports"
+    },
+    "location": {
+      "column": 9,
+      "row": 928
+    },
+    "message": "Import block is un-sorted or un-formatted",
+    "name": "unsorted-imports",
+    "noqa_row": 928,
+    "severity": "error",
+    "url": "https://docs.astral.sh/ruff/rules/unsorted-imports"
+  },
+  {
+    "cell": null,
+    "code": "E501",
+    "end_location": {
+      "column": 102,
+      "row": 930
+    },
+    "filename": "/home/unix/file/C2R-Driver/c2rust-migration-test-01/driver-port-factory/src/driver_port_factory/port.py",
+    "fix": null,
+    "location": {
+      "column": 101,
+      "row": 930
+    },
+    "message": "Line too long (101 > 100)",
+    "name": "line-too-long",
+    "noqa_row": 930,
+    "severity": "error",
+    "url": "https://docs.astral.sh/ruff/rules/line-too-long"
+  },
+  {
+    "cell": null,
+    "code": "E501",
+    "end_location": {
+      "column": 104,
+      "row": 1015
+    },
+    "filename": "/home/unix/file/C2R-Driver/c2rust-migration-test-01/driver-port-factory/src/driver_port_factory/port.py",
+    "fix": null,
+    "location": {
+      "column": 101,
+      "row": 1015
+    },
+    "message": "Line too long (103 > 100)",
+    "name": "line-too-long",
+    "noqa_row": 1015,
+    "severity": "error",
+    "url": "https://docs.astral.sh/ruff/rules/line-too-long"
+  },
+  {
+    "cell": null,
+    "code": "E501",
+    "end_location": {
+      "column": 115,
+      "row": 1019
+    },
+    "filename": "/home/unix/file/C2R-Driver/c2rust-migration-test-01/driver-port-factory/src/driver_port_factory/port.py",
+    "fix": null,
+    "location": {
+      "column": 101,
+      "row": 1019
+    },
+    "message": "Line too long (114 > 100)",
+    "name": "line-too-long",
+    "noqa_row": 1019,
+    "severity": "error",
+    "url": "https://docs.astral.sh/ruff/rules/line-too-long"
+  },
+  {
+    "cell": null,
+    "code": "E501",
+    "end_location": {
+      "column": 124,
+      "row": 1122
+    },
+    "filename": "/home/unix/file/C2R-Driver/c2rust-migration-test-01/driver-port-factory/src/driver_port_factory/port.py",
+    "fix": null,
+    "location": {
+      "column": 101,
+      "row": 1122
+    },
+    "message": "Line too long (123 > 100)",
+    "name": "line-too-long",
+    "noqa_row": 1122,
+    "severity": "error",
+    "url": "https://docs.astral.sh/ruff/rules/line-too-long"
+  },
+  {
+    "cell": null,
+    "code": "E501",
+    "end_location": {
+      "column": 134,
+      "row": 1126
+    },
+    "filename": "/home/unix/file/C2R-Driver/c2rust-migration-test-01/driver-port-factory/src/driver_port_factory/port.py",
+    "fix": null,
+    "location": {
+      "column": 101,
+      "row": 1126
+    },
+    "message": "Line too long (133 > 100)",
+    "name": "line-too-long",
+    "noqa_row": 1126,
+    "severity": "error",
+    "url": "https://docs.astral.sh/ruff/rules/line-too-long"
+  },
+  {
+    "cell": null,
+    "code": "E501",
+    "end_location": {
+      "column": 105,
+      "row": 1169
+    },
+    "filename": "/home/unix/file/C2R-Driver/c2rust-migration-test-01/driver-port-factory/src/driver_port_factory/port.py",
+    "fix": null,
+    "location": {
+      "column": 101,
+      "row": 1169
+    },
+    "message": "Line too long (104 > 100)",
+    "name": "line-too-long",
+    "noqa_row": 1169,
+    "severity": "error",
+    "url": "https://docs.astral.sh/ruff/rules/line-too-long"
+  },
+  {
+    "cell": null,
+    "code": "E501",
+    "end_location": {
+      "column": 112,
+      "row": 1171
+    },
+    "filename": "/home/unix/file/C2R-Driver/c2rust-migration-test-01/driver-port-factory/src/driver_port_factory/port.py",
+    "fix": null,
+    "location": {
+      "column": 101,
+      "row": 1171
+    },
+    "message": "Line too long (111 > 100)",
+    "name": "line-too-long",
+    "noqa_row": 1171,
+    "severity": "error",
+    "url": "https://docs.astral.sh/ruff/rules/line-too-long"
+  },
+  {
+    "cell": null,
+    "code": "E501",
+    "end_location": {
+      "column": 103,
+      "row": 1284
+    },
+    "filename": "/home/unix/file/C2R-Driver/c2rust-migration-test-01/driver-port-factory/src/driver_port_factory/port.py",
+    "fix": null,
+    "location": {
+      "column": 101,
+      "row": 1284
+    },
+    "message": "Line too long (102 > 100)",
+    "name": "line-too-long",
+    "noqa_row": 1284,
+    "severity": "error",
+    "url": "https://docs.astral.sh/ruff/rules/line-too-long"
+  },
+  {
+    "cell": null,
+    "code": "E501",
+    "end_location": {
+      "column": 112,
+      "row": 1306
+    },
+    "filename": "/home/unix/file/C2R-Driver/c2rust-migration-test-01/driver-port-factory/src/driver_port_factory/port.py",
+    "fix": null,
+    "location": {
+      "column": 101,
+      "row": 1306
+    },
+    "message": "Line too long (111 > 100)",
+    "name": "line-too-long",
+    "noqa_row": 1306,
+    "severity": "error",
+    "url": "https://docs.astral.sh/ruff/rules/line-too-long"
+  },
+  {
+    "cell": null,
+    "code": "E501",
+    "end_location": {
+      "column": 107,
+      "row": 1307
+    },
+    "filename": "/home/unix/file/C2R-Driver/c2rust-migration-test-01/driver-port-factory/src/driver_port_factory/port.py",
+    "fix": null,
+    "location": {
+      "column": 101,
+      "row": 1307
+    },
+    "message": "Line too long (106 > 100)",
+    "name": "line-too-long",
+    "noqa_row": 1307,
+    "severity": "error",
+    "url": "https://docs.astral.sh/ruff/rules/line-too-long"
+  },
+  {
+    "cell": null,
+    "code": "E501",
+    "end_location": {
+      "column": 103,
+      "row": 1330
+    },
+    "filename": "/home/unix/file/C2R-Driver/c2rust-migration-test-01/driver-port-factory/src/driver_port_factory/port.py",
+    "fix": null,
+    "location": {
+      "column": 101,
+      "row": 1330
+    },
+    "message": "Line too long (102 > 100)",
+    "name": "line-too-long",
+    "noqa_row": 1330,
+    "severity": "error",
+    "url": "https://docs.astral.sh/ruff/rules/line-too-long"
+  },
+  {
+    "cell": null,
+    "code": "E501",
+    "end_location": {
+      "column": 104,
+      "row": 1334
+    },
+    "filename": "/home/unix/file/C2R-Driver/c2rust-migration-test-01/driver-port-factory/src/driver_port_factory/port.py",
+    "fix": null,
+    "location": {
+      "column": 101,
+      "row": 1334
+    },
+    "message": "Line too long (103 > 100)",
+    "name": "line-too-long",
+    "noqa_row": 1334,
+    "severity": "error",
+    "url": "https://docs.astral.sh/ruff/rules/line-too-long"
+  },
+  {
+    "cell": null,
+    "code": "E501",
+    "end_location": {
+      "column": 102,
+      "row": 1413
+    },
+    "filename": "/home/unix/file/C2R-Driver/c2rust-migration-test-01/driver-port-factory/src/driver_port_factory/port.py",
+    "fix": null,
+    "location": {
+      "column": 101,
+      "row": 1413
+    },
+    "message": "Line too long (101 > 100)",
+    "name": "line-too-long",
+    "noqa_row": 1413,
+    "severity": "error",
+    "url": "https://docs.astral.sh/ruff/rules/line-too-long"
+  },
+  {
+    "cell": null,
+    "code": "E501",
+    "end_location": {
+      "column": 110,
+      "row": 1419
+    },
+    "filename": "/home/unix/file/C2R-Driver/c2rust-migration-test-01/driver-port-factory/src/driver_port_factory/port.py",
+    "fix": null,
+    "location": {
+      "column": 101,
+      "row": 1419
+    },
+    "message": "Line too long (109 > 100)",
+    "name": "line-too-long",
+    "noqa_row": 1419,
+    "severity": "error",
+    "url": "https://docs.astral.sh/ruff/rules/line-too-long"
+  },
+  {
+    "cell": null,
+    "code": "E501",
+    "end_location": {
+      "column": 104,
+      "row": 1420
+    },
+    "filename": "/home/unix/file/C2R-Driver/c2rust-migration-test-01/driver-port-factory/src/driver_port_factory/port.py",
+    "fix": null,
+    "location": {
+      "column": 101,
+      "row": 1420
+    },
+    "message": "Line too long (103 > 100)",
+    "name": "line-too-long",
+    "noqa_row": 1420,
+    "severity": "error",
+    "url": "https://docs.astral.sh/ruff/rules/line-too-long"
+  },
+  {
+    "cell": null,
+    "code": "E501",
+    "end_location": {
+      "column": 105,
+      "row": 1491
+    },
+    "filename": "/home/unix/file/C2R-Driver/c2rust-migration-test-01/driver-port-factory/src/driver_port_factory/port.py",
+    "fix": null,
+    "location": {
+      "column": 101,
+      "row": 1491
+    },
+    "message": "Line too long (104 > 100)",
+    "name": "line-too-long",
+    "noqa_row": 1491,
+    "severity": "error",
+    "url": "https://docs.astral.sh/ruff/rules/line-too-long"
+  },
+  {
+    "cell": null,
+    "code": "E501",
+    "end_location": {
+      "column": 114,
+      "row": 1525
+    },
+    "filename": "/home/unix/file/C2R-Driver/c2rust-migration-test-01/driver-port-factory/src/driver_port_factory/port.py",
+    "fix": null,
+    "location": {
+      "column": 101,
+      "row": 1525
+    },
+    "message": "Line too long (113 > 100)",
+    "name": "line-too-long",
+    "noqa_row": 1525,
+    "severity": "error",
+    "url": "https://docs.astral.sh/ruff/rules/line-too-long"
+  },
+  {
+    "cell": null,
+    "code": "E501",
+    "end_location": {
+      "column": 108,
+      "row": 1536
+    },
+    "filename": "/home/unix/file/C2R-Driver/c2rust-migration-test-01/driver-port-factory/src/driver_port_factory/port.py",
+    "fix": null,
+    "location": {
+      "column": 101,
+      "row": 1536
+    },
+    "message": "Line too long (107 > 100)",
+    "name": "line-too-long",
+    "noqa_row": 1536,
+    "severity": "error",
+    "url": "https://docs.astral.sh/ruff/rules/line-too-long"
+  },
+  {
+    "cell": null,
+    "code": "E501",
+    "end_location": {
+      "column": 112,
+      "row": 1543
+    },
+    "filename": "/home/unix/file/C2R-Driver/c2rust-migration-test-01/driver-port-factory/src/driver_port_factory/port.py",
+    "fix": null,
+    "location": {
+      "column": 101,
+      "row": 1543
+    },
+    "message": "Line too long (111 > 100)",
+    "name": "line-too-long",
+    "noqa_row": 1543,
+    "severity": "error",
+    "url": "https://docs.astral.sh/ruff/rules/line-too-long"
+  },
+  {
+    "cell": null,
+    "code": "E501",
+    "end_location": {
+      "column": 109,
+      "row": 1555
+    },
+    "filename": "/home/unix/file/C2R-Driver/c2rust-migration-test-01/driver-port-factory/src/driver_port_factory/port.py",
+    "fix": null,
+    "location": {
+      "column": 101,
+      "row": 1555
+    },
+    "message": "Line too long (108 > 100)",
+    "name": "line-too-long",
+    "noqa_row": 1555,
+    "severity": "error",
+    "url": "https://docs.astral.sh/ruff/rules/line-too-long"
+  }
+]

@@ -13,6 +13,7 @@ from .review_policy import review_policy_digest
 
 INPUTS = (
     (TargetStudyStage.STUDY, TargetStudyArtifact.REPORT),
+    (TargetStudyStage.STUDY, TargetStudyArtifact.KNOWLEDGE_QUALITY),
     (S.CONTRACTS, A.CONTRACTS),
     (S.CONTRACTS, A.TEST_PORT_MATRIX),
     (S.HANDOFF, A.HANDOFF),

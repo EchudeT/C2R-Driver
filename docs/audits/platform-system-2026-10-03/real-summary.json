@@ -1,0 +1,65 @@
+{
+  "runtime_code": {
+    "__init__.py": "97e3275a7b96f36b81041c35aa523b7f7129e02088697d1741b81b908d37547f",
+    "activity.py": "b7fd3bcf03b0b42ede0248055533260862b368534e60bf3174e45b24f3bd3574",
+    "cli.py": "a44cfe857039fd7dea64aa82814a3e4430479b70a126af1abf5472174472b29b",
+    "dependencies.py": "5d4e8a5e356a64da2b18f3f665be08f7a0952968ff3f3c2cf94dcfffdb737a68",
+    "executor.py": "bc6ca128c0313ebe0f1f9897e86b6dd2b6d5318f4012b518f566d4707ac0b85e",
+    "formatting.py": "b13a482515f81b55c450bcd45155c0ffd630b27ea4216668506001b6e0fcd1db",
+    "guest.py": "2abb53fddf7e021b5ec64d471ac430d35667db12e6c8860b4fc76b7fb959dc97",
+    "integration.py": "039ad4614394d51a7215d332077867a4ce447bef45ffb9529fdf4433ba09f827",
+    "profile.py": "54ecd80a3f214d875da80422b4196474dc9680178b7c6ab28001efd18a059a91",
+    "service.py": "ab03f3e699d15ce88ea7247c9f9c6aebd6859a070e78bf724cf8874532b998a5",
+    "worker.py": "b480ef5dc03176a5b68cea8541641d485dcaea24dfcea6cb2a24d33d05d5ca34"
+  },
+  "image": "asterinas/dev:0.18.1-20260805-dpf-ovmf-bar-v1",
+  "image_id": "sha256:41b92d5cb6cb5884b104dad31a348c695c6a866bcad7974480d9acf396f037c5",
+  "target_revision": "d924a9635a66c7c3bb43e563eaafa2c61d6ee9d5",
+  "firmware": "/root/ovmf/release/OVMF.fd",
+  "accelerator": "kvm",
+  "scope": "local executor validation using an isolated copy of the existing partial candidate; no model translation or final driver acceptance",
+  "runs": {
+    "validation-dependencies": {
+      "status": "FAIL",
+      "error": "WorkflowError: Offline dependency resolution failed; no build attempted",
+      "command_seconds": 92.539,
+      "receipt": "real/target/.dpf-output/validation-dependencies/dependencies.json"
+    },
+    "warm-dependencies": {
+      "status": "DEPENDENCIES_RESOLVED",
+      "error": null,
+      "command_seconds": 0.667,
+      "receipt": "real/target/.dpf-output/warm-dependencies/dependencies.json"
+    },
+    "validation-build": {
+      "status": "PASS",
+      "error": null,
+      "command_seconds": 140.358,
+      "receipt": "real/target/.dpf-output/validation-build/build.json"
+    },
+    "final-build": {
+      "status": "PASS",
+      "error": null,
+      "command_seconds": 9.203,
+      "receipt": "real/target/.dpf-output/final-build/build.json"
+    },
+    "assertion-positive": {
+      "status": "FAIL",
+      "error": "TIMEOUT: GUEST_ASSERT result",
+      "command_seconds": 120.543,
+      "receipt": "real/target/.dpf-output/assertion-positive/boot.json"
+    },
+    "assertion-positive-fixed": {
+      "status": "PASS",
+      "error": null,
+      "command_seconds": 31.401,
+      "receipt": "real/target/.dpf-output/assertion-positive-fixed/boot.json"
+    },
+    "assertion-negative": {
+      "status": "FAIL",
+      "error": "GUEST_ASSERT_FAILED: exit=1; command='test 1 = 2'",
+      "command_seconds": 19.1,
+      "receipt": "real/target/.dpf-output/assertion-negative/boot.json"
+    }
+  }
+}

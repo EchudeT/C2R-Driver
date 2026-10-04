@@ -11,6 +11,7 @@ class MigrationStage(StrEnum):
     PUBLIC_QEMU_VALIDATION = "public_qemu_validation"
     FINAL_EVIDENCE_REVIEW = "final_evidence_review"
     COMPLETION_AUDIT = "completion_audit"
+    BENCHMARK_VALIDATION = "benchmark_validation"
 
 
 class MigrationArtifact(StrEnum):
@@ -33,6 +34,8 @@ class MigrationArtifact(StrEnum):
     PUBLIC_QEMU_WORK_REPORT = "public_qemu_work_report"
     FINAL_EVIDENCE_REVIEW_REPORT = "final_evidence_review_report"
     EVIDENCE_AUDIT = "evidence_audit"
+    BENCHMARK_REPORT = "benchmark_report"
+    BENCHMARK_ATTEMPT = "benchmark_attempt"
 
 
 class HandoffMode(StrEnum):

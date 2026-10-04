@@ -1,0 +1,36 @@
+{
+  "run": "pvpanic-behavior-sol-medium-20261003-04",
+  "status": "STOPPED_INCOMPLETE",
+  "usage": {
+    "input_tokens": 9765123,
+    "cached_input_tokens": 9043328,
+    "output_tokens": 30574,
+    "cache_write_input_tokens": 0
+  },
+  "estimate": {
+    "usd": 7.1159912,
+    "model": "gpt-5.6-sol",
+    "service_tier": "standard",
+    "source": "https://developers.openai.com/api/docs/pricing",
+    "price_date": "2026-09-19",
+    "basis": "short context assumed with 224k auto-compaction; public API rates, not relay invoice"
+  },
+  "elapsed_seconds": 1714.974,
+  "prompt_bytes": 43317,
+  "completed_items": {
+    "agent_message": 43,
+    "command_execution": 132,
+    "mcp_tool_call": 19,
+    "file_change": 13
+  },
+  "commands_before_first_source_edit": 60,
+  "command_output_characters": 418601,
+  "checks_by_script": {
+    ".dpf-output/harness/platform/build.sh": 6,
+    ".dpf-output/harness/pvpanic-probe.sh": 6,
+    ".dpf-output/harness/format-check.sh": 3,
+    ".dpf-output/harness/pvpanic-absent.sh": 1,
+    ".dpf-output/check-presence.sh": 1
+  },
+  "limitations": "Observed totals, not per-cause dollar attribution. Some repeated checks followed real source edits. No new optimized driver run."
+}

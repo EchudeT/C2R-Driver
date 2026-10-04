@@ -5,12 +5,11 @@ from pathlib import PurePosixPath
 
 from ..codex.contracts import CodexOutputError
 from ..core.models import WorkflowError, utc_now
-from .accounting import CoverageEntry, EvidenceGap, RetrievalAttempt, reason_for_attempts
+from .accounting import CoverageEntry, EvidenceGap, RetrievalAttempt, gap_reason
 from .facets import (
     SOURCE_DRIVER_ENTRY,
     EvidenceFacet,
     FacetDisposition,
-    GapReason,
     RetrievalOutcome,
 )
 from .locators import EvidenceLocator
@@ -62,7 +61,9 @@ class EvidenceCollector:
             coverage.append(entry)
             gaps.extend(facet_gaps)
         if errors:
-            raise CodexOutputError("Repair all invalid evidence selections together:\n" + "\n".join(errors))
+            raise CodexOutputError(
+                "Repair all invalid evidence selections together:\n" + "\n".join(errors)
+            )
         self._source_entry(materials, expected_source_entry)
         return CollectedEvidence(
             tuple(materials),
@@ -129,16 +130,10 @@ class EvidenceCollector:
             )
         if proposal.gap is None:
             raise WorkflowError("explicit gap proposal is missing its declaration")
-        failed_attempts = tuple(
-            attempt
-            for attempt in retrieval.attempts
-            if attempt.outcome is not RetrievalOutcome.RETRIEVED
-        )
-        derived_reason = (
-            reason_for_attempts(failed_attempts)
-            if failed_attempts
-            else GapReason.UNAVAILABLE_PUBLIC_EVIDENCE
-        )
+        try:
+            derived_reason = gap_reason(proposal.facet, retrieval.attempts, proposal.gap.basis)
+        except WorkflowError as error:
+            raise CodexOutputError(str(error)) from error
         if proposal.gap.reason is not None and proposal.gap.reason is not derived_reason:
             raise WorkflowError(
                 f"declared gap reason {proposal.gap.reason.value} does not match "
@@ -152,6 +147,7 @@ class EvidenceCollector:
             proposal.gap.impact,
             proposal.gap.repair_trigger,
             tuple(attempt.identifier for attempt in retrieval.attempts),
+            proposal.gap.basis,
         )
         return (
             CoverageEntry.gap(
@@ -177,8 +173,7 @@ class EvidenceCollector:
                 not isinstance(origin, GitBlobOrigin)
                 or origin.repository is not RepositoryRole.SOURCE
                 or not (
-                    origin.path == expected_path
-                    or expected in PurePosixPath(origin.path).parents
+                    origin.path == expected_path or expected in PurePosixPath(origin.path).parents
                 )
             ):
                 raise WorkflowError("controlled source entry does not match the frozen envelope")

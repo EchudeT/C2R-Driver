@@ -7,15 +7,16 @@ from ..core.validation import (
     nonempty,
     utf8_document,
 )
+from .analysis_review import validate_analysis_review
 from .artifact_preparation import validate_artifact_bundle
+from .benchmark import validate_bundle as validate_benchmark_bundle
 from .completion_audit import validate_completion_audit_bundle
 from .contracts import MigrationArtifact, MigrationStage
+from .final_evidence_review import validate_final_evidence_review_bundle
 from .handoff import validate_handoff_bundle
 from .implementation import validate_implementation_bundle
-from .target_framework import validate_target_framework_bundle
 from .public_qemu import validate_public_qemu_bundle
-from .final_evidence_review import validate_final_evidence_review_bundle
-from .analysis_review import validate_analysis_review
+from .target_framework import validate_target_framework_bundle
 
 VALIDATORS = MappingProxyType[MigrationArtifact, ArtifactValidator](
     {
@@ -38,12 +39,28 @@ VALIDATORS = MappingProxyType[MigrationArtifact, ArtifactValidator](
         MigrationArtifact.PUBLIC_QEMU_WORK_REPORT: utf8_document,
         MigrationArtifact.FINAL_EVIDENCE_REVIEW_REPORT: json_object_document,
         MigrationArtifact.EVIDENCE_AUDIT: json_object_document,
+        MigrationArtifact.BENCHMARK_REPORT: json_object_document,
+        MigrationArtifact.BENCHMARK_ATTEMPT: json_object_document,
     }
 )
+
+
+def validate_contracts_bundle(context):
+    from ..core.models import WorkflowError
+    from ..target_study.contracts import TargetStudyArtifact
+
+    _, report = context.one_dependency(TargetStudyArtifact.REPORT)
+    for kind in (MigrationArtifact.CONTRACTS, MigrationArtifact.TEST_PORT_MATRIX):
+        if context.one_current(kind)[1] != report:
+            raise WorkflowError(
+                "Contracts and oracles must bind the single accepted joint analysis"
+            )
+
 
 BUNDLE_VALIDATORS = MappingProxyType[MigrationStage, BundleValidator](
     {
         MigrationStage.HANDOFF: validate_handoff_bundle,
+        MigrationStage.CONTRACTS: validate_contracts_bundle,
         MigrationStage.ANALYSIS_REVIEW: validate_analysis_review,
         MigrationStage.TARGET_FRAMEWORK_ENABLEMENT: validate_target_framework_bundle,
         MigrationStage.DRIVER_IMPLEMENTATION: validate_implementation_bundle,
@@ -51,5 +68,6 @@ BUNDLE_VALIDATORS = MappingProxyType[MigrationStage, BundleValidator](
         MigrationStage.PUBLIC_QEMU_VALIDATION: validate_public_qemu_bundle,
         MigrationStage.FINAL_EVIDENCE_REVIEW: validate_final_evidence_review_bundle,
         MigrationStage.COMPLETION_AUDIT: validate_completion_audit_bundle,
+        MigrationStage.BENCHMARK_VALIDATION: validate_benchmark_bundle,
     }
 )

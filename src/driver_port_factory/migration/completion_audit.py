@@ -20,7 +20,6 @@ from ..core.validation import BundleValidationContext, json_object
 from ..knowledge.contracts import KnowledgeEvidenceStatus
 from ..sealing.contracts import PrivateEvaluationState, SealingArtifact, SealingStage
 from .contracts import (
-    ContractEvidenceStatus,
     ContractExecutionStatus,
     MigrationArtifact,
     MigrationStage,
@@ -51,15 +50,17 @@ class CompletionAuditService:
         public = self._document(
             project, MigrationStage.PUBLIC_QEMU_VALIDATION, MigrationArtifact.PUBLIC_QEMU_REPORT
         )
-        repair = self._document(
-            project, MigrationStage.FINAL_EVIDENCE_REVIEW, MigrationArtifact.FINAL_EVIDENCE_REVIEW_REPORT)
+        repair = (
+            self._document(
+                project,
+                MigrationStage.FINAL_EVIDENCE_REVIEW,
+                MigrationArtifact.FINAL_EVIDENCE_REVIEW_REPORT,
+            )
+            if project.config.enable_final_evidence_review
+            else {"review_mode": "disabled"}
+        )
         run = public.get("run")
         runs = [run] if isinstance(run, dict) else []
-        target_driver_ran = any(
-            run.get("execution_status") == ContractExecutionStatus.PASS.value
-            and run.get("attribution") == PublicRunAttribution.TARGET_DRIVER_ON_QEMU.value
-            for run in runs
-        )
         runtime_ref = project.artifact(
             MigrationStage.ARTIFACT_PREPARATION, MigrationArtifact.RUNTIME_ARTIFACT
         )
@@ -69,6 +70,8 @@ class CompletionAuditService:
             and isinstance(driver_presence, dict)
             and bool(driver_presence)
         )
+        runtime_observation = audit_runtime(public, runtime_ref.digest, lineage_verified)
+        runtime_observed = runtime_observation["runtime_bound"]
         lineage = {
             "verified": lineage_verified,
             "implementation_sha256": project.artifact(
@@ -83,16 +86,14 @@ class CompletionAuditService:
             "driver_presence": driver_presence,
             "artifact_mode": identity.get("artifact_mode"),
             "public_qemu_binding": (
-                {"runtime_artifact_sha256": runtime_ref.digest}
-                if target_driver_ran
-                else None
+                {"runtime_artifact_sha256": runtime_ref.digest} if runtime_observed else None
             ),
         }
         unresolved = []
         if not lineage_verified:
             unresolved.append({"kind": "artifact_lineage", "status": "FAIL"})
-        if not target_driver_ran:
-            unresolved.append({"kind": "target_driver_on_qemu", "status": "NOT_VERIFIED"})
+        if not runtime_observed:
+            unresolved.append({"kind": "current_runtime_on_qemu", "status": "NOT_VERIFIED"})
         snapshot_digest = hashlib.sha256(_json(artifacts)).hexdigest()
         blind = self._blind_candidate(project)
         audit = {
@@ -100,7 +101,8 @@ class CompletionAuditService:
             "audit_status": AUDIT_STATUS,
             "worker_acceptances": [
                 {"stage": item.name.value, "decision": item.message}
-                for item in project.stages() if (item.message or "").startswith("WORKER_ACCEPTED:")
+                for item in project.stages()
+                if (item.message or "").startswith("WORKER_ACCEPTED:")
             ],
             "evaluation_mode": project.config.evaluation_mode.value,
             "stage_results": stages,
@@ -108,12 +110,13 @@ class CompletionAuditService:
             "artifact_snapshot_sha256": snapshot_digest,
             "work_products": {
                 "contract_and_test_results": _reference(
-                    project, MigrationStage.PUBLIC_QEMU_VALIDATION,
+                    project,
+                    MigrationStage.PUBLIC_QEMU_VALIDATION,
                     MigrationArtifact.PUBLIC_QEMU_WORK_REPORT,
                 ),
                 "runtime_evidence_review": repair.get("review"),
                 "review_mode": repair["review_mode"],
-                "review_decision": repair.get("decision"),
+                "review_decision": repair.get("outcome"),
                 "contracts": _reference(
                     project, MigrationStage.CONTRACTS, MigrationArtifact.CONTRACTS
                 ),
@@ -137,16 +140,15 @@ class CompletionAuditService:
             "unresolved": unresolved,
             "blind_candidate": blind,
             "scope_limits": {
-                "semantic_coverage": "WORKER_SELF_CHECK_NOT_INDEPENDENT_CONTRACT_VERIFICATION",
-                "mechanical_checks": "artifact hashes, observed execution, boot-argument binding and fresh logs",
-                "oracle_author": "worker; public self-check is not independent evaluation",
-                "qemu_evidence": (
-                    PublicRunAttribution.TARGET_DRIVER_ON_QEMU.value
-                    if target_driver_ran
-                    else "QEMU_MODEL_ONLY"
+                "semantic_coverage": review_scope(repair),
+                "mechanical_checks": (
+                    "artifact hashes, observed execution, boot-argument binding and fresh logs"
                 ),
+                "oracle_author": "worker; public self-check is not independent evaluation",
+                "qemu_evidence": runtime_observation["classification"],
+                "functional_driver_execution": "SEE_INDEPENDENT_REVIEW_AND_CONTRACT_RESULTS",
                 "integration_boundary": (
-                    None if target_driver_ran else "BLOCKED_FULL_INTEGRATION"
+                    None if runtime_observed else "CURRENT_RUNTIME_EXECUTION_NOT_ESTABLISHED"
                 ),
                 "real_hardware": KnowledgeEvidenceStatus.NOT_RUN.value,
                 "private_evaluation": (
@@ -222,12 +224,81 @@ class CompletionAuditService:
         return result
 
 
+def audit_runtime(public, runtime_digest, lineage_verified):
+    """Report collector evidence without promoting harness PASS to device correctness."""
+    run = public.get("run", {})
+    bound = (
+        lineage_verified
+        and run.get("execution_status") == "PASS"
+        and run.get("runtime_artifact", {}).get("sha256") == runtime_digest
+        and run.get("exec_trace", {}).get("runtime_bound") is True
+        and bool(run.get("exec_trace", {}).get("qemu_execs"))
+        and bool(run.get("logs"))
+        and run.get("attribution") == PublicRunAttribution.PUBLIC_HARNESS.value
+    )
+    return {
+        "runtime_bound": bound,
+        "classification": (
+            "CURRENT_RUNTIME_ON_QEMU_PUBLIC_HARNESS"
+            if bound
+            else "CURRENT_RUNTIME_EXECUTION_NOT_ESTABLISHED"
+        ),
+    }
+
+
+def review_scope(review):
+    if review.get("review_mode") == "independent" and review.get("outcome") == "PASS":
+        return "INDEPENDENT_REVIEW_RECORDED_NOT_EXHAUSTIVE_OR_BLIND_VERIFICATION"
+    return "WORKER_SELF_CHECK_NOT_INDEPENDENT_CONTRACT_VERIFICATION"
+
+
 def validate_completion_audit_bundle(context: BundleValidationContext) -> None:
     audit = json_object(
         context.one_current(MigrationArtifact.EVIDENCE_AUDIT)[1],
         MigrationArtifact.EVIDENCE_AUDIT.value,
     )
     expected_stages, expected_artifacts = _database_snapshot(context.project_root)
+    from ..composition import open_project
+
+    project = open_project(context.project_root, read_only=True, verify_artifacts=False)
+    review = (
+        json_object(
+            context.one_dependency(MigrationArtifact.FINAL_EVIDENCE_REVIEW_REPORT)[1],
+            "final evidence review",
+        )
+        if project.config.enable_final_evidence_review
+        else {"review_mode": "disabled"}
+    )
+    if audit.get("work_products", {}).get("review_decision") != review.get("outcome") or audit.get(
+        "scope_limits", {}
+    ).get("semantic_coverage") != review_scope(review):
+        raise WorkflowError("completion audit misstates the independent review outcome or scope")
+
+    public = json_object(
+        context.one_dependency(MigrationArtifact.PUBLIC_QEMU_REPORT)[1], "public QEMU report"
+    )
+    identity = json_object(
+        context.one_dependency(MigrationArtifact.ARTIFACT_IDENTITY)[1], "artifact identity"
+    )
+    runtime_ref, _ = context.one_dependency(MigrationArtifact.RUNTIME_ARTIFACT)
+    presence = identity.get("driver_presence")
+    lineage = (
+        identity.get("runtime_artifact", {}).get("sha256") == runtime_ref.digest
+        and isinstance(presence, dict)
+        and bool(presence)
+    )
+    observation = audit_runtime(public, runtime_ref.digest, lineage)
+    expected_binding = (
+        {"runtime_artifact_sha256": runtime_ref.digest} if observation["runtime_bound"] else None
+    )
+    if (
+        audit.get("scope_limits", {}).get("qemu_evidence") != observation["classification"]
+        or audit.get("artifact_lineage", {}).get("verified") != lineage
+        or audit.get("artifact_lineage", {}).get("public_qemu_binding") != expected_binding
+        or audit.get("public_runs") != [public["run"]]
+    ):
+        raise WorkflowError("completion audit misstates current runtime execution evidence")
+
     if (
         audit.get("schema_version") != 1
         or audit.get("audit_status") != AUDIT_STATUS

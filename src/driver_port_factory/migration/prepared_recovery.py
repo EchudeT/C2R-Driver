@@ -1,6 +1,8 @@
 """Recover a prepared receipt after acceptance, using the accepted job binding."""
 import json
 import sqlite3
+
+from .target_framework import framework_stage
 from pathlib import Path
 
 from ..core.models import StageStatus
@@ -61,14 +63,16 @@ def delivery(project):
     from .target_framework import _validate_files
     from .repair_execution import prepare_delivery
     from ..core.models import WorkflowError
+    if project.config.unified_implementation:
+        return False
     if not recoverable(project, S.TARGET_FRAMEWORK_ENABLEMENT,
                        (S.TARGET_FRAMEWORK_ENABLEMENT, S.DRIVER_IMPLEMENTATION, S.ARTIFACT_PREPARATION)):
         return False
-    report = project.artifact(S.TARGET_FRAMEWORK_ENABLEMENT, A.TARGET_FRAMEWORK_REPORT)
+    report = project.artifact(framework_stage(project), A.TARGET_FRAMEWORK_REPORT)
     policy = accepted_policy(project, S.TARGET_FRAMEWORK_ENABLEMENT, report)
     if not policy:
         return False
-    bundle = project.load_json_artifact(S.TARGET_FRAMEWORK_ENABLEMENT, A.TARGET_FRAMEWORK_BUNDLE)
+    bundle = project.load_json_artifact(framework_stage(project), A.TARGET_FRAMEWORK_BUNDLE)
     try:
         _validate_files(project.root, bundle['target_worktree'], bundle['files'])
     except WorkflowError:

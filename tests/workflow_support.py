@@ -32,10 +32,8 @@ def ready_implementation(root: Path, *, plan=True, reviewed=True):
         return project
     project.start(MigrationStage.CONTRACTS)
     report = project.root / "migration-plan.md"
-    report.write_text(
-        "# Fixture plan\nPreserve example_init returning shared_value.\n"
-        "Test with one operation and a wrong-device control.\n"
-    )
+    from driver_port_factory.target_study.contracts import TargetStudyArtifact as T, TargetStudyStage as TS
+    report.write_bytes(project.artifacts.read(project.artifact(TS.STUDY, T.REPORT)))
     project.finalize_stage(
         MigrationStage.CONTRACTS,
         (
@@ -49,7 +47,7 @@ def ready_implementation(root: Path, *, plan=True, reviewed=True):
         (references / name).write_text("# Fixture rule\n" + "Inspect original evidence.\n" * 80)
     (skill / "assets").mkdir(exist_ok=True)
     (skill / "assets/target-platform-profile.md").write_text("# Fixture target profile\n")
-    if reviewed:
+    if reviewed and MigrationStage.ANALYSIS_REVIEW.value in project.workflow.stage_values:
         from driver_port_factory.migration.analysis_review import AnalysisReviewService
         AnalysisReviewService.finalize(project,
             text="Synthetic analysis review fixture; not real evidence.\n",
@@ -58,7 +56,7 @@ def ready_implementation(root: Path, *, plan=True, reviewed=True):
     # fixture represents a target with no framework edits while preserving the
     # same immutable enablement snapshot and report contract. When the analysis
     # review is intentionally left open, the runner owns this stage later.
-    if reviewed:
+    if reviewed and not project.config.unified_implementation:
         project.start(MigrationStage.TARGET_FRAMEWORK_ENABLEMENT)
         framework_report = project.root / "target-framework-report.md"
         framework_report.write_text(

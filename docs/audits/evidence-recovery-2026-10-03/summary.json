@@ -1,0 +1,15 @@
+{
+  "scope": "Offline synthetic/controller regression; no paid model calls and no actual driver validation",
+  "focused_pytest": "27 passed in 65.11s",
+  "full_pytest": "366 passed in 632.07s (0:10:32)",
+  "ruff_all": "584 existing findings; not a clean repository-wide lint result",
+  "format_all": "140 files need formatting; unchanged repository debt",
+  "ruff_modified_files": {
+    "remaining": 4,
+    "all_already_present_in_prior_frozen_submission": true,
+    "new_findings": 0
+  },
+  "format_modified_files": "8 files already formatted",
+  "new_experiment": "/home/unix/file/C2R-Driver/c2rust-migration-test-01/experiments/pvpanic-behavior-sol-medium-20261003-03",
+  "prelaunch": "Actual frozen CLI platform prepare/prepare-smoke passed against a synthetic project; Docker image and repository identities verified; Python binding isolated"
+}

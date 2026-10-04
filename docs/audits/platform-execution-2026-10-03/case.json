@@ -1,0 +1,14 @@
+{
+  "timeout_seconds": 60,
+  "steps": [
+    {
+      "wait_serial": "# "
+    },
+    {
+      "send_serial": "printf '%s%s\\n' DPF_BOOT_ managed_observation\n"
+    },
+    {
+      "wait_serial": "DPF_BOOT_managed_observation"
+    }
+  ]
+}

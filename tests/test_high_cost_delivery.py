@@ -82,8 +82,8 @@ def test_first_delivery_prompt_does_not_reintroduce_smoke_only_boundary(tmp_path
     assert 'No cosmetic formatting' not in rendered.text  # analysis instructions not duplicated
     manifest = json.loads((default_prompt_pack_path() / 'manifest.json').read_text())
     assert manifest['stages']['migration_contracts']['on_demand_documents']
-    # Existing execution and independent review mechanism remains present.
-    assert 'independent final review' in rendered.text
+    # The configured review gate survives prompt wording changes.
+    assert S.FINAL_EVIDENCE_REVIEW.value in project.workflow.stage_values
     assert runner(project) is not None
 
 

@@ -47,6 +47,15 @@ def register_commands(commands: CommandRegistry) -> None:
         "environment", help="discover and execute an EXPERIMENT_READY route"
     )
     environment_commands = command_registry(environment, dest="environment_command")
+    from .smoke_recipe import register as register_smoke
+
+    register_smoke(environment_commands)
+    from .bootstrap import register as register_bootstrap
+
+    register_bootstrap(environment_commands)
+    from ..platform.cli import register as register_platform
+
+    register_platform(environment_commands)
     inspect = environment_commands.add_parser("inspect")
     inspect.add_argument("path")
     inspect.set_defaults(handler=command_inspect)

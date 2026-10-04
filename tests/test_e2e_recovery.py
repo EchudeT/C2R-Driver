@@ -113,10 +113,14 @@ def test_repaired_model_deliverable_is_consumed_once(tmp_path, restart):
     from driver_port_factory.migration.contracts import MigrationStage as M
 
     project = ready_implementation(tmp_path, plan=False)
-    stage = M.CONTRACTS
+    from driver_port_factory.target_study.contracts import TargetStudyStage
+
+    project.start(M.CONTRACTS)
+    project.retry_from(TargetStudyStage.STUDY, trigger=M.CONTRACTS, reason="joint analysis repair")
+    stage = TargetStudyStage.STUDY
     project.start(stage)
     from driver_port_factory.core.checker_decision import clear_pending
-    draft = project.root / "work/stage-work/migration_contracts/plan.md"
+    draft = project.root / "work/stage-work/target_platform_study/plan.md"
     draft.parent.mkdir(parents=True, exist_ok=True)
     for section in ("source closure", "target APIs", "IRQ", "test oracle", "lifecycle"):
         draft.write_text(f"Corrected {section}\n")
@@ -124,16 +128,15 @@ def test_repaired_model_deliverable_is_consumed_once(tmp_path, restart):
             request_recovery(project, stage, WorkflowError("incomplete contract plan"))
         clear_pending(project, stage)
     references = Path(project.config.skill_root) / "knowledge-guided-driver-port/references"
-    for name in ("workflow.md", "test-porting.md", "qemu-evidence.md"):
+    for name in ("workflow.md", "test-porting.md", "qemu-evidence.md", "target-platform-study.md",
+                 "target-changes.md"):
         (references / name).write_text("Inspect originals and self-check.\n")
     with pytest.raises(CheckerDecisionRequired):
         request_recovery(project, stage, WorkflowError("synthetic missing deliverable"))
 
     def worker(job):
         payload = json.loads(job.prompt.split("<job>")[1].split("</job>")[0])
-        assert (
-            "current migration contracts" in payload["instructions"]["objective"]
-        )
+        assert job.stage is TargetStudyStage.STUDY
         assert Path(payload["instructions"]["skill_root"]) == references.parent.parent
         assert "source_path=" in job.prompt
         assert "Two persistent conversations" not in job.prompt

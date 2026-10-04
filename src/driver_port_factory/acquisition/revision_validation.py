@@ -23,12 +23,16 @@ def validate_revision_bundle(context: BundleValidationContext) -> None:
     _, revision_data = context.one_current(AcquisitionArtifact.REVISION_MANIFEST)
     plan = RepositoryPlan.from_dict(json.loads(plan_data))
     revision = RevisionManifest.from_dict(json.loads(revision_data))
-    _, proposal_data = _exact_occurrence(
+    proposal_ref, proposal_data = _exact_occurrence(
         context.current_stage_artifacts,
         AcquisitionArtifact.REVISION_SELECTION_PROPOSAL,
         plan.revision_proposal,
     )
     proposal = RevisionProposalEnvelope.from_dict(json.loads(proposal_data))
+    if proposal.job_result is None and not proposal_ref.source.startswith(
+        "operator-repository-pins:"
+    ):
+        raise WorkflowError("operator revision pins require operator provenance")
     if plan.migration_envelope_digest != envelope_ref.digest:
         raise WorkflowError("repository plan does not bind its real migration envelope dependency")
     _validate_plan_proposal(plan, proposal, context.current_stage_artifacts)
@@ -44,11 +48,12 @@ def _validate_plan_proposal(
 ) -> None:
     if plan.selection_job != envelope.job_result:
         raise WorkflowError("repository plan changed the revision proposal job binding")
-    _exact_occurrence(
-        auxiliary,
-        CodexArtifact.JOB_RESULT,
-        ArtifactOccurrence(envelope.job_result.digest, envelope.job_result.ordinal),
-    )
+    if envelope.job_result is not None:
+        _exact_occurrence(
+            auxiliary,
+            CodexArtifact.JOB_RESULT,
+            ArtifactOccurrence(envelope.job_result.digest, envelope.job_result.ordinal),
+        )
     if plan.migration_envelope_digest != envelope.proposal.migration_envelope_sha256:
         raise WorkflowError("repository plan changed the revision proposal envelope binding")
     proposed = {item.role: item for item in envelope.proposal.repositories}
@@ -68,12 +73,6 @@ def _validate_plan_proposal(
             candidate.selection_rule,
         ):
             raise WorkflowError("repository plan differs from its controlled revision proposal")
-
-
-
-
-
-
 
 
 def _validate_manifest(

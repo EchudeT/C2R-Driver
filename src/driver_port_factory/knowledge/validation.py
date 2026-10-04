@@ -23,9 +23,14 @@ def _query_contract(data: bytes) -> None:
     value = json_object(data, KnowledgeArtifact.QUERY_CONTRACT.value)
     commands = value.get("commands")
     required = {"status", "rebuild", "search", "show"}
-    if (not isinstance(commands, dict) or not required <= set(commands)
-            or set(commands) - required - {"search_batch"}):
-        raise WorkflowError("kb_query_contract requires status/rebuild/search/show; search_batch is optional")
+    if (
+        not isinstance(commands, dict)
+        or not required <= set(commands)
+        or set(commands) - required - {"search_batch", "rag"}
+    ):
+        raise WorkflowError(
+            "kb_query_contract requires status/rebuild/search/show; search_batch/rag are optional"
+        )
     if not value.get("template_sha256") or not value.get("manifest_sha256"):
         raise WorkflowError("kb_query_contract requires template and manifest hashes")
 

@@ -1,0 +1,198 @@
+[
+  {
+    "id": "evbug-events",
+    "case": {
+      "devices": [],
+      "timeout_seconds": 120,
+      "steps": [
+        {
+          "wait_serial": "# "
+        },
+        {
+          "guest_assert": "printf '%s\\n' 'events' > /proc/evbug_test"
+        },
+        {
+          "wait_serial": "DPF_EVBUG_DONE events"
+        },
+        {
+          "assert_serial_matches": {
+            "pattern": "evbug: Event\\. Dev: (dpf-[^,\\r\\n]+), Type: (\\d+), Code: (\\d+), Value: (-?\\d+)",
+            "expected": [
+              [
+                "dpf-events",
+                "1",
+                "30",
+                "1"
+              ],
+              [
+                "dpf-events",
+                "2",
+                "0",
+                "-7"
+              ],
+              [
+                "dpf-events",
+                "0",
+                "0",
+                "0"
+              ]
+            ]
+          }
+        },
+        {
+          "assert_serial_matches": {
+            "pattern": "evbug: (Connected|Disconnected) device: (dpf-[^\\s(]+)",
+            "expected": [
+              [
+                "Connected",
+                "dpf-events"
+              ],
+              [
+                "Disconnected",
+                "dpf-events"
+              ]
+            ]
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "evbug-lifecycle",
+    "case": {
+      "devices": [],
+      "timeout_seconds": 120,
+      "steps": [
+        {
+          "wait_serial": "# "
+        },
+        {
+          "guest_assert": "printf '%s\\n' 'lifecycle' > /proc/evbug_test"
+        },
+        {
+          "wait_serial": "DPF_EVBUG_DONE lifecycle"
+        },
+        {
+          "assert_serial_matches": {
+            "pattern": "evbug: Event\\. Dev: (dpf-[^,\\r\\n]+), Type: (\\d+), Code: (\\d+), Value: (-?\\d+)",
+            "expected": [
+              [
+                "dpf-early",
+                "1",
+                "30",
+                "1"
+              ],
+              [
+                "dpf-late",
+                "2",
+                "1",
+                "5"
+              ]
+            ]
+          }
+        },
+        {
+          "assert_serial_matches": {
+            "pattern": "evbug: (Connected|Disconnected) device: (dpf-[^\\s(]+)",
+            "expected": [
+              [
+                "Connected",
+                "dpf-early"
+              ],
+              [
+                "Connected",
+                "dpf-late"
+              ],
+              [
+                "Disconnected",
+                "dpf-late"
+              ],
+              [
+                "Disconnected",
+                "dpf-early"
+              ]
+            ]
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "evbug-boundaries",
+    "case": {
+      "devices": [],
+      "timeout_seconds": 120,
+      "steps": [
+        {
+          "wait_serial": "# "
+        },
+        {
+          "guest_assert": "printf '%s\\n' 'boundaries' > /proc/evbug_test"
+        },
+        {
+          "wait_serial": "DPF_EVBUG_DONE boundaries"
+        },
+        {
+          "assert_serial_matches": {
+            "pattern": "evbug: Event\\. Dev: (dpf-[^,\\r\\n]+), Type: (\\d+), Code: (\\d+), Value: (-?\\d+)",
+            "expected": [
+              [
+                "dpf-boundaries",
+                "2",
+                "0",
+                "-2147483648"
+              ],
+              [
+                "dpf-boundaries",
+                "2",
+                "1",
+                "2147483647"
+              ],
+              [
+                "dpf-boundaries",
+                "0",
+                "1",
+                "0"
+              ],
+              [
+                "dpf-boundaries",
+                "1",
+                "30",
+                "0"
+              ],
+              [
+                "dpf-boundaries",
+                "0",
+                "0",
+                "0"
+              ]
+            ]
+          }
+        },
+        {
+          "assert_serial_matches": {
+            "pattern": "evbug: (Connected|Disconnected) device: (dpf-[^\\s(]+)",
+            "expected": [
+              [
+                "Connected",
+                "dpf-boundaries"
+              ],
+              [
+                "Disconnected",
+                "dpf-boundaries"
+              ],
+              [
+                "Connected",
+                "dpf-boundaries"
+              ],
+              [
+                "Disconnected",
+                "dpf-boundaries"
+              ]
+            ]
+          }
+        }
+      ]
+    }
+  }
+]

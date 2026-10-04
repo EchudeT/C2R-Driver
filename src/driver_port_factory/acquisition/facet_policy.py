@@ -60,8 +60,10 @@ def validate_locator_authority(facet: EvidenceFacet, locator: EvidenceLocator) -
             remedy = (
                 "Hardware facets must omit repository_paths, even when declaring a gap. "
                 "Keep source/QEMU implementation evidence in its own lane; for missing "
-                "primary hardware evidence use an actually checked external_urls entry "
-                "and gap with impact and repair_trigger. Do not invent URLs."
+                "primary hardware evidence declare gap with impact and repair_trigger. "
+                "Use gap.basis to reference already controlled facets that support the limitation, "
+                "or select a relevant external URL for controller retrieval. Do not invent URLs "
+                "or probe web mirrors of already available local originals."
                 if facet.lane is EvidenceLane.HARDWARE else
                 "Use a repository allowed for this lane: "
                 + ", ".join(sorted(role.value for role in policy.git_roles))

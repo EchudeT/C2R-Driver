@@ -141,7 +141,8 @@ def prepare_project(root: Path) -> tuple[Project, dict[str, CheckoutRecord]]:
     )
     project = initialize_project(
         root / "run",
-        ProjectConfig(
+        ProjectConfig(unified_implementation=False,
+            enable_analysis_review=True, enable_final_evidence_review=True,
             project_id="knowledge-test",
             source_platform="example-source",
             target_platform="example-target",

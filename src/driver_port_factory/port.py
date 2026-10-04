@@ -62,7 +62,7 @@ from .migration.repair_routing import (
     WorkerBlocked,
     retry_prerequisite,
 )
-from .migration.target_framework import TargetFrameworkEnablementService
+from .migration.target_framework import TargetFrameworkEnablementService, framework_stage
 from .target_study.contracts import TargetStudyArtifact, TargetStudyStage
 
 
@@ -81,9 +81,15 @@ class PortOptions:
     local_source_repository: Path | None = None
     local_target_repository: Path | None = None
     local_qemu_repository: Path | None = None
+    platform_image: str | None = None
+    platform_accelerator: str | None = None
     enable_analysis_review: bool | None = None
     enable_final_evidence_review: bool | None = None
     context_policy: str | None = None
+    max_model_cost_usd: float | None = None
+    benchmark_manifest: Path | None = None
+    behavior_scope_file: Path | None = None
+    behavior_scheduling: bool | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -106,6 +112,7 @@ class PortRunner:
     """Run the worker and independent reviewer through functional delivery."""
 
     def __init__(self, options: PortOptions) -> None:
+        from .migration.benchmark import run as run_benchmark
         self.options = options
         self._actions: dict[StageKey, Callable[[Project], None]] = {
             IntakeStage.REQUEST: self._intake,
@@ -122,11 +129,19 @@ class PortRunner:
             MigrationStage.ARTIFACT_PREPARATION: self._artifact_preparation,
             MigrationStage.PUBLIC_QEMU_VALIDATION: self._public_qemu,
             MigrationStage.FINAL_EVIDENCE_REVIEW: self._final_evidence_review,
+            MigrationStage.BENCHMARK_VALIDATION: run_benchmark,
         }
 
     def run(self) -> PortOutcome:
         project = self._project()
+        from .platform import service as platform_service
+        from .platform.configuration import selected
+
+        if platform_service.required(project):
+            selected(project.config)
         with controller_run(project):
+            from .control.budget import configure as configure_budget
+            configure_budget(project, self.options.max_model_cost_usd)
             if self.options.context_policy is not None:
                 from .codex.context_policy import configure_policy
                 configure_policy(project, self.options.context_policy, reason="port run option")
@@ -144,6 +159,12 @@ class PortRunner:
                     )
                     report = json.loads(project.artifacts.read(review))["review"]
                     report_path = str(project.artifacts.path_for_digest(report["sha256"]))
+                if project.config.benchmark is not None:
+                    from .migration.benchmark import verify_current
+                    verify_current(project)
+                    ref = project.artifact(MigrationStage.BENCHMARK_VALIDATION,
+                                           MigrationArtifact.BENCHMARK_REPORT)
+                    report_path = str(project.artifacts.path_for_digest(ref.digest))
                 return PortOutcome(
                     final_stage.name.value,
                     StageStatus.PASS,
@@ -171,6 +192,11 @@ class PortRunner:
                 raise
             except WorkflowError as error:
                 from .core.models import ControllerError
+                if stage.name is MigrationStage.BENCHMARK_VALIDATION:
+                    # Benchmark policy and evidence errors are not model-overridable findings.
+                    if project.stage(stage.name).status is StageStatus.RUNNING:
+                        project.complete(stage.name, StageStatus.FAIL, message=str(error))
+                    return PortOutcome(stage.name.value, StageStatus.FAIL, str(error))
                 if isinstance(error, ControllerError):
                     raise
                 if project.config.evaluation_mode is not EvaluationMode.DEVELOPER_EVIDENCE:
@@ -195,7 +221,21 @@ class PortRunner:
                 )
 
     def _project(self) -> Project:
+        from .migration.benchmark import load_spec
+        benchmark = load_spec(self.options.benchmark_manifest) if self.options.benchmark_manifest else None
+        from .intake.behavior_scope import load as load_scope
+        behavior_scope = (
+            load_scope(self.options.behavior_scope_file)
+            if self.options.behavior_scope_file else None
+        )
         workspace = self.options.workspace.resolve()
+        if (
+            not (workspace / Project.CONTROL_DIR).exists()
+            and self.options.target_platform.strip().lower() == "asterinas"
+        ):
+            from .platform.configuration import validate_selection
+
+            validate_selection(self.options.platform_image, self.options.platform_accelerator)
         self._ensure_git_root(workspace)
         control = workspace / Project.CONTROL_DIR
         if control.exists():
@@ -212,6 +252,10 @@ class PortRunner:
             )
             if actual != expected:
                 raise WorkflowError("run inputs differ from the persisted migration request")
+            if behavior_scope is not None and behavior_scope != project.config.behavior_scope:
+                raise WorkflowError("behavior scope differs from the frozen project configuration")
+            if benchmark is not None and benchmark != project.config.benchmark:
+                raise WorkflowError("benchmark differs from the frozen project configuration")
             if self.options.baseline_repositories and tuple(str(path.resolve()) for path in
                     self.options.baseline_repositories) != project.config.baseline_repositories:
                 raise WorkflowError("supplied baseline repositories differ from the persisted run configuration")
@@ -234,10 +278,15 @@ class PortRunner:
                     if self.options.local_qemu_repository else None,
                     project.config.local_qemu_repository,
                 ),
+                ("platform_image", self.options.platform_image, project.config.platform_image),
+                ("platform_accelerator", self.options.platform_accelerator,
+                 project.config.platform_accelerator),
                 ("analysis_review", self.options.enable_analysis_review,
                  project.config.enable_analysis_review),
                 ("final_evidence_review", self.options.enable_final_evidence_review,
                  project.config.enable_final_evidence_review),
+                ("behavior_scheduling", self.options.behavior_scheduling,
+                 project.config.behavior_scheduling),
             ):
                 if option_value is not None and option_value != config_value:
                     raise WorkflowError(
@@ -249,6 +298,14 @@ class PortRunner:
             workspace,
             ProjectConfig(
                 project_id=workspace.name,
+                platform_image=self.options.platform_image,
+                platform_accelerator=self.options.platform_accelerator,
+                benchmark=benchmark,
+                behavior_scope=behavior_scope,
+                behavior_scheduling=(
+                    True if self.options.behavior_scheduling is None
+                    else self.options.behavior_scheduling
+                ),
                 source_platform=self.options.source_platform,
                 target_platform=self.options.target_platform,
                 driver_name=self.options.driver_name,
@@ -271,11 +328,11 @@ class PortRunner:
                     if self.options.local_qemu_repository else None
                 ),
                 enable_analysis_review=(
-                    True if self.options.enable_analysis_review is None
+                    False if self.options.enable_analysis_review is None
                     else self.options.enable_analysis_review
                 ),
                 enable_final_evidence_review=(
-                    True if self.options.enable_final_evidence_review is None
+                    False if self.options.enable_final_evidence_review is None
                     else self.options.enable_final_evidence_review
                 ),
             ),
@@ -284,6 +341,10 @@ class PortRunner:
     def _checker_decision(self, project: Project, stage: StageKey, error) -> None:
         from .core.checker_decision import accept_decision, capture_is_current, clear_pending
         from .core.models import StageOwner
+        if stage is MigrationStage.CONTRACTS:
+            clear_pending(project, stage)
+            self._contracts(project)
+            return
         payload = json.loads(error.path.read_text())
         job = self._latest_job_occurrence(project, stage)
         if job is None or job.ordinal <= payload["after_job"]:
@@ -472,16 +533,13 @@ class PortRunner:
                             f"report={report}; findings={detail}"
                         )
                     if decision == "rework":
-                        target_name = submission.get("repair_stage")
-                        target = ROUTES.get(target_name)
-                        if target is None:
-                            raise CodexOutputError(
-                                "submitted rework decision names no valid repair stage"
-                            )
-                        raise PrerequisiteRepair(
-                            target, str(submission.get("file")),
-                            self._freeze_repair_report(project, stage, submission),
-                        )
+                        self._request_rework(project, stage, submission)
+                if submission is not None:
+                    from .migration.behavior import finish
+                    continuation = finish(project, stage, submission)
+                    if continuation:
+                        raise CodexContinuation(continuation,
+                            counts_as_failure=submission.get("decision") == "pass")
                 accept(project, pending)
                 return True
             except WorkerBlocked as error:
@@ -504,6 +562,20 @@ class PortRunner:
                     return False
                 feedback = None
                 pending = None
+
+    def _request_rework(self, project, stage, submission):
+        from .migration.local_adaptation import retain
+
+        target = ROUTES.get(submission.get("repair_stage"))
+        if target is None:
+            raise CodexOutputError("submitted rework decision names no valid repair stage")
+        local = retain(project, stage, target, submission, self._freeze_repair_report)
+        if local:
+            raise CodexContinuation(local, counts_as_failure=False)
+        raise PrerequisiteRepair(
+            target, str(submission.get("file")),
+            self._freeze_repair_report(project, stage, submission),
+        )
 
     def _continuation_context(self, project, stage, pending, progress, context):
         """Observe one failed submission, or hand successful execution to self-review."""
@@ -733,6 +805,10 @@ class PortRunner:
         )
 
     def _repositories(self, project: Project) -> None:
+        if pins := os.environ.get("DPF_REPOSITORY_PINS"):
+            proposal = RevisionProposalImporter().import_operator_pins(project, Path(pins))
+            RepositoryAcquirer().acquire(project, proposal=proposal)
+            return
         envelope = self._artifact_context(
             project,
             IntakeStage.ENVELOPE_FREEZE,
@@ -819,6 +895,13 @@ class PortRunner:
 
     def _accept_environment_result(self, project: Project, job: ArtifactOccurrence) -> None:
         report = self._materialize_codex_report(project, EnvironmentStage.RECOVERY, job)
+        from .platform.service import required
+
+        if required(project):
+            from .environment.bootstrap import accept
+
+            accept(project)
+            return
         result = ExperimentExecutor().run_codex_harness(
             project,
             script_path=(
@@ -868,6 +951,7 @@ class PortRunner:
         context["recent_early_probes"] = recent(project)
         from .migration.decision_context import context as decision_context
         context["accepted_decisions"] = decision_context(project)
+        # run_codex_stage supplies the platform interface once in tool_runtime.
         review = self._previous_review(project, MigrationStage.ANALYSIS_REVIEW)
         if review:
             context["analysis_review"] = review
@@ -881,7 +965,12 @@ class PortRunner:
     def _accept_target_study_result(self, project: Project, job: ArtifactOccurrence) -> None:
         report = self._materialize_codex_report(project, TargetStudyStage.STUDY, job)
         from .target_study.service import TargetStudyService
-        TargetStudyService().accept(project, report)
+        submission = self._submission_for_job(project, TargetStudyStage.STUDY, job)
+        if not submission or "knowledge_probe_specification" not in submission:
+            raise CodexOutputError("Target study submission has no frozen knowledge probes")
+        TargetStudyService().accept(project, report,
+            specification=submission["knowledge_probe_specification"],
+            route_index=submission["route_index"])
         from .target_study.reuse import remember
         from .migration.analysis_delivery import record
         if record(project, job_policy=self._review_job_policy(project, TargetStudyStage.STUDY, job)):
@@ -903,24 +992,23 @@ class PortRunner:
                 project.start(MigrationStage.CONTRACTS)
             self._capture_contracts(project, report)
             return
-        self._codex_gate(
-            project,
-            MigrationStage.CONTRACTS,
-            self._migration_context(
-                project,
-                (
-                    (MigrationStage.HANDOFF, MigrationArtifact.HANDOFF),
-                    (AcquisitionStage.EVIDENCE_CLOSURE, AcquisitionArtifact.MATERIALS_MANIFEST),
-                    (AcquisitionStage.EVIDENCE_CLOSURE, AcquisitionArtifact.EVIDENCE_GAP_REGISTER),
-                    (KnowledgeStage.KNOWLEDGE_BASE, KnowledgeArtifact.QUERY_CONTRACT),
-                    (TargetStudyStage.STUDY, TargetStudyArtifact.REPORT),
-                ),
-            ),
-            self._accept_contracts_result,
+        # Contract repair updates the same analysis, rather than producing a second plan.
+        feedback = project.retry_feedback(MigrationStage.CONTRACTS) or {}
+        if project.stage(MigrationStage.CONTRACTS).status is StageStatus.READY:
+            project.start(MigrationStage.CONTRACTS)
+        project.retry_from(
+            TargetStudyStage.STUDY, trigger=MigrationStage.CONTRACTS,
+            reason=feedback.get("reason", "Combined analysis binding needs renewal"),
+            repair_report=feedback.get("repair_report"),
         )
-
-    def _accept_contracts_result(self, project: Project, job: ArtifactOccurrence) -> None:
-        report = self._materialize_codex_report(project, MigrationStage.CONTRACTS, job)
+        self._target_study(project)
+        if project.stage(TargetStudyStage.STUDY).status is not StageStatus.PASS:
+            return
+        self._handoff(project)
+        report = prepared(project)
+        if report is None:
+            raise WorkflowError("Joint analysis has no current binding; contracts were not accepted")
+        project.start(MigrationStage.CONTRACTS)
         self._capture_contracts(project, report)
 
     @staticmethod
@@ -1029,7 +1117,7 @@ class PortRunner:
     def _implementation(self, project: Project) -> None:
         from .migration.repair_execution import prepared
         report = prepared(project)
-        if report is None:
+        if report is None and not project.config.unified_implementation:
             from .migration.prepared_recovery import delivery
             if delivery(project):
                 report = prepared(project)
@@ -1053,9 +1141,9 @@ class PortRunner:
                     (MigrationStage.HANDOFF, MigrationArtifact.HANDOFF),
                     (MigrationStage.CONTRACTS, MigrationArtifact.CONTRACTS),
                     (MigrationStage.CONTRACTS, MigrationArtifact.TEST_PORT_MATRIX),
-                    (MigrationStage.TARGET_FRAMEWORK_ENABLEMENT,
+                    (framework_stage(project),
                      MigrationArtifact.TARGET_FRAMEWORK_BUNDLE),
-                    (MigrationStage.TARGET_FRAMEWORK_ENABLEMENT,
+                    (framework_stage(project),
                      MigrationArtifact.TARGET_FRAMEWORK_REPORT),
                     (KnowledgeStage.KNOWLEDGE_BASE, KnowledgeArtifact.QUERY_CONTRACT),
                     (KnowledgeStage.KNOWLEDGE_BASE, KnowledgeArtifact.GENERATED_SKILL),
@@ -1070,15 +1158,15 @@ class PortRunner:
         report = self._materialize_codex_report(project, MigrationStage.DRIVER_IMPLEMENTATION, job)
         from .migration.repair_execution import active, identity, record
         repair = active(project, MigrationStage.DRIVER_IMPLEMENTATION)
-        if repair:
+        if repair and not project.config.unified_implementation:
             try:
                 identity(project)
             except WorkflowError as error:
                 raise CodexOutputError(str(error)) from error
-        if repair:
+        if repair and not project.config.unified_implementation:
             record(project, report, job_policy=self._review_job_policy(project, MigrationStage.DRIVER_IMPLEMENTATION, job))
         DriverImplementationService().snapshot_worktree(project, report)
-        if not repair:
+        if not repair or project.config.unified_implementation:
             from .migration.repair_execution import prepare_delivery
             prepare_delivery(project, report, job_policy=self._review_job_policy(project, MigrationStage.DRIVER_IMPLEMENTATION, job))
 
@@ -1115,9 +1203,9 @@ class PortRunner:
                     (MigrationStage.CONTRACTS, MigrationArtifact.TEST_PORT_MATRIX),
                     (MigrationStage.DRIVER_IMPLEMENTATION, MigrationArtifact.IMPLEMENTATION_BUNDLE),
                     (MigrationStage.DRIVER_IMPLEMENTATION, MigrationArtifact.COMPLIANCE_REPORT),
-                    (MigrationStage.TARGET_FRAMEWORK_ENABLEMENT,
+                    (framework_stage(project),
                      MigrationArtifact.TARGET_FRAMEWORK_BUNDLE),
-                    (MigrationStage.TARGET_FRAMEWORK_ENABLEMENT,
+                    (framework_stage(project),
                      MigrationArtifact.TARGET_FRAMEWORK_CHANGE_INVENTORY),
                     (EnvironmentStage.RECOVERY, EnvironmentArtifact.MODE_RECORD),
                     (EnvironmentStage.RECOVERY, EnvironmentArtifact.EXPERIMENT_ROUTE),
@@ -1190,11 +1278,10 @@ class PortRunner:
             except CodexOutputError as error:
                 result = {"status": "FAIL", "error": str(error)}
             if result.get("status") == "PASS":
-                from .migration.experiment_ack import acknowledged
-                attempt = service._latest_attempt(project)
-                if attempt and acknowledged(project, prepared_report, attempt[1]):
-                    service.accept_self_review(project, work_report_path=prepared_report)
-                    return
+                # The prepared report already carries the implementation worker's self-check.
+                # Controller-observed passing tests do not need another model acknowledgment.
+                service.accept_self_review(project, work_report_path=prepared_report)
+                return
             execution = {"controller_execution": result,
                          "repair_report": str(prepared_report)}
         artifact = project.artifact(
@@ -1278,11 +1365,11 @@ class PortRunner:
         self._codex_gate(
             project, MigrationStage.FINAL_EVIDENCE_REVIEW,
             self._migration_context(project, (
-                    (MigrationStage.TARGET_FRAMEWORK_ENABLEMENT,
+                    (framework_stage(project),
                      MigrationArtifact.TARGET_FRAMEWORK_BUNDLE),
-                    (MigrationStage.TARGET_FRAMEWORK_ENABLEMENT,
+                    (framework_stage(project),
                      MigrationArtifact.TARGET_FRAMEWORK_REPORT),
-                    (MigrationStage.TARGET_FRAMEWORK_ENABLEMENT,
+                    (framework_stage(project),
                      MigrationArtifact.TARGET_FRAMEWORK_CHANGE_INVENTORY),
                     (MigrationStage.DRIVER_IMPLEMENTATION, MigrationArtifact.TARGET_CHANGE_INVENTORY),
                     (MigrationStage.DRIVER_IMPLEMENTATION, MigrationArtifact.COMPLIANCE_REPORT),
@@ -1324,6 +1411,13 @@ class PortRunner:
         include_review_history: bool = True,
         include_knowledge_skill: bool = True,
     ) -> dict[str, object]:
+        if project.config.unified_implementation:
+            inputs = tuple((owner, kind) for owner, kind in inputs
+                if not (owner is MigrationStage.DRIVER_IMPLEMENTATION
+                        and project.stage(owner).status is not StageStatus.PASS
+                        and kind in {MigrationArtifact.TARGET_FRAMEWORK_BUNDLE,
+                                     MigrationArtifact.TARGET_FRAMEWORK_REPORT,
+                                     MigrationArtifact.TARGET_FRAMEWORK_CHANGE_INVENTORY}))
         acquisition = load_repository_acquisition(project)
         context: dict[str, object] = {
             "workspace_paths": {
@@ -1438,6 +1532,8 @@ def command_port_run(arguments: argparse.Namespace) -> None:
             backend=arguments.backend,
             codex_bin=arguments.codex_bin,
             model=arguments.model,
+            platform_image=arguments.platform_image,
+            platform_accelerator=arguments.platform_accelerator,
             baseline_repositories=tuple(Path(path).resolve() for path in arguments.baseline_repository),
             local_source_repository=(
                 Path(arguments.local_source_repository).resolve()
@@ -1454,6 +1550,10 @@ def command_port_run(arguments: argparse.Namespace) -> None:
             enable_analysis_review=arguments.analysis_review,
             enable_final_evidence_review=arguments.final_evidence_review,
             context_policy=arguments.context_policy,
+            max_model_cost_usd=arguments.max_model_cost_usd,
+            benchmark_manifest=Path(arguments.benchmark) if arguments.benchmark else None,
+            behavior_scope_file=Path(arguments.behavior_scope) if arguments.behavior_scope else None,
+            behavior_scheduling=arguments.behavior_scheduling,
         )
     ).run()
     print(json.dumps(outcome.to_dict(), ensure_ascii=False, sort_keys=True, indent=2))
@@ -1488,6 +1588,15 @@ def register_commands(commands: CommandRegistry) -> None:
     )
     run.add_argument("--codex-bin", default="codex")
     run.add_argument("--model")
+    run.add_argument("--platform-image", help="local Docker image; frozen on project creation")
+    run.add_argument("--platform-accelerator", choices=("kvm", "tcg"),
+                     help="explicit accelerator; frozen on project creation")
+    run.add_argument("--max-model-cost-usd", type=float,
+                     help="persist an estimated cost budget; check before each model call")
+    run.add_argument("--behavior-scope", help="freeze an operator-authored functional scope JSON")
+    run.add_argument("--benchmark", help="freeze an operator-authored benchmark manifest for final acceptance")
+    run.add_argument("--behavior-scheduling", action=argparse.BooleanOptionalAction, default=None,
+                     help="controller-selected behavior rounds (default: enabled for new runs)")
     from .codex.context_policy import POLICIES
     run.add_argument("--context-policy", choices=POLICIES,
                      help="persist optional context strategy; omitted keeps the current setting")

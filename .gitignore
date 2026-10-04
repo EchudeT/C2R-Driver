@@ -7,3 +7,10 @@ dist/
 build/
 *.egg-info/
 .dpf/
+
+# Local experiment inputs, build outputs and credentials are not collaboration assets.
+runs/
+.local/
+.env
+auth.json
+*.vhdx

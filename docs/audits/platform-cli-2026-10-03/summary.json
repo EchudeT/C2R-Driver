@@ -1,0 +1,14 @@
+{
+  "scope": "Offline CLI/project/ledger regression; synthetic build/boot; no paid models or real driver certification",
+  "fix": "Use full project integrity for mutation entrypoints; status opens read-only. No weakening of scoped-integrity guard.",
+  "entrypoints": [
+    "environment platform",
+    "environment prepare-smoke",
+    "platform-asset"
+  ],
+  "full_pytest": "361 passed in 589.11s (0:09:49)",
+  "targeted_pytest": "25 passed in 36.48s",
+  "ruff": "Platform modules, smoke_recipe and new CLI tests pass check and format; complete repository retains pre-existing lint/format debt.",
+  "live_experiment_modified": false,
+  "verification_boundary": "Platform lifecycle uses real CLI parsing and project reopening with synthetic build/boot. Subprocess tests run python -m driver_port_factory.cli with a local Docker image-inspect stub."
+}

@@ -1,0 +1,36 @@
+{
+  "schema_version": 1,
+  "catalog_id": "linux-ne2k-pci-public",
+  "catalog_version": 1,
+  "source_platform": "linux",
+  "drivers": [
+    {
+      "candidate_id": "linux-ne2k-pci",
+      "canonical_name": "ne2k-pci",
+      "source_entry_hint": "drivers/net/ethernet/8390/ne2k-pci.c",
+      "device_family": "NE2000-compatible Ethernet",
+      "bus_or_transport": "PCI",
+      "aliases": [
+        "NE2000 PCI",
+        "NE2000-PCI",
+        "PCI NE2000",
+        "ne2k_pci",
+        "NE2000"
+      ],
+      "device_scope": [
+        "NE2000-compatible PCI Ethernet adapters"
+      ],
+      "candidate_device_ids": [
+        "10ec:8029"
+      ],
+      "qemu_models": [
+        "ne2k_pci"
+      ],
+      "evidence_hints": [
+        "Source driver plus shared 8390/lib8390 implementations and header",
+        "QEMU RTL8029 ne2k_pci; PCI identity only, excludes ISA and PCMCIA",
+        "Operator pins source/target/qemu before model invocation"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,20 @@
+{
+  "scope": "real unmodified Asterinas baseline build/boot; not driver validation",
+  "source_revision": "d924a9635a66c7c3bb43e563eaafa2c61d6ee9d5",
+  "paid_model_calls": 0,
+  "active_pvpanic_experiment_modified": false,
+  "build_seconds": 225.39,
+  "initial_boot": "FAIL: shell prompt matcher; raw attempt retained",
+  "corrected_boot_seconds": 20.894,
+  "managed_collector_passed": true,
+  "files": {
+    "build.json": "3034c17b683e6b6343b732884cf77f061328d936391b54e8e5774091cf7a90a9",
+    "initial-boot-failed.json": "6df99574dbb51bde9f76e4224408f928b0cf67629216fe21826c1ad9503dfb98",
+    "corrected-boot.json": "71195c12ddabeebfc0f49ed3504591fcd1667ba79a8f9ffe7c407a80447ca611",
+    "managed-collector.json": "ec68eabf91ed6161f398e3e70fac3c9823d0ed2580f556da23821da4f43ae9ff",
+    "qmp.jsonl": "0ed9fa5f7ede09f8eb783d997fb651ca864f3ab59330cdf2f4193754bf125c3d",
+    "serial.log": "3091ce7136227b61f6117f721fe11406b6dd5cb2b83b8a8502711574b3a7cb1f",
+    "profile.json": "73d1a4ee3c0cd5f3be189f0339e06e98a949a3e5e2823e60ace1825f535fb5a8",
+    "case.json": "5aebd38ec932ee4731f1e867b4a18d49963494850b53947fe833cd26feea236d"
+  }
+}

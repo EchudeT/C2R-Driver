@@ -306,20 +306,34 @@ class KnowledgeIndex:
         return [token.lower() for token in TOKEN_RE.findall(text)]
 
     def search(
-        self, query: str, *, domain: KnowledgeDomain | None = None,
-        record_id: str | None = None, path_prefix: str | None = None,
-        limit: int = 10, compact: bool = False,
+        self,
+        query: str,
+        *,
+        domain: KnowledgeDomain | None = None,
+        record_id: str | None = None,
+        path_prefix: str | None = None,
+        limit: int = 10,
+        compact: bool = False,
     ) -> dict[str, Any]:
-        return self._search_chunks(self._load_chunks(), query, domain=domain,
-            record_id=record_id, path_prefix=path_prefix, limit=limit, compact=compact)
+        return self._search_chunks(
+            self._load_chunks(),
+            query,
+            domain=domain,
+            record_id=record_id,
+            path_prefix=path_prefix,
+            limit=limit,
+            compact=compact,
+        )
 
     def search_many(self, queries: list[dict], *, compact: bool = True) -> dict[str, Any]:
         from .search_results import batch_options, shared_results
+
         options = batch_options(queries)
         # This snapshot is local to this request. No validation cache survives it.
         chunks = self._load_chunks()
-        return shared_results([self._search_chunks(chunks, compact=compact, **option)
-                               for option in options])
+        return shared_results(
+            [self._search_chunks(chunks, compact=compact, **option) for option in options]
+        )
 
     def _search_chunks(
         self,
@@ -337,34 +351,27 @@ class KnowledgeIndex:
         query_tokens = self.tokens(query)
         if not query_tokens:
             raise WorkflowError("knowledge query has no searchable tokens")
-        wanted = Counter(query_tokens)
-        phrase = query.casefold()
-        ranked: list[tuple[float, dict[str, Any]]] = []
-        for chunk in chunks:
-            if domain and chunk["domain"] != domain.value:
-                continue
-            if record_id and chunk["record_id"] != record_id:
-                continue
-            if path_prefix and not str(chunk["path"]).startswith(path_prefix):
-                continue
-            text = chunk["text"].casefold()
-            counts = Counter(self.tokens(text))
-            overlap = sum(min(counts[token], count) for token, count in wanted.items())
-            if overlap == 0 and phrase not in text:
-                continue
-            coverage = sum(1 for token in wanted if counts[token]) / len(wanted)
-            score = overlap + (2.0 * coverage) + (3.0 if phrase in text else 0.0)
-            ranked.append((score, chunk))
-        ranked.sort(key=lambda item: (-item[0], item[1]["chunk_id"]))
+        from .rag import select
+        from .ranking import bm25
+
+        ranked = bm25(select(chunks, domain, record_id, path_prefix), query)
         from .search_results import distinct_matches, match_summary
+
         distinct = distinct_matches(ranked)
         results = []
         for score, chunk in distinct[:limit]:
             result = dict(chunk)
             result["score"] = round(score, 6)
             if compact:
-                result.update(match_summary(result.pop("text", ""), query, query_tokens,
-                                            TOKEN_RE, line_start=chunk["line_start"]))
+                result.update(
+                    match_summary(
+                        result.pop("text", ""),
+                        query,
+                        query_tokens,
+                        TOKEN_RE,
+                        line_start=chunk["line_start"],
+                    )
+                )
             results.append(result)
         return {
             "status": KnowledgeIndexStatus.READY.value,

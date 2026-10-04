@@ -14,7 +14,7 @@ class RepositoryPlan:
     schema_version: int
     repositories: tuple[RepositorySpec, ...]
     revision_proposal: ArtifactOccurrence
-    selection_job: JobResultBinding
+    selection_job: JobResultBinding | None
     migration_envelope_digest: str
     planned_at: str
 
@@ -26,7 +26,7 @@ class RepositoryPlan:
                 "digest": self.revision_proposal.digest,
                 "ordinal": self.revision_proposal.ordinal,
             },
-            "selection_job": self.selection_job.to_dict(),
+            "selection_job": self.selection_job.to_dict() if self.selection_job else None,
             "migration_envelope_digest": self.migration_envelope_digest,
             "planned_at": self.planned_at,
         }
@@ -69,7 +69,9 @@ class RepositoryPlan:
                 sha256(proposal["digest"], "repository plan proposal digest"),
                 ordinal,
             ),
-            JobResultBinding.from_dict(candidate["selection_job"]),
+            JobResultBinding.from_dict(candidate["selection_job"])
+            if candidate["selection_job"] is not None
+            else None,
             sha256(candidate["migration_envelope_digest"], "repository plan envelope digest"),
             nonempty(candidate["planned_at"], "repository plan timestamp"),
         )
@@ -79,7 +81,7 @@ class RepositoryPlan:
 class RevisionManifest:
     migration_envelope_sha256: str
     revision_proposal: ArtifactOccurrence
-    selection_job: JobResultBinding
+    selection_job: JobResultBinding | None
     repositories: tuple[RepositorySpec, ...]
     schema_version = 1
 
@@ -128,7 +130,9 @@ class RevisionManifest:
                 sha256(proposal["digest"], "revision proposal digest"),
                 ordinal,
             ),
-            JobResultBinding.from_dict(candidate["selection_job"]),
+            JobResultBinding.from_dict(candidate["selection_job"])
+            if candidate["selection_job"] is not None
+            else None,
             tuple(repositories),
         )
 
@@ -140,7 +144,7 @@ class RevisionManifest:
                 "digest": self.revision_proposal.digest,
                 "ordinal": self.revision_proposal.ordinal,
             },
-            "selection_job": self.selection_job.to_dict(),
+            "selection_job": self.selection_job.to_dict() if self.selection_job else None,
             **{
                 repository.role.value: {
                     "platform": repository.platform,

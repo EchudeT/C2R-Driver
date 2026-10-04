@@ -4,7 +4,7 @@ from types import MappingProxyType
 
 from ..core.models import WorkflowError
 from ..core.validation import ArtifactValidator, json_object, require_fields
-from .contracts import EnvironmentArtifact, ExperimentRouteMilestone
+from .contracts import EnvironmentArtifact, EnvironmentStage, ExperimentRouteMilestone
 from .models import ExperimentPlan, ExperimentReadiness
 
 
@@ -61,6 +61,10 @@ def _experiment_route(data: bytes) -> None:
 
 VALIDATORS = MappingProxyType[EnvironmentArtifact, ArtifactValidator](
     {
+        EnvironmentArtifact.PLATFORM_PROFILE: lambda data: json_object(data, "platform profile"),
+        EnvironmentArtifact.PLATFORM_VALIDATION: lambda data: json_object(
+            data, "platform validation"
+        ),
         EnvironmentArtifact.INVENTORY: _inventory,
         EnvironmentArtifact.MODE_CANDIDATES: _mode_candidates,
         EnvironmentArtifact.EXPERIMENT_PLAN: _experiment_plan,
@@ -70,3 +74,18 @@ VALIDATORS = MappingProxyType[EnvironmentArtifact, ArtifactValidator](
         EnvironmentArtifact.EXPERIMENT_ROUTE: _experiment_route,
     }
 )
+
+
+def validate_bundle(context):
+    from ..composition import open_project
+    from ..platform.service import required
+    from .bootstrap import artifacts
+
+    project = open_project(context.project_root, read_only=True, verify_artifacts=False)
+    if required(project):
+        for artifact in artifacts(project):
+            if context.one_current(artifact.kind)[1] != artifact.data:
+                raise WorkflowError("Environment outputs must bind the executed platform baseline")
+
+
+BUNDLE_VALIDATORS = {EnvironmentStage.RECOVERY: validate_bundle}

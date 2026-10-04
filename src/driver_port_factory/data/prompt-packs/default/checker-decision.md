@@ -11,9 +11,10 @@ by ACCEPT. Preserve original evidence; never rewrite failed results as successfu
 
 If the work meets the Skill requirements, explain why the findings do not invalidate it and cite
 evidence in one Markdown report. Submit it with the tool's `pass` decision. Unchanged captured outputs
-are published without rerunning checks or rewriting results. If capture was interrupted or outputs
-changed, the controller instead processes the current deliverables through normal capture/checks;
-retain the stage's required self-check in that report. ACCEPT never creates missing artifacts.
+are published without rerunning checks or rewriting results. For report-based stages, if capture was interrupted or outputs
+changed, the controller processes the current deliverables through normal capture/checks;
+retain the stage's required self-check in that report. Proposal-based stages must instead submit
+the repaired JSON when capture was interrupted (see below). ACCEPT never creates missing artifacts.
 A command failure remains a command failure, even if it does not invalidate the work.
 
 For a real defect, repair the smallest affected inputs and submit the normal stage deliverable
@@ -25,3 +26,9 @@ submit it through the same command; the controller reruns that operation. Do not
 code to fit a collector limitation.
 For an external blocker explain it in the report and submit it with the tool's `blocked` decision.
 Acceptance and blocker explanations are files submitted through the tool; no extra checklist or reviewer conversation.
+
+For repository_acquisition/evidence_closure with artifacts:null, a report pass cannot accept
+anything. Repair and submit the JSON proposal once, or submit a blocker report. Do not submit a
+second report after a proposal in the same job. Read the named facet/path/outcome before editing;
+valid JSON syntax alone does not address a material retrieval or provenance failure. An unchanged
+proposal that triggered the same failure is not a repair.

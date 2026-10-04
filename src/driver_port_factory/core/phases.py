@@ -1,19 +1,33 @@
 """Developer phase boundaries shared by scheduling, persistence and prompts."""
+
 from .models import WorkflowError
 
-
 GROUPS = {
-    "scope_and_baselines": (
-        "project_init", "request_intake", "driver_candidate_resolution", "scope_confirmation",
-        "migration_envelope_freeze", "repository_acquisition"),
-    "evidence_and_design": (
-        "evidence_closure", "environment_recovery", "knowledge_base", "target_platform_study",
-        "migration_handoff", "migration_contracts", "analysis_review"),
-    "delivery": (
-        "target_framework_enablement", "driver_implementation", "artifact_preparation",
-        "public_qemu_validation", "final_evidence_review"),
-    "completion": ("completion_audit",),
+    "analysis": (
+        "project_init",
+        "request_intake",
+        "driver_candidate_resolution",
+        "scope_confirmation",
+        "migration_envelope_freeze",
+        "repository_acquisition",
+        "evidence_closure",
+        "environment_recovery",
+        "knowledge_base",
+        "target_platform_study",
+        "migration_handoff",
+        "migration_contracts",
+        "analysis_review",
+    ),
+    "continuous_execution": ("target_framework_enablement", "driver_implementation"),
+    "acceptance": (
+        "artifact_preparation",
+        "public_qemu_validation",
+        "final_evidence_review",
+        "benchmark_validation",
+        "completion_audit",
+    ),
 }
+
 PHASES = {stage: phase for phase, stages in GROUPS.items() for stage in stages}
 
 
@@ -39,23 +53,46 @@ def require_local_repair(target, trigger, rows):
         raise PhaseBoundaryError(
             f"Cross-phase repair requires an explicit phase-reopen decision: "
             f"{phase(trigger)} -> {target_phase} ({trigger.value} -> {target.value}). "
-            "No earlier stage or evidence has been invalidated.")
+            "No earlier stage or evidence has been invalidated."
+        )
     ordered = list(GROUPS)
     if target_phase not in ordered:
         return
     rank = ordered.index(target_phase)
     for row in rows:
         later = PHASES.get(row["name"])
-        if later in ordered and ordered.index(later) > rank and (
-                row["entered"] or row["status"] not in {"PENDING", "READY"}):
+        if (
+            later in ordered
+            and ordered.index(later) > rank
+            and (row["entered"] or row["status"] not in {"PENDING", "READY"})
+        ):
             raise PhaseBoundaryError(
                 f"Phase {target_phase} is sealed: later phase {later} has started. "
-                "An explicit phase-reopen decision is required; evidence is unchanged.")
+                "An explicit phase-reopen decision is required; evidence is unchanged."
+            )
 
 
 def allows_evidence_revision(config, target, trigger):
     """Developer findings may revise evidence; scope and sealed evaluation stay fixed."""
     from .models import EvaluationMode
-    mutable = {"evidence_and_design", "delivery"}
-    return (config.evaluation_mode is EvaluationMode.DEVELOPER_EVIDENCE
-            and phase(target) in mutable and phase(trigger) in mutable)
+
+    mutable = {
+        "evidence_closure",
+        "environment_recovery",
+        "knowledge_base",
+        "target_platform_study",
+        "migration_handoff",
+        "migration_contracts",
+        "analysis_review",
+        "target_framework_enablement",
+        "driver_implementation",
+        "artifact_preparation",
+        "public_qemu_validation",
+        "final_evidence_review",
+        "benchmark_validation",
+    }
+    return (
+        config.evaluation_mode is EvaluationMode.DEVELOPER_EVIDENCE
+        and target.value in mutable
+        and trigger.value in mutable
+    )

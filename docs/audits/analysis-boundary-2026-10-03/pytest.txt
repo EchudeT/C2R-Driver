@@ -1,0 +1,646 @@
+F.....FFFF.............................................................. [ 18%]
+........................................................................ [ 37%]
+........................................................................ [ 55%]
+........................................................................ [ 74%]
+........................................................................ [ 92%]
+............................                                             [100%]
+=================================== FAILURES ===================================
+_ test_fresh_analysis_receives_frozen_inputs_and_resumes_its_own_conversation __
+
+tmp_path = PosixPath('/tmp/pytest-of-unix/pytest-158/test_fresh_analysis_receives_f0')
+
+    def test_fresh_analysis_receives_frozen_inputs_and_resumes_its_own_conversation(tmp_path):
+        project, _ = prepare_project(tmp_path)
+        KnowledgeBootstrapper().build_infrastructure(project)
+        study = TargetStudyStage.STUDY
+        grant = CodexExecutionPolicy().grant(project, study)
+        old_key, _ = stage_session(project, AcquisitionStage.EVIDENCE_CLOSURE, grant, None, "exec")
+        save_session(project, old_key, "acquisition-with-large-history", {})
+        expected = [None, "analysis-only"]
+    
+        def gateway(job):
+            assert job.thread_id == expected.pop(0)
+            payload = json.loads(job.prompt.split("<job>")[1].split("</job>")[0])
+            refs = payload["reference_material"]
+            packet = refs["analysis_entry"]
+            assert packet["request"] and packet["device_identity"]["source_paths"]
+            assert {r["role"] for r in packet["repositories"]} == {"source", "target", "qemu"}
+            assert all(r["revision"] and r["path"] for r in packet["repositories"])
+            assert refs["functional_scope"]["boundary"]["mode"] == "source-driver"
+            assert refs["functional_scope"]["boundary"]["integration"] == "target-kernel"
+            assert "environment_evidence" in refs
+            report = job.execution_root / "report.md"
+            report.write_text("Synthetic blocked analysis; no semantic verdict.")
+            submit(project, job, report, kind="report", decision="blocked")
+            return CodexResult(job.job_id, "", "analysis-only")
+    
+        with patch("driver_port_factory.codex.cli.CodexExecGateway.run", side_effect=gateway):
+            for _ in range(2):
+                project = open_project(project.root)
+>               run_codex_stage(
+                    project,
+                    study,
+                    context={},
+                    backend=CodexBackend.EXEC,
+                    codex_bin="codex",
+                    model=None,
+                    skill_root=Path(__file__).resolve().parents[1] / "skill",
+                )
+
+tests/test_analysis_boundary.py:56: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+src/driver_port_factory/codex/cli.py:404: in run_codex_stage
+    result = gateway.run(job)
+             ^^^^^^^^^^^^^^^^
+/usr/lib/python3.11/unittest/mock.py:1124: in __call__
+    return self._mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/lib/python3.11/unittest/mock.py:1128: in _mock_call
+    return self._execute_mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/lib/python3.11/unittest/mock.py:1189: in _execute_mock_call
+    result = effect(*args, **kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^
+tests/test_analysis_boundary.py:44: in gateway
+    assert all(r["revision"] and r["path"] for r in packet["repositories"])
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+.0 = <list_iterator object at 0x7fab7cf89360>
+
+>   assert all(r["revision"] and r["path"] for r in packet["repositories"])
+               ^^^^^^^^^^^^^
+E   KeyError: 'revision'
+
+tests/test_analysis_boundary.py:44: KeyError
+_ test_analysis_returns_all_findings_to_worker_before_sealing[analysis-handoff-migration_contracts] _
+
+tmp_path = PosixPath('/tmp/pytest-of-unix/pytest-158/test_analysis_returns_all_find0')
+repair_target = <MigrationStage.CONTRACTS: 'migration_contracts'>
+policy = 'analysis-handoff'
+
+    @pytest.mark.parametrize('repair_target', [S.CONTRACTS, TargetStudyStage.STUDY])
+    @pytest.mark.parametrize('policy', ['analysis-handoff', 'persistent'])
+    def test_analysis_returns_all_findings_to_worker_before_sealing(tmp_path, repair_target, policy):
+        project = ready_implementation(tmp_path, reviewed=False)
+        from driver_port_factory.codex.context_policy import configure_policy
+        configure_policy(project, policy, reason='exercise handoff after upstream repair')
+        port = runner(project)
+        calls, review_count = [], 0
+        with pytest.raises(WorkflowError):
+            project.start(S.DRIVER_IMPLEMENTATION)
+    
+        class ReachedImplementation(Exception):
+            pass
+    
+        def implementation(_):
+            assert project.stage(S.ANALYSIS_REVIEW).status is StageStatus.PASS
+            raise ReachedImplementation
+    
+        port._actions[S.DRIVER_IMPLEMENTATION] = implementation
+    
+        def gateway(job):
+            nonlocal review_count
+            calls.append(job)
+            report = job.execution_root / 'report.md'
+            payload = json.loads(job.prompt.split('<job>')[1].split('</job>')[0])
+            if job.stage is S.ANALYSIS_REVIEW:
+                review_count += 1
+                assert job.thread_id == (None if review_count == 1 else 'reviewer')
+                assert job.sandbox.value == 'danger-full-access'
+                assert payload['instructions']['tool_runtime']['evidence_locator'][-1] == 'driver_port_factory.review_evidence'
+                if review_count == 1:
+                    report.write_text('F1: report.md:3, source driver.c:1: inaccurate claim.\n'
+                        'F2: report.md:4, test.c:2: registration is not an assertion.\n')
+                    submit(project, job, report, kind='report', decision='rework',
+                           repair_stage=repair_target.value)
+                else:
+                    assert payload['reference_material'].get('previous_review') or payload['reference_material']['repair_task']['source']
+                    report.write_text('F1 and F2 resolved against corrected evidence.\n')
+                    submit(project, job, report, kind='report', decision='pass')
+                return CodexResult(job.job_id, '', 'reviewer')
+            if job.stage is S.TARGET_FRAMEWORK_ENABLEMENT:
+                assert project.retry_feedback(job.stage)['status'] == 'PREREQUISITE_COMPLETED'
+                assert 'F2:' in payload['reference_material']['repair_task']['report_excerpt']
+                assert job.thread_id == (None if policy == 'analysis-handoff' else 'worker')
+                if policy == 'analysis-handoff':
+                    handoff = payload['reference_material']['context_handoff']
+                    from driver_port_factory.short_refs import References
+                    bound = References(project.root).get(handoff['evidence_ref'])
+                    packet_path = project.artifacts.path_for_digest(bound['digest'])
+                    packet = json.loads(packet_path.read_text())
+                    assert packet['automatic_boundary'] == 'analysis_to_execution'
+                    assert packet['history_lookup']['previous_thread'] == 'worker'
+                report = job.execution_root / '.dpf-output' / 'report.md'
+                report.parent.mkdir(parents=True, exist_ok=True)
+                report.write_text(
+                    'Synthetic target framework enablement; no target edits required.\n'
+                    'DPF_SELF_REVIEW: PASS\n'
+                )
+                submit(project, job, report, kind='report', decision='pass')
+                return CodexResult(job.job_id, '', 'worker')
+            assert job.stage in {S.CONTRACTS, TargetStudyStage.STUDY}
+            assert job.thread_id in {None, 'worker'}
+            assert 'analysis_review' in job.prompt
+            task = payload['reference_material']['repair_task']
+            assert 'F1:' in task['report_excerpt'] and 'F2:' in task['report_excerpt']
+            assert task['complete']
+            from driver_port_factory.short_refs import References
+            bound = References(project.root).get(task['source']['evidence_ref'])
+            assert Path(task['source']['path']).resolve() == project.artifacts.path_for_digest(bound['digest'])
+            # Overwriting the reviewer's mutable file must not change repair evidence.
+            (project.root / 'work/stage-work/analysis_review/report.md').write_text('overwritten')
+            assert 'F2:' in open(task['source']['path']).read()
+            report.write_text('Corrected both F1 and F2; retained valid evidence.\n')
+            submit(project, job, report, kind='report', decision='pass')
+            return CodexResult(job.job_id, '', 'worker')
+    
+        with patch('driver_port_factory.codex.cli.CodexExecGateway.run', side_effect=gateway):
+            with pytest.raises(ReachedImplementation):
+>               port._run_project(project)
+
+tests/test_analysis_review.py:133: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+src/driver_port_factory/port.py:180: in _run_project
+    action(project)
+src/driver_port_factory/port.py:1052: in _target_framework_enablement
+    self._codex_gate(
+src/driver_port_factory/port.py:488: in _codex_gate
+    result, _, response = self._codex(
+src/driver_port_factory/port.py:415: in _codex
+    return run_codex_stage(
+src/driver_port_factory/codex/cli.py:404: in run_codex_stage
+    result = gateway.run(job)
+             ^^^^^^^^^^^^^^^^
+/usr/lib/python3.11/unittest/mock.py:1124: in __call__
+    return self._mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/lib/python3.11/unittest/mock.py:1128: in _mock_call
+    return self._execute_mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/lib/python3.11/unittest/mock.py:1189: in _execute_mock_call
+    result = effect(*args, **kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+job = CodexJob(stage=<MigrationStage.TARGET_FRAMEWORK_ENABLEMENT: 'target_framework_enablement'>, actor_role=<ActorRole.DEVE...eturns_all_find0/run'), worker_project=PosixPath('/tmp/pytest-of-unix/pytest-158/test_analysis_returns_all_find0/run'))
+
+    def gateway(job):
+        nonlocal review_count
+        calls.append(job)
+        report = job.execution_root / 'report.md'
+        payload = json.loads(job.prompt.split('<job>')[1].split('</job>')[0])
+        if job.stage is S.ANALYSIS_REVIEW:
+            review_count += 1
+            assert job.thread_id == (None if review_count == 1 else 'reviewer')
+            assert job.sandbox.value == 'danger-full-access'
+            assert payload['instructions']['tool_runtime']['evidence_locator'][-1] == 'driver_port_factory.review_evidence'
+            if review_count == 1:
+                report.write_text('F1: report.md:3, source driver.c:1: inaccurate claim.\n'
+                    'F2: report.md:4, test.c:2: registration is not an assertion.\n')
+                submit(project, job, report, kind='report', decision='rework',
+                       repair_stage=repair_target.value)
+            else:
+                assert payload['reference_material'].get('previous_review') or payload['reference_material']['repair_task']['source']
+                report.write_text('F1 and F2 resolved against corrected evidence.\n')
+                submit(project, job, report, kind='report', decision='pass')
+            return CodexResult(job.job_id, '', 'reviewer')
+        if job.stage is S.TARGET_FRAMEWORK_ENABLEMENT:
+            assert project.retry_feedback(job.stage)['status'] == 'PREREQUISITE_COMPLETED'
+            assert 'F2:' in payload['reference_material']['repair_task']['report_excerpt']
+            assert job.thread_id == (None if policy == 'analysis-handoff' else 'worker')
+            if policy == 'analysis-handoff':
+>               handoff = payload['reference_material']['context_handoff']
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E               KeyError: 'context_handoff'
+
+tests/test_analysis_review.py:100: KeyError
+_ test_analysis_returns_all_findings_to_worker_before_sealing[analysis-handoff-target_platform_study] _
+
+tmp_path = PosixPath('/tmp/pytest-of-unix/pytest-158/test_analysis_returns_all_find1')
+repair_target = <TargetStudyStage.STUDY: 'target_platform_study'>
+policy = 'analysis-handoff'
+
+    @pytest.mark.parametrize('repair_target', [S.CONTRACTS, TargetStudyStage.STUDY])
+    @pytest.mark.parametrize('policy', ['analysis-handoff', 'persistent'])
+    def test_analysis_returns_all_findings_to_worker_before_sealing(tmp_path, repair_target, policy):
+        project = ready_implementation(tmp_path, reviewed=False)
+        from driver_port_factory.codex.context_policy import configure_policy
+        configure_policy(project, policy, reason='exercise handoff after upstream repair')
+        port = runner(project)
+        calls, review_count = [], 0
+        with pytest.raises(WorkflowError):
+            project.start(S.DRIVER_IMPLEMENTATION)
+    
+        class ReachedImplementation(Exception):
+            pass
+    
+        def implementation(_):
+            assert project.stage(S.ANALYSIS_REVIEW).status is StageStatus.PASS
+            raise ReachedImplementation
+    
+        port._actions[S.DRIVER_IMPLEMENTATION] = implementation
+    
+        def gateway(job):
+            nonlocal review_count
+            calls.append(job)
+            report = job.execution_root / 'report.md'
+            payload = json.loads(job.prompt.split('<job>')[1].split('</job>')[0])
+            if job.stage is S.ANALYSIS_REVIEW:
+                review_count += 1
+                assert job.thread_id == (None if review_count == 1 else 'reviewer')
+                assert job.sandbox.value == 'danger-full-access'
+                assert payload['instructions']['tool_runtime']['evidence_locator'][-1] == 'driver_port_factory.review_evidence'
+                if review_count == 1:
+                    report.write_text('F1: report.md:3, source driver.c:1: inaccurate claim.\n'
+                        'F2: report.md:4, test.c:2: registration is not an assertion.\n')
+                    submit(project, job, report, kind='report', decision='rework',
+                           repair_stage=repair_target.value)
+                else:
+                    assert payload['reference_material'].get('previous_review') or payload['reference_material']['repair_task']['source']
+                    report.write_text('F1 and F2 resolved against corrected evidence.\n')
+                    submit(project, job, report, kind='report', decision='pass')
+                return CodexResult(job.job_id, '', 'reviewer')
+            if job.stage is S.TARGET_FRAMEWORK_ENABLEMENT:
+                assert project.retry_feedback(job.stage)['status'] == 'PREREQUISITE_COMPLETED'
+                assert 'F2:' in payload['reference_material']['repair_task']['report_excerpt']
+                assert job.thread_id == (None if policy == 'analysis-handoff' else 'worker')
+                if policy == 'analysis-handoff':
+                    handoff = payload['reference_material']['context_handoff']
+                    from driver_port_factory.short_refs import References
+                    bound = References(project.root).get(handoff['evidence_ref'])
+                    packet_path = project.artifacts.path_for_digest(bound['digest'])
+                    packet = json.loads(packet_path.read_text())
+                    assert packet['automatic_boundary'] == 'analysis_to_execution'
+                    assert packet['history_lookup']['previous_thread'] == 'worker'
+                report = job.execution_root / '.dpf-output' / 'report.md'
+                report.parent.mkdir(parents=True, exist_ok=True)
+                report.write_text(
+                    'Synthetic target framework enablement; no target edits required.\n'
+                    'DPF_SELF_REVIEW: PASS\n'
+                )
+                submit(project, job, report, kind='report', decision='pass')
+                return CodexResult(job.job_id, '', 'worker')
+            assert job.stage in {S.CONTRACTS, TargetStudyStage.STUDY}
+            assert job.thread_id in {None, 'worker'}
+            assert 'analysis_review' in job.prompt
+            task = payload['reference_material']['repair_task']
+            assert 'F1:' in task['report_excerpt'] and 'F2:' in task['report_excerpt']
+            assert task['complete']
+            from driver_port_factory.short_refs import References
+            bound = References(project.root).get(task['source']['evidence_ref'])
+            assert Path(task['source']['path']).resolve() == project.artifacts.path_for_digest(bound['digest'])
+            # Overwriting the reviewer's mutable file must not change repair evidence.
+            (project.root / 'work/stage-work/analysis_review/report.md').write_text('overwritten')
+            assert 'F2:' in open(task['source']['path']).read()
+            report.write_text('Corrected both F1 and F2; retained valid evidence.\n')
+            submit(project, job, report, kind='report', decision='pass')
+            return CodexResult(job.job_id, '', 'worker')
+    
+        with patch('driver_port_factory.codex.cli.CodexExecGateway.run', side_effect=gateway):
+            with pytest.raises(ReachedImplementation):
+>               port._run_project(project)
+
+tests/test_analysis_review.py:133: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+src/driver_port_factory/port.py:180: in _run_project
+    action(project)
+src/driver_port_factory/port.py:1052: in _target_framework_enablement
+    self._codex_gate(
+src/driver_port_factory/port.py:488: in _codex_gate
+    result, _, response = self._codex(
+src/driver_port_factory/port.py:415: in _codex
+    return run_codex_stage(
+src/driver_port_factory/codex/cli.py:404: in run_codex_stage
+    result = gateway.run(job)
+             ^^^^^^^^^^^^^^^^
+/usr/lib/python3.11/unittest/mock.py:1124: in __call__
+    return self._mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/lib/python3.11/unittest/mock.py:1128: in _mock_call
+    return self._execute_mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/lib/python3.11/unittest/mock.py:1189: in _execute_mock_call
+    result = effect(*args, **kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+job = CodexJob(stage=<MigrationStage.TARGET_FRAMEWORK_ENABLEMENT: 'target_framework_enablement'>, actor_role=<ActorRole.DEVE...eturns_all_find1/run'), worker_project=PosixPath('/tmp/pytest-of-unix/pytest-158/test_analysis_returns_all_find1/run'))
+
+    def gateway(job):
+        nonlocal review_count
+        calls.append(job)
+        report = job.execution_root / 'report.md'
+        payload = json.loads(job.prompt.split('<job>')[1].split('</job>')[0])
+        if job.stage is S.ANALYSIS_REVIEW:
+            review_count += 1
+            assert job.thread_id == (None if review_count == 1 else 'reviewer')
+            assert job.sandbox.value == 'danger-full-access'
+            assert payload['instructions']['tool_runtime']['evidence_locator'][-1] == 'driver_port_factory.review_evidence'
+            if review_count == 1:
+                report.write_text('F1: report.md:3, source driver.c:1: inaccurate claim.\n'
+                    'F2: report.md:4, test.c:2: registration is not an assertion.\n')
+                submit(project, job, report, kind='report', decision='rework',
+                       repair_stage=repair_target.value)
+            else:
+                assert payload['reference_material'].get('previous_review') or payload['reference_material']['repair_task']['source']
+                report.write_text('F1 and F2 resolved against corrected evidence.\n')
+                submit(project, job, report, kind='report', decision='pass')
+            return CodexResult(job.job_id, '', 'reviewer')
+        if job.stage is S.TARGET_FRAMEWORK_ENABLEMENT:
+            assert project.retry_feedback(job.stage)['status'] == 'PREREQUISITE_COMPLETED'
+            assert 'F2:' in payload['reference_material']['repair_task']['report_excerpt']
+            assert job.thread_id == (None if policy == 'analysis-handoff' else 'worker')
+            if policy == 'analysis-handoff':
+>               handoff = payload['reference_material']['context_handoff']
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E               KeyError: 'context_handoff'
+
+tests/test_analysis_review.py:100: KeyError
+_ test_analysis_returns_all_findings_to_worker_before_sealing[persistent-migration_contracts] _
+
+tmp_path = PosixPath('/tmp/pytest-of-unix/pytest-158/test_analysis_returns_all_find2')
+repair_target = <MigrationStage.CONTRACTS: 'migration_contracts'>
+policy = 'persistent'
+
+    @pytest.mark.parametrize('repair_target', [S.CONTRACTS, TargetStudyStage.STUDY])
+    @pytest.mark.parametrize('policy', ['analysis-handoff', 'persistent'])
+    def test_analysis_returns_all_findings_to_worker_before_sealing(tmp_path, repair_target, policy):
+        project = ready_implementation(tmp_path, reviewed=False)
+        from driver_port_factory.codex.context_policy import configure_policy
+        configure_policy(project, policy, reason='exercise handoff after upstream repair')
+        port = runner(project)
+        calls, review_count = [], 0
+        with pytest.raises(WorkflowError):
+            project.start(S.DRIVER_IMPLEMENTATION)
+    
+        class ReachedImplementation(Exception):
+            pass
+    
+        def implementation(_):
+            assert project.stage(S.ANALYSIS_REVIEW).status is StageStatus.PASS
+            raise ReachedImplementation
+    
+        port._actions[S.DRIVER_IMPLEMENTATION] = implementation
+    
+        def gateway(job):
+            nonlocal review_count
+            calls.append(job)
+            report = job.execution_root / 'report.md'
+            payload = json.loads(job.prompt.split('<job>')[1].split('</job>')[0])
+            if job.stage is S.ANALYSIS_REVIEW:
+                review_count += 1
+                assert job.thread_id == (None if review_count == 1 else 'reviewer')
+                assert job.sandbox.value == 'danger-full-access'
+                assert payload['instructions']['tool_runtime']['evidence_locator'][-1] == 'driver_port_factory.review_evidence'
+                if review_count == 1:
+                    report.write_text('F1: report.md:3, source driver.c:1: inaccurate claim.\n'
+                        'F2: report.md:4, test.c:2: registration is not an assertion.\n')
+                    submit(project, job, report, kind='report', decision='rework',
+                           repair_stage=repair_target.value)
+                else:
+                    assert payload['reference_material'].get('previous_review') or payload['reference_material']['repair_task']['source']
+                    report.write_text('F1 and F2 resolved against corrected evidence.\n')
+                    submit(project, job, report, kind='report', decision='pass')
+                return CodexResult(job.job_id, '', 'reviewer')
+            if job.stage is S.TARGET_FRAMEWORK_ENABLEMENT:
+                assert project.retry_feedback(job.stage)['status'] == 'PREREQUISITE_COMPLETED'
+                assert 'F2:' in payload['reference_material']['repair_task']['report_excerpt']
+                assert job.thread_id == (None if policy == 'analysis-handoff' else 'worker')
+                if policy == 'analysis-handoff':
+                    handoff = payload['reference_material']['context_handoff']
+                    from driver_port_factory.short_refs import References
+                    bound = References(project.root).get(handoff['evidence_ref'])
+                    packet_path = project.artifacts.path_for_digest(bound['digest'])
+                    packet = json.loads(packet_path.read_text())
+                    assert packet['automatic_boundary'] == 'analysis_to_execution'
+                    assert packet['history_lookup']['previous_thread'] == 'worker'
+                report = job.execution_root / '.dpf-output' / 'report.md'
+                report.parent.mkdir(parents=True, exist_ok=True)
+                report.write_text(
+                    'Synthetic target framework enablement; no target edits required.\n'
+                    'DPF_SELF_REVIEW: PASS\n'
+                )
+                submit(project, job, report, kind='report', decision='pass')
+                return CodexResult(job.job_id, '', 'worker')
+            assert job.stage in {S.CONTRACTS, TargetStudyStage.STUDY}
+            assert job.thread_id in {None, 'worker'}
+            assert 'analysis_review' in job.prompt
+            task = payload['reference_material']['repair_task']
+            assert 'F1:' in task['report_excerpt'] and 'F2:' in task['report_excerpt']
+            assert task['complete']
+            from driver_port_factory.short_refs import References
+            bound = References(project.root).get(task['source']['evidence_ref'])
+            assert Path(task['source']['path']).resolve() == project.artifacts.path_for_digest(bound['digest'])
+            # Overwriting the reviewer's mutable file must not change repair evidence.
+            (project.root / 'work/stage-work/analysis_review/report.md').write_text('overwritten')
+            assert 'F2:' in open(task['source']['path']).read()
+            report.write_text('Corrected both F1 and F2; retained valid evidence.\n')
+            submit(project, job, report, kind='report', decision='pass')
+            return CodexResult(job.job_id, '', 'worker')
+    
+        with patch('driver_port_factory.codex.cli.CodexExecGateway.run', side_effect=gateway):
+            with pytest.raises(ReachedImplementation):
+>               port._run_project(project)
+
+tests/test_analysis_review.py:133: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+src/driver_port_factory/port.py:180: in _run_project
+    action(project)
+src/driver_port_factory/port.py:1052: in _target_framework_enablement
+    self._codex_gate(
+src/driver_port_factory/port.py:488: in _codex_gate
+    result, _, response = self._codex(
+src/driver_port_factory/port.py:415: in _codex
+    return run_codex_stage(
+src/driver_port_factory/codex/cli.py:404: in run_codex_stage
+    result = gateway.run(job)
+             ^^^^^^^^^^^^^^^^
+/usr/lib/python3.11/unittest/mock.py:1124: in __call__
+    return self._mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/lib/python3.11/unittest/mock.py:1128: in _mock_call
+    return self._execute_mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/lib/python3.11/unittest/mock.py:1189: in _execute_mock_call
+    result = effect(*args, **kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+job = CodexJob(stage=<MigrationStage.TARGET_FRAMEWORK_ENABLEMENT: 'target_framework_enablement'>, actor_role=<ActorRole.DEVE...eturns_all_find2/run'), worker_project=PosixPath('/tmp/pytest-of-unix/pytest-158/test_analysis_returns_all_find2/run'))
+
+    def gateway(job):
+        nonlocal review_count
+        calls.append(job)
+        report = job.execution_root / 'report.md'
+        payload = json.loads(job.prompt.split('<job>')[1].split('</job>')[0])
+        if job.stage is S.ANALYSIS_REVIEW:
+            review_count += 1
+            assert job.thread_id == (None if review_count == 1 else 'reviewer')
+            assert job.sandbox.value == 'danger-full-access'
+            assert payload['instructions']['tool_runtime']['evidence_locator'][-1] == 'driver_port_factory.review_evidence'
+            if review_count == 1:
+                report.write_text('F1: report.md:3, source driver.c:1: inaccurate claim.\n'
+                    'F2: report.md:4, test.c:2: registration is not an assertion.\n')
+                submit(project, job, report, kind='report', decision='rework',
+                       repair_stage=repair_target.value)
+            else:
+                assert payload['reference_material'].get('previous_review') or payload['reference_material']['repair_task']['source']
+                report.write_text('F1 and F2 resolved against corrected evidence.\n')
+                submit(project, job, report, kind='report', decision='pass')
+            return CodexResult(job.job_id, '', 'reviewer')
+        if job.stage is S.TARGET_FRAMEWORK_ENABLEMENT:
+            assert project.retry_feedback(job.stage)['status'] == 'PREREQUISITE_COMPLETED'
+            assert 'F2:' in payload['reference_material']['repair_task']['report_excerpt']
+>           assert job.thread_id == (None if policy == 'analysis-handoff' else 'worker')
+E           AssertionError: assert None == 'worker'
+E            +  where None = CodexJob(stage=<MigrationStage.TARGET_FRAMEWORK_ENABLEMENT: 'target_framework_enablement'>, actor_role=<ActorRole.DEVE...eturns_all_find2/run'), worker_project=PosixPath('/tmp/pytest-of-unix/pytest-158/test_analysis_returns_all_find2/run')).thread_id
+
+tests/test_analysis_review.py:98: AssertionError
+_ test_analysis_returns_all_findings_to_worker_before_sealing[persistent-target_platform_study] _
+
+tmp_path = PosixPath('/tmp/pytest-of-unix/pytest-158/test_analysis_returns_all_find3')
+repair_target = <TargetStudyStage.STUDY: 'target_platform_study'>
+policy = 'persistent'
+
+    @pytest.mark.parametrize('repair_target', [S.CONTRACTS, TargetStudyStage.STUDY])
+    @pytest.mark.parametrize('policy', ['analysis-handoff', 'persistent'])
+    def test_analysis_returns_all_findings_to_worker_before_sealing(tmp_path, repair_target, policy):
+        project = ready_implementation(tmp_path, reviewed=False)
+        from driver_port_factory.codex.context_policy import configure_policy
+        configure_policy(project, policy, reason='exercise handoff after upstream repair')
+        port = runner(project)
+        calls, review_count = [], 0
+        with pytest.raises(WorkflowError):
+            project.start(S.DRIVER_IMPLEMENTATION)
+    
+        class ReachedImplementation(Exception):
+            pass
+    
+        def implementation(_):
+            assert project.stage(S.ANALYSIS_REVIEW).status is StageStatus.PASS
+            raise ReachedImplementation
+    
+        port._actions[S.DRIVER_IMPLEMENTATION] = implementation
+    
+        def gateway(job):
+            nonlocal review_count
+            calls.append(job)
+            report = job.execution_root / 'report.md'
+            payload = json.loads(job.prompt.split('<job>')[1].split('</job>')[0])
+            if job.stage is S.ANALYSIS_REVIEW:
+                review_count += 1
+                assert job.thread_id == (None if review_count == 1 else 'reviewer')
+                assert job.sandbox.value == 'danger-full-access'
+                assert payload['instructions']['tool_runtime']['evidence_locator'][-1] == 'driver_port_factory.review_evidence'
+                if review_count == 1:
+                    report.write_text('F1: report.md:3, source driver.c:1: inaccurate claim.\n'
+                        'F2: report.md:4, test.c:2: registration is not an assertion.\n')
+                    submit(project, job, report, kind='report', decision='rework',
+                           repair_stage=repair_target.value)
+                else:
+                    assert payload['reference_material'].get('previous_review') or payload['reference_material']['repair_task']['source']
+                    report.write_text('F1 and F2 resolved against corrected evidence.\n')
+                    submit(project, job, report, kind='report', decision='pass')
+                return CodexResult(job.job_id, '', 'reviewer')
+            if job.stage is S.TARGET_FRAMEWORK_ENABLEMENT:
+                assert project.retry_feedback(job.stage)['status'] == 'PREREQUISITE_COMPLETED'
+                assert 'F2:' in payload['reference_material']['repair_task']['report_excerpt']
+                assert job.thread_id == (None if policy == 'analysis-handoff' else 'worker')
+                if policy == 'analysis-handoff':
+                    handoff = payload['reference_material']['context_handoff']
+                    from driver_port_factory.short_refs import References
+                    bound = References(project.root).get(handoff['evidence_ref'])
+                    packet_path = project.artifacts.path_for_digest(bound['digest'])
+                    packet = json.loads(packet_path.read_text())
+                    assert packet['automatic_boundary'] == 'analysis_to_execution'
+                    assert packet['history_lookup']['previous_thread'] == 'worker'
+                report = job.execution_root / '.dpf-output' / 'report.md'
+                report.parent.mkdir(parents=True, exist_ok=True)
+                report.write_text(
+                    'Synthetic target framework enablement; no target edits required.\n'
+                    'DPF_SELF_REVIEW: PASS\n'
+                )
+                submit(project, job, report, kind='report', decision='pass')
+                return CodexResult(job.job_id, '', 'worker')
+            assert job.stage in {S.CONTRACTS, TargetStudyStage.STUDY}
+            assert job.thread_id in {None, 'worker'}
+            assert 'analysis_review' in job.prompt
+            task = payload['reference_material']['repair_task']
+            assert 'F1:' in task['report_excerpt'] and 'F2:' in task['report_excerpt']
+            assert task['complete']
+            from driver_port_factory.short_refs import References
+            bound = References(project.root).get(task['source']['evidence_ref'])
+            assert Path(task['source']['path']).resolve() == project.artifacts.path_for_digest(bound['digest'])
+            # Overwriting the reviewer's mutable file must not change repair evidence.
+            (project.root / 'work/stage-work/analysis_review/report.md').write_text('overwritten')
+            assert 'F2:' in open(task['source']['path']).read()
+            report.write_text('Corrected both F1 and F2; retained valid evidence.\n')
+            submit(project, job, report, kind='report', decision='pass')
+            return CodexResult(job.job_id, '', 'worker')
+    
+        with patch('driver_port_factory.codex.cli.CodexExecGateway.run', side_effect=gateway):
+            with pytest.raises(ReachedImplementation):
+>               port._run_project(project)
+
+tests/test_analysis_review.py:133: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+src/driver_port_factory/port.py:180: in _run_project
+    action(project)
+src/driver_port_factory/port.py:1052: in _target_framework_enablement
+    self._codex_gate(
+src/driver_port_factory/port.py:488: in _codex_gate
+    result, _, response = self._codex(
+src/driver_port_factory/port.py:415: in _codex
+    return run_codex_stage(
+src/driver_port_factory/codex/cli.py:404: in run_codex_stage
+    result = gateway.run(job)
+             ^^^^^^^^^^^^^^^^
+/usr/lib/python3.11/unittest/mock.py:1124: in __call__
+    return self._mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/lib/python3.11/unittest/mock.py:1128: in _mock_call
+    return self._execute_mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/lib/python3.11/unittest/mock.py:1189: in _execute_mock_call
+    result = effect(*args, **kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+job = CodexJob(stage=<MigrationStage.TARGET_FRAMEWORK_ENABLEMENT: 'target_framework_enablement'>, actor_role=<ActorRole.DEVE...eturns_all_find3/run'), worker_project=PosixPath('/tmp/pytest-of-unix/pytest-158/test_analysis_returns_all_find3/run'))
+
+    def gateway(job):
+        nonlocal review_count
+        calls.append(job)
+        report = job.execution_root / 'report.md'
+        payload = json.loads(job.prompt.split('<job>')[1].split('</job>')[0])
+        if job.stage is S.ANALYSIS_REVIEW:
+            review_count += 1
+            assert job.thread_id == (None if review_count == 1 else 'reviewer')
+            assert job.sandbox.value == 'danger-full-access'
+            assert payload['instructions']['tool_runtime']['evidence_locator'][-1] == 'driver_port_factory.review_evidence'
+            if review_count == 1:
+                report.write_text('F1: report.md:3, source driver.c:1: inaccurate claim.\n'
+                    'F2: report.md:4, test.c:2: registration is not an assertion.\n')
+                submit(project, job, report, kind='report', decision='rework',
+                       repair_stage=repair_target.value)
+            else:
+                assert payload['reference_material'].get('previous_review') or payload['reference_material']['repair_task']['source']
+                report.write_text('F1 and F2 resolved against corrected evidence.\n')
+                submit(project, job, report, kind='report', decision='pass')
+            return CodexResult(job.job_id, '', 'reviewer')
+        if job.stage is S.TARGET_FRAMEWORK_ENABLEMENT:
+            assert project.retry_feedback(job.stage)['status'] == 'PREREQUISITE_COMPLETED'
+            assert 'F2:' in payload['reference_material']['repair_task']['report_excerpt']
+>           assert job.thread_id == (None if policy == 'analysis-handoff' else 'worker')
+E           AssertionError: assert None == 'worker'
+E            +  where None = CodexJob(stage=<MigrationStage.TARGET_FRAMEWORK_ENABLEMENT: 'target_framework_enablement'>, actor_role=<ActorRole.DEVE...eturns_all_find3/run'), worker_project=PosixPath('/tmp/pytest-of-unix/pytest-158/test_analysis_returns_all_find3/run')).thread_id
+
+tests/test_analysis_review.py:98: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_analysis_boundary.py::test_fresh_analysis_receives_frozen_inputs_and_resumes_its_own_conversation
+FAILED tests/test_analysis_review.py::test_analysis_returns_all_findings_to_worker_before_sealing[analysis-handoff-migration_contracts]
+FAILED tests/test_analysis_review.py::test_analysis_returns_all_findings_to_worker_before_sealing[analysis-handoff-target_platform_study]
+FAILED tests/test_analysis_review.py::test_analysis_returns_all_findings_to_worker_before_sealing[persistent-migration_contracts]
+FAILED tests/test_analysis_review.py::test_analysis_returns_all_findings_to_worker_before_sealing[persistent-target_platform_study]
+5 failed, 383 passed in 658.19s (0:10:58)

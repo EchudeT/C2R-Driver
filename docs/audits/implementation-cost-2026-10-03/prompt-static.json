@@ -1,0 +1,5 @@
+{
+  "scope": "Offline rendering only, synthetic minimal context; not the real prompt or cost savings",
+  "previous_template_bytes": 20280,
+  "current_template_bytes": 14981
+}

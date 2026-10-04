@@ -1,0 +1,57 @@
+{
+  "schema_version": 1,
+  "adapter": "asterinas-x86_64-iso",
+  "target_revision": "d924a9635a66c7c3bb43e563eaafa2c61d6ee9d5",
+  "host_architecture": "x86_64",
+  "image": "asterinas/dev:0.18.1-20260805",
+  "image_id": "sha256:7da64501ca8c05dcc903ef1d5a83e85d38030a166da45289df8af91206913b71",
+  "accelerator": "kvm",
+  "build_network": "host",
+  "runtime_network": "none",
+  "build_argv": [
+    "make",
+    "kernel",
+    "INITRAMFS=on",
+    "LOG_LEVEL=info",
+    "CONSOLE=ttyS0"
+  ],
+  "artifact": "target/osdk/asterinas-osdk-bin.iso",
+  "environment": {
+    "VDSO_LIBRARY_DIR": "/root/linux_vdso"
+  },
+  "qemu": "qemu-system-x86_64",
+  "qemu_args": [
+    "-machine",
+    "q35,kernel-irqchip=split",
+    "-accel",
+    "kvm",
+    "-cpu",
+    "host,+x2apic",
+    "-smp",
+    "1",
+    "-m",
+    "2G",
+    "-no-reboot",
+    "-display",
+    "none",
+    "-monitor",
+    "none",
+    "-serial",
+    "stdio",
+    "-boot",
+    "d",
+    "-bios",
+    "/root/ovmf/release/OVMF.fd",
+    "-device",
+    "isa-debug-exit,iobase=0xf4,iosize=0x04"
+  ],
+  "ready_text": "# ",
+  "adapter_identity": {
+    "__init__.py": "97e3275a7b96f36b81041c35aa523b7f7129e02088697d1741b81b908d37547f",
+    "cli.py": "c02eb591f0b31af61b8aca59fc2da450935cdf2a1280b380c5ac62514a23282a",
+    "executor.py": "aea096944da757f9b6646e24214432aa9ae900a5b2b7ae21a73d9192b50eeb20",
+    "guest.py": "7ecedd887e68ce26e97352e72b4722ed05d5de2d8c7e00b8635a9d3e22fa527a",
+    "profile.py": "54ecd80a3f214d875da80422b4196474dc9680178b7c6ab28001efd18a059a91",
+    "service.py": "8135bf3a648c50d6309c68f266e608af0b8db9dbbbb3c7560cf75870c5fa5b00"
+  }
+}

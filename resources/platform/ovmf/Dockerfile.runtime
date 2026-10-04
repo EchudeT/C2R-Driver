@@ -1,0 +1,6 @@
+# Build context: a validated firmware output directory containing OVMF.fd.
+# This is an explicitly named local derivative, not an upstream official release.
+ARG BASE_IMAGE=asterinas/dev:0.18.1-20260805
+FROM ${BASE_IMAGE}
+COPY OVMF.fd /root/ovmf/release/OVMF.fd
+COPY manifest.json /root/ovmf/dpf-compatibility.json

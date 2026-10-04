@@ -1,0 +1,476 @@
+{
+  "started_at": "2026-10-03T06:40:56.706278+00:00",
+  "before_free_bytes": 618982477824,
+  "policy": "Remove listed old Rust build output directories only. Preserve source, .dpf, logs, runtime receipts. Built output paths are no longer retained; original PASS records are not rewritten.",
+  "paths": [
+    {
+      "path": "/home/unix/file/C2R-Driver/c2rust-migration-test-01/e2e-e1000-optimized-20260927-01/work/target-2a776150366acae2-d924a9635a66c7c3bb43e563eaafa2c61d6ee9d5/target",
+      "bytes": 2436266,
+      "method": "docker",
+      "exit_code": 0,
+      "removed": true
+    },
+    {
+      "path": "/home/unix/file/C2R-Driver/c2rust-migration-test-01/e2e-e1000-optimized-20260927-01/work/target-2a776150366acae2-d924a9635a66c7c3bb43e563eaafa2c61d6ee9d5/osdk/target",
+      "bytes": 791206,
+      "method": "docker",
+      "exit_code": 0,
+      "removed": true
+    },
+    {
+      "path": "/home/unix/file/C2R-Driver/c2rust-migration-test-01/e2e-ne2000-audit-09/work/target-2a776150366acae2-d924a9635a66c7c3bb43e563eaafa2c61d6ee9d5/target",
+      "bytes": 448693,
+      "method": "local",
+      "removed": true
+    },
+    {
+      "path": "/home/unix/file/C2R-Driver/c2rust-migration-test-01/e2e-ne2000-audit-08/work/target-2a776150366acae2-d924a9635a66c7c3bb43e563eaafa2c61d6ee9d5/osdk/target",
+      "bytes": 735572,
+      "method": "docker",
+      "exit_code": 0,
+      "removed": true
+    },
+    {
+      "path": "/home/unix/file/C2R-Driver/c2rust-migration-test-01/e2e-ne2000-audit-15/work/target-2a776150366acae2-d924a9635a66c7c3bb43e563eaafa2c61d6ee9d5/target",
+      "bytes": 1095851,
+      "method": "local",
+      "removed": true
+    },
+    {
+      "path": "/home/unix/file/C2R-Driver/c2rust-migration-test-01/e2e-ne2000-audit-19/work/target-2a776150366acae2-d924a9635a66c7c3bb43e563eaafa2c61d6ee9d5/osdk/target",
+      "bytes": 791204,
+      "method": "docker",
+      "exit_code": 0,
+      "removed": true
+    },
+    {
+      "path": "/home/unix/file/C2R-Driver/c2rust-migration-test-01/e2e-e1000-context-logs-01/work/target-2a776150366acae2-d924a9635a66c7c3bb43e563eaafa2c61d6ee9d5/target",
+      "bytes": 6536496,
+      "method": "docker",
+      "exit_code": 0,
+      "removed": true
+    },
+    {
+      "path": "/home/unix/file/C2R-Driver/c2rust-migration-test-01/e2e-e1000-context-logs-01/work/target-2a776150366acae2-d924a9635a66c7c3bb43e563eaafa2c61d6ee9d5/osdk/target",
+      "bytes": 1414192,
+      "method": "docker",
+      "exit_code": 0,
+      "removed": true
+    },
+    {
+      "path": "/home/unix/file/C2R-Driver/c2rust-migration-test-01/e2e-ne2000-audit-17/work/target-2a776150366acae2-d924a9635a66c7c3bb43e563eaafa2c61d6ee9d5/osdk/target",
+      "bytes": 1414190,
+      "method": "docker",
+      "exit_code": 0,
+      "removed": true
+    },
+    {
+      "path": "/home/unix/file/C2R-Driver/c2rust-migration-test-01/e2e-ne2000-audit-16/work/target-2a776150366acae2-d924a9635a66c7c3bb43e563eaafa2c61d6ee9d5/osdk/target",
+      "bytes": 849231,
+      "method": "docker",
+      "exit_code": 0,
+      "removed": true
+    },
+    {
+      "path": "/home/unix/file/C2R-Driver/c2rust-migration-test-01/e2e-ne2000-audit-13/work/target-2a776150366acae2-d924a9635a66c7c3bb43e563eaafa2c61d6ee9d5/target",
+      "bytes": 233479,
+      "method": "local",
+      "removed": true
+    },
+    {
+      "path": "/home/unix/file/C2R-Driver/c2rust-migration-test-01/e2e-ne2000-audit-13/work/target-2a776150366acae2-d924a9635a66c7c3bb43e563eaafa2c61d6ee9d5/osdk/target",
+      "bytes": 735572,
+      "method": "docker",
+      "exit_code": 0,
+      "removed": true
+    },
+    {
+      "path": "/home/unix/file/C2R-Driver/c2rust-migration-test-01/experiments/pvpanic-behavior-sol-medium-20261003-01/run/work/target/target",
+      "bytes": 2947088849,
+      "method": "docker",
+      "exit_code": 0,
+      "removed": true
+    },
+    {
+      "path": "/home/unix/file/C2R-Driver/c2rust-migration-test-01/experiments/pvpanic-behavior-sol-medium-20261003-01/run/work/target/osdk/target",
+      "bytes": 290927651,
+      "method": "docker",
+      "exit_code": 0,
+      "removed": true
+    },
+    {
+      "path": "/home/unix/file/C2R-Driver/c2rust-migration-test-01/experiments/pvpanic-shared-sol-medium-20261002-01/run/work/target-2a776150366acae2-d924a9635a66c7c3bb43e563eaafa2c61d6ee9d5/target",
+      "bytes": 5576970949,
+      "method": "docker",
+      "exit_code": 0,
+      "removed": true
+    },
+    {
+      "path": "/home/unix/file/C2R-Driver/c2rust-migration-test-01/experiments/pvpanic-shared-sol-medium-20261002-01/run/work/target-2a776150366acae2-d924a9635a66c7c3bb43e563eaafa2c61d6ee9d5/osdk/target",
+      "bytes": 290927651,
+      "method": "docker",
+      "exit_code": 0,
+      "removed": true
+    },
+    {
+      "path": "/home/unix/file/C2R-Driver/c2rust-migration-test-01/experiments/pvpanic-behavior-sol-medium-20261003-03/run/work/target/target",
+      "bytes": 5635401567,
+      "method": "docker",
+      "exit_code": 0,
+      "removed": true
+    },
+    {
+      "path": "/home/unix/file/C2R-Driver/c2rust-migration-test-01/experiments/pvpanic-behavior-sol-medium-20261003-03/run/work/target/osdk/target",
+      "bytes": 290984015,
+      "method": "docker",
+      "exit_code": 0,
+      "removed": true
+    },
+    {
+      "path": "/home/unix/file/C2R-Driver/c2rust-migration-test-01/experiments/pvpanic-behavior-sol-medium-20261003-05/run/work/target/target",
+      "bytes": 5612615710,
+      "method": "docker",
+      "exit_code": 0,
+      "removed": true
+    },
+    {
+      "path": "/home/unix/file/C2R-Driver/c2rust-migration-test-01/experiments/pvpanic-behavior-sol-medium-20261003-05/run/work/target/osdk/target",
+      "bytes": 291418413,
+      "method": "docker",
+      "exit_code": 0,
+      "removed": true
+    },
+    {
+      "path": "/home/unix/file/C2R-Driver/c2rust-migration-test-01/experiments/pvpanic-behavior-sol-medium-20261003-04/run/work/target/target",
+      "bytes": 4789871427,
+      "method": "docker",
+      "exit_code": 0,
+      "removed": true
+    },
+    {
+      "path": "/home/unix/file/C2R-Driver/c2rust-migration-test-01/experiments/pvpanic-behavior-sol-medium-20261003-04/run/work/target/osdk/target",
+      "bytes": 291417156,
+      "method": "docker",
+      "exit_code": 0,
+      "removed": true
+    },
+    {
+      "path": "/home/unix/file/C2R-Driver/c2rust-migration-test-01/driver-port-lab/runs/pvpanic-pci-luna-20261001-02/target/target",
+      "bytes": 1189956624,
+      "method": "docker",
+      "exit_code": 0,
+      "removed": true
+    },
+    {
+      "path": "/home/unix/file/C2R-Driver/c2rust-migration-test-01/driver-port-lab/runs/native-sdk-build-preflight-20260927-02/target/target",
+      "bytes": 8771,
+      "method": "docker",
+      "exit_code": 0,
+      "removed": true
+    },
+    {
+      "path": "/home/unix/file/C2R-Driver/c2rust-migration-test-01/driver-port-lab/runs/native-sdk-build-preflight-20260927-02/target/osdk/target",
+      "bytes": 708011,
+      "method": "docker",
+      "exit_code": 0,
+      "removed": true
+    },
+    {
+      "path": "/home/unix/file/C2R-Driver/c2rust-migration-test-01/driver-port-lab/runs/evbug-full-20260927-03/target/target",
+      "bytes": 774334,
+      "method": "docker",
+      "exit_code": 0,
+      "removed": true
+    },
+    {
+      "path": "/home/unix/file/C2R-Driver/c2rust-migration-test-01/driver-port-lab/runs/virtio-rng-native-20260927-01/target/target",
+      "bytes": 1308764,
+      "method": "docker",
+      "exit_code": 0,
+      "removed": true
+    },
+    {
+      "path": "/home/unix/file/C2R-Driver/c2rust-migration-test-01/driver-port-lab/runs/pvpanic-pci-luna-20260930-07/target/target",
+      "bytes": 1189948431,
+      "method": "docker",
+      "exit_code": 0,
+      "removed": true
+    },
+    {
+      "path": "/home/unix/file/C2R-Driver/c2rust-migration-test-01/driver-port-lab/runs/virtio-blk-native-preflight-20260927-01/target/target",
+      "bytes": 9397,
+      "method": "docker",
+      "exit_code": 0,
+      "removed": true
+    },
+    {
+      "path": "/home/unix/file/C2R-Driver/c2rust-migration-test-01/driver-port-lab/runs/ne2k-pci-luna-20260930-01/target/target",
+      "bytes": 1508001138,
+      "method": "docker",
+      "exit_code": 0,
+      "removed": true
+    },
+    {
+      "path": "/home/unix/file/C2R-Driver/c2rust-migration-test-01/driver-port-lab/runs/pvpanic-pci-luna-20260930-02/target/target",
+      "bytes": 769683,
+      "method": "docker",
+      "exit_code": 0,
+      "removed": true
+    },
+    {
+      "path": "/home/unix/file/C2R-Driver/c2rust-migration-test-01/driver-port-lab/runs/virtio-rng-native-preflight-20260927-03/target/target",
+      "bytes": 1270839,
+      "method": "docker",
+      "exit_code": 0,
+      "removed": true
+    },
+    {
+      "path": "/home/unix/file/C2R-Driver/c2rust-migration-test-01/driver-port-lab/runs/pvpanic-pci-luna-20260930-05/target/target",
+      "bytes": 784903,
+      "method": "docker",
+      "exit_code": 0,
+      "removed": true
+    },
+    {
+      "path": "/home/unix/file/C2R-Driver/c2rust-migration-test-01/driver-port-lab/runs/pvpanic-pci-luna-20260930-04/target/target",
+      "bytes": 12938282,
+      "method": "docker",
+      "exit_code": 0,
+      "removed": true
+    },
+    {
+      "path": "/home/unix/file/C2R-Driver/c2rust-migration-test-01/driver-port-lab/runs/ne2k-semantic-luna-20261002-01/target/target",
+      "bytes": 1365716517,
+      "method": "docker",
+      "exit_code": 0,
+      "removed": true
+    },
+    {
+      "path": "/home/unix/file/C2R-Driver/c2rust-migration-test-01/driver-port-lab/runs/evbug-auto-preparation-20260927-01/target/target",
+      "bytes": 763717,
+      "method": "docker",
+      "exit_code": 0,
+      "removed": true
+    },
+    {
+      "path": "/home/unix/file/C2R-Driver/c2rust-migration-test-01/driver-port-lab/runs/pvpanic-pci-luna-20260930-06/target/target",
+      "bytes": 1232198752,
+      "method": "docker",
+      "exit_code": 0,
+      "removed": true
+    },
+    {
+      "path": "/home/unix/file/C2R-Driver/c2rust-migration-test-01/driver-port-lab/runs/ne2k-pci-luna-20261001-06/target/target",
+      "bytes": 1620419027,
+      "method": "docker",
+      "exit_code": 0,
+      "removed": true
+    },
+    {
+      "path": "/home/unix/file/C2R-Driver/c2rust-migration-test-01/driver-port-lab/runs/ne2k-pci-luna-20261001-05/target/target",
+      "bytes": 1512444156,
+      "method": "docker",
+      "exit_code": 0,
+      "removed": true
+    },
+    {
+      "path": "/home/unix/file/C2R-Driver/c2rust-migration-test-01/driver-port-lab/runs/virtio-rng-native-20260927-02/target/target",
+      "bytes": 1308764,
+      "method": "docker",
+      "exit_code": 0,
+      "removed": true
+    },
+    {
+      "path": "/home/unix/file/C2R-Driver/c2rust-migration-test-01/driver-port-lab/runs/native-series-20260927-02-virtio-net/target/target",
+      "bytes": 1362737,
+      "method": "docker",
+      "exit_code": 0,
+      "removed": true
+    },
+    {
+      "path": "/home/unix/file/C2R-Driver/c2rust-migration-test-01/driver-port-lab/runs/pvpanic-semantic-luna-20261002-04/target/target",
+      "bytes": 1231174642,
+      "method": "docker",
+      "exit_code": 0,
+      "removed": true
+    },
+    {
+      "path": "/home/unix/file/C2R-Driver/c2rust-migration-test-01/driver-port-lab/runs/pvpanic-pci-luna-20260930-08/target/target",
+      "bytes": 1232226473,
+      "method": "docker",
+      "exit_code": 0,
+      "removed": true
+    },
+    {
+      "path": "/home/unix/file/C2R-Driver/c2rust-migration-test-01/driver-port-lab/runs/pvpanic-pci-luna-20260930-03/target/target",
+      "bytes": 769473,
+      "method": "docker",
+      "exit_code": 0,
+      "removed": true
+    },
+    {
+      "path": "/home/unix/file/C2R-Driver/c2rust-migration-test-01/driver-port-lab/runs/pvpanic-pci-luna-20261001-01/target/target",
+      "bytes": 1232397685,
+      "method": "docker",
+      "exit_code": 0,
+      "removed": true
+    },
+    {
+      "path": "/home/unix/file/C2R-Driver/c2rust-migration-test-01/driver-port-lab/runs/ne2k-pci-preflight-20260927-01/target/target",
+      "bytes": 934416,
+      "method": "docker",
+      "exit_code": 0,
+      "removed": true
+    },
+    {
+      "path": "/home/unix/file/C2R-Driver/c2rust-migration-test-01/driver-port-lab/runs/pvpanic-semantic-luna-20261002-02/target/target",
+      "bytes": 1189881551,
+      "method": "docker",
+      "exit_code": 0,
+      "removed": true
+    },
+    {
+      "path": "/home/unix/file/C2R-Driver/c2rust-migration-test-01/driver-port-lab/runs/evbug-20260927-01/target/target",
+      "bytes": 774335,
+      "method": "docker",
+      "exit_code": 0,
+      "removed": true
+    },
+    {
+      "path": "/home/unix/file/C2R-Driver/c2rust-migration-test-01/driver-port-lab/runs/ne2k-pci-luna-20261001-02/target/target",
+      "bytes": 1511347663,
+      "method": "docker",
+      "exit_code": 0,
+      "removed": true
+    },
+    {
+      "path": "/home/unix/file/C2R-Driver/c2rust-migration-test-01/driver-port-lab/runs/pvpanic-semantic-luna-20261002-03/target/target",
+      "bytes": 1189885671,
+      "method": "docker",
+      "exit_code": 0,
+      "removed": true
+    },
+    {
+      "path": "/home/unix/file/C2R-Driver/c2rust-migration-test-01/driver-port-lab/runs/ne2k-pci-luna-20261001-04/target/target",
+      "bytes": 1416919534,
+      "method": "docker",
+      "exit_code": 0,
+      "removed": true
+    },
+    {
+      "path": "/home/unix/file/C2R-Driver/c2rust-migration-test-01/driver-port-lab/runs/pvpanic-pci-luna-20261001-04/target/target",
+      "bytes": 1232390432,
+      "method": "docker",
+      "exit_code": 0,
+      "removed": true
+    },
+    {
+      "path": "/home/unix/file/C2R-Driver/c2rust-migration-test-01/driver-port-lab/runs/ne2k-pci-full-20260927-01/target/target",
+      "bytes": 1014099,
+      "method": "docker",
+      "exit_code": 0,
+      "removed": true
+    },
+    {
+      "path": "/home/unix/file/C2R-Driver/c2rust-migration-test-01/driver-port-lab/runs/pvpanic-semantic-luna-20261002-06/target/target",
+      "bytes": 1236185367,
+      "method": "docker",
+      "exit_code": 0,
+      "removed": true
+    },
+    {
+      "path": "/home/unix/file/C2R-Driver/c2rust-migration-test-01/driver-port-lab/runs/ne2k-rx-regression-20260927-01/target/target",
+      "bytes": 976623,
+      "method": "docker",
+      "exit_code": 0,
+      "removed": true
+    },
+    {
+      "path": "/home/unix/file/C2R-Driver/c2rust-migration-test-01/driver-port-lab/runs/pvpanic-pci-luna-20261001-03/target/target",
+      "bytes": 1189952524,
+      "method": "docker",
+      "exit_code": 0,
+      "removed": true
+    },
+    {
+      "path": "/home/unix/file/C2R-Driver/c2rust-migration-test-01/driver-port-lab/runs/pvpanic-semantic-luna-20261002-05/target/target",
+      "bytes": 1231843894,
+      "method": "docker",
+      "exit_code": 0,
+      "removed": true
+    },
+    {
+      "path": "/home/unix/file/C2R-Driver/c2rust-migration-test-01/driver-port-lab/runs/evbug-full-20260927-01/target/target",
+      "bytes": 763716,
+      "method": "docker",
+      "exit_code": 0,
+      "removed": true
+    },
+    {
+      "path": "/home/unix/file/C2R-Driver/c2rust-migration-test-01/driver-port-lab/runs/native-series-20260927-01-virtio-blk/target/target",
+      "bytes": 1309398,
+      "method": "docker",
+      "exit_code": 0,
+      "removed": true
+    },
+    {
+      "path": "/home/unix/file/C2R-Driver/c2rust-migration-test-01/driver-port-lab/runs/evbug-full-20260927-02/target/target",
+      "bytes": 774335,
+      "method": "docker",
+      "exit_code": 0,
+      "removed": true
+    },
+    {
+      "path": "/home/unix/file/C2R-Driver/c2rust-migration-test-01/driver-port-lab/runs/sermouse-preflight-20260927-01/target/target",
+      "bytes": 774777,
+      "method": "docker",
+      "exit_code": 0,
+      "removed": true
+    },
+    {
+      "path": "/home/unix/file/C2R-Driver/c2rust-migration-test-01/driver-port-lab/runs/evbug-luna-20260930-01/target/target",
+      "bytes": 774335,
+      "method": "docker",
+      "exit_code": 0,
+      "removed": true
+    },
+    {
+      "path": "/home/unix/file/C2R-Driver/c2rust-migration-test-01/driver-port-lab/runs/evbug-20260927-02/target/target",
+      "bytes": 763717,
+      "method": "docker",
+      "exit_code": 0,
+      "removed": true
+    },
+    {
+      "path": "/home/unix/file/C2R-Driver/c2rust-migration-test-01/driver-port-lab/runs/pvpanic-pci-luna-20260930-09/target/target",
+      "bytes": 1233822348,
+      "method": "docker",
+      "exit_code": 0,
+      "removed": true
+    },
+    {
+      "path": "/home/unix/file/C2R-Driver/c2rust-migration-test-01/driver-port-lab/runs/pvpanic-pci-luna-20261001-03-launch-failed/target/target",
+      "bytes": 1189960722,
+      "method": "docker",
+      "exit_code": 0,
+      "removed": true
+    },
+    {
+      "path": "/home/unix/file/C2R-Driver/c2rust-migration-test-01/driver-port-lab/runs/virtio-net-native-preflight-20260927-01/target/target",
+      "bytes": 9193,
+      "method": "docker",
+      "exit_code": 0,
+      "removed": true
+    },
+    {
+      "path": "/home/unix/file/C2R-Driver/c2rust-migration-test-01/driver-port-lab/runs/sermouse-full-20260927-01/target/target",
+      "bytes": 796214,
+      "method": "docker",
+      "exit_code": 0,
+      "removed": true
+    }
+  ],
+  "after_free_bytes": 671227138048,
+  "finished_at": "2026-10-03T06:41:20.094326+00:00",
+  "freed_bytes_by_df": 52244660224
+}

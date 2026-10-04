@@ -1,0 +1,3 @@
+{"command": "test \"$(cat /sys/pvpanic/capability)\" = 07 && test \"$(cat /sys/pvpanic/events)\" = 07", "nonce": "27286fa0cd0d47239cbac405f192801c", "exit_code": 0}
+{"command": "echo 5 > /sys/pvpanic/events && test \"$(cat /sys/pvpanic/events)\" = 05", "nonce": "51bbc9ff43534162a139f7c6fed42f92", "exit_code": 0}
+{"command": "if echo 8 > /sys/pvpanic/events; then exit 1; else test \"$(cat /sys/pvpanic/events)\" = 05; fi", "nonce": "173f65ff2ab4458788279d1b68051daf", "exit_code": 0}

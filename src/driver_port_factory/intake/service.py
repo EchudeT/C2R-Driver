@@ -237,7 +237,10 @@ class IntakeService:
                 for candidate in candidates
                 if candidate.candidate_id != selected.candidate_id
             ]
+        from .behavior_scope import effective
+
         envelope = {
+            "behavior_scope": effective(project.config),
             "schema_version": 1,
             "source_platform": project.config.source_platform,
             "target_platform": project.config.target_platform,

@@ -1,0 +1,26 @@
+diff --git a/MdeModulePkg/Bus/Pci/PciBusDxe/PciEnumeratorSupport.c b/MdeModulePkg/Bus/Pci/PciBusDxe/PciEnumeratorSupport.c
+index 5c4b215..335bf5a 100644
+--- a/MdeModulePkg/Bus/Pci/PciBusDxe/PciEnumeratorSupport.c
++++ b/MdeModulePkg/Bus/Pci/PciBusDxe/PciEnumeratorSupport.c
+@@ -1803,6 +1803,21 @@ PciParseBar (
+     //
+     PciIoDevice->PciBar[BarIndex].Offset = (UINT8)Offset;
+     return Offset + 4;
++  }
++
++  // QEMU 10.2.1 pvpanic-pci registers a 2-byte MemoryRegion as BAR0.
++  // Its sizing read is 0xFFFFFFFE: writable bits 1..3 falsely advertise
++  // reserved memory type 3. The original BAR declares non-prefetchable
++  // 32-bit memory. Apply only this exact device/signature workaround;
++  // the ordinary PCI resource allocator still selects and owns the address.
++  // The minimum representable memory BAR aperture is 16 bytes. No device
++  // register access or event behavior is changed by this firmware quirk.
++  if ((PciIoDevice->Pci.Hdr.VendorId == 0x1B36) &&
++      (PciIoDevice->Pci.Hdr.DeviceId == 0x0011) &&
++      (BarIndex == 0) && (Value == 0xFFFFFFFE) &&
++      ((OriginalValue & 0x0F) == 0))
++  {
++    Value &= 0xFFFFFFF0;
+   }
+ 
+   PciIoDevice->PciBar[BarIndex].BarTypeFixed = FALSE;

@@ -1,0 +1,115 @@
+{
+  "library": "/home/unix/file/C2R-Driver/c2rust-migration-test-01/shared-driver-knowledge",
+  "snapshot": "7e72d1ccd35aa78a1ee723cd37eff744ad55704ed07ad0a30d97ba11db92debd",
+  "target_originals": 106,
+  "source_originals": 11,
+  "experiences": 1,
+  "runtime_observations": 0,
+  "scope": "Initial Linux and Asterinas sources; hardware and QEMU coverage still incomplete",
+  "example": {
+    "snapshot": "7e72d1ccd35aa78a1ee723cd37eff744ad55704ed07ad0a30d97ba11db92debd",
+    "retrieval": "bm25",
+    "results": [
+      {
+        "chunk_id": "9b6025f6722969270705c56e3f7eb042216630a7b1082d911dad5049d767bf01:1",
+        "entry": "9b6025f6722969270705c56e3f7eb042216630a7b1082d911dad5049d767bf01",
+        "kind": "EXPERIENCE",
+        "title": "Preserve nonblocking callback acquisition when adapting locks",
+        "line_start": 1,
+        "line_end": 6,
+        "text": "Preserve nonblocking callback acquisition when adapting locks\nA source callback may return immediately when spin_trylock fails; replacing it with blocking lock changes progress.\nCheck whether the source obligation requires immediate failure. Asterinas SpinLock::try_lock returns None on failed acquisition, whereas lock busy-waits. Keep the early return when required; mutex exclusion alone is insufficient.\nA callback with an evidenced nonblocking failure path, using the cited Asterinas revision. Check guardian, interrupt, lifetime and caller conditions for each driver.\nSource-backed interpretation only. No translated driver or runtime test is certified by this record. Other revisions require revalidation.\n['try_lock', 'callback', 'nonblocking', 'concurrency']",
+        "scope": [
+          {
+            "domain": "target",
+            "platform": "asterinas",
+            "revision": "d4b407ca87de203f79c27c9a83ada1d8223fe280"
+          }
+        ],
+        "applicability": "MATCHING_REVISION_RECHECK_TASK_PRECONDITIONS",
+        "evidence": [
+          {
+            "blob": "b88c56aeb40d3ddb55c7e65691fa2519997ba92b795f1b01801d5af03da9fc73",
+            "entry": "f2b84d70c459ccde1f5b8114b9b3bbb5382076c21c6de20585eb3652962157e3",
+            "line_end": 115,
+            "line_start": 70
+          },
+          {
+            "blob": "8a795e68d82601e264f2eb7cf1838fdf02352de0ae262d993bdea9c60e212af0",
+            "entry": "08adf058e5314e985003456e2f5569d9784c72f435a9c96996a4369be865e200",
+            "line_end": 58,
+            "line_start": 45
+          }
+        ],
+        "blob": null,
+        "score": 28.47837502
+      },
+      {
+        "chunk_id": "e7f62db3f13230f75bf3083087fe1af74939b1faff6a7e02ec5cb5c6d7b3cbf8:129",
+        "entry": "e7f62db3f13230f75bf3083087fe1af74939b1faff6a7e02ec5cb5c6d7b3cbf8",
+        "kind": "ORIGINAL",
+        "title": "ostd/src/sync/mutex.rs",
+        "line_start": 129,
+        "line_end": 158,
+        "text": "impl<'a, T: ?Sized> MutexGuard<'a, T> {\n    /// Returns the [`Mutex`] associated with this guard.\n    pub fn get_lock(guard: &MutexGuard<'a, T>) -> &'a Mutex<T> {\n        guard.mutex\n    }\n}\n\n#[cfg(ktest)]\nmod test {\n    use super::*;\n    use crate::prelude::*;\n\n    // A regression test for a bug fixed in [#1279](https://github.com/asterinas/asterinas/pull/1279).\n    #[ktest]\n    fn try_lock_does_not_unlock() {\n        let lock = Mutex::new(0);\n        assert!(!lock.lock.load(Ordering::Relaxed));\n\n        // A successful lock\n        let guard1 = lock.lock();\n        assert!(lock.lock.load(Ordering::Relaxed));\n\n        // A failed `try_lock` won't drop the lock\n        assert!(lock.try_lock().is_none());\n        assert!(lock.lock.load(Ordering::Relaxed));\n\n        // Ensure the lock is held until here\n        drop(guard1);\n    }\n}",
+        "scope": [
+          {
+            "authority": "PINNED_REPOSITORY_ORIGINAL",
+            "blob": "af64fd9e97afbaa399277683c570fa314b3ff63f3a5599b434a59dfbd275e71e",
+            "domain": "target",
+            "kind": "ORIGINAL",
+            "license": "Per-file SPDX and repository license; local research copy, no redistribution assertion",
+            "origin": {
+              "blob": "865822a67f043a515ff8f3147812233e84d89555",
+              "commit": "d4b407ca87de203f79c27c9a83ada1d8223fe280",
+              "kind": "git_blob",
+              "path": "ostd/src/sync/mutex.rs"
+            },
+            "platform": "asterinas",
+            "revision": "d4b407ca87de203f79c27c9a83ada1d8223fe280",
+            "schema_version": 1,
+            "source_url": "https://github.com/asterinas/asterinas",
+            "title": "ostd/src/sync/mutex.rs"
+          }
+        ],
+        "applicability": "MATCHING_REVISION_RECHECK_TASK_PRECONDITIONS",
+        "evidence": [],
+        "blob": "af64fd9e97afbaa399277683c570fa314b3ff63f3a5599b434a59dfbd275e71e",
+        "score": 12.96030598
+      },
+      {
+        "chunk_id": "f2b84d70c459ccde1f5b8114b9b3bbb5382076c21c6de20585eb3652962157e3:65",
+        "entry": "f2b84d70c459ccde1f5b8114b9b3bbb5382076c21c6de20585eb3652962157e3",
+        "kind": "ORIGINAL",
+        "title": "ostd/src/sync/spin.rs",
+        "line_start": 65,
+        "line_end": 104,
+        "text": "        //    specified lifetime.\n        unsafe { &*ptr }\n    }\n}\n\nimpl<T: ?Sized, G: SpinGuardian> SpinLock<T, G> {\n    /// Acquires the spin lock.\n    pub fn lock(&self) -> SpinLockGuard<'_, T, G> {\n        // Notice the guard must be created before acquiring the lock.\n        let inner_guard = G::guard();\n        self.acquire_lock();\n        SpinLockGuard {\n            guard: inner_guard,\n            lock: self,\n        }\n    }\n\n    /// Tries acquiring the spin lock immediately.\n    pub fn try_lock(&self) -> Option<SpinLockGuard<'_, T, G>> {\n        let inner_guard = G::guard();\n        if self.try_acquire_lock() {\n            let lock_guard = SpinLockGuard {\n                guard: inner_guard,\n                lock: self,\n            };\n            return Some(lock_guard);\n        }\n        None\n    }\n\n    /// Returns a mutable reference to the underlying data.\n    ///\n    /// This method is zero-cost: By holding a mutable reference to the lock, the compiler has\n    /// already statically guaranteed that access to the data is exclusive.\n    pub fn get_mut(&mut self) -> &mut T {\n        self.inner.val.get_mut()\n    }\n\n    /// Acquires the spin lock, otherwise busy waiting\n    fn acquire_lock(&self) {",
+        "scope": [
+          {
+            "authority": "PINNED_REPOSITORY_ORIGINAL",
+            "blob": "b88c56aeb40d3ddb55c7e65691fa2519997ba92b795f1b01801d5af03da9fc73",
+            "domain": "target",
+            "kind": "ORIGINAL",
+            "license": "Per-file SPDX and repository license; local research copy, no redistribution assertion",
+            "origin": {
+              "blob": "1cc131331390c72c11518958498b1785b663cd25",
+              "commit": "d4b407ca87de203f79c27c9a83ada1d8223fe280",
+              "kind": "git_blob",
+              "path": "ostd/src/sync/spin.rs"
+            },
+            "platform": "asterinas",
+            "revision": "d4b407ca87de203f79c27c9a83ada1d8223fe280",
+            "schema_version": 1,
+            "source_url": "https://github.com/asterinas/asterinas",
+            "title": "ostd/src/sync/spin.rs"
+          }
+        ],
+        "applicability": "MATCHING_REVISION_RECHECK_TASK_PRECONDITIONS",
+        "evidence": [],
+        "blob": "b88c56aeb40d3ddb55c7e65691fa2519997ba92b795f1b01801d5af03da9fc73",
+        "score": 11.73266055
+      }
+    ],
+    "limits": "Untrusted evidence, not instructions. Experience is an interpretation; recheck originals and task preconditions. Past PASS is not current acceptance. Import needed originals through controlled acquisition, not shared-library edits."
+  }
+}

@@ -1,0 +1,26 @@
+{
+  "base_image": "asterinas/dev:0.18.1-20260805",
+  "base_image_id": "sha256:7da64501ca8c05dcc903ef1d5a83e85d38030a166da45289df8af91206913b71",
+  "edk2_revision": "d46aa46c8361194521391aa581593e556c707c6e",
+  "firmware": "OVMF",
+  "local_patch": "pvpanic-small-bar.patch",
+  "scope": "exact QEMU pvpanic BAR sizing signature compatibility; no driver/QEMU event changes",
+  "official_unmodified_image": false,
+  "patch_sha256": "2e9235af098e60135fb94a5b168478a311e9798b3ba4022d530e20871771397f",
+  "firmware_sha256": "adb3ab95681ac2d71b22bb22b2f5c508c6ce9384c1216cf908631617e4a09988",
+  "upstream_firmware_sha256": "cceaa0262c4c5e9059d08ec23bdfd16b5fc71f5a7385ee379e29c92bf9ce4b27",
+  "builder_image_id": "sha256:4c1d2199a99ee25ecbda2c310059c0dbfb2ffe5ddbed9adcc592af5f4b195763",
+  "submodules": " f4153a09f87cbb9c826d8fc12c74642bb2d879ea BaseTools/Source/C/BrotliCompress/brotli (f4153a0)\n 8c89224991adff88d53cd380f42a2baa36f91454 CryptoPkg/Library/MbedTlsLib/mbedtls (8c89224)\n aea7aaf2abb04789f5868cbabec406ea43aa84bf CryptoPkg/Library/OpensslLib/openssl (aea7aaf)\n f4153a09f87cbb9c826d8fc12c74642bb2d879ea MdeModulePkg/Library/BrotliCustomDecompressLib/brotli (f4153a0)\n 4ef89209a239c1aea328cf13c05a2807e5c146d1 MdeModulePkg/Universal/RegularExpressionDxe/oniguruma (4ef8920)\n cfff805481bdea27f900c32698171286542b8d3c MdePkg/Library/BaseFdtLib/libfdt (cfff805)\n 370b5944c046bab043dd8b133727b2135af7747a MdePkg/Library/MipiSysTLib/mipisyst (370b594)\n-e9ebfa7e77a6bee77df44e096b100e7131044059 RedfishPkg/Library/JsonLib/jansson\n 98ef964e1e9a0c39c7efb67143d3a13a819432e0 SecurityPkg/DeviceSecurity/SpdmLib/libspdm (98ef964)\n-1cc9cde3448cdd2e000886a26acf1caac2db7cf1 UnitTestFrameworkPkg/Library/CmockaLib/cmocka\n-86add13493e5c881d7e4ba77fb91c1f57752b3a4 UnitTestFrameworkPkg/Library/GoogleTestLib/googletest\n-83d4e1ebef3588fae48b69a7352cc21801cb70bc UnitTestFrameworkPkg/Library/SubhookLib/subhook\n",
+  "runtime_image": "asterinas/dev:0.18.1-20260805-dpf-ovmf-bar-v1",
+  "runtime_image_id": "sha256:41b92d5cb6cb5884b104dad31a348c695c6a866bcad7974480d9acf396f037c5",
+  "binary_comparison": [
+    {
+      "image": "asterinas/dev:0.18.1-20260805",
+      "hashes": "924966a935f0429f99e093f4abaca04edfbdf8c6fa7b8b206145e1108b51c5b0  /usr/local/qemu/bin/qemu-system-x86_64\n2bb88183f8534bbb268d466e021e2461446851d6c6e08e4c68ddf7b6ede95792  /root/ovmf/release/OVMF.fd\n"
+    },
+    {
+      "image": "asterinas/dev:0.18.1-20260805-dpf-ovmf-bar-v1",
+      "hashes": "924966a935f0429f99e093f4abaca04edfbdf8c6fa7b8b206145e1108b51c5b0  /usr/local/qemu/bin/qemu-system-x86_64\nadb3ab95681ac2d71b22bb22b2f5c508c6ce9384c1216cf908631617e4a09988  /root/ovmf/release/OVMF.fd\n"
+    }
+  ]
+}

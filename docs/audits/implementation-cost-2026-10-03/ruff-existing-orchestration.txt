@@ -1,0 +1,30 @@
+src/driver_port_factory/codex/cli.py:1:1: I001 [*] Import block is un-sorted or un-formatted
+src/driver_port_factory/codex/cli.py:26:101: E501 Line too long (110 > 100)
+src/driver_port_factory/codex/cli.py:48:5: I001 [*] Import block is un-sorted or un-formatted
+src/driver_port_factory/codex/cli.py:52:101: E501 Line too long (105 > 100)
+src/driver_port_factory/codex/cli.py:55:101: E501 Line too long (154 > 100)
+src/driver_port_factory/codex/cli.py:56:101: E501 Line too long (119 > 100)
+src/driver_port_factory/codex/cli.py:86:5: C901 `run_codex_stage` is too complex (41 > 12)
+src/driver_port_factory/codex/cli.py:86:5: PLR0912 Too many branches (32 > 12)
+src/driver_port_factory/codex/cli.py:86:5: PLR0915 Too many statements (184 > 60)
+src/driver_port_factory/codex/cli.py:201:5: I001 [*] Import block is un-sorted or un-formatted
+src/driver_port_factory/codex/cli.py:244:5: I001 [*] Import block is un-sorted or un-formatted
+src/driver_port_factory/codex/cli.py:249:101: E501 Line too long (110 > 100)
+src/driver_port_factory/codex/cli.py:254:5: I001 [*] Import block is un-sorted or un-formatted
+src/driver_port_factory/codex/cli.py:333:101: E501 Line too long (115 > 100)
+src/driver_port_factory/codex/cli.py:334:101: E501 Line too long (104 > 100)
+src/driver_port_factory/codex/cli.py:338:101: E501 Line too long (112 > 100)
+src/driver_port_factory/codex/cli.py:370:101: E501 Line too long (103 > 100)
+src/driver_port_factory/codex/cli.py:437:101: E501 Line too long (101 > 100)
+src/driver_port_factory/codex/prompts.py:1:1: I001 [*] Import block is un-sorted or un-formatted
+src/driver_port_factory/codex/prompts.py:94:101: E501 Line too long (121 > 100)
+src/driver_port_factory/codex/prompts.py:186:101: E501 Line too long (108 > 100)
+src/driver_port_factory/codex/prompts.py:212:9: C901 `render` is too complex (15 > 12)
+src/driver_port_factory/codex/prompts.py:212:9: PLR0912 Too many branches (14 > 12)
+src/driver_port_factory/codex/prompts.py:238:101: E501 Line too long (114 > 100)
+src/driver_port_factory/codex/prompts.py:245:101: E501 Line too long (106 > 100)
+src/driver_port_factory/codex/prompts.py:322:101: E501 Line too long (141 > 100)
+src/driver_port_factory/codex/prompts.py:350:101: E501 Line too long (107 > 100)
+src/driver_port_factory/codex/prompts.py:369:101: E501 Line too long (121 > 100)
+Found 28 errors.
+[*] 6 fixable with the `--fix` option.

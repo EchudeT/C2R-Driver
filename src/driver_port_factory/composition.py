@@ -16,6 +16,7 @@ from .core.project import Project
 from .core.validation import ValidationRegistry
 from .core.workflow import StageCatalog, WorkflowDefinition
 from .environment.contracts import EnvironmentStage
+from .environment.validation import BUNDLE_VALIDATORS as ENVIRONMENT_BUNDLE_VALIDATORS
 from .environment.validation import VALIDATORS as ENVIRONMENT_VALIDATORS
 from .evaluation.contracts import EvaluationStage
 from .evaluation.validation import VALIDATORS as EVALUATION_VALIDATORS
@@ -33,6 +34,7 @@ from .sealing.validation import BUNDLE_VALIDATORS as SEALING_BUNDLE_VALIDATORS
 from .sealing.validation import VALIDATORS as SEALING_VALIDATORS
 from .target_study.contracts import TargetStudyStage
 from .target_study.validation import VALIDATORS as TARGET_STUDY_VALIDATORS
+from .target_study.validation import BUNDLE_VALIDATORS as TARGET_STUDY_BUNDLE_VALIDATORS
 
 ARTIFACT_VALIDATORS = ValidationRegistry.compose(
     (
@@ -49,8 +51,10 @@ ARTIFACT_VALIDATORS = ValidationRegistry.compose(
     ),
     (
         ACQUISITION_BUNDLE_VALIDATORS,
+        ENVIRONMENT_BUNDLE_VALIDATORS,
         MIGRATION_BUNDLE_VALIDATORS,
         SEALING_BUNDLE_VALIDATORS,
+        TARGET_STUDY_BUNDLE_VALIDATORS,
     ),
 )
 

@@ -1,0 +1,42 @@
+{
+  "scope": "Historical frozen call; not a new optimized driver result",
+  "experiment": "/home/unix/file/C2R-Driver/c2rust-migration-test-01/experiments/pvpanic-behavior-sol-medium-20261003-03",
+  "job": "40807935-9cb5-4f8a-a21b-00cad6cd343b",
+  "usage": null,
+  "estimate": null,
+  "seconds": 6.792,
+  "completed_items": {
+    "agent_message": 5,
+    "command_execution": 20,
+    "file_change": 1
+  },
+  "large_output_commands": [
+    {
+      "command": "/usr/bin/zsh -lc \"nl -ba kernel/core/comps/pci/src/cfg_space.rs | sed -n '235,490p'; nl -ba kernel/core/comps/pci/src/common_device.rs | sed -n '1,270p'\"",
+      "characters": 20548
+    },
+    {
+      "command": "/usr/bin/zsh -lc \"nl -ba ostd/src/io/io_mem/mod.rs | sed -n '185,245p;418,440p'; nl -ba ostd/src/io/io_mem/allocator.rs | sed -n '1,290p'; nl -ba ostd/src/util/range_alloc.rs | sed -n '1,190p'\"",
+      "characters": 21568
+    },
+    {
+      "command": "/usr/bin/zsh -lc \"nl -ba kernel/core/comps/pci/src/common_device.rs | sed -n '90,255p'; nl -ba kernel/core/comps/pci/src/bus.rs | sed -n '1,125p'\"",
+      "characters": 11282
+    },
+    {
+      "command": "/usr/bin/zsh -lc \"nl -ba kernel/core/comps/pci/src/cfg_space.rs | sed -n '1,120p;235,490p'\"",
+      "characters": 14147
+    },
+    {
+      "command": "/usr/bin/zsh -lc \"sed -n '1,100p' kernel/core/comps/pci/src/common_device.rs; sed -n '1,180p' kernel/core/comps/pci/src/device_info.rs; sed -n '145,235p' ostd/src/io/io_mem/mod.rs\"",
+      "characters": 10837
+    }
+  ],
+  "static_prompt_bytes": {
+    "old_delivery": 9028,
+    "new_delivery": 4505,
+    "old_execution": 10595,
+    "selected_behavior_execution": 2088,
+    "note": "Only static sections; not full prompts or a measured token/cost reduction"
+  }
+}

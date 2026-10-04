@@ -20,7 +20,7 @@ TASKS = {
     "evidence_closure": TaskProtocol(completion=
         "Write {facets:[{lane,facet,rationale,repository_paths?:[{repository,path}],"
         "external_documents?:[{url,publisher_url,basis}|{url,corroboration_urls:[url]}],"
-        "external_urls?:[url],gap?:{impact,repair_trigger}}]}. "
+        "external_urls?:[url],gap?:{impact,repair_trigger,basis?:[{lane,facet}]}}]}. "
         "Lanes: source,target,qemu,hardware,test,tooling. Facet is a nonempty token without "
         "whitespace (for example register_state_machine); put descriptive prose in rationale. "
         "repository_paths may name tracked files or narrowly scoped directories in the frozen "
@@ -33,30 +33,34 @@ TASKS = {
         "publisher_url and basis; mirrors use corroboration_urls containing byte-identical "
         "copies of the same document from independent publishers after redirects, not different "
         "manual versions or two URLs on one publisher. Unavailable evidence uses "
-        "checked external_urls and gap. The controller owns hashes and provenance storage. "
+        "external_urls for controller retrieval and gap, or gap.basis referencing other controlled "
+        "facets whose originals support the limitation. With basis, omit unnecessary URL locators; "
+        "a gap stays a gap and repository evidence does not become hardware authority. "
+        "Follow reference_material.evidence_reuse: shared snapshot, frozen local originals, then "
+        "external material for explicit gaps only. Do not curl web copies/status URLs just to "
+        "reconfirm local Git provenance. The controller owns downloads, hashes and provenance storage. "
         "Write this object to a file and invoke tool_runtime.submission_command with --kind "
         "proposal --decision submit. Do not put JSON in the final chat response. On repair "
         "preserve valid selections and add the needed originals."),
     "environment_recovery": TaskProtocol(completion=
-        "Write environment-smoke.sh and the environment report, then invoke "
-        "tool_runtime.submission_command with --kind report --decision pass. The controller "
-        "runs the acceptance smoke; for an Asterinas target, run QEMU and any target-side "
-        "probe inside the pinned official asterinas/dev Docker image and record its tag and "
-        "image ID; a host QEMU process is not accepted. The final chat response is not a "
-        "submission.", executable=True),
+        "Use managed bootstrap to verify the selected baseline build and guest boot. Submit its "
+        "returned report with tool_runtime.submission_command --kind report --decision pass. "
+        "The controller binds that receipt without a second device probe. Unsupported adapters "
+        "use a minimal route check through prepare_smoke; keep actual limitations explicit. "
+        "Use the fixed image, firmware and accelerator; no fallback.", executable=True),
     "target_platform_study": TaskProtocol(completion=
-        "Complete one combined analysis report: source semantics, migration contracts and test "
-        "stimulus/assertion matrix, plus the target profile and target API evidence, "
-        "one applicable analogous path and target-change/packaging evidence; write it to a file "
-        "and invoke tool_runtime.submission_command with --kind report --decision pass. Use "
-        "--decision rework --repair-stage or --decision blocked only under the shared protocol."),
+        "Write one joint analysis report.md and report.route.json: source obligations, coarse "
+        "target route, design-changing premises and only necessary minimal probes, contracts "
+        "with distinguishing assertions, and meaningful implementation behaviors. "
+        "Use direct source citations or optional knowledge retrieval for concrete gaps. "
+        "No platform survey, second plan, probe quota or separate knowledge report. "
+        "Submit the report with tool_runtime.submission_command --kind report --decision pass; "
+        "the controller freezes the index and seeds implementation. Report an unresolved "
+        "critical prerequisite as blocked rather than claiming verification."),
     "analysis_review": TaskProtocol(completion=
         "Write the review report and invoke tool_runtime.submission_command with --kind report "
         "--decision pass. Use --decision rework --repair-stage or --decision blocked for the "
         "listed repair/blockage protocol."),
-    "migration_contracts": TaskProtocol(completion=
-        "Complete source analysis, contracts and test plan in one Markdown report, then invoke "
-        "tool_runtime.submission_command with --kind report --decision pass."),
     "target_framework_enablement": TaskProtocol(completion=
         "Complete one coherent delivery from the frozen analysis: minimal target API changes, "
         "Rust driver and shared integration, public tests and runnable artifact preparation. "
@@ -70,7 +74,9 @@ TASKS = {
         "separate evidence checkpoints and performs the ordinary implementation checks; "
         "file presence alone does not establish correctness.", executable=True),
     "driver_implementation": TaskProtocol(completion=
-        "Finish implementation and affected checks. Build the current driver into "
+        "Implement the driver, required target framework adaptations and shared integration "
+        "as one coherent task, retaining target-change necessity and safety evidence in the "
+        "same report. Finish affected checks. Build the current driver into "
         ".dpf-output/runtime-artifact and write .dpf-output/check-presence.sh plus "
         ".dpf-output/implementation-smoke.sh. The controller runs presence and a bounded "
         "functional QEMU smoke before accepting implementation. Use $DPF_RUNTIME_ARTIFACT, "

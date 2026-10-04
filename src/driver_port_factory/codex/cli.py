@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import shlex
 import subprocess
 import sys
@@ -30,7 +31,6 @@ from .sessions import compact_token_limit, input_changes, save_session, stage_se
 from .accounting import estimate, latest_usage, model_settings, usage_delta
 from .submission import (
     load_submission,
-    receipt_path,
     submission_artifact,
     write_submission,
 )
@@ -97,6 +97,8 @@ def run_codex_stage(
     follow_up: str | None = None,
     skill_root: Path | None = None,
 ) -> tuple[CodexResult, RenderedPrompt, Path]:
+    from ..control.budget import guard as guard_budget
+    guard_budget(project)
     stage = project.stage(stage_key)
     if stage.owner is StageOwner.STATIC and not (context or {}).get("checker_decision"):
         raise WorkflowError(f"stage {stage_key.value} is statically owned and cannot run Codex")
@@ -116,12 +118,21 @@ def run_codex_stage(
     )
     from .context_reset import attach_handoff
     context, thread_id = attach_handoff(project, session, context, thread_id)
+    from .stage_inputs import prepare as prepare_stage_inputs
+
+    context = prepare_stage_inputs(project, stage_key, context)
     thread_id = thread_id or session.get("thread_id")
     job_id = str(uuid.uuid4())
+    from ..migration.behavior import begin, packet
+    behavior = None
+    if not (context or {}).get("checker_decision"):
+        begin(project, stage_key, job_id)
+        behavior = packet(project, stage_key)
+    if behavior is not None:
+        context = {**(context or {}), "behavior_progress": behavior}
     codex_dir = project.control / "codex"
     codex_dir.mkdir(parents=True, exist_ok=True)
     output_path = codex_dir / f"{stage_key.value}-{job_id}.result"
-    submission = receipt_path(project, job_id)
     submit_parts = (
         sys.executable,
         "-m",
@@ -130,8 +141,6 @@ def run_codex_stage(
         "submit",
         str(project.root),
         stage_key.value,
-        "--job-id",
-        job_id,
         "--file",
         "<DELIVERABLE_PATH>",
         "--kind",
@@ -152,13 +161,12 @@ def run_codex_stage(
             "text_reader": [sys.executable, "-m", "driver_port_factory.read_evidence",
                              "--path", "<PATH>", "--budget", "6000"],
             "managed_experiment": [sys.executable, "-m", "driver_port_factory.cli",
-                                   "experiment", "run", str(project.root), "--job-id", job_id],
+                                   "experiment", "run", str(project.root)],
             "experiment_self_review": [sys.executable, "-m", "driver_port_factory.cli",
-                                       "experiment", "acknowledge", str(project.root), "--job-id", job_id],
+                                       "experiment", "acknowledge", str(project.root)],
             "project_root": str(project.root),
             "stage": stage_key.value,
-            "job_id": job_id,
-            "submission_receipt": str(submission),
+            "submission_receipt": "Controller retains receipt; no manual receipt copying required",
             "submission_command": submit_command,
             "submission_rule": (
                 "Write the deliverable first, then invoke submission_command. The controller "
@@ -169,6 +177,21 @@ def run_codex_stage(
     }
     from .optional_tools import context as optional_context
     context["tool_runtime"].update(optional_context(project, stage_key))
+    from .optional_tools import STAGES as platform_context_stages
+    if stage_key.value in platform_context_stages:
+        from ..platform.worker import context as platform_context
+        context["tool_runtime"]["platform_execution"] = platform_context(project)
+    if stage_key in CodexExecutionPolicy.WRITABLE_STAGES:
+        context["tool_runtime"]["managed_checks"] = (
+            "driver_checks.check waits for the final result without polling. "
+            "Runtime: choose cases from .dpf-output/experiments.json, or provide script. "
+            "No selection runs the registered suite or public-qemu.sh. "
+            "Development: level=development plus script and timeout<=3600; no runtime PASS. "
+            "Use the accepted environment route inside scripts. Do not edit/build concurrently. "
+            "Returned receipts can be acknowledged through experiment_self_review."
+            " driver_checks.debug provides guest-only GDB sampling for recorded direct Docker/OSDK "
+            "runs; external peers are not replayed and diagnostics are never acceptance."
+        )
     if stage_key not in CodexExecutionPolicy.WRITABLE_STAGES:
         for name in ("managed_experiment", "experiment_self_review"):
             context["tool_runtime"].pop(name, None)
@@ -271,6 +294,10 @@ def run_codex_stage(
         thread_id=thread_id,
         job_id=job_id,
         compact_token_limit=compact_token_limit(project, stage_key, thread_id),
+        worker_project=project.root,
+        checks_project=(
+            project.root if stage_key in CodexExecutionPolicy.DEPENDENCY_STAGES else None
+        ),
     )
     known_documents = session.get("documents", {}) if thread_id == session.get("thread_id") else {}
     documents = {
@@ -497,7 +524,10 @@ def command_codex_submit(arguments: argparse.Namespace) -> None:
         operation=arguments.operation,
         repair_stage=arguments.repair_stage,
     )
-    print(f"submitted {stage.value} {arguments.kind} via {receipt}")
+    if os.environ.get("DPF_WORKER_JOB"):
+        print(f"submitted {stage.value} {arguments.kind}; controller retained receipt")
+    else:
+        print(f"submitted {stage.value} {arguments.kind} via {receipt}")
 
 
 def command_session_reset(arguments: argparse.Namespace) -> None:
@@ -582,7 +612,7 @@ def register_commands(commands: CommandRegistry) -> None:
     )
     submit.add_argument("path")
     submit.add_argument("stage")
-    submit.add_argument("--job-id", required=True)
+    submit.add_argument("--job-id", default=os.environ.get("DPF_WORKER_JOB"))
     submit.add_argument("--file", required=True)
     submit.add_argument("--kind", choices=("proposal", "report"), required=True)
     submit.add_argument(

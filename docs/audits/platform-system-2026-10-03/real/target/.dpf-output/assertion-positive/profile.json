@@ -1,0 +1,71 @@
+{
+  "schema_version": 1,
+  "adapter": "asterinas-x86_64-iso",
+  "target_revision": "d924a9635a66c7c3bb43e563eaafa2c61d6ee9d5",
+  "host_architecture": "x86_64",
+  "image": "asterinas/dev:0.18.1-20260805-dpf-ovmf-bar-v1",
+  "image_id": "sha256:41b92d5cb6cb5884b104dad31a348c695c6a866bcad7974480d9acf396f037c5",
+  "accelerator": "kvm",
+  "build_network": "host",
+  "runtime_network": "none",
+  "build_argv": [
+    "make",
+    "kernel",
+    "INITRAMFS=on",
+    "LOG_LEVEL=info",
+    "CONSOLE=ttyS0"
+  ],
+  "artifact": "target/osdk/asterinas-osdk-bin.iso",
+  "environment": {
+    "VDSO_LIBRARY_DIR": "/root/linux_vdso"
+  },
+  "qemu": "qemu-system-x86_64",
+  "qemu_args": [
+    "-machine",
+    "q35,kernel-irqchip=split",
+    "-accel",
+    "kvm",
+    "-cpu",
+    "host,+x2apic",
+    "-smp",
+    "1",
+    "-m",
+    "2G",
+    "-no-reboot",
+    "-display",
+    "none",
+    "-monitor",
+    "none",
+    "-serial",
+    "stdio",
+    "-boot",
+    "d",
+    "-bios",
+    "/root/ovmf/release/OVMF.fd",
+    "-device",
+    "isa-debug-exit,iobase=0xf4,iosize=0x04"
+  ],
+  "ready_text": "# ",
+  "adapter_identity": {
+    "__init__.py": "97e3275a7b96f36b81041c35aa523b7f7129e02088697d1741b81b908d37547f",
+    "activity.py": "b7fd3bcf03b0b42ede0248055533260862b368534e60bf3174e45b24f3bd3574",
+    "cli.py": "a44cfe857039fd7dea64aa82814a3e4430479b70a126af1abf5472174472b29b",
+    "dependencies.py": "5d4e8a5e356a64da2b18f3f665be08f7a0952968ff3f3c2cf94dcfffdb737a68",
+    "executor.py": "bc6ca128c0313ebe0f1f9897e86b6dd2b6d5318f4012b518f566d4707ac0b85e",
+    "formatting.py": "b13a482515f81b55c450bcd45155c0ffd630b27ea4216668506001b6e0fcd1db",
+    "guest.py": "0af0e2f990fdb59e9d6e3ed006bfe35b62fadc615b914ee6c0e703eb3e361618",
+    "integration.py": "039ad4614394d51a7215d332077867a4ce447bef45ffb9529fdf4433ba09f827",
+    "profile.py": "54ecd80a3f214d875da80422b4196474dc9680178b7c6ab28001efd18a059a91",
+    "service.py": "ab03f3e699d15ce88ea7247c9f9c6aebd6859a070e78bf724cf8874532b998a5",
+    "worker.py": "b480ef5dc03176a5b68cea8541641d485dcaea24dfcea6cb2a24d33d05d5ca34"
+  },
+  "binding": {
+    "target": "asterinas",
+    "host_architecture": "x86_64",
+    "repositories": {
+      "target": "d924a9635a66c7c3bb43e563eaafa2c61d6ee9d5",
+      "qemu": "2d3df8abca265c9bcc9e438d691d561592060998"
+    }
+  },
+  "cache_key": "system-validation-20261003"
+}

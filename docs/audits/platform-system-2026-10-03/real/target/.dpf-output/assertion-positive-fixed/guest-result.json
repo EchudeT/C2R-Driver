@@ -1,0 +1,7 @@
+{
+  "status": "PASS",
+  "scope": "guest-transport-and-declared-assertions",
+  "qmp_connected": true,
+  "serial_bytes": 440487,
+  "duration_seconds": 31.015
+}

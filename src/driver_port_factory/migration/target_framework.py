@@ -29,8 +29,13 @@ def _json(value: dict[str, Any]) -> bytes:
     return (json.dumps(value, ensure_ascii=False, sort_keys=True, indent=2) + "\n").encode()
 
 
+def framework_stage(project):
+    return (MigrationStage.DRIVER_IMPLEMENTATION if project.config.unified_implementation
+            else MigrationStage.TARGET_FRAMEWORK_ENABLEMENT)
+
+
 def _input_refs(project: Project) -> dict[str, dict[str, Any]]:
-    dependencies = project.workflow.spec(MigrationStage.TARGET_FRAMEWORK_ENABLEMENT).dependencies
+    dependencies = project.workflow.spec(framework_stage(project)).dependencies
     result: dict[str, dict[str, Any]] = {}
     for kind in TARGET_FRAMEWORK_INPUTS:
         matches = [
@@ -85,9 +90,12 @@ class TargetFrameworkEnablementService:
     """Record the target checkpoint; final implementation owns the complete delivery."""
 
     def snapshot_worktree(self, project: Project, report_path: Path) -> None:
-        stage = MigrationStage.TARGET_FRAMEWORK_ENABLEMENT
+        stage = framework_stage(project)
         if project.stage(stage).status is not StageStatus.RUNNING:
             raise WorkflowError("target_framework_enablement must be RUNNING")
+        project.finalize_stage(stage, self.artifacts(project, report_path))
+
+    def artifacts(self, project, report_path, *, files=None):
         try:
             require_self_review(report_path.read_text(encoding="utf-8"))
         except CodexOutputError as error:
@@ -95,7 +103,8 @@ class TargetFrameworkEnablementService:
         from ..acquisition.repository import load_repository_acquisition
         acquisition = load_repository_acquisition(project)
         worktree = (project.root / acquisition.target_worktree.path).resolve()
-        files = worktree_files(worktree, acquisition.target_worktree.base_commit)
+        if files is None:
+            files = worktree_files(worktree, acquisition.target_worktree.base_commit)
         inputs = _input_refs(project)
         report = {
             "path": str(report_path.relative_to(project.root)),
@@ -124,16 +133,13 @@ class TargetFrameworkEnablementService:
             "deleted_files": [item for item in files if item["state"] == "deleted"],
             "work_report": report,
         }
-        project.finalize_stage(
-            stage,
-            (
+        return (
                 GeneratedArtifact(MigrationArtifact.TARGET_FRAMEWORK_BUNDLE, _json(bundle),
                                   "generated:target-framework-enablement-snapshot"),
                 FileArtifact(MigrationArtifact.TARGET_FRAMEWORK_REPORT, report_path),
                 GeneratedArtifact(MigrationArtifact.TARGET_FRAMEWORK_CHANGE_INVENTORY,
                                   _json(inventory),
                                   "generated:target-framework-change-inventory"),
-            ),
         )
 
 

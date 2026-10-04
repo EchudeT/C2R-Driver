@@ -4,14 +4,13 @@ from collections.abc import Hashable, Mapping, Sized
 from typing import TypeVar
 
 from ..core.models import WorkflowError
-from .accounting import CoverageEntry, EvidenceGap, RetrievalAttempt, reason_for_attempts
+from .accounting import CoverageEntry, EvidenceGap, RetrievalAttempt, gap_reason
 from .closure import EvidenceClosurePlan
 from .facets import (
     SOURCE_DRIVER_ENTRY,
     EvidenceFacet,
     EvidenceLane,
     FacetDisposition,
-    GapReason,
     RetrievalOutcome,
 )
 from .locators import EvidenceLocator
@@ -36,6 +35,20 @@ def validate_evidence_accounting(
     if {facet.lane for facet in coverage_by_facet} != set(EvidenceLane):
         raise WorkflowError("evidence coverage must contain all six evidence domains")
     _validate_attempt_plan(plan, attempts_by_id)
+    for proposed in plan.proposal.facets:
+        if proposed.gap is None:
+            continue
+        matching = [g for g in gaps if g.facet == proposed.facet]
+        if len(matching) != 1 or matching[0].basis != proposed.gap.basis:
+            raise WorkflowError("evidence gap basis differs from the frozen proposal")
+        for basis in proposed.gap.basis:
+            referenced = coverage_by_facet.get(basis)
+            if (
+                referenced is None
+                or referenced.disposition is not FacetDisposition.CONTROLLED
+                or not referenced.material_ids
+            ):
+                raise WorkflowError("gap basis requires actually collected controlled material")
     controlled_ids, gap_ids = _validate_coverage_references(
         coverage_by_facet,
         gaps_by_id,
@@ -84,25 +97,12 @@ def _validate_coverage_references(
             gap_attempts = tuple(attempts[item] for item in gap.retrieval_attempt_ids)
             if any(attempt.facet != facet for attempt in gap_attempts):
                 raise WorkflowError("evidence gap references a mismatched retrieval attempt")
-            failed_attempts = tuple(
-                attempt
-                for attempt in gap_attempts
-                if attempt.outcome is not RetrievalOutcome.RETRIEVED
-            )
-            expected_reason = (
-                reason_for_attempts(failed_attempts)
-                if failed_attempts
-                else GapReason.UNAVAILABLE_PUBLIC_EVIDENCE
-            )
+            expected_reason = gap_reason(facet, gap_attempts, gap.basis)
             if gap.reason is not expected_reason:
                 raise WorkflowError("evidence gap reason differs from retrieval outcomes")
             referenced_attempt_ids.update(gap.retrieval_attempt_ids)
             gap_ids.add(gap.identifier)
-        planned_attempt_ids = {
-            item.identifier
-            for item in ordered_attempts
-            if item.facet == facet
-        }
+        planned_attempt_ids = {item.identifier for item in ordered_attempts if item.facet == facet}
         if referenced_attempt_ids != planned_attempt_ids:
             raise WorkflowError("evidence gap does not account for every planned retrieval")
     return controlled_ids, gap_ids

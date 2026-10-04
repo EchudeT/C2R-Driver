@@ -11,9 +11,11 @@ from .contracts import (
     KnowledgeStage,
 )
 from .corpus import CorpusManifest
+from .embeddings import build_configured
 from .index import KnowledgeIndex
 from .lifecycle import ensure_knowledge_stage_running
 from .skill_generation import ProjectKnowledgeSkillGenerator
+
 
 def _json_bytes(value: dict[str, object]) -> bytes:
     document = json.dumps(value, ensure_ascii=False, sort_keys=True, indent=2) + "\n"
@@ -40,7 +42,7 @@ class KnowledgeBootstrapper:
         ensure_knowledge_stage_running(project)
         manifest = CorpusManifest.current(project)
         knowledge = KnowledgeIndex(project.root, manifest)
-        status = knowledge.build()
+        status = build_configured(knowledge)
         generated_skill, contract = ProjectKnowledgeSkillGenerator().generate(
             project, status, knowledge.manifest
         )
@@ -50,6 +52,8 @@ class KnowledgeBootstrapper:
             "index_status": status,
             "failed_probe_ids": [],
             "semantic_probe_owner": "target_platform_study",
+            "readiness_scope": "INDEX_INFRASTRUCTURE_ONLY",
+            "target_quality": "PENDING_TARGET_STUDY_PROBE_REPLAY",
             "recorded_at": utc_now(),
         }
         project.finalize_stage(

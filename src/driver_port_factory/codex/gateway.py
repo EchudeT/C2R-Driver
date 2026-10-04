@@ -6,6 +6,7 @@ import fcntl
 import hashlib
 import os
 import tempfile
+import sys
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -31,6 +32,8 @@ class CodexJob:
     thread_id: str | None = None
     job_id: str = field(default_factory=lambda: str(uuid.uuid4()))
     compact_token_limit: int = 224000
+    checks_project: Path | None = None
+    worker_project: Path | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -90,6 +93,11 @@ class CodexExecGateway:
                 f'sandbox_mode="{job.sandbox.value}"',
             ]
         )
+        if job.worker_project is not None:
+            variables = {"DPF_WORKER_PROJECT": str(job.worker_project),
+                         "DPF_WORKER_JOB": job.job_id, "DPF_WORKER_STAGE": job.stage.value}
+            for name, value in variables.items():
+                command.extend(["-c", f"shell_environment_policy.set.{name}={json.dumps(value)}"])
         command.extend(["--disable", "apps"])
         command.extend([
             "-c", "sandbox_workspace_write.network_access="
@@ -98,6 +106,21 @@ class CodexExecGateway:
         # Preserve the environment that recovery proved usable. An empty forced
         # CARGO_HOME can hide installed cargo subcommands and discard warm caches.
         command.extend(relay_overrides())
+        if job.checks_project is not None:
+            source_root = str(Path(__file__).resolve().parents[2])
+            config = {
+                "command": sys.executable,
+                "args": ["-m", "driver_port_factory.codex.check_mcp",
+                         str(job.checks_project), job.job_id],
+                "env": {"PYTHONPATH": os.pathsep.join(filter(None, (
+                    source_root, os.environ.get("PYTHONPATH"))))},
+                "tool_timeout_sec": 86400,
+            }
+            for name, value in config.items():
+                # TOML inline tables differ from JSON objects.
+                encoded = ("{ " + ", ".join(f"{k} = {json.dumps(v)}" for k, v in value.items())
+                           + " }" if isinstance(value, dict) else json.dumps(value))
+                command.extend(["-c", f"mcp_servers.driver_checks.{name}={encoded}"])
         # Structured data is exchanged through the file-backed submission
         # command.  The final agent message is only an activity transcript;
         # never ask Codex to serialize workflow data into it.

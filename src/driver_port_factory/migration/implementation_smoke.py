@@ -19,7 +19,9 @@ def smoke_policy_digest() -> str:
     modules = (Path(__file__), Path(implementation_preflight.__file__),
                Path(public_qemu.__file__), Path(container_trace.__file__),
                Path(container_policy.__file__))
-    return hashlib.sha256("".join(file_sha256(p) for p in modules).encode()).hexdigest()
+    from ..platform.profile import adapter_identity
+    material = "".join(file_sha256(p) for p in modules) + json.dumps(adapter_identity(), sort_keys=True)
+    return hashlib.sha256(material.encode()).hexdigest()
 
 
 def failure_observation(presence, observed, *, unchanged: bool) -> dict:
@@ -52,7 +54,9 @@ def implementation_smoke(project, worktree: Path, base: str) -> dict:
             )
 
     def inputs():
+        from .experiments import diagnostic_epoch
         return {
+            "diagnostic_epoch": diagnostic_epoch(project),
             "files": worktree_files(worktree, base),
             "execution": {name: file_sha256(path) for name, path in paths.items()},
             "helpers": PublicQemuService._helper_inputs(worktree),
