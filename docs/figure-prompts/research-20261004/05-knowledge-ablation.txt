@@ -1,0 +1,16 @@
+Use case: infographic-diagram
+Asset type: software engineering research architecture figure, final academic slide and paper illustration.
+Style: calm, precise vector-like 2D schematic on pure white, flat pale blue and muted teal fills, slate outlines, minimal amber only for changed or unresolved elements. No gradients, shadows, mascots, decorative circuits, 3D, logos, badges or claims of superior results. Comparable to a carefully typeset conference systems paper. Thin orthogonal arrows with clear arrowheads and ample spacing, no crossing through labels. Large readable black sans-serif text. English labels only, exactly as specified; no extra long text. Use whitespace to keep everything legible when scaled. Wide landscape, 2048x1152. Do not draw charts or invent measurements. Blocks align on a disciplined grid. Each arrow has one clear source and target. Do not draw formal-proof symbols. Use a small restrained title at top.
+
+Title: "Disentangling Knowledge Contributions"
+This is an experimental design figure, NOT experimental results. Prominent subtitle "Proposed ablations — no performance results".
+Top shared-conditions bar "Same model • complete source • analysis report • obligations • public tests".
+Middle four equal pale-blue cards side by side, each heading and two short lines:
+K0 heading "K0 Report handoff"; lines "Ordinary file search", "No dedicated knowledge retrieval".
+K1 heading "K1 Original retrieval"; lines "K0 + source/document index", "No analysis-finding retrieval".
+K2 heading "K2 Analysis retrieval"; lines "K1 + prior analysis findings", "Evidence-linked task knowledge".
+K3 heading "K3 Cross-task reuse"; lines "K2 + frozen shared experience", "Version and condition checks".
+Thin arrows K0→K1→K2→K3 labeled respectively "Index originals", "Retrieve findings", "Reuse across tasks". These are experimental configuration differences, not mandatory runtime stages.
+Below, a horizontal divider then two methodological boxes: "Fixed-analysis comparison" with subtitle "Same upstream findings; vary access mechanism" and "End-to-end comparison" with subtitle "Include analysis, indexing, repair and acceptance costs".
+Bottom outcomes bar "Repeated investigation • knowledge adoption • residual defects • total cost".
+Footer "Keep the report available in every group. Do not weaken the baseline." No axes, bar charts, scores, percentages, trophies, win arrows, or green pass indicators. Clear academic typography.

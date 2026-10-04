@@ -1,0 +1,13 @@
+Use case: infographic-diagram
+Asset type: software engineering research architecture figure, final academic slide and paper illustration.
+Style: calm, precise vector-like 2D schematic on pure white, flat pale blue and muted teal fills, slate outlines, minimal amber only for changed or unresolved elements. No gradients, shadows, mascots, decorative circuits, 3D, logos, badges or claims of superior results. Comparable to a carefully typeset conference systems paper. Thin orthogonal arrows with clear arrowheads and ample spacing, no crossing through labels. Large readable black sans-serif text. English labels only, exactly as specified; no extra long text. Use whitespace to keep everything legible when scaled. Wide landscape, 2048x1152. Do not draw charts or invent measurements. Blocks align on a disciplined grid. Each arrow has one clear source and target. Do not draw formal-proof symbols. Use a small restrained title at top.
+
+Title: "Driver Port Factory"
+Design three equal vertical panels across the middle, numbered "1 Analysis", "2 Continuous Implementation", "3 Acceptance".
+Top input bar: "Complete Linux tree" | "Hollow target kernel" | "Frozen scope and public tests". Arrow down to Analysis.
+Analysis contains sequential boxes "Source obligations", "Target route and key premises", "One report + reference index".
+Implementation contains "Select one complete work package" then "Read • Code • Integrate • Check" and a small loop labeled "Continue in the same session". Add a concise annotation "A small driver may use one package".
+Acceptance contains "Final source + artifact", then "Complete fixed public suite", then "Delivery + evidence". Arrow from final public suite back to Implementation labeled "Concrete failure". Normal arrows run left-to-right from analysis final box to selected package to acceptance.
+Below the panels, a wide blue knowledge band: "Task knowledge: original evidence + accepted analysis"; upward thin arrows labeled "Retrieve on demand" to Analysis and Implementation. A downward arrow from analysis report into this band labeled "Retain findings". Small footnote within band: "Report retrieval implemented; unified discovery index pending".
+Very bottom gray bar "Controller: versions • progress • execution • receipts". No separate reviewer node. In a corner of Acceptance place "Public coverage ≠ full equivalence".
+Keep panel connectors unambiguous; fewer than 18 visual nodes. Show architecture, not measured outcomes.

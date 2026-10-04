@@ -1,0 +1,12 @@
+Use case: infographic-diagram
+Asset type: software engineering research architecture figure, final academic slide and paper illustration.
+Style: calm, precise vector-like 2D schematic on pure white, flat pale blue and muted teal fills, slate outlines, minimal amber only for changed or unresolved elements. No gradients, shadows, mascots, decorative circuits, 3D, logos, badges or claims of superior results. Comparable to a carefully typeset conference systems paper. Thin orthogonal arrows with clear arrowheads and ample spacing, no crossing through labels. Large readable black sans-serif text. English labels only, exactly as specified; no extra long text. Use whitespace to keep everything legible when scaled. Wide landscape, 2048x1152. Do not draw charts or invent measurements. Blocks align on a disciplined grid. Each arrow has one clear source and target. Do not draw formal-proof symbols. Use a small restrained title at top.
+
+Title: "Local Revision Without Global Restart"
+A two-row before/after diagram, plus concise decision rules below.
+Top row labeled "Accepted plan". Three route boxes R1, R2, R3 aligned above three work-package boxes B1, B2, B3. Arrows R1→B1, R2→B2, R3→B3. Label B1 "Completed", B2 "Current goal", B3 "Independent / completed". No B2→B3 dependency.
+Between rows a small amber box "Concrete counterevidence for R2" pointing down to the changed R2 in the lower row.
+Lower row labeled "Explicit local revision". R1 and B1 remain pale gray with text "Preserved"; R2 becomes R2' in muted amber and B2 remains same identifier, text "Adapt in the same session"; R3 and B3 remain gray with text "Preserved". Arrows remain one-to-one. R2 to R2' arrow can be implied through the counterevidence box, avoid crossings.
+Rules in three compact callouts below: "Ordinary edits: no route-wide reset"; "Changed plan: check affected dependencies"; "Scope or oracle changes: explicit revision".
+Final full-width blue box "Complete public suite on the final candidate" with a single arrow from the lower work-package row into it.
+Small footer "Example topology; explicit dependencies determine affected work." No numerical speedup, no reviewer and no all-green correctness badges. Differentiate preserved progress from public acceptance.

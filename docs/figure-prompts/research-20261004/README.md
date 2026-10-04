@@ -1,0 +1,23 @@
+# 科研汇报配图
+
+对应[科研汇报](../../research/FACTORY_RESEARCH_REPORT.zh-CN.md)。本轮按用户要求直接使用已有图片，不重新生成，不修改图片内容。选中图片复制到报告的 `figures/` 目录，报告不依赖本地临时输出目录。
+
+| 图 | 报告图片 | 原始文件（相对仓库根目录） | 提示词 |
+| --- | --- | --- | --- |
+| 1 总体架构 | [图片](../../research/figures/01-architecture.png) | `output/imagegen/6fe158407afd4b0a880edf36cc0b3728.png` | 根目录新增图片，具体生成请求未记录；[原始架构规格](01-architecture.txt)供对照 |
+| 2 语义对齐 | [图片](../../research/figures/02-semantic-alignment.png) | `output/imagegen/research-20261004/03-semantic-alignment-final.png` | [原始规格](03-semantic-alignment.txt)、[连线修订](03-semantic-alignment-arrow-correction.txt) |
+| 3 局部修订 | [图片](../../research/figures/03-local-revision.png) | `output/imagegen/research-20261004/04-local-revision-original-1k.png` | [提示词](04-local-revision.txt) |
+| 4 知识传递 | [图片](../../research/figures/04-knowledge-flow.png) | `output/imagegen/research-20261004/02-knowledge-flow-original-1k.png` | [提示词](02-knowledge-flow.txt) |
+| 5 知识消融 | [图片](../../research/figures/05-knowledge-ablation.png) | `output/imagegen/research-20261004/05-knowledge-ablation-original-1k.png` | [提示词](05-knowledge-ablation.txt) |
+
+## 当前状态
+
+这些是汇报插图草稿，不是已完成审校的论文定稿。图 1 的候选、返修及知识连线，图 4 的义务来源及快照读取连线仍有错误，报告图注明确给出正确关系。语义对齐与消融图仍含用户不喜欢的中点分隔，后续统一替换。保留正文的准确流程图及机制解释，不以生成图片定义系统行为。
+
+虚线框中的统一发现索引为计划项；消融图展示实验设计，没有测量结果。图 3 的 R1/B1、R2/B2、R3/B3 是说明局部依赖的示例，不意味着每个驱动强制拆成三个工作包。
+
+## 生成来源与后续替换
+
+`research-20261004` 下所选生成图使用用户指定服务 `https://image.tokenskingdom.com/v1` 的 `gpt-image-2`，经 imagegen 技能 CLI 生成，请求为 high、1024×1024；文件名中的 1k 表示请求档位，实际返回像素可能不同。根目录新增图的具体请求参数未记录，不推断其模型或尺寸配置。
+
+密钥不得写入文档、提示词或 Git。报告只收录选中版本，原始候选保留在本地输出目录。后续可替换报告图片并同步更新本表，不需要改变报告正文结构。
