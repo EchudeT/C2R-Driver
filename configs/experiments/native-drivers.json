@@ -1,0 +1,106 @@
+{
+  "schema_version": 1,
+  "source_revision": "587858367581b9c55c3690f4e63382ad622719d4",
+  "target_revision": "d4b407ca87de203f79c27c9a83ada1d8223fe280",
+  "qemu_revision": "2d3df8abca265c9bcc9e438d691d561592060998",
+  "image": "asterinas/dev:0.18.1-20260901",
+  "architecture": "x86_64",
+  "accelerator": "kvm",
+  "machine": "q35",
+  "memory": "2G",
+  "cpus": 1,
+  "drivers": {
+    "virtio-rng": {
+      "omit": "kernel/core/comps/virtio/src/device/entropy",
+      "device_type": "Entropy",
+      "source_entries": [
+        "drivers/char/hw_random/virtio-rng.c",
+        "drivers/char/hw_random/core.c",
+        "include/linux/hw_random.h",
+        "include/linux/virtio.h",
+        "include/linux/virtio_config.h",
+        "include/linux/virtio_ring.h",
+        "include/uapi/linux/virtio_ring.h",
+        "include/uapi/linux/virtio_config.h"
+      ],
+      "tests": [
+        "test/initramfs/src/regression/device/hwrng.c"
+      ],
+      "benchmarks": [],
+      "qemu_model": "virtio-rng-pci",
+      "scope": "Translate Linux VirtIO RNG hardware behavior into the existing Asterinas entropy-device API. Preserve DMA ownership, refill/completion and blocking/nonblocking semantics required by the unchanged hwrng caller. Pass all original hwrng.c regression functions in the rebuilt full kernel with virtio-rng-pci; device-unavailable skips are not acceptance."
+    },
+    "virtio-blk": {
+      "omit": "kernel/core/comps/virtio/src/device/block",
+      "device_type": "Block",
+      "source_entries": [
+        "drivers/block/virtio_blk.c",
+        "include/uapi/linux/virtio_blk.h",
+        "include/linux/blk-mq.h",
+        "include/linux/blkdev.h",
+        "include/linux/virtio.h",
+        "include/linux/virtio_config.h",
+        "include/linux/virtio_ring.h",
+        "include/uapi/linux/virtio_ring.h",
+        "include/uapi/linux/virtio_config.h"
+      ],
+      "tests": [
+        "test/initramfs/src/regression/io/file_io/block_device.c",
+        "test/initramfs/src/regression/fs/ext2/file_io.c",
+        "test/initramfs/src/regression/fs/ext2/short_rw.c"
+      ],
+      "benchmarks": [],
+      "qemu_model": "virtio-blk-pci",
+      "scope": "Translate Linux VirtIO Block into the retained Asterinas block-device API: initialization and capacity, DMA request ownership, read/write completion, error status and flush as supported by the frozen QEMU features. Boot with the translated block driver and pass every function in the unchanged block_device.c, ext2/file_io.c and ext2/short_rw.c regression files."
+    },
+    "virtio-net": {
+      "omit": "kernel/core/comps/virtio/src/device/network",
+      "device_type": "Network",
+      "source_entries": [
+        "drivers/net/virtio_net.c",
+        "include/uapi/linux/virtio_net.h",
+        "include/linux/virtio.h",
+        "include/linux/virtio_config.h",
+        "include/linux/virtio_ring.h",
+        "include/uapi/linux/virtio_ring.h",
+        "include/uapi/linux/virtio_config.h"
+      ],
+      "tests": [],
+      "benchmarks": [
+        "iperf3/tcp_virtio_bw",
+        "iperf3/udp_virtio_bw_rx",
+        "iperf3/udp_virtio_bw_tx"
+      ],
+      "qemu_model": "virtio-net-pci",
+      "scope": "Translate Linux VirtIO Network into the retained target network API. Provide initialization, MAC, bounded RX/TX buffer ownership, completion/recycling, and interrupt progress for the pinned upstream feature profile. Complete all three unmodified upstream host/guest iperf3 scripts with actual nonzero sender/receiver traffic."
+    },
+    "nvme-pci": {
+      "omit": "kernel/core/comps/nvme/src",
+      "device_type": null,
+      "source_entries": [
+        "drivers/nvme/host",
+        "include/linux/nvme.h"
+      ],
+      "tests": [
+        "test/initramfs/src/regression/device/nvme.c"
+      ],
+      "benchmarks": [],
+      "qemu_model": "nvme",
+      "scope": "PCI NVMe controller and namespace initialization, request completion and native direct-I/O filesystem regression. Embedded ktests are a separate, not-yet-enabled evaluation layer."
+    },
+    "virtio-vsock": {
+      "enabled": false,
+      "reason": "Host lacks /dev/vhost-vsock; excluded before translation, no transport substitution",
+      "omit": "kernel/core/comps/virtio/src/device/socket",
+      "source_entries": [
+        "net/vmw_vsock/virtio_transport.c",
+        "net/vmw_vsock/virtio_transport_common.c"
+      ],
+      "tests": [
+        "test/initramfs/src/regression/scripts/run_vsock_test.sh"
+      ],
+      "benchmarks": [],
+      "qemu_model": "vhost-vsock-pci"
+    }
+  }
+}

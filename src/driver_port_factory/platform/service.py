@@ -114,7 +114,7 @@ def prepare(project):
         )
         profile["binding"] = binding(project)
         profile["cache_key"] = digest(
-            {"image": profile["image_id"], "revision": revision, "project": str(project.root)}
+            {"image": profile["image_id"], "revision": revision}
         )[:24]
         path = directory / f"profile-{uuid.uuid4().hex}.json"
         path.write_text(json.dumps(profile, indent=2) + "\n")

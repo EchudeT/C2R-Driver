@@ -1,0 +1,26 @@
+{
+  "schema_version": 1,
+  "candidates": [
+    {
+      "canonical_name": "virtio-blk",
+      "source_platform": "linux",
+      "source_entry": "drivers/block/virtio_blk.c",
+      "device_family": "virtio-blk",
+      "bus_or_transport": "PCI",
+      "aliases": [],
+      "device_scope": [
+        "Translate Linux VirtIO Block into the retained Asterinas block-device API: initialization and capacity, DMA request ownership, read/write completion, error status and flush as supported by the frozen QEMU features. Boot with the translated block driver and pass every function in the unchanged block_device.c, ext2/file_io.c and ext2/short_rw.c regression files."
+      ],
+      "candidate_device_ids": [],
+      "qemu_models": [
+        "virtio-blk-pci"
+      ],
+      "evidence_hints": [
+        "Pinned Linux 587858367581b9c55c3690f4e63382ad622719d4",
+        "Pinned Asterinas d4b407ca87de203f79c27c9a83ada1d8223fe280",
+        "Public oracle: unchanged upstream tests. No physical hardware, exhaustive failure or performance claim.",
+        "Metadata provenance: configs/experiments/native-drivers.json; upstream Linux source and Asterinas tools/qemu_args.sh."
+      ]
+    }
+  ]
+}

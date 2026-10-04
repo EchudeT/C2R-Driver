@@ -1,6 +1,6 @@
 # 平台交互重构验证记录
 
-实现说明：[PLATFORM_WORKER_EXECUTION.zh-CN.md](../../PLATFORM_WORKER_EXECUTION.zh-CN.md)。
+实现说明：[PLATFORM_WORKER_EXECUTION.zh-CN.md](../../platform/PLATFORM_WORKER_EXECUTION.zh-CN.md)。
 所有模型实验保持停止；没有付费调用。本记录区分离线测试、真实本地执行和尚未完成的翻译实验。
 
 ## 离线回归

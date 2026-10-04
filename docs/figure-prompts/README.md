@@ -1,6 +1,6 @@
 # 技术报告配图生成说明
 
-为[技术报告](../TECHNICAL_LEADERSHIP_REPORT.md)设计 1 张总览图和 4 张细节图。每份 prompt 均可独立复制到图片生成工具。五张图片已通过用户指定的服务、以 `gpt-image-2` 模型生成，并嵌入正文。使用 imagegen 技能提供的 CLI，未将密钥写入文件。
+为[技术报告](../history/TECHNICAL_LEADERSHIP_REPORT.md)设计 1 张总览图和 4 张细节图。每份 prompt 均可独立复制到图片生成工具。五张图片已通过用户指定的服务、以 `gpt-image-2` 模型生成，并嵌入正文。使用 imagegen 技能提供的 CLI，未将密钥写入文件。
 
 | 图 | 内容 | Prompt | 建议图片名（放入 docs/figures） |
 |---|---|---|---|
@@ -23,7 +23,7 @@
 引用示例：
 
 ```markdown
-![图 2：代码地图与双方框架映射](figures/leadership-02-frameworks-v2.png)
+![图 2：代码地图与双方框架映射](../figures/leadership-02-frameworks-v2.png)
 ```
 
 五张图均表达工作方法，不承载实验通过状态、性能提升或节费比例。

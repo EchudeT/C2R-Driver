@@ -1,0 +1,26 @@
+{
+  "schema_version": 1,
+  "candidates": [
+    {
+      "canonical_name": "virtio-rng",
+      "source_platform": "linux",
+      "source_entry": "drivers/char/hw_random/virtio-rng.c",
+      "device_family": "virtio-rng",
+      "bus_or_transport": "PCI",
+      "aliases": [],
+      "device_scope": [
+        "Translate Linux VirtIO RNG hardware behavior into the existing Asterinas entropy-device API. Preserve DMA ownership, refill/completion and blocking/nonblocking semantics required by the unchanged hwrng caller. Pass all original hwrng.c regression functions in the rebuilt full kernel with virtio-rng-pci; device-unavailable skips are not acceptance."
+      ],
+      "candidate_device_ids": [],
+      "qemu_models": [
+        "virtio-rng-pci"
+      ],
+      "evidence_hints": [
+        "Pinned Linux 587858367581b9c55c3690f4e63382ad622719d4",
+        "Pinned Asterinas d4b407ca87de203f79c27c9a83ada1d8223fe280",
+        "Public oracle: unchanged upstream tests. No physical hardware, exhaustive failure or performance claim.",
+        "Metadata provenance: configs/experiments/native-drivers.json; upstream Linux source and Asterinas tools/qemu_args.sh."
+      ]
+    }
+  ]
+}

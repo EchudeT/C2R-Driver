@@ -3,7 +3,7 @@
 This local quirk is **not an upstream firmware release or driver answer**. It handles
 QEMU pvpanic-pci BAR0's exact anomalous sizing signature and leaves standard OVMF
 resource allocation in charge. QEMU event behavior and the target kernel are unchanged.
-See `docs/OVMF_AND_EXECUTION_REFACTOR.zh-CN.md` and its audit directory for paired
+See `docs/platform/OVMF_AND_EXECUTION_REFACTOR.zh-CN.md` and its audit directory for paired
 upstream/patched firmware runs and limitations.
 
 Reproduction (outside model translation, with network only for source/tools acquisition):
