@@ -1,3 +1,7 @@
+> 当前实验分支已改用路线联合分析，阶段职责以 [STAGE_GUIDE.md](STAGE_GUIDE.md) 和
+> [ROUTE_GUIDED_ANALYSIS.zh-CN.md](ROUTE_GUIDED_ANALYSIS.zh-CN.md) 为准。
+> 本文件下列旧流程说明保留作为演进背景；不能用于恢复旧冻结任务或要求额外模型阶段。
+
 # 阶段工作流
 
 ## 迁移域
@@ -17,17 +21,16 @@
 | 11 | migration_handoff | 静态 | 复用已有证据生成交接身份 |
 | 12 | migration_contracts | 混合 | 一份源码分析、迁移合同与测试计划 |
 | 13 | analysis_review | 独立检查 AI | 合并审查目标研究、源码分析、契约与测试计划；核心结论附精确原文定位，集中反馈全部问题 |
-| 14 | target_framework_enablement | Codex+静态 | 实现并验证合同所需的最小目标框架/API 能力，单独封存目标变更 |
-| 15 | driver_implementation | Codex+静态 | 消费第 14 步快照，实现、测试适配、合规自检和源码快照 |
-| 16 | artifact_preparation | 混合 | 可运行产物、测试入口和身份检查；必要源码调整自检后原地刷新快照 |
-| 17 | public_qemu_validation | 混合 | worker 准备 harness → 控制器执行并冻结 receipt → 原 worker 归因与自检 |
-| 18 | final_evidence_review | 独立检查 AI | 只核对当前代码、目标框架、产物、冻结 contract/test oracle 和原始运行证据；最终报告或完整返修反馈 |
+| 14 | driver_implementation | Codex+静态 | 同一任务完成框架适配、驱动、集成与测试；合规自检和六项源码证据原子验收 |
+| 15 | artifact_preparation | 混合 | 可运行产物、测试入口和身份检查；必要源码调整自检后原地刷新快照 |
+| 16 | public_qemu_validation | 混合 | worker 准备 harness → 控制器执行并冻结 receipt → 原 worker 归因与自检 |
+| 17 | final_evidence_review | 独立检查 AI | 只核对当前代码、目标框架、产物、冻结 contract/test oracle 和原始运行证据；最终报告或完整返修反馈 |
 
-上表为 `DEVELOPER_EVIDENCE`，检查点数量不是模型调用数量。研究、实现和验证使用同一工作者。
-第 13 步在设计阶段封存前完成，可返回目标研究或契约阶段窄修复。第 14 步把目标研究中已确认的
-能力缺口实现为单独快照，后续驱动只能消费该快照，不能再修改同一路径。审查者主动调用只读定位工具，程序不自动匹配报告或裁定引用含义。
-开发模式到第 18 步独立检查结束，无程序语义汇总。工作者与检查者各自保持一个会话；实质缺陷交回原工作者，
+上表为新建 `DEVELOPER_EVIDENCE` 项目（开启可选审查、未配置 benchmark），检查点数量不是模型调用数量。研究、实现和验证使用同一工作者。
+第 13 步在设计阶段封存前完成，可返回目标研究或契约阶段窄修复。第 14 步统一实现框架适配和驱动，允许修改共享集成路径，最后一次性冻结源码证据。审查者主动调用只读定位工具，程序不自动匹配报告或裁定引用含义。
+默认开发模式到第 17 步可选独立检查结束，无程序语义汇总。工作者与检查者各自保持一个会话；实质缺陷交回原工作者，
 修复后原检查者复审。所有已知问题一次反馈，保留正确代码和有效测试；不为风格、可选覆盖返修。
+关闭可选审查后仍保留公开运行验收；配置 benchmark 时追加静态 benchmark 验收。旧配置保留原阶段，不在续跑时重排。详见 [实现合并](UNIFIED_IMPLEMENTATION.zh-CN.md)。
 单独的 blind mode 在检查后增加 candidate sealing 和 digest export / candidate transfer；本次不运行。
 `MIGRATION_OPERATOR` 在前瞻盲测中必须先导入 `public_bundle` 和 `curator_commitment`。
 事后封存模式在候选封存后只导出 opaque digest；迁移域不负责创建私有测试。

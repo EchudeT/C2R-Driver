@@ -1,5 +1,6 @@
 """Direct worker access to authoritative execution without ending the conversation."""
 import json
+import os
 from pathlib import Path
 
 from ..core.models import StageStatus, WorkflowError
@@ -9,8 +10,16 @@ from ..cli_support import command_registry
 from .experiments import execute, run_cases
 
 
+def _check_worker(project, job_id):
+    bound = os.environ.get("DPF_WORKER_JOB")
+    if bound and (job_id != bound or
+                  Path(os.environ.get("DPF_WORKER_PROJECT", "")).resolve() != project.root):
+        raise WorkflowError("Experiment differs from bound worker job/project")
+
+
 def command_run(args):
     project = open_project(Path(args.path), read_only=True, verify_artifacts=False)
+    _check_worker(project, args.job_id)
     writable = {'target_framework_enablement', 'driver_implementation',
                 'artifact_preparation', 'public_qemu_validation'}
     if not any(s.status is StageStatus.RUNNING and s.name.value in writable for s in project.stages()):
@@ -47,7 +56,7 @@ def register_commands(commands):
     mode = run.add_mutually_exclusive_group(required=True)
     mode.add_argument('--script')
     mode.add_argument('--suite', action='store_true')
-    run.add_argument('--job-id')
+    run.add_argument('--job-id', default=os.environ.get('DPF_WORKER_JOB'))
     run.add_argument('--runtime')
     run.add_argument('--case')
     run.add_argument('--timeout', type=int, default=300)
@@ -72,7 +81,7 @@ def register_commands(commands):
 
     ack = subs.add_parser('acknowledge', help='explicitly self-review experiments before final submission')
     ack.add_argument('path')
-    ack.add_argument('--job-id', required=True)
+    ack.add_argument('--job-id', default=os.environ.get('DPF_WORKER_JOB'))
     ack.add_argument('--report', required=True)
     ack.set_defaults(handler=command_ack)
 
@@ -80,7 +89,9 @@ def register_commands(commands):
 def command_ack(args):
     from .experiment_ack import acknowledge
     project = open_project(Path(args.path), read_only=True, verify_artifacts=False)
-    print(json.dumps({'acknowledgment': str(acknowledge(project, args.job_id, Path(args.report)))}))
+    _check_worker(project, args.job_id)
+    receipt = acknowledge(project, args.job_id, Path(args.report))
+    print(json.dumps({"acknowledgment": "recorded" if os.environ.get("DPF_WORKER_JOB") else str(receipt)}))
 
 
 def command_probe(args):

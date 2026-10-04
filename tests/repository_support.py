@@ -31,7 +31,7 @@ from tests.acquisition_support import (
 
 
 def project_config() -> ProjectConfig:
-    return ProjectConfig(
+    return ProjectConfig(unified_implementation=False,
         project_id="acquisition-test",
         source_platform="example-source",
         target_platform="example-target",

@@ -6,7 +6,9 @@ class TargetStudyStage(StrEnum):
 
 
 class TargetStudyArtifact(StrEnum):
+    ROUTE = "analysis_route"
     REPORT = "target_study_report"
+    KNOWLEDGE_QUALITY = "target_knowledge_quality"
     VALIDATION_ATTEMPT = "target_study_validation_attempt"
 
 

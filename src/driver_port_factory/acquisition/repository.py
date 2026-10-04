@@ -74,6 +74,7 @@ class RepositoryAcquirer:
             project.control,
             git,
             caches=project.config.baseline_repositories,
+            compact_paths=project.config.compact_paths,
             local_repositories={
                 role: path
                 for role, path in (
@@ -106,7 +107,8 @@ class RepositoryAcquirer:
         plan_artifact = self._artifact(AcquisitionArtifact.REPOSITORY_PLAN, plan.to_dict())
         plan_digest = hashlib.sha256(plan_artifact.data).hexdigest()
         target_worktree = TargetWorktreeManager(project.root, project.control, git).create(
-            self._spec(plan, RepositoryRole.TARGET), project.config.project_id
+            self._spec(plan, RepositoryRole.TARGET), project.config.project_id,
+            compact_paths=project.config.compact_paths
         )
         acquisition = RepositoryAcquisition(
             schema_version=1,

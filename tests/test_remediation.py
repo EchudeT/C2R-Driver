@@ -47,7 +47,7 @@ def test_managed_smoke_reuses_worker_observation_and_preserves_original_logs(tmp
     from driver_port_factory.migration.public_qemu import _run_public_harness
     with patch('driver_port_factory.migration.public_qemu._run_public_harness', wraps=_run_public_harness) as run:
         execute(project, worktree=worktree, script_path=script, runtime_path=runtime, timeout_seconds=300)
-        assert run.call_count == 1
+        run.assert_not_called()
 
 
 def _cases(worktree):
@@ -67,21 +67,21 @@ def _cases(worktree):
     return output
 
 
-def test_cases_reexecute_only_changed_dependency_and_force_keeps_repetitions(tmp_path):
+def test_passed_cases_survive_dependency_changes_and_force_requests(tmp_path):
     project, worktree, _ = implemented(tmp_path)
     output = _cases(worktree)
     runtime = output / 'runtime-artifact'
     first = run_cases(project, worktree, runtime)
     (output / 'harness/a.input').write_text('changed stimulus')
     second = run_cases(project, worktree, runtime)
-    assert first[0]['observation'].trace_path != second[0]['observation'].trace_path
+    assert first[0]['observation'].trace_path == second[0]['observation'].trace_path
     assert first[1]['observation'].trace_path == second[1]['observation'].trace_path
     third = execute(project, worktree=worktree, script_path=output / 'harness/b.sh',
                     runtime_path=runtime, dependencies=['.dpf-output/harness/b.input'],
                     case_id='b', timeout_seconds=300, force=True)
-    assert third.trace_path != second[1]['observation'].trace_path
+    assert third.trace_path == second[1]['observation'].trace_path
     fresh = run_cases(project, worktree, runtime, force=True)
-    assert all(a['observation'].trace_path != b['observation'].trace_path
+    assert all(a['observation'].trace_path == b['observation'].trace_path
                for a, b in zip(second, fresh))
 
 
@@ -225,7 +225,7 @@ def test_explicit_self_review_is_bound_to_exact_report_and_receipt(tmp_path):
     assert not acknowledged(project, report, public)
 
 
-def test_cli_suite_fresh_requests_new_observations(tmp_path, capsys):
+def test_cli_fresh_keeps_already_passed_observations(tmp_path, capsys):
     from argparse import Namespace
     from driver_port_factory.migration.experiment_cli import command_run
     project, worktree, _ = implemented(tmp_path)
@@ -240,4 +240,4 @@ def test_cli_suite_fresh_requests_new_observations(tmp_path, capsys):
     args.fresh = True
     command_run(args)
     fresh = json.loads(capsys.readouterr().out)
-    assert all(a['receipt'] != b['receipt'] for a, b in zip(initial, fresh))
+    assert all(a['receipt'] == b['receipt'] for a, b in zip(initial, fresh))

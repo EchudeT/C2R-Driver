@@ -1,0 +1,905 @@
+{
+  "method": "Read-only local audit; no models, project mutation, retrieval rerun or experiment intervention.",
+  "limits": "Repository rates 4/0.4/20 USD per million; not relay invoice. Token usage records count API requests once. Raw shell bytes are not model-visible token counts. No causal savings experiment.",
+  "runs": [
+    {
+      "run": "pvpanic-behavior-sol-medium-20261003-04",
+      "metrics": "/home/unix/file/C2R-Driver/c2rust-migration-test-01/experiments/pvpanic-behavior-sol-medium-20261003-04/run/.dpf/codex/target_platform_study-1802b532-70b1-4f1e-b6e0-8570fb310800.metrics.json",
+      "metrics_sha256": "f51ace4f2b8d4267a08e3affcf803f388c40e58fda0f22a2512dfedc7effd698",
+      "elapsed_seconds": 627.582,
+      "prompt_bytes": 37328,
+      "usage": {
+        "input_tokens": 2498977,
+        "cached_input_tokens": 2097280,
+        "output_tokens": 19017,
+        "cache_write_input_tokens": 0
+      },
+      "estimated_usd": 2.82604,
+      "command_count": 48,
+      "raw_command_output_characters": {
+        "other": 153502,
+        "knowledge_search": 177141,
+        "probe_replay": 41876
+      },
+      "compactions": [
+        "2026-10-02T20:24:43.390Z"
+      ],
+      "truncated_tool_responses": [
+        "2026-10-02T20:22:40.149Z",
+        "2026-10-02T20:22:56.517Z",
+        "2026-10-02T20:31:06.186Z"
+      ],
+      "requests": [
+        {
+          "timestamp": "2026-10-02T20:21:26.765Z",
+          "usage": {
+            "input_tokens": 173337,
+            "cached_input_tokens": 164608,
+            "cache_write_input_tokens": 0,
+            "output_tokens": 421,
+            "reasoning_output_tokens": 118,
+            "total_tokens": 173758
+          },
+          "uncached": 8729,
+          "usd": 0.1091792
+        },
+        {
+          "timestamp": "2026-10-02T20:21:47.075Z",
+          "usage": {
+            "input_tokens": 181889,
+            "cached_input_tokens": 173184,
+            "cache_write_input_tokens": 0,
+            "output_tokens": 176,
+            "reasoning_output_tokens": 19,
+            "total_tokens": 182065
+          },
+          "uncached": 8705,
+          "usd": 0.1076136
+        },
+        {
+          "timestamp": "2026-10-02T20:22:00.767Z",
+          "usage": {
+            "input_tokens": 182395,
+            "cached_input_tokens": 181760,
+            "cache_write_input_tokens": 0,
+            "output_tokens": 323,
+            "reasoning_output_tokens": 66,
+            "total_tokens": 182718
+          },
+          "uncached": 635,
+          "usd": 0.081704
+        },
+        {
+          "timestamp": "2026-10-02T20:22:09.863Z",
+          "usage": {
+            "input_tokens": 183024,
+            "cached_input_tokens": 182272,
+            "cache_write_input_tokens": 0,
+            "output_tokens": 176,
+            "reasoning_output_tokens": 10,
+            "total_tokens": 183200
+          },
+          "uncached": 752,
+          "usd": 0.0794368
+        },
+        {
+          "timestamp": "2026-10-02T20:22:36.443Z",
+          "usage": {
+            "input_tokens": 188098,
+            "cached_input_tokens": 182784,
+            "cache_write_input_tokens": 0,
+            "output_tokens": 863,
+            "reasoning_output_tokens": 420,
+            "total_tokens": 188961
+          },
+          "uncached": 5314,
+          "usd": 0.11162960000000001
+        },
+        {
+          "timestamp": "2026-10-02T20:22:54.388Z",
+          "usage": {
+            "input_tokens": 201059,
+            "cached_input_tokens": 187904,
+            "cache_write_input_tokens": 0,
+            "output_tokens": 369,
+            "reasoning_output_tokens": 76,
+            "total_tokens": 201428
+          },
+          "uncached": 13155,
+          "usd": 0.1351616
+        },
+        {
+          "timestamp": "2026-10-02T20:24:43.369Z",
+          "usage": {
+            "input_tokens": 209987,
+            "cached_input_tokens": 4224,
+            "cache_write_input_tokens": 0,
+            "output_tokens": 3664,
+            "reasoning_output_tokens": 0,
+            "total_tokens": 213651
+          },
+          "uncached": 205763,
+          "usd": 0.8980216
+        },
+        {
+          "timestamp": "2026-10-02T20:24:59.027Z",
+          "usage": {
+            "input_tokens": 34799,
+            "cached_input_tokens": 4224,
+            "cache_write_input_tokens": 0,
+            "output_tokens": 503,
+            "reasoning_output_tokens": 64,
+            "total_tokens": 35302
+          },
+          "uncached": 30575,
+          "usd": 0.13404960000000002
+        },
+        {
+          "timestamp": "2026-10-02T20:25:08.876Z",
+          "usage": {
+            "input_tokens": 38122,
+            "cached_input_tokens": 34560,
+            "cache_write_input_tokens": 0,
+            "output_tokens": 263,
+            "reasoning_output_tokens": 62,
+            "total_tokens": 38385
+          },
+          "uncached": 3562,
+          "usd": 0.033332
+        },
+        {
+          "timestamp": "2026-10-02T20:25:18.075Z",
+          "usage": {
+            "input_tokens": 42949,
+            "cached_input_tokens": 37888,
+            "cache_write_input_tokens": 0,
+            "output_tokens": 180,
+            "reasoning_output_tokens": 35,
+            "total_tokens": 43129
+          },
+          "uncached": 5061,
+          "usd": 0.0389992
+        },
+        {
+          "timestamp": "2026-10-02T20:25:32.667Z",
+          "usage": {
+            "input_tokens": 43200,
+            "cached_input_tokens": 42752,
+            "cache_write_input_tokens": 0,
+            "output_tokens": 467,
+            "reasoning_output_tokens": 40,
+            "total_tokens": 43667
+          },
+          "uncached": 448,
+          "usd": 0.0282328
+        },
+        {
+          "timestamp": "2026-10-02T20:25:45.942Z",
+          "usage": {
+            "input_tokens": 46906,
+            "cached_input_tokens": 43008,
+            "cache_write_input_tokens": 0,
+            "output_tokens": 430,
+            "reasoning_output_tokens": 119,
+            "total_tokens": 47336
+          },
+          "uncached": 3898,
+          "usd": 0.0413952
+        },
+        {
+          "timestamp": "2026-10-02T20:26:11.604Z",
+          "usage": {
+            "input_tokens": 51410,
+            "cached_input_tokens": 46720,
+            "cache_write_input_tokens": 0,
+            "output_tokens": 632,
+            "reasoning_output_tokens": 436,
+            "total_tokens": 52042
+          },
+          "uncached": 4690,
+          "usd": 0.050088
+        },
+        {
+          "timestamp": "2026-10-02T20:26:20.164Z",
+          "usage": {
+            "input_tokens": 56071,
+            "cached_input_tokens": 51200,
+            "cache_write_input_tokens": 0,
+            "output_tokens": 210,
+            "reasoning_output_tokens": 31,
+            "total_tokens": 56281
+          },
+          "uncached": 4871,
+          "usd": 0.044164
+        },
+        {
+          "timestamp": "2026-10-02T20:26:32.812Z",
+          "usage": {
+            "input_tokens": 56388,
+            "cached_input_tokens": 55936,
+            "cache_write_input_tokens": 0,
+            "output_tokens": 379,
+            "reasoning_output_tokens": 36,
+            "total_tokens": 56767
+          },
+          "uncached": 452,
+          "usd": 0.0317624
+        },
+        {
+          "timestamp": "2026-10-02T20:26:44.644Z",
+          "usage": {
+            "input_tokens": 60995,
+            "cached_input_tokens": 56192,
+            "cache_write_input_tokens": 0,
+            "output_tokens": 368,
+            "reasoning_output_tokens": 10,
+            "total_tokens": 61363
+          },
+          "uncached": 4803,
+          "usd": 0.049048800000000004
+        },
+        {
+          "timestamp": "2026-10-02T20:26:57.885Z",
+          "usage": {
+            "input_tokens": 65424,
+            "cached_input_tokens": 60800,
+            "cache_write_input_tokens": 0,
+            "output_tokens": 427,
+            "reasoning_output_tokens": 12,
+            "total_tokens": 65851
+          },
+          "uncached": 4624,
+          "usd": 0.051356
+        },
+        {
+          "timestamp": "2026-10-02T20:27:32.226Z",
+          "usage": {
+            "input_tokens": 69124,
+            "cached_input_tokens": 4224,
+            "cache_write_input_tokens": 0,
+            "output_tokens": 495,
+            "reasoning_output_tokens": 0,
+            "total_tokens": 69619
+          },
+          "uncached": 64900,
+          "usd": 0.2711896
+        },
+        {
+          "timestamp": "2026-10-02T20:27:47.479Z",
+          "usage": {
+            "input_tokens": 72652,
+            "cached_input_tokens": 68992,
+            "cache_write_input_tokens": 0,
+            "output_tokens": 469,
+            "reasoning_output_tokens": 103,
+            "total_tokens": 73121
+          },
+          "uncached": 3660,
+          "usd": 0.051616800000000004
+        },
+        {
+          "timestamp": "2026-10-02T20:28:12.776Z",
+          "usage": {
+            "input_tokens": 78665,
+            "cached_input_tokens": 72448,
+            "cache_write_input_tokens": 0,
+            "output_tokens": 713,
+            "reasoning_output_tokens": 276,
+            "total_tokens": 79378
+          },
+          "uncached": 6217,
+          "usd": 0.06810719999999999
+        },
+        {
+          "timestamp": "2026-10-02T20:30:49.817Z",
+          "usage": {
+            "input_tokens": 80388,
+            "cached_input_tokens": 78464,
+            "cache_write_input_tokens": 0,
+            "output_tokens": 6360,
+            "reasoning_output_tokens": 68,
+            "total_tokens": 86748
+          },
+          "uncached": 1924,
+          "usd": 0.1662816
+        },
+        {
+          "timestamp": "2026-10-02T20:31:03.474Z",
+          "usage": {
+            "input_tokens": 86772,
+            "cached_input_tokens": 80256,
+            "cache_write_input_tokens": 0,
+            "output_tokens": 392,
+            "reasoning_output_tokens": 22,
+            "total_tokens": 87164
+          },
+          "uncached": 6516,
+          "usd": 0.06600639999999999
+        },
+        {
+          "timestamp": "2026-10-02T20:31:20.574Z",
+          "usage": {
+            "input_tokens": 98043,
+            "cached_input_tokens": 86656,
+            "cache_write_input_tokens": 0,
+            "output_tokens": 384,
+            "reasoning_output_tokens": 186,
+            "total_tokens": 98427
+          },
+          "uncached": 11387,
+          "usd": 0.0878904
+        },
+        {
+          "timestamp": "2026-10-02T20:31:28.007Z",
+          "usage": {
+            "input_tokens": 98464,
+            "cached_input_tokens": 97920,
+            "cache_write_input_tokens": 0,
+            "output_tokens": 318,
+            "reasoning_output_tokens": 28,
+            "total_tokens": 98782
+          },
+          "uncached": 544,
+          "usd": 0.047704
+        },
+        {
+          "timestamp": "2026-10-02T20:31:33.060Z",
+          "usage": {
+            "input_tokens": 98816,
+            "cached_input_tokens": 98304,
+            "cache_write_input_tokens": 0,
+            "output_tokens": 35,
+            "reasoning_output_tokens": 0,
+            "total_tokens": 98851
+          },
+          "uncached": 512,
+          "usd": 0.042069600000000006
+        }
+      ],
+      "reports": [
+        {
+          "file": "/home/unix/file/C2R-Driver/c2rust-migration-test-01/experiments/pvpanic-behavior-sol-medium-20261003-04/run/work/stage-work/target_platform_study/report.md",
+          "bytes": 22438
+        }
+      ]
+    },
+    {
+      "run": "pvpanic-behavior-sol-medium-20261003-05",
+      "metrics": "/home/unix/file/C2R-Driver/c2rust-migration-test-01/experiments/pvpanic-behavior-sol-medium-20261003-05/run/.dpf/codex/target_platform_study-529216d1-7e49-4fa8-aeb5-2774f529ba8d.metrics.json",
+      "metrics_sha256": "4910891fb2c6500aa894c4ed6b331fe2a9f2ffb2eb22dedad302e124c510e345",
+      "elapsed_seconds": 633.162,
+      "prompt_bytes": 43601,
+      "usage": {
+        "input_tokens": 1354798,
+        "cached_input_tokens": 1074944,
+        "output_tokens": 11018,
+        "cache_write_input_tokens": 0
+      },
+      "estimated_usd": 1.7697536,
+      "command_count": 14,
+      "raw_command_output_characters": {
+        "other": 96607
+      },
+      "compactions": [
+        "2026-10-03T05:29:09.675Z"
+      ],
+      "truncated_tool_responses": [],
+      "requests": [
+        {
+          "timestamp": "2026-10-03T05:24:48.170Z",
+          "usage": {
+            "input_tokens": 187840,
+            "cached_input_tokens": 176896,
+            "cache_write_input_tokens": 0,
+            "output_tokens": 740,
+            "reasoning_output_tokens": 109,
+            "total_tokens": 188580
+          },
+          "uncached": 10944,
+          "usd": 0.12933440000000002
+        },
+        {
+          "timestamp": "2026-10-03T05:25:13.084Z",
+          "usage": {
+            "input_tokens": 199259,
+            "cached_input_tokens": 187136,
+            "cache_write_input_tokens": 0,
+            "output_tokens": 325,
+            "reasoning_output_tokens": 19,
+            "total_tokens": 199584
+          },
+          "uncached": 12123,
+          "usd": 0.1298464
+        },
+        {
+          "timestamp": "2026-10-03T05:25:32.360Z",
+          "usage": {
+            "input_tokens": 205620,
+            "cached_input_tokens": 198400,
+            "cache_write_input_tokens": 0,
+            "output_tokens": 240,
+            "reasoning_output_tokens": 53,
+            "total_tokens": 205860
+          },
+          "uncached": 7220,
+          "usd": 0.11304
+        },
+        {
+          "timestamp": "2026-10-03T05:25:55.588Z",
+          "usage": {
+            "input_tokens": 206186,
+            "cached_input_tokens": 204544,
+            "cache_write_input_tokens": 0,
+            "output_tokens": 279,
+            "reasoning_output_tokens": 12,
+            "total_tokens": 206465
+          },
+          "uncached": 1642,
+          "usd": 0.09396560000000001
+        },
+        {
+          "timestamp": "2026-10-03T05:29:09.658Z",
+          "usage": {
+            "input_tokens": 209284,
+            "cached_input_tokens": 0,
+            "cache_write_input_tokens": 0,
+            "output_tokens": 4195,
+            "reasoning_output_tokens": 45,
+            "total_tokens": 213479
+          },
+          "uncached": 209284,
+          "usd": 0.921036
+        },
+        {
+          "timestamp": "2026-10-03T05:29:24.204Z",
+          "usage": {
+            "input_tokens": 31134,
+            "cached_input_tokens": 6912,
+            "cache_write_input_tokens": 0,
+            "output_tokens": 58,
+            "reasoning_output_tokens": 17,
+            "total_tokens": 31192
+          },
+          "uncached": 24222,
+          "usd": 0.10081280000000001
+        },
+        {
+          "timestamp": "2026-10-03T05:29:50.286Z",
+          "usage": {
+            "input_tokens": 31263,
+            "cached_input_tokens": 30464,
+            "cache_write_input_tokens": 0,
+            "output_tokens": 370,
+            "reasoning_output_tokens": 53,
+            "total_tokens": 31633
+          },
+          "uncached": 799,
+          "usd": 0.0227816
+        },
+        {
+          "timestamp": "2026-10-03T05:30:08.381Z",
+          "usage": {
+            "input_tokens": 36179,
+            "cached_input_tokens": 30464,
+            "cache_write_input_tokens": 0,
+            "output_tokens": 283,
+            "reasoning_output_tokens": 35,
+            "total_tokens": 36462
+          },
+          "uncached": 5715,
+          "usd": 0.0407056
+        },
+        {
+          "timestamp": "2026-10-03T05:32:25.331Z",
+          "usage": {
+            "input_tokens": 37920,
+            "cached_input_tokens": 35584,
+            "cache_write_input_tokens": 0,
+            "output_tokens": 2700,
+            "reasoning_output_tokens": 14,
+            "total_tokens": 40620
+          },
+          "uncached": 2336,
+          "usd": 0.07757760000000001
+        },
+        {
+          "timestamp": "2026-10-03T05:33:31.938Z",
+          "usage": {
+            "input_tokens": 40644,
+            "cached_input_tokens": 39680,
+            "cache_write_input_tokens": 0,
+            "output_tokens": 1304,
+            "reasoning_output_tokens": 29,
+            "total_tokens": 41948
+          },
+          "uncached": 964,
+          "usd": 0.045808
+        },
+        {
+          "timestamp": "2026-10-03T05:33:44.111Z",
+          "usage": {
+            "input_tokens": 41972,
+            "cached_input_tokens": 39680,
+            "cache_write_input_tokens": 0,
+            "output_tokens": 160,
+            "reasoning_output_tokens": 7,
+            "total_tokens": 42132
+          },
+          "uncached": 2292,
+          "usd": 0.02824
+        },
+        {
+          "timestamp": "2026-10-03T05:34:06.445Z",
+          "usage": {
+            "input_tokens": 42276,
+            "cached_input_tokens": 41728,
+            "cache_write_input_tokens": 0,
+            "output_tokens": 166,
+            "reasoning_output_tokens": 122,
+            "total_tokens": 42442
+          },
+          "uncached": 548,
+          "usd": 0.0222032
+        },
+        {
+          "timestamp": "2026-10-03T05:34:24.241Z",
+          "usage": {
+            "input_tokens": 42518,
+            "cached_input_tokens": 41728,
+            "cache_write_input_tokens": 0,
+            "output_tokens": 151,
+            "reasoning_output_tokens": 0,
+            "total_tokens": 42669
+          },
+          "uncached": 790,
+          "usd": 0.0228712
+        },
+        {
+          "timestamp": "2026-10-03T05:34:39.175Z",
+          "usage": {
+            "input_tokens": 42703,
+            "cached_input_tokens": 41728,
+            "cache_write_input_tokens": 0,
+            "output_tokens": 47,
+            "reasoning_output_tokens": 0,
+            "total_tokens": 42750
+          },
+          "uncached": 975,
+          "usd": 0.0215312
+        }
+      ],
+      "reports": [
+        {
+          "file": "/home/unix/file/C2R-Driver/c2rust-migration-test-01/experiments/pvpanic-behavior-sol-medium-20261003-05/run/work/stage-work/target_platform_study/analysis-report.md",
+          "bytes": 10326
+        }
+      ]
+    },
+    {
+      "run": "pvpanic-behavior-sol-medium-20261003-06",
+      "metrics": "/home/unix/file/C2R-Driver/c2rust-migration-test-01/experiments/pvpanic-behavior-sol-medium-20261003-06/run/.dpf/codex/target_platform_study-8d5cbe1b-9806-4682-8f57-585155a5db86.metrics.json",
+      "metrics_sha256": "631d6c1f4dcdca417a6472778c05fac164e2355c11d7d4f2afb032353a96c0b8",
+      "elapsed_seconds": 723.312,
+      "prompt_bytes": 43248,
+      "usage": {
+        "input_tokens": 2485051,
+        "cached_input_tokens": 1829120,
+        "output_tokens": 20892,
+        "cache_write_input_tokens": 0
+      },
+      "estimated_usd": 3.773212,
+      "command_count": 50,
+      "raw_command_output_characters": {
+        "other": 302164,
+        "knowledge_search": 73527,
+        "probe_replay": 33254
+      },
+      "compactions": [
+        "2026-10-03T07:08:16.737Z"
+      ],
+      "truncated_tool_responses": [
+        "2026-10-03T07:03:43.739Z",
+        "2026-10-03T07:04:14.109Z",
+        "2026-10-03T07:05:14.136Z",
+        "2026-10-03T07:05:45.883Z",
+        "2026-10-03T07:08:53.239Z",
+        "2026-10-03T07:09:26.575Z",
+        "2026-10-03T07:13:34.259Z"
+      ],
+      "requests": [
+        {
+          "timestamp": "2026-10-03T07:03:43.548Z",
+          "usage": {
+            "input_tokens": 162679,
+            "cached_input_tokens": 152448,
+            "cache_write_input_tokens": 0,
+            "output_tokens": 883,
+            "reasoning_output_tokens": 89,
+            "total_tokens": 163562
+          },
+          "uncached": 10231,
+          "usd": 0.11956320000000001
+        },
+        {
+          "timestamp": "2026-10-03T07:03:56.090Z",
+          "usage": {
+            "input_tokens": 174426,
+            "cached_input_tokens": 162560,
+            "cache_write_input_tokens": 0,
+            "output_tokens": 338,
+            "reasoning_output_tokens": 108,
+            "total_tokens": 174764
+          },
+          "uncached": 11866,
+          "usd": 0.119248
+        },
+        {
+          "timestamp": "2026-10-03T07:04:13.331Z",
+          "usage": {
+            "input_tokens": 175198,
+            "cached_input_tokens": 174208,
+            "cache_write_input_tokens": 0,
+            "output_tokens": 873,
+            "reasoning_output_tokens": 37,
+            "total_tokens": 176071
+          },
+          "uncached": 990,
+          "usd": 0.0911032
+        },
+        {
+          "timestamp": "2026-10-03T07:04:31.358Z",
+          "usage": {
+            "input_tokens": 188508,
+            "cached_input_tokens": 174976,
+            "cache_write_input_tokens": 0,
+            "output_tokens": 434,
+            "reasoning_output_tokens": 177,
+            "total_tokens": 188942
+          },
+          "uncached": 13532,
+          "usd": 0.1327984
+        },
+        {
+          "timestamp": "2026-10-03T07:05:14.115Z",
+          "usage": {
+            "input_tokens": 190197,
+            "cached_input_tokens": 188288,
+            "cache_write_input_tokens": 0,
+            "output_tokens": 1285,
+            "reasoning_output_tokens": 441,
+            "total_tokens": 191482
+          },
+          "uncached": 1909,
+          "usd": 0.1086512
+        },
+        {
+          "timestamp": "2026-10-03T07:05:45.853Z",
+          "usage": {
+            "input_tokens": 203564,
+            "cached_input_tokens": 190080,
+            "cache_write_input_tokens": 0,
+            "output_tokens": 1158,
+            "reasoning_output_tokens": 421,
+            "total_tokens": 204722
+          },
+          "uncached": 13484,
+          "usd": 0.153128
+        },
+        {
+          "timestamp": "2026-10-03T07:06:57.955Z",
+          "usage": {
+            "input_tokens": 215773,
+            "cached_input_tokens": 11008,
+            "cache_write_input_tokens": 0,
+            "output_tokens": 803,
+            "reasoning_output_tokens": 335,
+            "total_tokens": 216576
+          },
+          "uncached": 204765,
+          "usd": 0.8395231999999999
+        },
+        {
+          "timestamp": "2026-10-03T07:08:16.711Z",
+          "usage": {
+            "input_tokens": 218998,
+            "cached_input_tokens": 7808,
+            "cache_write_input_tokens": 0,
+            "output_tokens": 2958,
+            "reasoning_output_tokens": 26,
+            "total_tokens": 221956
+          },
+          "uncached": 211190,
+          "usd": 0.9070431999999999
+        },
+        {
+          "timestamp": "2026-10-03T07:08:36.412Z",
+          "usage": {
+            "input_tokens": 33530,
+            "cached_input_tokens": 11648,
+            "cache_write_input_tokens": 0,
+            "output_tokens": 291,
+            "reasoning_output_tokens": 72,
+            "total_tokens": 33821
+          },
+          "uncached": 21882,
+          "usd": 0.0980072
+        },
+        {
+          "timestamp": "2026-10-03T07:08:53.181Z",
+          "usage": {
+            "input_tokens": 33889,
+            "cached_input_tokens": 33408,
+            "cache_write_input_tokens": 0,
+            "output_tokens": 559,
+            "reasoning_output_tokens": 151,
+            "total_tokens": 34448
+          },
+          "uncached": 481,
+          "usd": 0.0264672
+        },
+        {
+          "timestamp": "2026-10-03T07:09:01.233Z",
+          "usage": {
+            "input_tokens": 44317,
+            "cached_input_tokens": 33664,
+            "cache_write_input_tokens": 0,
+            "output_tokens": 189,
+            "reasoning_output_tokens": 17,
+            "total_tokens": 44506
+          },
+          "uncached": 10653,
+          "usd": 0.0598576
+        },
+        {
+          "timestamp": "2026-10-03T07:09:26.457Z",
+          "usage": {
+            "input_tokens": 47983,
+            "cached_input_tokens": 44160,
+            "cache_write_input_tokens": 0,
+            "output_tokens": 838,
+            "reasoning_output_tokens": 62,
+            "total_tokens": 48821
+          },
+          "uncached": 3823,
+          "usd": 0.049716
+        },
+        {
+          "timestamp": "2026-10-03T07:09:54.304Z",
+          "usage": {
+            "input_tokens": 60905,
+            "cached_input_tokens": 3840,
+            "cache_write_input_tokens": 0,
+            "output_tokens": 414,
+            "reasoning_output_tokens": 157,
+            "total_tokens": 61319
+          },
+          "uncached": 57065,
+          "usd": 0.238076
+        },
+        {
+          "timestamp": "2026-10-03T07:13:18.021Z",
+          "usage": {
+            "input_tokens": 65048,
+            "cached_input_tokens": 47744,
+            "cache_write_input_tokens": 0,
+            "output_tokens": 7415,
+            "reasoning_output_tokens": 425,
+            "total_tokens": 72463
+          },
+          "uncached": 17304,
+          "usd": 0.2366136
+        },
+        {
+          "timestamp": "2026-10-03T07:13:32.588Z",
+          "usage": {
+            "input_tokens": 71591,
+            "cached_input_tokens": 11648,
+            "cache_write_input_tokens": 0,
+            "output_tokens": 341,
+            "reasoning_output_tokens": 24,
+            "total_tokens": 71932
+          },
+          "uncached": 59943,
+          "usd": 0.2512512
+        },
+        {
+          "timestamp": "2026-10-03T07:13:50.943Z",
+          "usage": {
+            "input_tokens": 83070,
+            "cached_input_tokens": 71424,
+            "cache_write_input_tokens": 0,
+            "output_tokens": 498,
+            "reasoning_output_tokens": 228,
+            "total_tokens": 83568
+          },
+          "uncached": 11646,
+          "usd": 0.08511360000000001
+        },
+        {
+          "timestamp": "2026-10-03T07:14:00.459Z",
+          "usage": {
+            "input_tokens": 83602,
+            "cached_input_tokens": 82944,
+            "cache_write_input_tokens": 0,
+            "output_tokens": 238,
+            "reasoning_output_tokens": 12,
+            "total_tokens": 83840
+          },
+          "uncached": 658,
+          "usd": 0.0405696
+        },
+        {
+          "timestamp": "2026-10-03T07:14:10.814Z",
+          "usage": {
+            "input_tokens": 84738,
+            "cached_input_tokens": 83456,
+            "cache_write_input_tokens": 0,
+            "output_tokens": 177,
+            "reasoning_output_tokens": 35,
+            "total_tokens": 84915
+          },
+          "uncached": 1282,
+          "usd": 0.0420504
+        },
+        {
+          "timestamp": "2026-10-03T07:14:39.235Z",
+          "usage": {
+            "input_tokens": 86124,
+            "cached_input_tokens": 84608,
+            "cache_write_input_tokens": 0,
+            "output_tokens": 512,
+            "reasoning_output_tokens": 31,
+            "total_tokens": 86636
+          },
+          "uncached": 1516,
+          "usd": 0.0501472
+        },
+        {
+          "timestamp": "2026-10-03T07:14:46.265Z",
+          "usage": {
+            "input_tokens": 86660,
+            "cached_input_tokens": 85888,
+            "cache_write_input_tokens": 0,
+            "output_tokens": 286,
+            "reasoning_output_tokens": 22,
+            "total_tokens": 86946
+          },
+          "uncached": 772,
+          "usd": 0.043163200000000006
+        },
+        {
+          "timestamp": "2026-10-03T07:14:57.003Z",
+          "usage": {
+            "input_tokens": 86978,
+            "cached_input_tokens": 86528,
+            "cache_write_input_tokens": 0,
+            "output_tokens": 261,
+            "reasoning_output_tokens": 7,
+            "total_tokens": 87239
+          },
+          "uncached": 450,
+          "usd": 0.04163120000000001
+        },
+        {
+          "timestamp": "2026-10-03T07:15:06.523Z",
+          "usage": {
+            "input_tokens": 87273,
+            "cached_input_tokens": 86784,
+            "cache_write_input_tokens": 0,
+            "output_tokens": 141,
+            "reasoning_output_tokens": 0,
+            "total_tokens": 87414
+          },
+          "uncached": 489,
+          "usd": 0.0394896
+        }
+      ],
+      "reports": [
+        {
+          "file": "/home/unix/file/C2R-Driver/c2rust-migration-test-01/experiments/pvpanic-behavior-sol-medium-20261003-06/run/work/stage-work/target_platform_study/report.md",
+          "bytes": 23203
+        }
+      ]
+    }
+  ]
+}

@@ -185,6 +185,11 @@ def test_delivery_rejects_source_artifact_image_drift_and_failed_build(tmp_path,
     ):
         service.prepare(project, IMAGE, "tcg")
         service.verify(project)
+        worktree, _ = service.location(project)
+        for name in ("implementation-smoke.sh", "public-qemu.sh"):
+            entry = worktree / ".dpf-output" / name
+            assert entry.is_file() and "driver_port_factory.platform.suite" in entry.read_text()
+        assert not (worktree / ".dpf-output/experiments.json").exists()
         service.build(project)
         assert service.presence(project)["status"] == "BUILD_IDENTITY_MATCH"
         worktree, _ = service.location(project)

@@ -1,0 +1,7 @@
+{
+  "status": "PASS",
+  "scope": "firmware and QEMU model, not translated driver",
+  "expected": "assigned",
+  "devices": 0,
+  "observations": []
+}

@@ -1,0 +1,23 @@
+........................................................................ [ 19%]
+........................................................................ [ 39%]
+................................................F....................... [ 58%]
+........................................................................ [ 78%]
+........................................................................ [ 97%]
+.........                                                                [100%]
+=================================== FAILURES ===================================
+_____ test_first_delivery_prompt_does_not_reintroduce_smoke_only_boundary ______
+
+tmp_path = PosixPath('/tmp/pytest-of-unix/pytest-138/test_first_delivery_prompt_doe0')
+
+    def test_first_delivery_prompt_does_not_reintroduce_smoke_only_boundary(tmp_path):
+        project = ready_implementation(tmp_path, reviewed=False)
+        c = composer(project)
+        rendered = c.render(stage=S.TARGET_FRAMEWORK_ENABLEMENT, actor_role=ActorRole.DEVELOPER)
+>       assert 'Do not freeze a smoke-only implementation' in rendered.text
+E       assert 'Do not freeze a smoke-only implementation' in "# Task agreement\n\n## Skill instructions\n\nThe frozen scope/contracts define required behavior; the current task ag.... A missing or stale reference\nrequires a fresh query; do not substitute another task's reference or invent a hash.\n"
+E        +  where "# Task agreement\n\n## Skill instructions\n\nThe frozen scope/contracts define required behavior; the current task ag.... A missing or stale reference\nrequires a fresh query; do not substitute another task's reference or invent a hash.\n" = RenderedPrompt(text='# Task agreement\n\n## Skill instructions\n\nThe frozen scope/contracts define required behavior;...df1e2a1e5a1334fd14669c427d330b0b736', policy_digest='888b3544b07183e9e9d10fc923f016f7122c599ba2b4205e0b68c817a52e10dc').text
+
+tests/test_high_cost_delivery.py:81: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_high_cost_delivery.py::test_first_delivery_prompt_does_not_reintroduce_smoke_only_boundary
+1 failed, 368 passed in 614.97s (0:10:14)

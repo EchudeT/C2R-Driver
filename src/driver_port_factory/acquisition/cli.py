@@ -94,6 +94,13 @@ def register_commands(commands: CommandRegistry) -> None:
         "acquire", help="pin repositories and close provenance-tracked evidence"
     )
     subcommands = command_registry(acquire, dest="acquire_command")
+    from .navigation import command as repository_locations
+
+    locations = subcommands.add_parser(
+        "locations", help="read frozen repository paths and versions"
+    )
+    locations.add_argument("path")
+    locations.set_defaults(handler=repository_locations)
     revision_proposal = subcommands.add_parser("revision-proposal-import")
     revision_proposal.add_argument("path")
     revision_proposal.add_argument("--job-digest", required=True)

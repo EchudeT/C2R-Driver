@@ -6,6 +6,8 @@ class EnvironmentStage(StrEnum):
 
 
 class EnvironmentArtifact(StrEnum):
+    PLATFORM_PROFILE = "platform_execution_profile"
+    PLATFORM_VALIDATION = "platform_execution_validation"
     INVENTORY = "environment_inventory"
     MODE_CANDIDATES = "artifact_mode_candidates"
     EXPERIMENT_PLAN = "environment_experiment_plan"

@@ -5,6 +5,7 @@ chat response.  A worker writes a deliverable in its granted workspace and
 invokes ``dpf codex submit``.  The command validates the request and writes a
 small, immutable-by-convention receipt for the controller to consume.
 """
+
 from __future__ import annotations
 
 import hashlib
@@ -22,32 +23,39 @@ from ..core.models import StageStatus, WorkflowError
 from ..core.project import Project
 from .policy import CodexExecutionPolicy
 
-
-PROPOSAL_STAGES = frozenset({
-    "repository_acquisition",
-    "evidence_closure",
-})
+PROPOSAL_STAGES = frozenset(
+    {
+        "repository_acquisition",
+        "evidence_closure",
+    }
+)
 SUBMISSION_KINDS = frozenset({"proposal", "report"})
 DECISIONS = frozenset({"submit", "pass", "rework", "blocked", "operation"})
 
 
-def _checker_recovery_pending(project: Project, stage: StageKey) -> bool:
-    """Allow a report only for an active checker-recovery decision.
-
-    Evidence closure normally has a JSON proposal interface.  A checker
-    recovery is different: the worker must first adjudicate the finding in a
-    report, after which the controller recaptures the normal proposal.  Keep
-    this exception tied to the durable pending pointer so ordinary proposal
-    submissions cannot silently switch interfaces.
-    """
-    return (project.control / "checker-decisions" / f"{stage.value}.pending").is_file()
+def _proposal_recovery_report(project, stage, kind, decision):
+    if kind != "report" or decision not in {"pass", "rework", "blocked"}:
+        return False
+    pointer = project.control / "checker-decisions" / f"{stage.value}.pending"
+    if not pointer.is_file():
+        return False
+    payload = json.loads(Path(pointer.read_text()).read_text())
+    if decision == "pass" and payload.get("artifacts") is None:
+        raise WorkflowError(
+            f"{stage.value}: no captured outputs exist to accept. Submit the repaired JSON "
+            "with --kind proposal --decision submit, or report a concrete blocker. "
+            "A Markdown pass cannot replace the proposal; submit once per job."
+        )
+    return True
 
 
 def receipt_path(project: Project, job_id: str) -> Path:
     try:
         uuid.UUID(job_id)
-    except (ValueError, AttributeError) as error:
-        raise WorkflowError("Codex submission job_id must be a UUID") from error
+    except (ValueError, AttributeError, TypeError) as error:
+        raise WorkflowError(
+            "Codex submission job_id must be a UUID; outside a worker supply --job-id"
+        ) from error
     return project.control / "codex" / "submissions" / f"{job_id}.json"
 
 
@@ -59,8 +67,11 @@ def _workspace_file(project: Project, stage: StageKey, value: str, *, kind: str)
         raise WorkflowError("submission files must not be under .dpf control state")
     if path != root and root not in path.parents:
         raise WorkflowError(f"submission file must be inside the Codex workspace: {root}")
-    if (kind == "report" and stage in CodexExecutionPolicy.WRITABLE_STAGES
-            and root / ".dpf-output" not in path.parents):
+    if (
+        kind == "report"
+        and stage in CodexExecutionPolicy.WRITABLE_STAGES
+        and root / ".dpf-output" not in path.parents
+    ):
         raise WorkflowError(
             "reports for target-framework, implementation, artifact and public-runtime stages "
             "must be under .dpf-output"
@@ -87,7 +98,8 @@ def _read_deliverable(path: Path, kind: str) -> bytes:
             value = json.loads(data)
         except json.JSONDecodeError as error:
             raise WorkflowError(
-                "proposal JSON must be valid in the submitted file; do not put it in the chat response"
+                "proposal JSON must be valid in the submitted file; "
+                "do not put it in the chat response"
             ) from error
         if not isinstance(value, dict):
             raise WorkflowError("proposal file must contain a JSON object")
@@ -106,16 +118,17 @@ def write_submission(
     repair_stage: str | None = None,
 ) -> Path:
     """Validate and atomically write one worker submission receipt."""
+    worker_job = os.environ.get("DPF_WORKER_JOB")
+    if worker_job and (
+        job_id != worker_job
+        or os.environ.get("DPF_WORKER_STAGE") != stage.value
+        or Path(os.environ.get("DPF_WORKER_PROJECT", "")).resolve() != project.root
+    ):
+        raise WorkflowError("Submission differs from bound worker job/stage/project")
     if stage.value in PROPOSAL_STAGES:
-        recovery_report = (
-            kind == "report"
-            and decision in {"pass", "rework", "blocked"}
-            and _checker_recovery_pending(project, stage)
-        )
+        recovery_report = _proposal_recovery_report(project, stage, kind, decision)
         if not ((kind == "proposal" and decision == "submit") or recovery_report):
-            raise WorkflowError(
-                f"{stage.value} requires --kind proposal --decision submit"
-            )
+            raise WorkflowError(f"{stage.value} requires --kind proposal --decision submit")
     elif kind != "report":
         raise WorkflowError(f"{stage.value} requires --kind report")
     if kind not in SUBMISSION_KINDS:
@@ -126,17 +139,21 @@ def write_submission(
         raise WorkflowError("report submissions must choose pass, rework, blocked, or operation")
     if decision == "operation":
         from ..orchestration.protocol import TASKS
+
         allowed = TASKS.get(stage.value).operations if TASKS.get(stage.value) else ()
+        from ..migration.behavior import enabled
+
+        if enabled(project, stage):
+            allowed = (*allowed, "behavior_done", "behavior_continue")
         if operation not in allowed:
-            raise WorkflowError(
-                f"operation must be one of {allowed} for {stage.value}"
-            )
+            raise WorkflowError(f"operation must be one of {allowed} for {stage.value}")
     elif operation is not None:
         raise WorkflowError("--operation is only valid with --decision operation")
     if decision == "rework" and repair_stage is None:
         raise WorkflowError("--repair-stage is required with --decision rework")
     if repair_stage is not None:
         from ..orchestration.protocol import REPAIR_TARGETS
+
         if repair_stage not in REPAIR_TARGETS:
             raise WorkflowError(f"repair stage must be one of {sorted(REPAIR_TARGETS)}")
     if decision != "rework" and repair_stage is not None:
@@ -162,6 +179,16 @@ def write_submission(
         "size": len(data),
         "submitted_at": datetime.now(UTC).isoformat(),
     }
+    if stage.value == "target_platform_study" and decision == "pass":
+        from ..target_study.service import prepare
+
+        quality, route = prepare(project, path)
+        record["knowledge_probe_specification"] = quality["specification"]
+        record["route_index"] = route["index"]
+    if decision == "operation" and operation == "behavior_done":
+        from ..migration.behavior import last_selected
+        if last_selected(project, stage):
+            record["final_package_handoff"] = True
     encoded = (json.dumps(record, ensure_ascii=False, sort_keys=True, indent=2) + "\n").encode()
     if target.exists():
         try:
@@ -178,12 +205,15 @@ def write_submission(
     temporary = target.with_suffix(f".tmp-{os.getpid()}")
     temporary.write_bytes(encoded)
     os.replace(temporary, target)
-    project.record_event(RunEvent.WORKER_SUBMISSION, {
-        "stage": stage.value,
-        "job_id": job_id,
-        "receipt": str(target),
-        "decision": decision,
-    })
+    project.record_event(
+        RunEvent.WORKER_SUBMISSION,
+        {
+            "stage": stage.value,
+            "job_id": job_id,
+            "receipt": str(target),
+            "decision": decision,
+        },
+    )
     return target
 
 
@@ -204,11 +234,7 @@ def load_submission(project: Project, stage: StageKey, job_id: str) -> dict[str,
     if kind not in SUBMISSION_KINDS or decision not in DECISIONS:
         raise WorkflowError("Codex submission receipt has an invalid kind or decision")
     if stage.value in PROPOSAL_STAGES:
-        recovery_report = (
-            kind == "report"
-            and decision in {"pass", "rework", "blocked"}
-            and _checker_recovery_pending(project, stage)
-        )
+        recovery_report = _proposal_recovery_report(project, stage, kind, decision)
         if not ((kind == "proposal" and decision == "submit") or recovery_report):
             raise WorkflowError("proposal-stage submission receipt has an invalid decision")
     elif kind != "report" or decision == "submit":
@@ -217,18 +243,22 @@ def load_submission(project: Project, stage: StageKey, job_id: str) -> dict[str,
         raise WorkflowError("operation submission receipt has no operation")
     if decision == "operation":
         from ..orchestration.protocol import TASKS
+
         allowed = TASKS.get(stage.value).operations if TASKS.get(stage.value) else ()
+        from ..migration.behavior import enabled
+
+        if enabled(project, stage):
+            allowed = (*allowed, "behavior_done", "behavior_continue")
         if value.get("operation") not in allowed:
             raise WorkflowError("operation submission receipt names an invalid operation")
     if decision == "rework" and not value.get("repair_stage"):
         raise WorkflowError("rework submission receipt has no repair_stage")
     if decision == "rework":
         from ..orchestration.protocol import REPAIR_TARGETS
+
         if value.get("repair_stage") not in REPAIR_TARGETS:
             raise WorkflowError("rework submission receipt names an invalid repair stage")
-    deliverable = _workspace_file(
-        project, stage, str(value.get("file", "")), kind=str(kind)
-    )
+    deliverable = _workspace_file(project, stage, str(value.get("file", "")), kind=str(kind))
     data = _read_deliverable(deliverable, kind)
     if value.get("sha256") != hashlib.sha256(data).hexdigest() or value.get("size") != len(data):
         raise WorkflowError(
@@ -239,7 +269,12 @@ def load_submission(project: Project, stage: StageKey, job_id: str) -> dict[str,
 
 def submission_artifact(value: dict[str, Any], *, job_digest: str, job_ordinal: int) -> bytes:
     """Bind a receipt to the immutable Codex result occurrence for auditability."""
-    return (json.dumps(
-        {**value, "job_result_digest": job_digest, "job_result_ordinal": job_ordinal},
-        ensure_ascii=False, sort_keys=True, indent=2,
-    ) + "\n").encode()
+    return (
+        json.dumps(
+            {**value, "job_result_digest": job_digest, "job_result_ordinal": job_ordinal},
+            ensure_ascii=False,
+            sort_keys=True,
+            indent=2,
+        )
+        + "\n"
+    ).encode()

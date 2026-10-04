@@ -43,29 +43,44 @@ class ImplementationChanged(WorkflowError):
 def worktree_files(worktree: Path, base: str) -> list[dict[str, Any]]:
     """Describe final file states relative to upstream, independently of local commits."""
     # NUL delimiters preserve spaces, newlines and non-ASCII Git paths.
-    changed = set(filter(None, _git(worktree, "diff", "--no-renames", "--name-only", "-z", base).split("\0")))
-    changed.update(filter(None, _git(worktree, "ls-files", "--others", "--exclude-standard", "-z").split("\0")))
-    existing = set(filter(None, _git(worktree, "ls-tree", "-r", "--name-only", "-z", base).split("\0")))
+    changed = set(
+        filter(None, _git(worktree, "diff", "--no-renames", "--name-only", "-z", base).split("\0"))
+    )
+    changed.update(
+        filter(None, _git(worktree, "ls-files", "--others", "--exclude-standard", "-z").split("\0"))
+    )
+    existing = set(
+        filter(None, _git(worktree, "ls-tree", "-r", "--name-only", "-z", base).split("\0"))
+    )
     files = []
     for relative in sorted(changed):
         if relative.startswith(".dpf-output/"):
             continue
         pure = PurePosixPath(relative)
         path = worktree / pure
-        if (pure.is_absolute() or ".." in pure.parts or pure.as_posix() != relative
-                or worktree not in path.resolve().parents or path.is_symlink()):
-            raise CodexOutputError(f"unsupported implementation path: {relative}; symlinks are not supported")
+        if (
+            pure.is_absolute()
+            or ".." in pure.parts
+            or pure.as_posix() != relative
+            or worktree not in path.resolve().parents
+            or path.is_symlink()
+        ):
+            raise CodexOutputError(
+                f"unsupported implementation path: {relative}; symlinks are not supported"
+            )
         if path.exists() and not path.is_file():
             raise CodexOutputError(f"implementation path is not a regular file: {relative}")
         if not path.exists() and relative not in existing:
             raise CodexOutputError(f"implementation path disappeared: {relative}")
-        files.append({
-            "path": relative,
-            "preexisting": relative in existing,
-            "state": "file" if path.exists() else "deleted",
-            "sha256": file_sha256(path) if path.exists() else None,
-            "executable": bool(path.stat().st_mode & 0o111) if path.exists() else False,
-        })
+        files.append(
+            {
+                "path": relative,
+                "preexisting": relative in existing,
+                "state": "file" if path.exists() else "deleted",
+                "sha256": file_sha256(path) if path.exists() else None,
+                "executable": bool(path.stat().st_mode & 0o111) if path.exists() else False,
+            }
+        )
     return files
 
 
@@ -95,15 +110,20 @@ class DriverImplementationService:
             project.note_check(str(error))
         acquisition = load_repository_acquisition(project)
         worktree = (project.root / acquisition.target_worktree.path).resolve()
-        framework = project.load_json_artifact(
-            MigrationStage.TARGET_FRAMEWORK_ENABLEMENT,
-            MigrationArtifact.TARGET_FRAMEWORK_BUNDLE,
+        framework = (
+            {"files": []}
+            if project.config.unified_implementation
+            else project.load_json_artifact(
+                MigrationStage.TARGET_FRAMEWORK_ENABLEMENT,
+                MigrationArtifact.TARGET_FRAMEWORK_BUNDLE,
+            )
         )
         framework_paths = {item["path"] for item in framework.get("files", ())}
         # Framework evidence describes an earlier checkpoint, not file ownership.
         # The final delivery seals every changed path, including shared integration.
         all_files = worktree_files(worktree, acquisition.target_worktree.base_commit)
         from .implementation_smoke import implementation_smoke
+
         smoke = implementation_smoke(project, worktree, acquisition.target_worktree.base_commit)
         files = all_files
         if not files:
@@ -113,7 +133,11 @@ class DriverImplementationService:
             "path": str(report_path.relative_to(project.root)),
             "sha256": file_sha256(report_path),
         }
+        from .route import current
+
+        route_revision = current(project)[2]
         bundle = {
+            "route_revision": route_revision,
             "schema_version": 2,
             "inputs": inputs,
             "functional_smoke": smoke,
@@ -132,9 +156,17 @@ class DriverImplementationService:
             "new_files": [item for item in files if not item["preexisting"]],
             "work_report": report,
         }
+        from .target_framework import TargetFrameworkEnablementService
+
+        framework_artifacts = (
+            TargetFrameworkEnablementService().artifacts(project, report_path, files=files)
+            if project.config.unified_implementation
+            else ()
+        )
         project.finalize_stage(
             MigrationStage.DRIVER_IMPLEMENTATION,
             (
+                *framework_artifacts,
                 GeneratedArtifact(
                     MigrationArtifact.IMPLEMENTATION_BUNDLE,
                     self._json(bundle),
@@ -154,6 +186,11 @@ class DriverImplementationService:
         dependencies = project.workflow.spec(MigrationStage.DRIVER_IMPLEMENTATION).dependencies
         result = {}
         for kind in IMPLEMENTATION_INPUTS:
+            if (
+                project.config.unified_implementation
+                and kind is MigrationArtifact.TARGET_FRAMEWORK_BUNDLE
+            ):
+                continue
             matches = [
                 ref
                 for stage in dependencies
@@ -190,8 +227,18 @@ def validate_implementation_bundle(context: BundleValidationContext) -> None:
     if not report_text.strip():
         raise WorkflowError("implementation work report is not non-empty UTF-8")
     require_self_review(report_text)
+    from ..composition import open_project
+    from .route import current
+
+    project = open_project(context.project_root, read_only=True, verify_artifacts=False)
+    _, _, revision = current(project)
+    if bundle.get("route_revision") != revision:
+        raise WorkflowError("Implementation snapshot has a stale analysis route")
+    unified = _validate_unified_framework(context, bundle)
     expected_inputs = {
-        kind.value: context.one_dependency(kind)[0].to_dict() for kind in IMPLEMENTATION_INPUTS
+        kind.value: context.one_dependency(kind)[0].to_dict()
+        for kind in IMPLEMENTATION_INPUTS
+        if not (unified and kind is MigrationArtifact.TARGET_FRAMEWORK_BUNDLE)
     }
     if (
         bundle.get("schema_version") != 2
@@ -229,3 +276,23 @@ def validate_implementation_bundle(context: BundleValidationContext) -> None:
         or inventory.get("new_files") != expected_new
     ):
         raise WorkflowError("target change inventory differs from the Git snapshot")
+
+
+def _validate_unified_framework(context, bundle):
+    unified = any(
+        ref.kind == MigrationArtifact.TARGET_FRAMEWORK_BUNDLE.value for ref, _ in context.artifacts
+    )
+    if unified:
+        from .target_framework import validate_target_framework_bundle
+
+        validate_target_framework_bundle(context)
+        framework = json_object(
+            context.one_current(MigrationArtifact.TARGET_FRAMEWORK_BUNDLE)[1],
+            "unified framework bundle",
+        )
+        if any(
+            framework.get(key) != bundle.get(key)
+            for key in ("target_worktree", "files", "work_report")
+        ):
+            raise WorkflowError("unified framework and implementation snapshots differ")
+    return unified

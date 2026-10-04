@@ -6,6 +6,7 @@ import platform
 from pathlib import Path
 
 from ..core.models import WorkflowError
+from .configuration import OVMF_PATH
 
 
 def digest(value):
@@ -19,7 +20,9 @@ def adapter_identity():
     }
 
 
-def asterinas(image, image_id, revision, accelerator):
+def asterinas(image, image_id, revision, accelerator, *, machine="q35"):
+    if machine not in {"pc", "q35"}:
+        raise WorkflowError("Unsupported explicit QEMU machine")
     if accelerator not in {"kvm", "tcg"}:
         raise WorkflowError("Select kvm or tcg explicitly; no fallback")
     if platform.machine() != "x86_64":
@@ -40,7 +43,7 @@ def asterinas(image, image_id, revision, accelerator):
         "qemu": "qemu-system-x86_64",
         "qemu_args": [
             "-machine",
-            "q35,kernel-irqchip=split" if accelerator == "kvm" else "q35",
+            f"{machine},kernel-irqchip=split" if accelerator == "kvm" else machine,
             "-accel",
             accelerator,
             "-cpu",
@@ -59,7 +62,7 @@ def asterinas(image, image_id, revision, accelerator):
             "-boot",
             "d",
             "-bios",
-            "/root/ovmf/release/OVMF.fd",
+            OVMF_PATH,
             "-device",
             "isa-debug-exit,iobase=0xf4,iosize=0x04",
         ],

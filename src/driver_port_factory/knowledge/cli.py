@@ -8,7 +8,14 @@ from ..cli_support import CommandRegistry, command_registry
 from ..composition import open_project
 from ..core.models import WorkflowError
 from .contracts import KnowledgeDomain
+from .embeddings import build_configured
 from .index import KnowledgeIndex
+
+
+def _json(value, **kwargs):
+    from ..short_refs import emit
+
+    return json.dumps(emit(value), **kwargs)
 
 
 def _query_index(arguments: argparse.Namespace) -> KnowledgeIndex:
@@ -20,8 +27,8 @@ def _query_index(arguments: argparse.Namespace) -> KnowledgeIndex:
 
 def command_rebuild(arguments: argparse.Namespace) -> None:
     print(
-        json.dumps(
-            KnowledgeIndex.for_project(open_project(Path(arguments.path))).build(),
+        _json(
+            build_configured(KnowledgeIndex.for_project(open_project(Path(arguments.path)))),
             ensure_ascii=False,
             sort_keys=True,
             indent=2,
@@ -31,7 +38,7 @@ def command_rebuild(arguments: argparse.Namespace) -> None:
 
 def command_status(arguments: argparse.Namespace) -> None:
     print(
-        json.dumps(
+        _json(
             _query_index(arguments).status(),
             ensure_ascii=False,
             sort_keys=True,
@@ -42,7 +49,7 @@ def command_status(arguments: argparse.Namespace) -> None:
 
 def command_inventory(arguments: argparse.Namespace) -> None:
     print(
-        json.dumps(
+        _json(
             _query_index(arguments).inventory(domain=arguments.domain),
             ensure_ascii=False,
             sort_keys=True,
@@ -53,7 +60,7 @@ def command_inventory(arguments: argparse.Namespace) -> None:
 
 def command_search(arguments: argparse.Namespace) -> None:
     print(
-        json.dumps(
+        _json(
             _query_index(arguments).search(
                 arguments.query,
                 domain=arguments.domain,
@@ -71,7 +78,7 @@ def command_search(arguments: argparse.Namespace) -> None:
 
 def command_show(arguments: argparse.Namespace) -> None:
     print(
-        json.dumps(
+        _json(
             _query_index(arguments).show(arguments.chunk_id),
             ensure_ascii=False,
             sort_keys=True,
@@ -85,8 +92,14 @@ def command_search_batch(arguments: argparse.Namespace) -> None:
         queries = json.loads(arguments.queries_file.read_text(encoding="utf-8"))
     except (OSError, ValueError) as error:
         raise WorkflowError(f"cannot read batch query file: {error}") from error
-    print(json.dumps(_query_index(arguments).search_many(queries, compact=not arguments.full),
-                     ensure_ascii=False, sort_keys=True, indent=2))
+    print(
+        _json(
+            _query_index(arguments).search_many(queries, compact=not arguments.full),
+            ensure_ascii=False,
+            sort_keys=True,
+            indent=2,
+        )
+    )
 
 
 def register_commands(commands: CommandRegistry) -> None:
@@ -95,8 +108,19 @@ def register_commands(commands: CommandRegistry) -> None:
     )
     subcommands = command_registry(knowledge, dest="knowledge_command")
     from .problem_packet import register as register_packet
+
     register_packet(subcommands)
+    from .rag_cli import register as register_rag
+
+    register_rag(subcommands)
+    from .shared_cli import register as register_shared
+
+    register_shared(subcommands)
+    from .probes import register as register_probes
+
+    register_probes(subcommands)
     from .translation_facts import TOPICS
+
     facts = subcommands.add_parser("facts", help="bounded source/target translation navigation")
     facts.add_argument("path")
     facts.add_argument("--topic", choices=list(TOPICS))
@@ -131,7 +155,9 @@ def register_commands(commands: CommandRegistry) -> None:
         "--full", action="store_true", help="include full chunks instead of summaries"
     )
     search.set_defaults(handler=command_search)
-    batch = subcommands.add_parser("search-batch", help="query one verified snapshot with shared evidence")
+    batch = subcommands.add_parser(
+        "search-batch", help="query one verified snapshot with shared evidence"
+    )
     batch.add_argument("path")
     batch.add_argument("--queries-file", type=Path, required=True)
     batch.add_argument("--full", action="store_true")
@@ -144,13 +170,30 @@ def register_commands(commands: CommandRegistry) -> None:
 
 def command_facts(arguments):
     from .translation_facts import query
+
     project = open_project(Path(arguments.path), read_only=True, verify_artifacts=False)
-    print(json.dumps(query(project, topic=arguments.topic, domain=arguments.domain,
-                           limit=arguments.limit), ensure_ascii=False, indent=2))
+    print(
+        _json(
+            query(project, topic=arguments.topic, domain=arguments.domain, limit=arguments.limit),
+            ensure_ascii=False,
+            indent=2,
+        )
+    )
 
 
 def command_semantic(arguments):
     from .semantic import query
+
     project = open_project(Path(arguments.path), read_only=True, verify_artifacts=False)
-    print(json.dumps(query(project, arguments.compile_db, arguments.file, arguments.symbol,
-                           limit=arguments.limit), indent=2))
+    print(
+        _json(
+            query(
+                project,
+                arguments.compile_db,
+                arguments.file,
+                arguments.symbol,
+                limit=arguments.limit,
+            ),
+            indent=2,
+        )
+    )

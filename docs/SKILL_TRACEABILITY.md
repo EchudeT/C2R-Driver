@@ -1,42 +1,39 @@
 # Skill 规范追踪矩阵
 
-本文件把 `C-kernel-to-Rust` 仓库中的三套 Skill 当作 DPF 的规范源。`IMPLEMENTED`
-表示已有确定性门禁和测试，`PARTIAL` 表示只有数据结构或阶段骨架，`PLANNED` 表示尚未实现。
-任何 `PARTIAL/PLANNED` 项都不能被报告为对应 Skill 阶段已完成。
+更新于 2026-10-02。本轮核对上游两套迁移 Skill 与全部 12 个 reference；详细发现、修复及兼容性见 [执行对齐记录](SKILL_ALIGNMENT_2026-10-02.zh-CN.md)。
+
+`MECHANICAL` 表示控制器能验证对应身份、查询或执行，不表示语义正确；`WORKER` 表示工作模型必须取证、自检，并由适用验收测例检验，内容不是程序确定性证明；`OPTIONAL_REVIEW` 为可关闭的辅助；`USER_POLICY_OVERRIDE` 为明确授权的差异。以下状态不等于真实驱动实验已完成。
 
 ## 迁移入口：open-kernel-driver-port
 
-| Skill 要求 | 程序阶段/模块 | 强制产物或检查 | 状态 |
-|---|---|---|---|
-| clone 前确认 source、target、唯一驱动及设备/总线范围 | `request_intake` 至 `migration_envelope_freeze`、`intake/` | request、候选、一次合并问题、确认答案、冻结 envelope | IMPLEMENTED |
-| 歧义状态可持久恢复且不得重复提问 | `intake/service.py`、SQLite ledger | `WAITING_FOR_USER` 与 answer 事件 | IMPLEMENTED |
-| source/target/QEMU 使用完整提交而非浮动分支 | `repository_acquisition`、`acquisition/` | revision manifest、解析命令证据 | PARTIAL |
-| 上游输入只读、target baseline 与 writable worktree 分离 | `repository_acquisition`、`acquisition/` | 三个 baseline lock、独立 target-working、可恢复 partial clone | PARTIAL |
-| 最小证据闭包覆盖源码、测试、目标、QEMU、硬件和工具链 | `evidence_closure`、`acquisition/facets.py` | typed proposal、逐文件 Git blob/external origin、不可变语料 artifact、coverage、gap、retrieval ledger 与 bundle gate | PARTIAL |
-| 环境恢复必须实际达到 `EXPERIMENT_READY` | `environment_recovery` | 三仓复验、冻结 runner 身份、真实启动/退出或有界超时、不可覆盖 run | IMPLEMENTED |
-| 不能默认完整源码构建，须比较 runner/SDK/image/injection/CI/full build | environment artifact discovery | 候选路线与选择证据 | PARTIAL |
-| 建立或复用带完整性、search、show、rebuild 的项目知识库 Skill | `knowledge_base` | KB status、query contract、生成 Skill | PARTIAL |
-| 目标专项检索失败时直接查源码、补语料、重建并复测 | KB target probes | probe 与 repair ledger | PARTIAL |
-| 完整 handoff，不能只写“缺少构建信息” | bootstrap handoff | `handoff.json` 全字段验证 | PLANNED |
+| 要求 | 实现/承担者 | 状态与边界 |
+|---|---|---|
+| 采集前唯一驱动、设备/总线范围和合并消歧 | intake 阶段、持久化问题与冻结 envelope | MECHANICAL；候选证据解释由 WORKER |
+| 固定 source/target/QEMU commit、原始 baseline 与可写树分离 | acquisition/repository、baseline、材料清单与 bundle validator | MECHANICAL；本地原仓只读导入 |
+| 源/目标/硬件/QEMU/环境证据闭包 | acquisition facets、typed proposal、provenance/gap | MECHANICAL 身份与枚举检查；充分性为 WORKER |
+| 选实际可运行环境路线并保留失败 | environment discovery/execution/validation | MECHANICAL 命令/进程/日志；路线选择为 WORKER，不能把启动等同驱动工作 |
+| 可检索、精读、完整性、重建的本地 KB Skill | knowledge bootstrap/index/skill_generation；BM25 与本地 embedding RAG | MECHANICAL；生成模板来自包内 data/project-kb-skill.md |
+| 目标知识质量检查、弱检索修复与复测 | target study 同报告 + probes.json；knowledge/probes.py；证据缺口回到 evidence_closure | MECHANICAL 查询/原文范围重放；解释和 N/A 为 WORKER 自检；不宣称全部目标知识覆盖 |
+| 目标基线构建、启动和观测链路复用 | platform profile/executor/guest/service；环境阶段门禁 | MECHANICAL；Asterinas x86_64 ISO/KVM 已实测，非通用平台能力；不代表迁移驱动通过 |
+| 完整 handoff，包含环境、证据、知识入口 | migration/handoff.py | MECHANICAL 绑定当前产物；有用内容由 WORKER |
 
 ## 迁移执行：knowledge-guided-driver-port
 
-| Skill 要求 | 程序阶段/模块 | 强制产物或检查 | 状态 |
-|---|---|---|---|
-| 先完成目标平台画像、API 表和相似驱动端到端链路 | `target_platform_study` | target profile、API evidence、analog trace | IMPLEMENTED |
-| 理解必要共享源码、头、配置、callback、注册表、测试和框架依赖 | `migration_contracts` | 原文证据、必要编译器探测与源码/设计自检，共用一份报告 | WORKER_OWNED |
-| 编译器语义证据 | 具体问题按需探测 | 按用户授权替代全量结构化导出；未解决语义不允许猜测，见 SOURCE_DESIGN.md | USER_POLICY_OVERRIDE |
-| 在编码前建立硬件/源/目标/QEMU 四域迁移合同 | `migration_contracts` | 每项证据、Rust 设计、验证 oracle、独立状态 | PARTIAL |
-| 驱动逻辑按合同重构而非逐行或按名称猜测 | `rust_design`、`rust_implementation` | source span/structured-fact-to-contract coverage 与 unsafe obligations | PARTIAL |
-| 修改既有目标文件前证明必要性并选择最低 change level | target-change gate | necessity record、baseline、patch、rollback | PARTIAL |
-| 分类每个源测试并尽量保留设备意图，只替换平台 harness | `test_adaptation`、device/platform adapters | 七类 taxonomy、映射、来源、适配和排除理由 | PARTIAL |
-| 公共测试与新增迁移测试不得冒充私有/独立测试 | test provenance gate | `SOURCE/ADAPTED/NEW_MIGRATION_TEST` | PARTIAL |
-| 产物身份必须证明当前驱动实际进入 QEMU | `artifact_preparation` | base/payload/final hashes、insertion proof | PLANNED |
-| 按 evidence ladder 运行并保留每次失败 | `public_qemu_validation`、run store | plan、命令、日志、oracle、状态与归因 | PARTIAL |
-| 公开失败按类别窄修复并复跑受影响测试和回归 | `public_qemu_validation` | diagnosis、patch scope、reruns、自检 | PARTIAL |
-| 最终按合同而非单一总分报告 | `completion_audit` | evidence audit | PARTIAL |
+| 要求 | 实现/承担者 | 状态与边界 |
+|---|---|---|
+| 目标画像、API 原文、相似驱动路径 | analysis-task 与 target study，质量记录绑定报告和语料 | WORKER；可选 analysis reviewer 复核，不是通过的必要模型角色 |
+| 源入口、共享定义、配置、回调、生命周期与测试闭包 | 同一 analysis 报告 | WORKER；从原文追踪，不能仅靠 API 名猜测 |
+| 全量结构化 C 事实 | 以具体问题的编译器探测替代 | USER_POLICY_OVERRIDE，见 SOURCE_DESIGN.md，不恢复旧强制阶段 |
+| 四域契约和源测试七类筛选、保留 stimulus/oracle 与来源 | migration_contracts；analysis-task；contracts taxonomy | WORKER；契约/测试计划引用同一报告，不额外复制 |
+| 目标框架最小修改、必要性/替代/安全/回滚 | delivery-task；统一 implementation 快照（旧项目保留 framework checkpoint） | WORKER 判断；MECHANICAL 快照与归属 |
+| 编码后及相关修复后目标规则合规 | delivery-task/repair 明确当前工作者责任；同报告更新 | WORKER；首次包装前查规则，后续按改动重查原文，不每轮固定检索 |
+| 源/新增/适配公开测试不能冒充独立私测 | analysis-task、公开工作报告与实际 receipts | WORKER 来源解释；公开测试作者身份不因 PASS 改变 |
+| 当前制品、源码与 QEMU 运行身份 | implementation、artifact_preparation、public_qemu | MECHANICAL 快照/制品/脚本/trace/logs；不证明全部设备行为 |
+| 归因、保留失败、修复受影响检查及停滞保护 | repair routing、checker decision、store 依赖失效 | MECHANICAL 身份与进度；WORKER 根因与修复；开发模式可据反证修订早期前提 |
+| 按契约/测试记录状态和范围限制 | 同一工作报告与验收收据；可选 final_evidence_review | WORKER + MECHANICAL 执行；OPTIONAL_REVIEW 不替代测试 |
+| 封存后汇总实际证据，公共 harness 不升级为语义证明 | completion_audit，当前 PUBLIC_HARNESS/outcome 协议 | MECHANICAL；仅封存路线，仍不等于私有盲评 |
 
-## 独立评测：blind-c2rust-driver-evaluation
+## 独立评测：blind-c2rust-driver-evaluation（历史追踪，本轮未完整复核）
 
 | Skill 要求 | 程序阶段/模块 | 强制产物或检查 | 状态 |
 |---|---|---|---|

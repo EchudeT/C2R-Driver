@@ -1,0 +1,138 @@
+{
+  "command": {
+    "argv": [
+      "/bin/strace",
+      "-f",
+      "-qq",
+      "-s",
+      "65535",
+      "-e",
+      "trace=execve",
+      "-o",
+      "/tmp/dpf-platform-baseline-20261003/.dpf-output/platform-collector/execve.log",
+      "/bin/sh",
+      "/tmp/dpf-platform-baseline-20261003/.dpf-output/platform-managed-smoke.sh"
+    ],
+    "cwd": "/tmp/dpf-platform-baseline-20261003",
+    "started_at": "2026-10-02T16:57:00.823502+00:00",
+    "completed_at": "2026-10-02T16:57:20.869157+00:00",
+    "exit_code": 0,
+    "launched": true,
+    "launch_error": null,
+    "timed_out": false,
+    "duration_milliseconds": 20045,
+    "stdout_sha256": "deea4f92e4067289a97c85a858d68243234dbcd2f46a7dc57b2fef9b144ac6c8",
+    "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "stdout_path": "/tmp/dpf-platform-baseline-20261003/.dpf-output/platform-collector/command/0a6fb3794e84b398131f/stdout.bin",
+    "stderr_path": "/tmp/dpf-platform-baseline-20261003/.dpf-output/platform-collector/command/0a6fb3794e84b398131f/stderr.bin"
+  },
+  "trace_path": "/tmp/dpf-platform-baseline-20261003/.dpf-output/platform-collector/execve.log",
+  "executed_programs": [
+    "/bin/sh",
+    "/home/unix/file/C2R-Driver/c2rust-migration-test-01/driver-port-factory/.venv/bin/python",
+    "/bin/docker",
+    "qemu-system-x86_64"
+  ],
+  "qemu_execs": [
+    "docker-observed [\"qemu-system-x86_64\", \"-machine\", \"q35,kernel-irqchip=split\", \"-accel\", \"kvm\", \"-cpu\", \"host,+x2apic\", \"-smp\", \"1\", \"-m\", \"2G\", \"-no-reboot\", \"-display\", \"none\", \"-monitor\", \"none\", \"-serial\", \"stdio\", \"-boot\", \"d\", \"-bios\", \"/root/ovmf/release/OVMF.fd\", \"-device\", \"isa-debug-exit,iobase=0xf4,iosize=0x04\", \"-cdrom\", \"/tmp/dpf-platform-baseline-20261003/target/osdk/asterinas-osdk-bin.iso\", \"-S\", \"-qmp\", \"unix:/tmp/dpf-qmp-_f0t0b_q/q.sock,server=on,wait=off\"]"
+  ],
+  "host_qemu_execs": [],
+  "container_qemu_execs": [
+    "qemu-system-x86_64"
+  ],
+  "container_execution": {
+    "required": true,
+    "satisfied": true,
+    "images": [
+      "asterinas/dev:0.18.1-20260805"
+    ],
+    "image_ids": [
+      "sha256:7da64501ca8c05dcc903ef1d5a83e85d38030a166da45289df8af91206913b71"
+    ],
+    "qemu_programs": [
+      "qemu-system-x86_64"
+    ],
+    "observation_errors": [
+      "Docker event stream exited; periodic inspection remains active"
+    ],
+    "observation_path": "/tmp/dpf-platform-baseline-20261003/.dpf-output/platform-collector/container-processes.json"
+  },
+  "runtime_bound": true,
+  "logs": [
+    {
+      "path": ".dpf-output/qemu-runs/platform-managed/argv.json",
+      "sha256": "89af1a235275e990e63c17a820580e98775336695fdc8c6da8811d54499281e8",
+      "size": 462,
+      "archive_path": "/tmp/dpf-platform-baseline-20261003/.dpf-output/platform-collector/evidence/0-89af1a235275e990e63c17a820580e98775336695fdc8c6da8811d54499281e8"
+    },
+    {
+      "path": ".dpf-output/qemu-runs/platform-managed/boot.json",
+      "sha256": "270a1ecaa43e7b84605fb738a09e22b7d90446f7b553f0f4f82dd72f4e19c577",
+      "size": 1936,
+      "archive_path": "/tmp/dpf-platform-baseline-20261003/.dpf-output/platform-collector/evidence/1-270a1ecaa43e7b84605fb738a09e22b7d90446f7b553f0f4f82dd72f4e19c577"
+    },
+    {
+      "path": ".dpf-output/qemu-runs/platform-managed/case.json",
+      "sha256": "5aebd38ec932ee4731f1e867b4a18d49963494850b53947fe833cd26feea236d",
+      "size": 234,
+      "archive_path": "/tmp/dpf-platform-baseline-20261003/.dpf-output/platform-collector/evidence/2-5aebd38ec932ee4731f1e867b4a18d49963494850b53947fe833cd26feea236d"
+    },
+    {
+      "path": ".dpf-output/qemu-runs/platform-managed/cleanup/25397c0469675191f335/result.json",
+      "sha256": "19324cc28a48590554110cb71c65dd340366e6c0b8b200e0e6a726a27d0af21d",
+      "size": 820,
+      "archive_path": "/tmp/dpf-platform-baseline-20261003/.dpf-output/platform-collector/evidence/3-19324cc28a48590554110cb71c65dd340366e6c0b8b200e0e6a726a27d0af21d"
+    },
+    {
+      "path": ".dpf-output/qemu-runs/platform-managed/cleanup/25397c0469675191f335/stderr.bin",
+      "sha256": "9dc1d4451da7ca106bc91825abae0f66ef734f4496497deeceaba377ae7b316b",
+      "size": 93,
+      "archive_path": "/tmp/dpf-platform-baseline-20261003/.dpf-output/platform-collector/evidence/4-9dc1d4451da7ca106bc91825abae0f66ef734f4496497deeceaba377ae7b316b"
+    },
+    {
+      "path": ".dpf-output/qemu-runs/platform-managed/command/738b3f543ca0260e222a/result.json",
+      "sha256": "00e1bfee3c4e5efe67a8f8894fe67c1f917c073083fafe2f128972fb138315fb",
+      "size": 1591,
+      "archive_path": "/tmp/dpf-platform-baseline-20261003/.dpf-output/platform-collector/evidence/5-00e1bfee3c4e5efe67a8f8894fe67c1f917c073083fafe2f128972fb138315fb"
+    },
+    {
+      "path": ".dpf-output/qemu-runs/platform-managed/command/738b3f543ca0260e222a/stdout.bin",
+      "sha256": "cbe0f8c0bec6b0ad22a2bdf41f731785cb0d3e686ac416dd11ebb3fa67cd0a59",
+      "size": 146,
+      "archive_path": "/tmp/dpf-platform-baseline-20261003/.dpf-output/platform-collector/evidence/6-cbe0f8c0bec6b0ad22a2bdf41f731785cb0d3e686ac416dd11ebb3fa67cd0a59"
+    },
+    {
+      "path": ".dpf-output/qemu-runs/platform-managed/guest-result.json",
+      "sha256": "8f4ae74740a202ef5c8c70210c0d6980a50b7f56891758b561fa2c231ae3be3f",
+      "size": 158,
+      "archive_path": "/tmp/dpf-platform-baseline-20261003/.dpf-output/platform-collector/evidence/7-8f4ae74740a202ef5c8c70210c0d6980a50b7f56891758b561fa2c231ae3be3f"
+    },
+    {
+      "path": ".dpf-output/qemu-runs/platform-managed/profile.json",
+      "sha256": "73d1a4ee3c0cd5f3be189f0339e06e98a949a3e5e2823e60ace1825f535fb5a8",
+      "size": 1597,
+      "archive_path": "/tmp/dpf-platform-baseline-20261003/.dpf-output/platform-collector/evidence/8-73d1a4ee3c0cd5f3be189f0339e06e98a949a3e5e2823e60ace1825f535fb5a8"
+    },
+    {
+      "path": ".dpf-output/qemu-runs/platform-managed/qemu-stderr.log",
+      "sha256": "bcde68ea3041f3cfbf6cc9cb5a2c44a9ab253a9e5b016985803a77ca3a40a099",
+      "size": 66,
+      "archive_path": "/tmp/dpf-platform-baseline-20261003/.dpf-output/platform-collector/evidence/9-bcde68ea3041f3cfbf6cc9cb5a2c44a9ab253a9e5b016985803a77ca3a40a099"
+    },
+    {
+      "path": ".dpf-output/qemu-runs/platform-managed/qmp.jsonl",
+      "sha256": "0ed9fa5f7ede09f8eb783d997fb651ca864f3ab59330cdf2f4193754bf125c3d",
+      "size": 467,
+      "archive_path": "/tmp/dpf-platform-baseline-20261003/.dpf-output/platform-collector/evidence/10-0ed9fa5f7ede09f8eb783d997fb651ca864f3ab59330cdf2f4193754bf125c3d"
+    },
+    {
+      "path": ".dpf-output/qemu-runs/platform-managed/serial.log",
+      "sha256": "3091ce7136227b61f6117f721fe11406b6dd5cb2b83b8a8502711574b3a7cb1f",
+      "size": 108572,
+      "archive_path": "/tmp/dpf-platform-baseline-20261003/.dpf-output/platform-collector/evidence/11-3091ce7136227b61f6117f721fe11406b6dd5cb2b83b8a8502711574b3a7cb1f"
+    }
+  ],
+  "case_results": [],
+  "reused": false,
+  "passed": true
+}

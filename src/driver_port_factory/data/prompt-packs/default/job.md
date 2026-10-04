@@ -23,7 +23,9 @@ Use this run's inputs, shared installed tools, supplied upstream baselines and e
 Use tool_runtime for directory, permissions and commands. When the execution root is the target worktree (implementation, artifact preparation or public QEMU), put reports, scratch files and harness inputs under .dpf-output/; report-only stages must write their report inside their current stage workspace so the submission tool can consume it. Other edits to the target worktree count as implementation. Implementation symlinks are unsupported.
 Reuse valid work and follow Skill repair/self-check rules. Store necessary continuity notes in existing reports; reopen originals after compaction when needed.
 A program diagnostic is an observation: use the checker-decision protocol for evidenced disagreement rather than modifying correct code to fit a collector limitation.
-Keep verified facts, hypotheses, unresolved required behavior and superseded findings distinct in the existing report. A completed analysis may leave implementation work planned, but unknown prerequisites need a bounded capability check or explicit rework before dependent implementation. An API name alone does not establish the device's required DMA, interrupt, ownership or lifecycle semantics.
+Keep verified facts, hypotheses, unresolved required behavior and superseded findings distinct in the existing report. A completed analysis may leave implementation work planned, but unknown prerequisites need a bounded check before relying on them. During scheduled implementation,
+resolve target API/design corrections within the selected behavior; explicit prerequisite rework is
+for changing actual frozen inputs or obligations, not ordinary framework adaptation. An API name alone does not establish the device's required DMA, interrupt, ownership or lifecycle semantics.
 Write analysis reports so a fresh implementation session can use them: retain source locations and revisions for consequential conclusions, API preconditions, open questions, rejected alternatives with brief reasons, and the next bounded action. Update the existing report rather than adding a separate summary or review call. These are writing guidelines, not additional submission gates. When a context handoff is supplied, read it and the relevant analysis materials before dependent edits; consult archived history only for a concrete information gap.
 Read targeted symbols/sections first. Keep full build and runtime logs on disk; inspect relevant failures instead of repeatedly printing whole files. Do not redo passing checks whose inputs are unchanged.
 Budget a batch's combined visible output, not only each nested command: several large parallel
@@ -34,8 +36,8 @@ Parallelize independent retrieval, but return concise labeled excerpts and exit 
 serialize whole tool-result objects when only their text or a few fields are needed.
 For local reports, logs and current source, tool_runtime.text_reader accepts --path and either
 --headings, --contains <literal>, or --start <line>, with an optional --budget in characters.
-It returns exact bounded excerpts, content identity and a continuation cursor. Use --column and
---expected-sha256 from that cursor to continue a long line without losing text or mixing revisions.
+It returns exact bounded excerpts, an evidence_ref and a next cursor. Continue with --cursor NEXT;
+the controller retains the offset, query and full content hash, including partial long lines.
 Choose the relevant section rather than paging through every file. Frozen Git evidence still
 uses evidence_locator. These tools assist reading; normal targeted shell reads remain valid.
 After a successful build/test route, record its exact command, working directory, required
@@ -50,8 +52,9 @@ Use the supplied reading_plan as a navigation aid, not an acceptance checklist. 
 ## Submission
 
 Write every deliverable to a regular file in the writable directory. The
-`tool_runtime.submission_command` supplied in the job is the only workflow
-submission and state interface. Invoke it after the file is complete:
+`tool_runtime.submission_command` supplied in the job writes the controller submission receipt.
+For scheduled implementation progress, driver_checks.progress writes that same kind of receipt
+from done/continue and an optional short note; no model-authored report is needed for progress. Invoke it after the file is complete:
 
 - JSON selection stages: `--kind proposal --decision submit`.
 - Report stages: `--kind report --decision pass`.
@@ -74,3 +77,14 @@ state.
 </job>
 
 {{skill_documents}}
+
+## Controller-owned identities
+
+Do not calculate, copy or retype hashes, job UUIDs, CAS paths or provenance tables. Submit the
+actual file path and decision through the supplied submission command; the current job is bound
+automatically. Search results expose evidence_ref, a workspace-bound reference to full provenance.
+Cite it with original path/lines and your conclusion. Use the text reader with --ref REF or
+--cursor NEXT to inspect bound content/continue reading. Do not combine a cursor with another query.
+If complete metadata is needed, run the supplied Python with -m driver_port_factory.short_refs REF.
+References are navigation and identity checks, never semantic approval. A missing or stale reference
+requires a fresh query; do not substitute another task's reference or invent a hash.

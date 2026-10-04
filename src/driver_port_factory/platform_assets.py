@@ -73,7 +73,7 @@ def references(project):
 
 
 def command_asset(args):
-    project = open_project(Path(args.path), verify_artifacts=False)
+    project = open_project(Path(args.path), read_only=args.action == 'status')
     if args.action == 'export':
         path = export_asset(project, Path(args.facts), Path(args.store), args.configuration)
         print(json.dumps({'asset': str(path), 'sha256': path.stem}))

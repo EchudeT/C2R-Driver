@@ -139,6 +139,7 @@ class QemuHarnessResult:
     runtime_bound: bool
     logs: tuple[dict[str, Any], ...]
     case_results: tuple[dict[str, Any], ...] = ()
+    reused: bool = False
 
     @property
     def passed(self) -> bool:
@@ -252,17 +253,24 @@ def _run_public_harness(
     )
 
 
-def run_public_harness(**kwargs) -> QemuHarnessResult:
+def run_public_harness(*, final=False, **kwargs) -> QemuHarnessResult:
     kwargs["attempt_dir"].mkdir(parents=True, exist_ok=True)
     from .experiments import project_for, execute, cases, run_suite
     project = project_for(kwargs["worktree"])
     if project is None:
         return _run_public_harness(**kwargs)
-    if kwargs["script_path"].name == "public-qemu.sh" and cases(kwargs["worktree"]):
-        return run_suite(project, kwargs["worktree"], kwargs["runtime_path"])
+    from ..platform.public_tests import selected, verify
+    verify(project, kwargs["worktree"], final=final)
+    from ..platform.suite import generated
+    suite_entry = (kwargs["script_path"].name == "public-qemu.sh"
+                   or generated(kwargs["worktree"], kwargs["script_path"])
+                   or (selected(project)
+                       and kwargs["script_path"].name == "implementation-smoke.sh"))
+    if suite_entry and cases(kwargs["worktree"]):
+        return run_suite(project, kwargs["worktree"], kwargs["runtime_path"], final=final)
     return execute(project, worktree=kwargs["worktree"], script_path=kwargs["script_path"],
                    runtime_path=kwargs["runtime_path"],
-                   timeout_seconds=kwargs.get("timeout_seconds", 3600))
+                   timeout_seconds=kwargs.get("timeout_seconds", 3600), final=final)
 
 
 class PublicQemuService:
@@ -285,6 +293,19 @@ class PublicQemuService:
             MigrationStage.DRIVER_IMPLEMENTATION, MigrationArtifact.IMPLEMENTATION_BUNDLE
         )
         validate_worktree_snapshot(project.root, implementation)
+        runtime = project.artifact(
+            MigrationStage.ARTIFACT_PREPARATION, MigrationArtifact.RUNTIME_ARTIFACT
+        )
+        previous = self._latest_attempt(project)
+        if previous is not None:
+            ref, saved = previous
+            saved_run = current_public_qemu_run(saved)
+            if (saved.get("execution_status") == "PASS"
+                    and saved_run.get("final_suite") is True
+                    and saved_run.get("candidate") == {
+                        "source": implementation["files"], "artifact": runtime.digest}):
+                return {"status": "PASS",
+                        "attempt": str(project.artifacts.path_for_digest(ref.digest))}
         preflight = inspect_implementation(
             project, worktree, implementation["target_worktree"]["base_commit"]
         )
@@ -326,6 +347,7 @@ class PublicQemuService:
             run = current_public_qemu_run(saved)
             if (
                 saved.get("schema_version") == 4
+                and run.get("final_suite") is True
                 and saved.get("coverage") == coverage(worktree, run.get("cases", []))
                 and saved["inputs"] == inputs
                 and run["script"]["sha256"] == script_digest
@@ -338,6 +360,7 @@ class PublicQemuService:
                 }
         attempt_dir = project.control / "public-qemu" / uuid.uuid4().hex
         observed = run_public_harness(
+            final=True,
             attempt_dir=attempt_dir,
             script_path=script_path,
             worktree=worktree,
@@ -352,6 +375,8 @@ class PublicQemuService:
         passed = observed.passed and harness_unchanged
         run = {
             "run_id": "public-qemu-script",
+            "final_suite": True,
+            "candidate": {"source": implementation["files"], "artifact": runtime.digest},
             "command": asdict(observed.command),
             "script": {"path": str(script_path), "sha256": script_digest},
             "runtime_artifact": {"path": str(runtime_path), "sha256": runtime.digest},
@@ -512,6 +537,10 @@ class PublicQemuService:
             ),
         )
 
+        from ..knowledge.learning import publish_optional
+
+        publish_optional(project)
+
     @staticmethod
     def _input(project: Project, kind: ArtifactKey):
         dependencies = project.workflow.spec(MigrationStage.PUBLIC_QEMU_VALIDATION).dependencies
@@ -587,6 +616,8 @@ def validate_public_qemu_bundle(context: BundleValidationContext) -> None:
         report.get("status") != "PASS"
         or report.get("execution_status") != "PASS"
         or run.get("execution_status") != "PASS"
+        or run.get("final_suite") is not True
+        or any(case.get("reused") for case in run.get("cases", []))
     ):
         raise ObservationFinding("public result must pass and bind the worker's self-check report")
     if run.get("execution_status") == ContractExecutionStatus.PASS.value:

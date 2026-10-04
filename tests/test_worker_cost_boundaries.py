@@ -16,7 +16,6 @@ from driver_port_factory.core.execution import CommandRunner
 from driver_port_factory.core.models import WorkflowError
 from driver_port_factory.migration.contracts import MigrationStage as S
 from driver_port_factory.platform import formatting, guest, service
-from tests.test_behavior_scheduling import row
 from tests.test_local_adaptation import ready
 from tests.test_platform_execution import (
     IMAGE,
@@ -41,7 +40,6 @@ def test_actual_worker_receives_platform_interface_and_progress_stays_unaccepted
             payload["instructions"]["tool_runtime"]["platform_execution"]["tool"]
             == "driver_checks.platform"
         )
-        dispatch(project, job.job_id, "plan", {"behaviors": [row("probe"), row("notify")]})
         dispatch(project, job.job_id, "progress", {"status": "continue", "note": "Synthetic gap"})
         return CodexResult(job.job_id, "", "same-session")
 
@@ -70,12 +68,24 @@ def test_focused_template_identity_and_final_delivery_use_distinct_rules(tmp_pat
     composer = SkillPromptComposer(
         Path(project.config.skill_root), WORKFLOW_STAGE_CATALOG, project.workflow.stage_values
     )
-    progress = {"objective": "one behavior", "plan_exists": True, "current": {"id": "probe"}}
+    passage = "Unique shared obligation: release only after callbacks cease."
+    progress = {
+        "objective": "one behavior",
+        "plan_exists": True,
+        "current": {"id": "probe", "outcome": passage},
+        "route_context": {"contracts": [{"id": "C1", "text": passage}]},
+    }
     focused = composer.render(
         stage=S.DRIVER_IMPLEMENTATION,
         actor_role=ActorRole.DEVELOPER,
         context={"behavior_progress": progress},
     )
+    assert focused.text.count(passage) == 1
+    payload = json.loads(focused.text.split("<job>")[1].split("</job>")[0])
+    packet = payload["reference_material"]["behavior_progress"]
+    assert packet["current"]["id"] == "probe"
+    assert packet["passages"][packet["current"]["outcome"]["text_ref"]] == passage
+    assert 'skill_document_reference path="delivery-task.md"' in focused.text
     template = composer.prompt_pack.root / "behavior-job.md"
     assert focused.prompt_template_digest == hashlib.sha256(template.read_bytes()).hexdigest()
     final = composer.render(

@@ -1,0 +1,15 @@
+{
+  "scope": "Offline controller/synthetic driver tests; no paid calls, no new real-driver quality or cost result",
+  "full_suite_before_final_prompt_fix": "368 passed, 1 failed: missing explicit smoke-only prohibition in shortened prompt; restored",
+  "focused_after_fix": "33 passed in 54.30s",
+  "budget_and_recovery_after_all_changes": "30 passed in 87.20s (0:01:27)",
+  "full_suite_rerun_after_fix": false,
+  "lint": "Scoped new/small modified files clean; repository-wide existing lint/format debt retained. Large touched orchestrator function complexity reduced from 14 to 13 but remains over configured 12.",
+  "new_experiment": "/home/unix/file/C2R-Driver/c2rust-migration-test-01/experiments/pvpanic-behavior-sol-medium-20261003-04",
+  "model_budget": {
+    "maximum_estimated_usd": 10,
+    "check": "before every model invocation; unknown prior cost stops new calls",
+    "limit": "An in-flight call can exceed remaining allowance; estimates are not invoices"
+  },
+  "prelaunch": "Frozen Python binding, actual CLI platform preparation on synthetic project, official image ID and local revisions verified; no baseline boot claimed here"
+}

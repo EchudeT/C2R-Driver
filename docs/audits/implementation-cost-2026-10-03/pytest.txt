@@ -1,0 +1,642 @@
+........................................................................ [ 19%]
+..............................................................F......... [ 38%]
+........................................................................ [ 57%]
+...F........................................F........................... [ 76%]
+........................................................................ [ 95%]
+.................                                                        [100%]
+=================================== FAILURES ===================================
+_ test_two_conversations_complete_with_independent_review[True-True-True-False-False] _
+
+job = CodexJob(stage=<MigrationStage.DRIVER_IMPLEMENTATION: 'driver_implementation'>, actor_role=<ActorRole.DEVELOPER: 'deve...tions_complet12/run'), worker_project=PosixPath('/tmp/pytest-of-unix/pytest-147/test_two_conversations_complet12/run'))
+
+    def gateway(job):
+        calls.append(job)
+        stage = job.stage
+        output = job.execution_root / ".dpf-output"
+        output.mkdir(exist_ok=True)
+        report = output / "report.md"
+        text = "Synthetic controller fixture, not real driver evidence.\nDPF_SELF_REVIEW: PASS\n"
+        def build_delivery():
+            assert project.stage(S.ANALYSIS_REVIEW).status.value == "PASS"
+            (job.execution_root / "driver.rs").write_text(
+                "pub unsafe fn init() {}\n" if risk else "pub fn init() {}\n"
+            )
+            # Ordinary preexisting integration changes do not create a second audit.
+            integration = job.execution_root / "src/driver-api.rs"
+            integration.write_text(integration.read_text() + "pub fn register_driver() {}\n")
+            from tests.migration_support import smoke_fixture
+            smoke_fixture(job.execution_root)
+            if prepared_delivery:
+                variants = output / "harness/variants"
+                variants.mkdir(parents=True, exist_ok=True)
+                (variants / "fault-image").write_bytes(b"synthetic instrumented image")
+                qemu = output / "qemu-system-fixture"
+                qemu.symlink_to("/bin/true")
+                (output / "public-qemu.sh").write_text(
+                    f'"{qemu}" -kernel "$DPF_RUNTIME_ARTIFACT"\n'
+                    f'"{qemu}" -kernel "{variants / "fault-image"}"\n'
+                    "echo synthetic > .dpf-output/qemu-runs/serial.log\n")
+    
+        if stage is S.ANALYSIS_REVIEW:
+            assert job.thread_id is None
+            assert job.sandbox.value == "danger-full-access"
+            report.write_text("Synthetic analysis evidence checked.\n")
+            submit(project, job, report, kind="report", decision="pass")
+            return CodexResult(job.job_id, "", "reviewer")
+        elif stage is S.TARGET_FRAMEWORK_ENABLEMENT:
+            # Shared integration is deliberately modified at both checkpoints.
+            integration = job.execution_root / "src/driver-api.rs"
+            integration.write_text(integration.read_text() + "pub fn framework_api() {}\n")
+            report.write_text(
+                "Synthetic target framework enablement; no target edits required.\n"
+                "DPF_SELF_REVIEW: PASS\n"
+            )
+            if fused_delivery:
+                build_delivery()
+        elif stage is S.DRIVER_IMPLEMENTATION:
+>           build_delivery()
+
+tests/test_e2e_delivery.py:80: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/test_e2e_delivery.py:57: in build_delivery
+    qemu.symlink_to("/bin/true")
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = PosixPath('/tmp/pytest-of-unix/pytest-147/test_two_conversations_complet12/run/work/target/.dpf-output/qemu-system-fixture')
+target = '/bin/true', target_is_directory = False
+
+    def symlink_to(self, target, target_is_directory=False):
+        """
+        Make this path a symlink pointing to the target path.
+        Note the order of arguments (link, target) is the reverse of os.symlink.
+        """
+        if not hasattr(os, "symlink"):
+            raise NotImplementedError("os.symlink() not available on this system")
+>       os.symlink(target, self, target_is_directory)
+E       FileExistsError: [Errno 17] File exists: '/bin/true' -> '/tmp/pytest-of-unix/pytest-147/test_two_conversations_complet12/run/work/target/.dpf-output/qemu-system-fixture'
+
+/usr/lib/python3.11/pathlib.py:1198: FileExistsError
+
+The above exception was the direct cause of the following exception:
+
+tmp_path = PosixPath('/tmp/pytest-of-unix/pytest-147/test_two_conversations_complet12')
+risk = False, append_decision = False, prepared_delivery = True
+fused_delivery = True, ack_delivery = True
+
+    @pytest.mark.parametrize("risk", [False, True])
+    @pytest.mark.parametrize("append_decision", [False, True])
+    @pytest.mark.parametrize("prepared_delivery,fused_delivery,ack_delivery",
+                             [(False, False, False), (True, False, False), (True, True, False), (True, True, True)])
+    def test_two_conversations_complete_with_independent_review(
+            tmp_path, risk, append_decision, prepared_delivery, fused_delivery, ack_delivery):
+        project = ready_implementation(tmp_path, reviewed=False)
+        port = runner(project)
+        calls = []
+    
+        def gateway(job):
+            calls.append(job)
+            stage = job.stage
+            output = job.execution_root / ".dpf-output"
+            output.mkdir(exist_ok=True)
+            report = output / "report.md"
+            text = "Synthetic controller fixture, not real driver evidence.\nDPF_SELF_REVIEW: PASS\n"
+            def build_delivery():
+                assert project.stage(S.ANALYSIS_REVIEW).status.value == "PASS"
+                (job.execution_root / "driver.rs").write_text(
+                    "pub unsafe fn init() {}\n" if risk else "pub fn init() {}\n"
+                )
+                # Ordinary preexisting integration changes do not create a second audit.
+                integration = job.execution_root / "src/driver-api.rs"
+                integration.write_text(integration.read_text() + "pub fn register_driver() {}\n")
+                from tests.migration_support import smoke_fixture
+                smoke_fixture(job.execution_root)
+                if prepared_delivery:
+                    variants = output / "harness/variants"
+                    variants.mkdir(parents=True, exist_ok=True)
+                    (variants / "fault-image").write_bytes(b"synthetic instrumented image")
+                    qemu = output / "qemu-system-fixture"
+                    qemu.symlink_to("/bin/true")
+                    (output / "public-qemu.sh").write_text(
+                        f'"{qemu}" -kernel "$DPF_RUNTIME_ARTIFACT"\n'
+                        f'"{qemu}" -kernel "{variants / "fault-image"}"\n'
+                        "echo synthetic > .dpf-output/qemu-runs/serial.log\n")
+    
+            if stage is S.ANALYSIS_REVIEW:
+                assert job.thread_id is None
+                assert job.sandbox.value == "danger-full-access"
+                report.write_text("Synthetic analysis evidence checked.\n")
+                submit(project, job, report, kind="report", decision="pass")
+                return CodexResult(job.job_id, "", "reviewer")
+            elif stage is S.TARGET_FRAMEWORK_ENABLEMENT:
+                # Shared integration is deliberately modified at both checkpoints.
+                integration = job.execution_root / "src/driver-api.rs"
+                integration.write_text(integration.read_text() + "pub fn framework_api() {}\n")
+                report.write_text(
+                    "Synthetic target framework enablement; no target edits required.\n"
+                    "DPF_SELF_REVIEW: PASS\n"
+                )
+                if fused_delivery:
+                    build_delivery()
+            elif stage is S.DRIVER_IMPLEMENTATION:
+                build_delivery()
+            elif stage is S.ARTIFACT_PREPARATION:
+                variants = output / "harness/variants"
+                variants.mkdir(parents=True, exist_ok=True)
+                (variants / "fault-image").write_bytes(b"synthetic instrumented image")
+                (output / "runtime-artifact").write_bytes(
+                    (job.execution_root / "driver.rs").read_bytes()
+                )
+                (output / "check-presence.sh").write_text(
+                    'cmp "$DPF_RUNTIME_ARTIFACT" "$DPF_TARGET_WORKTREE/driver.rs"\n'
+                )
+            elif stage is S.PUBLIC_QEMU_VALIDATION:
+                ctx = json.loads(job.prompt.split("<job>")[1].split("</job>")[0])["reference_material"]
+                (output / "qemu-runs").mkdir(exist_ok=True)
+                qemu = output / "qemu-system-fixture"
+                if not qemu.exists():
+                    qemu.symlink_to("/bin/true")
+                (output / "public-qemu.sh").write_text(
+                    f'"{qemu}" -kernel "$DPF_RUNTIME_ARTIFACT"\n'
+                    f'"{qemu}" -kernel "{output / "harness/variants/fault-image"}"\n'
+                    "echo synthetic > .dpf-output/qemu-runs/serial.log\n"
+                )
+            elif stage is S.FINAL_EVIDENCE_REVIEW:
+                assert job.thread_id is None  # final review starts independently of analysis
+                assert job.sandbox.value == "danger-full-access"
+                assert "current contract/test IDs" in job.prompt
+                payload = json.loads(job.prompt.split("<job>")[1].split("</job>")[0])
+                reference_material = payload["reference_material"]
+                frozen_inputs = reference_material["frozen_inputs"]
+                assert "migration_handoff" not in frozen_inputs
+                assert "target_platform_study" not in frozen_inputs
+                assert "migration_contracts" not in frozen_inputs
+                assert "test_port_matrix" not in frozen_inputs
+                assert "implementation_snapshot" in reference_material
+                assert "frozen_acceptance_oracles" in reference_material
+                assert "analysis_review_path" not in reference_material
+                assert "target-platform-study.md" not in job.prompt
+                assert "knowledge-contract.md" not in job.prompt
+                assert "translation.md" not in job.prompt
+                assert "test-porting.md" not in job.prompt
+                assert "target-changes.md" not in job.prompt
+                report.write_text(
+                    "Synthetic independent review of fixtures, not driver certification.\n"
+                )
+                submit(project, job, report, kind="report", decision="pass")
+                return CodexResult(job.job_id, "", "reviewer")
+            else:
+                raise AssertionError(f"unexpected paid stage: {stage}")
+            if stage is S.PUBLIC_QEMU_VALIDATION and "controller_execution" not in ctx:
+                text += "Prior local self-check.\n"
+            elif stage in (S.DRIVER_IMPLEMENTATION, S.PUBLIC_QEMU_VALIDATION):
+                if stage is S.PUBLIC_QEMU_VALIDATION:
+                    from driver_port_factory.migration.public_qemu import PublicQemuService
+    
+                    report.write_text("Report-only clarification.\n")
+                    service = PublicQemuService()
+                    previous = service._latest_attempt(project)[0].digest
+                    service.run_script(
+                        project, script_path=output / "public-qemu.sh", work_report_path=report
+                    )
+                    assert service._latest_attempt(project)[0].digest == previous
+                    text += "Previous request captured and inspected.\n"
+            report.write_text(text)
+            if ack_delivery and stage is S.TARGET_FRAMEWORK_ENABLEMENT:
+                from driver_port_factory.migration.experiments import execute
+                from driver_port_factory.migration.experiment_ack import record_seen, acknowledge
+                observation = execute(project, worktree=job.execution_root,
+                    script_path=output / "public-qemu.sh", runtime_path=output / "runtime-artifact",
+                    timeout_seconds=3600)
+                assert observation.passed
+                record_seen(project, job.job_id, [{"id": "public-qemu.sh", "status": "PASS", "observation": observation}])
+                acknowledge(project, job.job_id, report)
+            thread = "worker"
+            assert job.thread_id in (None, thread)
+            if stage is S.PUBLIC_QEMU_VALIDATION:
+                decision = "pass" if "controller_execution" in ctx else "operation"
+                submit(
+                    project,
+                    job,
+                    report,
+                    kind="report",
+                    decision=decision,
+                    operation=None if decision == "pass" else "PUBLIC_QEMU",
+                )
+            elif stage in (
+                S.TARGET_FRAMEWORK_ENABLEMENT,
+                S.DRIVER_IMPLEMENTATION,
+                S.ARTIFACT_PREPARATION,
+            ):
+                submit(project, job, report, kind="report", decision="pass")
+            return CodexResult(job.job_id, "", thread)
+    
+        with patch("driver_port_factory.codex.cli.CodexExecGateway.run", side_effect=gateway):
+            # Use the real controller loop, stage finalizers, script execution, CAS and ledger.
+>           outcome = port._run_project(project)
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_e2e_delivery.py:174: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+src/driver_port_factory/port.py:177: in _run_project
+    self._checker_decision(project, stage.name, pending_check)
+src/driver_port_factory/port.py:319: in _checker_decision
+    _, _, response = self._codex(
+src/driver_port_factory/port.py:409: in _codex
+    return run_codex_stage(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+project = <driver_port_factory.core.project.Project object at 0x7f1ba2068110>
+stage_key = <MigrationStage.DRIVER_IMPLEMENTATION: 'driver_implementation'>
+objective = None
+context = {'checker_decision': True, 'checker_findings': 'Checker findings require worker judgment:\nWorkflowError: Experiment i...ytest-of-unix/pytest-147/test_two_conversations_complet12/run/work/target', 'sandbox': 'danger-full-access', ...}, ...}
+backend = <CodexBackend.EXEC: 'exec'>, codex_bin = 'codex', model = None
+prompt_pack_path = None, thread_id = 'worker', follow_up = None
+skill_root = PosixPath('/tmp/pytest-of-unix/pytest-147/test_two_conversations_complet12/skill')
+
+    def run_codex_stage(
+        project: Project,
+        stage_key: StageKey,
+        *,
+        objective: str | None = None,
+        context: dict[str, object] | None,
+        backend: CodexBackend,
+        codex_bin: str,
+        model: str | None,
+        prompt_pack_path: str | None = None,
+        thread_id: str | None = None,
+        follow_up: str | None = None,
+        skill_root: Path | None = None,
+    ) -> tuple[CodexResult, RenderedPrompt, Path]:
+        from ..control.budget import guard as guard_budget
+        guard_budget(project)
+        stage = project.stage(stage_key)
+        if stage.owner is StageOwner.STATIC and not (context or {}).get("checker_decision"):
+            raise WorkflowError(f"stage {stage_key.value} is statically owned and cannot run Codex")
+        if stage.status is StageStatus.READY:
+            project.start(stage_key)
+        elif stage.status is not StageStatus.RUNNING:
+            raise WorkflowError(f"Codex stage must be READY or RUNNING, got {stage.status.value}")
+        grant = CodexExecutionPolicy().grant(project, stage_key)
+        key, session = stage_session(project, stage_key, grant, model, backend.value)
+        from .context_policy import prepare_context
+        repair = project.retry_feedback(stage_key)
+        session, context_policy = prepare_context(
+            project, stage_key, key, session,
+            continuing=bool(thread_id or follow_up or (context or {}).get("checker_decision")
+                            or (context or {}).get("controller_execution")
+                            or (repair and repair.get("status") != "PREREQUISITE_COMPLETED")),
+        )
+        from .context_reset import attach_handoff
+        context, thread_id = attach_handoff(project, session, context, thread_id)
+        if stage_key.value == "evidence_closure":
+            from ..knowledge.acquisition_context import context as acquisition_context
+            context = {**(context or {}), "evidence_reuse": acquisition_context(project)}
+        if stage_key.value == "environment_recovery":
+            from ..environment.context import context as environment_context
+            context = {**(context or {}), "environment_setup": environment_context(project)}
+        thread_id = thread_id or session.get("thread_id")
+        job_id = str(uuid.uuid4())
+        from ..migration.behavior import begin, packet
+        behavior = None
+        if not (context or {}).get("checker_decision"):
+            begin(project, stage_key, job_id)
+            behavior = packet(project, stage_key)
+        if behavior is not None:
+            context = {**(context or {}), "behavior_progress": behavior}
+        codex_dir = project.control / "codex"
+        codex_dir.mkdir(parents=True, exist_ok=True)
+        output_path = codex_dir / f"{stage_key.value}-{job_id}.result"
+        submit_parts = (
+            sys.executable,
+            "-m",
+            "driver_port_factory.cli",
+            "codex",
+            "submit",
+            str(project.root),
+            stage_key.value,
+            "--file",
+            "<DELIVERABLE_PATH>",
+            "--kind",
+            "<proposal|report>",
+            "--decision",
+            "<submit|pass|rework|blocked|operation>",
+        )
+        submit_command = " ".join(shlex.quote(part) for part in submit_parts)
+        submit_command += " [--operation OPERATION] [--repair-stage STAGE]"
+        context = {
+            **(context or {}),
+            "tool_runtime": {
+                "python": sys.executable,
+                "workflow_cli": [sys.executable, "-m", "driver_port_factory.cli"],
+                "execution_root": str(grant.execution_root),
+                "sandbox": grant.sandbox.value,
+                "evidence_locator": [sys.executable, "-m", "driver_port_factory.review_evidence"],
+                "text_reader": [sys.executable, "-m", "driver_port_factory.read_evidence",
+                                 "--path", "<PATH>", "--budget", "6000"],
+                "managed_experiment": [sys.executable, "-m", "driver_port_factory.cli",
+                                       "experiment", "run", str(project.root)],
+                "experiment_self_review": [sys.executable, "-m", "driver_port_factory.cli",
+                                           "experiment", "acknowledge", str(project.root)],
+                "project_root": str(project.root),
+                "stage": stage_key.value,
+                "submission_receipt": "Controller retains receipt; no manual receipt copying required",
+                "submission_command": submit_command,
+                "submission_rule": (
+                    "Write the deliverable first, then invoke submission_command. The controller "
+                    "trusts only the tool receipt; the final chat response is informational."
+                ),
+            },
+            "available_inputs": [d.value for d in project.workflow.spec(stage_key).dependencies],
+        }
+        from .optional_tools import context as optional_context
+        context["tool_runtime"].update(optional_context(project, stage_key))
+        if stage_key in CodexExecutionPolicy.WRITABLE_STAGES:
+            context["tool_runtime"]["managed_checks"] = (
+                "driver_checks.check waits for the final result without polling. "
+                "Runtime: choose cases from .dpf-output/experiments.json, or provide script. "
+                "No selection runs the registered suite or public-qemu.sh. "
+                "Development: level=development plus script and timeout<=3600; no runtime PASS. "
+                "Use the accepted environment route inside scripts. Do not edit/build concurrently. "
+                "Returned receipts can be acknowledged through experiment_self_review."
+                " driver_checks.debug provides guest-only GDB sampling for recorded direct Docker/OSDK "
+                "runs; external peers are not replayed and diagnostics are never acceptance."
+            )
+        if stage_key not in CodexExecutionPolicy.WRITABLE_STAGES:
+            for name in ("managed_experiment", "experiment_self_review"):
+                context["tool_runtime"].pop(name, None)
+        from ..environment.contracts import EnvironmentStage, EnvironmentArtifact
+        if (EnvironmentStage.RECOVERY.value in project.workflow.stage_values
+                and project.stage(EnvironmentStage.RECOVERY).status is StageStatus.PASS):
+            context["environment_evidence"] = {}
+            for kind in (EnvironmentArtifact.INVENTORY, EnvironmentArtifact.MODE_RECORD,
+                         EnvironmentArtifact.EXPERIMENT_ROUTE):
+                ref = project.artifact(EnvironmentStage.RECOVERY, kind)
+                context["environment_evidence"][kind.value] = {
+                    "kind": kind.value, "digest": ref.digest,
+                    "path": str(project.artifacts.path_for_digest(ref.digest)),
+                }
+        from ..acquisition.contracts import AcquisitionStage
+        if project.stage(AcquisitionStage.EVIDENCE_CLOSURE).status is StageStatus.PASS:
+            from ..acquisition.failure_summary import summary as retrieval_failures
+            context["retrieval_failures"] = retrieval_failures(project)
+        from ..platform_assets import references as platform_references
+        context["platform_assets"] = platform_references(project)
+        from ..build_cache import environment as build_cache_environment
+        cache_env = build_cache_environment(project)
+        if cache_env:
+            context["tool_runtime"]["build_cache_environment"] = cache_env
+        if stage_key in CodexExecutionPolicy.DEPENDENCY_STAGES:
+            context["tool_runtime"]["cargo_home"] = str(
+                grant.execution_root / ".dpf-output" / "cargo-home"
+            )
+            context["tool_runtime"]["cargo_home_note"] = (
+                "Suggested cache directory, not proof that tools are installed there. Preserve "
+                "the working environment from experiment_route and current framework/build reports; "
+                "do not replace a proven container tool home solely to match this suggestion.")
+        if follow_up:
+            context = {**(context or {}), "controller_feedback": follow_up}
+        repair = project.retry_feedback(stage_key)
+        if repair:
+            context["repair_state"] = {k: v for k, v in repair.items() if k != "repair_report"}
+            from .repair_handoff import repair_task
+            task = repair_task(project, repair, stage=stage_key.value)
+            if task:
+                context["repair_task"] = task
+            prior = [r for r in project.artifact_refs(stage=stage_key)
+                     if r.kind == CodexArtifact.WORK_REPORT.value]
+            if prior:
+                ref = max(prior, key=lambda r: r.ordinal)
+                context["previous_work_report"] = str(project.artifacts.path_for_digest(ref.digest))
+        from ..orchestration.protocol import REPAIR_TARGETS
+        from ..core.phases import phase, allows_evidence_revision
+        context["phase"] = phase(stage_key)
+        context["repair_targets"] = [s.name.value for s in project.stages()
+            if s.name.value in REPAIR_TARGETS and s.status is StageStatus.PASS
+            and (phase(s.name) == phase(stage_key) or allows_evidence_revision(project.config, s.name, stage_key))
+            and stage_key.value in project.workflow.descendants(s.name)]
+        known_inputs = session.get("inputs", {}) if thread_id == session.get("thread_id") else {}
+        from .compaction import CURSOR, refresh_inputs
+        known_inputs, compaction_cursor, native_compaction = refresh_inputs(thread_id, known_inputs)
+        from .context_focus import compact_feedback, compact_delivery_brief, reading_plan, repair_focus
+        context = compact_feedback(project, context)
+        context, supplied_inputs = input_changes(context, known_inputs)
+        if compaction_cursor is not None:
+            supplied_inputs[CURSOR] = compaction_cursor
+        context = compact_delivery_brief(context)
+        if any(context.get(k) for k in ("controller_execution", "controller_feedback",
+                                        "checker_decision", "repair_state", "repair_observation")):
+            focus = repair_focus(project, stage_key, context)
+            if focus:
+                context["repair_focus"] = focus
+        from .repair_handoff import organize_repair_context
+        context = organize_repair_context(context, stage_key.value, known_inputs, supplied_inputs)
+        plan = reading_plan(stage_key, context)
+        if plan:
+            context["reading_plan"] = plan
+        rendered = _render_prompt(
+            project,
+            stage_key,
+            objective,
+            context,
+            prompt_pack_path,
+            session.get("documents") if thread_id == session.get("thread_id") else None,
+            skill_root,
+        )
+        prompt = rendered.text
+        project.record_artifact(
+            stage_key,
+            GeneratedArtifact(
+                CodexArtifact.PROMPT,
+                prompt.encode("utf-8"),
+                f"generated:prompt:{rendered.digest}",
+            ),
+            direction=ArtifactDirection.INPUT,
+        )
+        job = CodexJob(
+            stage=stage_key,
+            actor_role=project.config.actor_role,
+            objective=rendered.objective,
+            prompt=prompt,
+            execution_root=grant.execution_root,
+            sandbox=grant.sandbox,
+            model=model,
+            thread_id=thread_id,
+            job_id=job_id,
+            compact_token_limit=compact_token_limit(project, stage_key, thread_id),
+            worker_project=project.root,
+            checks_project=project.root if stage_key in CodexExecutionPolicy.WRITABLE_STAGES else None,
+        )
+        known_documents = session.get("documents", {}) if thread_id == session.get("thread_id") else {}
+        documents = {
+            **known_documents,
+            **{doc.relative_path: doc.digest for doc in rendered.documents},
+        }
+    
+        reported_usage = []
+        first_event_seconds = None
+        metrics = {
+            "native_compaction": native_compaction,
+            "stage": stage_key.value, "job_id": job.job_id, "thread_id": thread_id,
+            "started_at": utc_now(), "completed_at": None,
+            "invocation_state": "RUNNING",
+            "context_epoch": session.get("handoff", {}).get("epoch"),
+            "context_policy": context_policy,
+            "session_key": key,
+            "context_action": ("resume" if thread_id else
+                               "handoff" if session.get("handoff") else "fresh"),
+            "context_handoff": session.get("handoff"),
+            "controller_started_at": (
+                json.loads((project.control / "controller.json").read_text()).get("started_at")
+                if (project.control / "controller.json").is_file() else None
+            ),
+            **model_settings(model),
+            "usage_baseline": latest_usage(codex_dir, thread_id),
+            "resumed": bool(thread_id), "prompt_bytes": len(prompt.encode()),
+            "auto_compact_token_limit": job.compact_token_limit,
+            "policy_sha256": rendered.policy_digest,
+            "call_reason": (
+                "recovery" if context.get("checker_decision") or follow_up else
+                "review_followup" if stage_key.value in {"final_evidence_review", "analysis_review"} and thread_id else
+                "independent_review" if stage_key.value in {"final_evidence_review", "analysis_review"} else
+                "execution_self_check" if context.get("controller_execution") else
+                "repair" if repair and repair["status"] == "OPEN" else "stage_work"
+            ),
+            "repair_origin": ({k: repair.get(k) for k in ("trigger", "repair_root", "status")} if repair else None),
+            "usage_semantics": "cumulative thread counters; subtract usage_baseline",
+        }
+    
+        from ..checkpoints import capture_invocation
+        capture_invocation(project, stage_key.value, metrics, prompt)
+    
+        def persist_metrics() -> None:
+            metrics.update(elapsed_seconds=round(time.monotonic() - started, 3),
+                           first_response_seconds=first_event_seconds, reported_usage=reported_usage)
+            metrics["usage"] = usage_delta(
+                reported_usage[-1] if reported_usage else None, metrics["usage_baseline"])
+            metrics["estimate"] = estimate(metrics["usage"], metrics["model"], metrics["service_tier"])
+            path = output_path.with_suffix(".metrics.json")
+            temporary = path.with_suffix(".tmp")
+            temporary.write_text(json.dumps(metrics))
+            temporary.replace(path)
+    
+        trace = None
+    
+        def retain_context(*, force=False):
+            if trace is None:
+                return
+            try:
+                trace.capture(metrics.get("thread_id"), force=force)
+                metrics["context_log"] = {"manifest": str(trace.path),
+                                          "status": trace.record["status"]}
+            except (OSError, ValueError, TypeError) as error:
+                metrics["context_log"] = {"status": "capture_error", "error": str(error)}
+    
+        def checkpoint(event: dict) -> None:
+            nonlocal first_event_seconds
+            if first_event_seconds is None and event.get("type") not in {"thread.started", "turn.started"}:
+                first_event_seconds = round(time.monotonic() - started, 3)
+            if event.get("type") == "turn.completed" and event.get("usage"):
+                reported_usage.append(event["usage"])
+            with output_path.with_suffix(".events.jsonl").open("a", encoding="utf-8") as stream:
+                stream.write(json.dumps(event) + "\n")
+            if event.get("type") == CodexExecEventType.THREAD_STARTED.value:
+                metrics["thread_id"] = event.get("thread_id")
+                save_session(project, key, event.get("thread_id"), known_documents, known_inputs)
+                retain_context(force=True)
+                persist_metrics()
+            elif event.get("type") == "turn.completed":
+                retain_context(force=True)
+                persist_metrics()
+            else:
+                retain_context()
+    
+        gateway = CodexExecGateway(codex_bin, on_event=checkpoint)
+        started = time.monotonic()
+        from .context_logs import ContextLog
+        try:
+            trace = ContextLog(project, job, metrics)
+            retain_context(force=True)
+        except (OSError, ValueError, TypeError) as error:
+            metrics["context_log"] = {"status": "capture_error", "error": str(error)}
+        persist_metrics()
+        try:
+            result = gateway.run(job)
+            metrics["thread_id"] = result.thread_id or metrics.get("thread_id")
+            metrics["invocation_state"] = "FAILED" if result.error else "COMPLETED"
+        except (WorkflowError, OSError, subprocess.SubprocessError) as error:
+            metrics["invocation_state"] = "FAILED"
+>           raise ModelInvocationError(str(error)) from error
+E           driver_port_factory.codex.contracts.ModelInvocationError: [Errno 17] File exists: '/bin/true' -> '/tmp/pytest-of-unix/pytest-147/test_two_conversations_complet12/run/work/target/.dpf-output/qemu-system-fixture'
+
+src/driver_port_factory/codex/cli.py:398: ModelInvocationError
+_____________ test_generation_contract_and_worker_tool_expose_rag ______________
+
+    def test_generation_contract_and_worker_tool_expose_rag():
+        from pathlib import Path
+        from types import SimpleNamespace
+    
+        from driver_port_factory.codex.optional_tools import context
+        from driver_port_factory.knowledge.validation import _query_contract
+    
+>       result = context(
+            SimpleNamespace(root=Path("/fixture")), SimpleNamespace(value="driver_implementation")
+        )
+
+tests/test_knowledge_rag.py:142: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+src/driver_port_factory/codex/optional_tools.py:24: in context
+    "platform_execution": platform_context(project),
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^
+src/driver_port_factory/platform/service.py:317: in context
+    if not required(project):
+           ^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+project = namespace(root=PosixPath('/fixture'))
+
+    def required(project):
+        return (
+>           project.config.managed_platform
+            ^^^^^^^^^^^^^^
+            and project.config.target_platform.strip().lower() == "asterinas"
+        )
+E       AttributeError: 'types.SimpleNamespace' object has no attribute 'config'
+
+src/driver_port_factory/platform/service.py:26: AttributeError
+__________ test_optional_tools_are_not_injected_into_unrelated_stages __________
+
+    def test_optional_tools_are_not_injected_into_unrelated_stages():
+        from types import SimpleNamespace
+        from driver_port_factory.codex.optional_tools import context
+        from driver_port_factory.acquisition.contracts import AcquisitionStage
+        project = SimpleNamespace(root=Path('/run'))
+        assert context(project, AcquisitionStage.EVIDENCE_CLOSURE) == {}
+        assert context(project, S.FINAL_EVIDENCE_REVIEW) == {}
+>       value = context(project, S.DRIVER_IMPLEMENTATION)
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_on_demand_tools.py:133: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+src/driver_port_factory/codex/optional_tools.py:24: in context
+    "platform_execution": platform_context(project),
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^
+src/driver_port_factory/platform/service.py:317: in context
+    if not required(project):
+           ^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+project = namespace(root=PosixPath('/run'))
+
+    def required(project):
+        return (
+>           project.config.managed_platform
+            ^^^^^^^^^^^^^^
+            and project.config.target_platform.strip().lower() == "asterinas"
+        )
+E       AttributeError: 'types.SimpleNamespace' object has no attribute 'config'
+
+src/driver_port_factory/platform/service.py:26: AttributeError
+=========================== short test summary info ============================
+FAILED tests/test_e2e_delivery.py::test_two_conversations_complete_with_independent_review[True-True-True-False-False]
+FAILED tests/test_knowledge_rag.py::test_generation_contract_and_worker_tool_expose_rag
+FAILED tests/test_on_demand_tools.py::test_optional_tools_are_not_injected_into_unrelated_stages

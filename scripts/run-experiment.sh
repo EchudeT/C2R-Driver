@@ -20,6 +20,10 @@ Request and execution options:
   --target-platform NAME             Default: asterinas
   --catalog PATH                     Driver catalog; repeat for multiple catalogs
   --model NAME                       Codex model override
+  --platform-image IMAGE             Required local Docker image for a new Asterinas run
+  --platform-accelerator kvm|tcg      Required accelerator for a new Asterinas run
+  --max-model-cost-usd AMOUNT         Estimated cost guard before each model call
+  --behavior-scope PATH              Freeze functional scope JSON for this run
   --context-policy NAME              persistent, analysis-handoff or implementation-handoff
   --codex-bin PATH                   Codex executable; default: codex
   --backend NAME                     Backend; default: exec
@@ -30,6 +34,7 @@ Request and execution options:
   --skill-root PATH                  Optional Skill override (normally omit)
   --analysis-review / --no-analysis-review
   --final-evidence-review / --no-final-evidence-review
+  --behavior-scheduling / --no-behavior-scheduling (new runs default: enabled)
   -h, --help                         Show this help
 
 The controller stays in the foreground and resumes an existing workspace when
@@ -51,7 +56,11 @@ driver_name=""
 codex_bin="codex"
 backend="exec"
 model=""
+platform_image=""
+platform_accelerator=""
+max_model_cost=""
 context_policy=""
+behavior_scope=""
 skill_root=""
 catalogs=()
 baselines=()
@@ -72,12 +81,17 @@ while (($#)); do
         --local-target-repository) [[ $# -ge 2 ]] || { echo "error: --local-target-repository needs a value" >&2; exit 2; }; local_target="$2"; shift 2 ;;
         --local-qemu-repository) [[ $# -ge 2 ]] || { echo "error: --local-qemu-repository needs a value" >&2; exit 2; }; local_qemu="$2"; shift 2 ;;
         --skill-root) [[ $# -ge 2 ]] || { echo "error: --skill-root needs a value" >&2; exit 2; }; skill_root="$2"; shift 2 ;;
+        --max-model-cost-usd) [[ $# -ge 2 ]] || { echo "error: cost budget needs a value" >&2; exit 2; }; max_model_cost="$2"; shift 2 ;;
+        --platform-image) [[ $# -ge 2 ]] || { echo "error: --platform-image needs a value" >&2; exit 2; }; platform_image="$2"; shift 2 ;;
+        --platform-accelerator) [[ $# -ge 2 ]] || { echo "error: --platform-accelerator needs a value" >&2; exit 2; }; platform_accelerator="$2"; shift 2 ;;
         --model) [[ $# -ge 2 ]] || { echo "error: --model needs a value" >&2; exit 2; }; model="$2"; shift 2 ;;
+        --behavior-scope) [[ $# -ge 2 ]] || { echo "error: --behavior-scope needs a value" >&2; exit 2; }; behavior_scope="$2"; shift 2 ;;
         --context-policy) [[ $# -ge 2 ]] || { echo "error: --context-policy needs a value" >&2; exit 2; }; context_policy="$2"; shift 2 ;;
         --codex-bin) [[ $# -ge 2 ]] || { echo "error: --codex-bin needs a value" >&2; exit 2; }; codex_bin="$2"; shift 2 ;;
         --backend) [[ $# -ge 2 ]] || { echo "error: --backend needs a value" >&2; exit 2; }; backend="$2"; shift 2 ;;
         --analysis-review|--no-analysis-review) review_args+=("$1"); shift ;;
         --final-evidence-review|--no-final-evidence-review) review_args+=("$1"); shift ;;
+        --behavior-scheduling|--no-behavior-scheduling) review_args+=("$1"); shift ;;
         -h|--help) usage; exit 0 ;;
         *) echo "error: unknown option: $1" >&2; usage >&2; exit 2 ;;
     esac
@@ -106,6 +120,10 @@ args=(
     --codex-bin "$codex_bin"
 )
 [[ -n "$model" ]] && args+=(--model "$model")
+[[ -n "$platform_image" ]] && args+=(--platform-image "$platform_image")
+[[ -n "$platform_accelerator" ]] && args+=(--platform-accelerator "$platform_accelerator")
+[[ -n "$max_model_cost" ]] && args+=(--max-model-cost-usd "$max_model_cost")
+[[ -n "$behavior_scope" ]] && args+=(--behavior-scope "$behavior_scope")
 [[ -n "$context_policy" ]] && args+=(--context-policy "$context_policy")
 [[ -n "$skill_root" ]] && args+=(--skill-root "$skill_root")
 for path in "${catalogs[@]}"; do args+=(--catalog "$path"); done

@@ -13,3 +13,10 @@ a booted shell alone is insufficient. Later concrete defects still require repai
 These are navigation and implementation checks, not a new report or acceptance gate. Do not copy
 another driver's protocol, resource model or initialization stage. No mandatory knowledge query
 or full platform survey is required. Current evidence takes precedence over prior experience.
+
+For the supported Asterinas workspace layout, platform action=scaffold optionally writes this
+mechanical wiring. Specify a new package, an existing component template, necessary workspace
+dependencies and (when different) owner_source. It derives paths from the current workspace,
+returns a diff, and leaves a TODO initializer. Fill it inside the selected behavior and verify
+actual initialization/order/device behavior. Unsupported layouts return a focused error without
+applying the plan; inspect the relevant sources and implement the wiring in the same round.

@@ -1,0 +1,222 @@
+{
+  "scope": "six known development queries, file recall only; no held-out or driver claim",
+  "revision": "d4b407ca87de203f79c27c9a83ada1d8223fe280",
+  "vector_status": {
+    "status": "READY",
+    "path": "/tmp/dpf-rag-asterinas-01/knowledge/rag/a6ff5ae9c2eb5338dc1f94ac3ad447ea2bbce730c78bdbef7e2cd9b8eb57072b/dense.json",
+    "chunks": 86,
+    "dimensions": 384,
+    "model": {
+      "path": "/tmp/dpf-rag-model-minilm",
+      "files": {
+        "1_Pooling/config.json": "4be450dde3b0273bb9787637cfbd28fe04a7ba6ab9d36ac48e92b11e350ffc23",
+        "config.json": "953f9c0d463486b10a6871cc2fd59f223b2c70184f49815e7efbcab5d8908b41",
+        "config_sentence_transformers.json": "061ca9d39661d6c6d6de5ba27f79a1cd5770ea247f8d46412a68a498dc5ac9f3",
+        "data_config.json": "32edcb108fc2516b920734a862ae0692bcae1c5d45d5f8d972cb0d53434a4c54",
+        "model.safetensors": "53aa51172d142c89d9012cce15ae4d6cc0ca6895895114379cacb4fab128d9db",
+        "modules.json": "84e40c8e006c9b1d6c122e02cba9b02458120b5fb0c87b746c41e0207cf642cf",
+        "sentence_bert_config.json": "fc1993fde0a95c24ec6c022539d41cf6e2f7c9721e5415d6fb6897472a9cd4b7",
+        "special_tokens_map.json": "303df45a03609e4ead04bc3dc1536d0ab19b5358db685b6f3da123d05ec200e3",
+        "tokenizer.json": "be50c3628f2bf5bb5e3a7f17b1f74611b2561a3a27eeab05e5aa30f411572037",
+        "tokenizer_config.json": "acb92769e8195aabd29b7b2137a9e6d6e25c476a4f15aa4355c233426c61576b",
+        "vocab.txt": "07eced375cec144d27c900241f3e339478dec958f92fddbc551f295c992038a3"
+      }
+    },
+    "recipe": {
+      "backend": "sentence-transformers-local",
+      "version": "5.7.0",
+      "runtime_versions": {
+        "torch": "2.8.0",
+        "transformers": "5.18.0",
+        "tokenizers": "0.23.2"
+      },
+      "query_prefix": "",
+      "document_prefix": "",
+      "pooling": "normalized-mean-token-windows-v1",
+      "max_seq_length": 256
+    }
+  },
+  "queries": [
+    {
+      "question": "try_lock",
+      "expected_file": "ostd/src/sync/spin.rs",
+      "modes": {
+        "bm25": {
+          "paths": [
+            "raw/ostd/src/sync/mutex.rs",
+            "raw/ostd/src/sync/spin.rs",
+            "raw/ostd/src/sync/mutex.rs",
+            "raw/ostd/src/sync/rwmutex.rs",
+            "raw/ostd/src/sync/rwlock.rs"
+          ],
+          "file_hit_at_5": true,
+          "packet_bytes": 6915,
+          "seconds": 0.06384552699819324
+        },
+        "hybrid": {
+          "paths": [
+            "raw/ostd/src/sync/mutex.rs",
+            "raw/ostd/src/sync/mutex.rs",
+            "raw/ostd/src/sync/spin.rs",
+            "raw/ostd/src/sync/rwmutex.rs",
+            "raw/ostd/src/sync/rwlock.rs"
+          ],
+          "file_hit_at_5": true,
+          "packet_bytes": 6443,
+          "seconds": 0.22639039600107935
+        }
+      }
+    },
+    {
+      "question": "nonblocking acquisition of a mutual exclusion guard",
+      "expected_file": "ostd/src/sync/spin.rs",
+      "modes": {
+        "bm25": {
+          "paths": [
+            "raw/ostd/src/sync/guard.rs",
+            "raw/ostd/src/sync/rcu/mod.rs",
+            "raw/ostd/src/sync/rcu/mod.rs",
+            "raw/ostd/src/sync/rcu/mod.rs",
+            "raw/ostd/src/sync/guard.rs"
+          ],
+          "file_hit_at_5": false,
+          "packet_bytes": 7653,
+          "seconds": 0.09283005299948854
+        },
+        "hybrid": {
+          "paths": [
+            "raw/ostd/src/sync/guard.rs",
+            "raw/ostd/src/sync/spin.rs",
+            "raw/ostd/src/sync/spin.rs",
+            "raw/ostd/src/sync/rcu/mod.rs",
+            "raw/ostd/src/sync/guard.rs"
+          ],
+          "file_hit_at_5": true,
+          "packet_bytes": 7168,
+          "seconds": 0.22991059999912977
+        }
+      }
+    },
+    {
+      "question": "prevent local interrupts while accessing shared state",
+      "expected_file": "ostd/src/sync/spin.rs",
+      "modes": {
+        "bm25": {
+          "paths": [
+            "raw/ostd/src/sync/guard.rs",
+            "raw/ostd/src/sync/guard.rs",
+            "raw/ostd/src/sync/spin.rs",
+            "raw/ostd/src/sync/spin.rs",
+            "raw/ostd/src/sync/rwlock.rs"
+          ],
+          "file_hit_at_5": true,
+          "packet_bytes": 7175,
+          "seconds": 0.08147391799866455
+        },
+        "hybrid": {
+          "paths": [
+            "raw/ostd/src/sync/guard.rs",
+            "raw/ostd/src/sync/rcu/monitor.rs",
+            "raw/ostd/src/sync/rcu/monitor.rs",
+            "raw/ostd/src/sync/rwmutex.rs",
+            "raw/ostd/src/sync/spin.rs"
+          ],
+          "file_hit_at_5": true,
+          "packet_bytes": 6808,
+          "seconds": 0.22427284399964265
+        }
+      }
+    },
+    {
+      "question": "register a driver and probe existing PCI devices",
+      "expected_file": "kernel/core/comps/pci/src/bus.rs",
+      "modes": {
+        "bm25": {
+          "paths": [
+            "raw/kernel/core/comps/pci/src/bus.rs",
+            "raw/kernel/core/comps/pci/src/lib.rs",
+            "raw/kernel/core/comps/pci/src/bus.rs",
+            "raw/kernel/core/comps/pci/src/cfg_space.rs",
+            "raw/kernel/core/comps/pci/src/cfg_space.rs"
+          ],
+          "file_hit_at_5": true,
+          "packet_bytes": 8131,
+          "seconds": 0.07897644500189926
+        },
+        "hybrid": {
+          "paths": [
+            "raw/kernel/core/comps/pci/src/bus.rs",
+            "raw/kernel/core/comps/pci/src/lib.rs",
+            "raw/kernel/core/comps/pci/src/cfg_space.rs",
+            "raw/kernel/core/comps/pci/src/bus.rs",
+            "raw/kernel/core/comps/pci/src/cfg_space.rs"
+          ],
+          "file_hit_at_5": true,
+          "packet_bytes": 7794,
+          "seconds": 0.22967735700149206
+        }
+      }
+    },
+    {
+      "question": "wait until a condition is true and wake sleeping tasks",
+      "expected_file": "ostd/src/sync/wait.rs",
+      "modes": {
+        "bm25": {
+          "paths": [
+            "raw/ostd/src/sync/wait.rs",
+            "raw/ostd/src/sync/wait.rs",
+            "raw/ostd/src/sync/wait.rs",
+            "raw/ostd/src/sync/wait.rs",
+            "raw/ostd/src/sync/rwmutex.rs"
+          ],
+          "file_hit_at_5": true,
+          "packet_bytes": 7366,
+          "seconds": 0.07888633299808134
+        },
+        "hybrid": {
+          "paths": [
+            "raw/ostd/src/sync/wait.rs",
+            "raw/ostd/src/sync/wait.rs",
+            "raw/ostd/src/sync/wait.rs",
+            "raw/ostd/src/sync/wait.rs",
+            "raw/ostd/src/sync/wait.rs"
+          ],
+          "file_hit_at_5": true,
+          "packet_bytes": 6992,
+          "seconds": 0.22691384000063408
+        }
+      }
+    },
+    {
+      "question": "share immutable readers while replacing a pointer safely",
+      "expected_file": "ostd/src/sync/rcu/mod.rs",
+      "modes": {
+        "bm25": {
+          "paths": [
+            "raw/ostd/src/sync/rcu/mod.rs",
+            "raw/ostd/src/sync/rwmutex.rs",
+            "raw/ostd/src/sync/rwlock.rs",
+            "raw/ostd/src/sync/rwmutex.rs",
+            "raw/ostd/src/sync/rwlock.rs"
+          ],
+          "file_hit_at_5": true,
+          "packet_bytes": 8161,
+          "seconds": 0.07900051999968127
+        },
+        "hybrid": {
+          "paths": [
+            "raw/ostd/src/sync/rwmutex.rs",
+            "raw/ostd/src/sync/rwmutex.rs",
+            "raw/ostd/src/sync/rwlock.rs",
+            "raw/ostd/src/sync/rcu/mod.rs",
+            "raw/ostd/src/sync/rwmutex.rs"
+          ],
+          "file_hit_at_5": true,
+          "packet_bytes": 8216,
+          "seconds": 0.22943343099905178
+        }
+      }
+    }
+  ],
+  "seconds": 20.00628050799787
+}

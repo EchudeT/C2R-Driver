@@ -85,7 +85,7 @@ def test_single_download_selection_to_frozen_baselines(tmp_path, interrupt):
     assert model.call_count == 1
     assert fetches == list(RepositoryRole)
     assert project.stage(S.REPOSITORY_ACQUISITION).status.value == "PASS"
-    assert len(project.stages()) == 18
+    assert len(project.stages()) == 16
     assert "revision_selection" not in project.workflow.stage_values
     frozen = project.load_json_artifact(S.REPOSITORY_ACQUISITION, A.REVISION_MANIFEST)
     assert frozen["source"]["revision"] == git("rev-parse", "v2.0.0^{commit}", cwd=source)
@@ -218,3 +218,31 @@ def test_official_document_is_downloaded_once_through_evidence_closure(tmp_path)
         server.shutdown()
         server.server_close()
         thread.join()
+
+
+def test_operator_commits_skip_model_and_survive_reopen(tmp_path, monkeypatch):
+    from dataclasses import replace
+    from tests.repository_support import project_config
+
+    config = replace(project_config(), skill_root=str(tmp_path / "skills"))
+    with (
+        patch("tests.repository_support.select_revisions"),
+        patch("tests.repository_support.project_config", return_value=config),
+    ):
+        project, source, target, qemu = ready_project(tmp_path)
+    selection = {"repositories": [
+        {"role": role.value, "url": str(path), "ref": git("rev-parse", "HEAD", cwd=path)}
+        for role, path in zip(RepositoryRole, (source, target, qemu), strict=True)
+    ]}
+    pins = tmp_path / "pins.json"
+    pins.write_text(json.dumps(selection))
+    monkeypatch.setenv("DPF_REPOSITORY_PINS", str(pins))
+    with patch("driver_port_factory.codex.cli.CodexExecGateway.run") as model:
+        runner(project)._repositories(project)
+    model.assert_not_called()
+    reopened = open_project(project.root)
+    frozen = reopened.load_json_artifact(S.REPOSITORY_ACQUISITION, A.REVISION_MANIFEST)
+    assert reopened.stage(S.REPOSITORY_ACQUISITION).status.value == "PASS"
+    assert frozen["selection_job"] is None
+    for row in selection["repositories"]:
+        assert frozen[row["role"]]["revision"] == row["ref"]

@@ -1,0 +1,20 @@
+{
+  "status": "PASS",
+  "scope": "firmware and QEMU model, not translated driver",
+  "expected": "unassigned",
+  "devices": 1,
+  "observations": [
+    {
+      "slot": 3,
+      "raw_bar0": 0,
+      "qmp_bar": {
+        "prefetch": false,
+        "mem_type_64": false,
+        "bar": 0,
+        "size": 2,
+        "address": -1,
+        "type": "memory"
+      }
+    }
+  ]
+}

@@ -1,43 +1,53 @@
 # Local knowledge base
 
-DPF implements the read-only evidence interface required by `open-kernel-driver-port` without an
-MCP service. Its authoritative input is the immutable `materials_manifest` artifact produced by
-the passed `evidence_closure` stage. The acquisition domain owns provenance and gaps; the knowledge
-domain consumes controlled materials and never accepts arbitrary file registration.
+The immutable materials manifest from `evidence_closure` owns corpus provenance. The knowledge
+layer indexes those controlled originals; workers cannot register arbitrary files or edit the ledger.
+Indexes live under `knowledge/indexes/<corpus-sha256>/`. Reopening a concrete evidence gap produces
+new validated material identities and downstream invalidation. There is no separate source-closure
+stage, mandatory compiler export or automatic shared-header corpus expansion; see SOURCE_DESIGN.md.
 
-`knowledge/indexes/<corpus-sha256>/` is a deterministic, content-addressed derivative. A later
-validated source closure may publish one immutable successor corpus artifact. That revision must
-retain the acquisition records byte-for-byte and may add only source files proven to be blobs from
-the frozen source commit. Candidate construction never overwrites the index of a passed corpus.
+## Infrastructure and target knowledge
 
-## Readiness and target-quality gate
+Bootstrap establishes index infrastructure, query contracts and the project knowledge Skill. It
+records `INDEX_INFRASTRUCTURE_ONLY` and `PENDING_TARGET_STUDY_PROBE_REPLAY`, not semantic quality.
+The generator uses the packaged `data/project-kb-skill.md`, binding its digest and corpus identity.
 
-The knowledge-base checkpoint is static. The same worker performs semantic probes as part of
-target-platform study: registration/lifecycle, resources, interrupts/concurrency, ownership/errors,
-Rust safety, analogous implementation, packaging and QEMU. There is no probe-plan JSON or separate
-probe agent, and the old bootstrap/probe-plan CLI has been removed.
+The same analysis worker supplies one Markdown report and an adjacent `report.probes.json`.
+New prompts use `{"mode":"focused","probes":[...]}`: only actual gap-driven queries are recorded.
+The seven target topic names remain a vocabulary, not a mandatory survey. An empty focused list
+records `NO_RETRIEVAL_REQUESTED`, never retrieval success or semantic coverage. Direct inspection
+of pinned definitions is valid report evidence; a search miss alone does not trigger corpus repair.
+Legacy specifications containing only `probes` retain the original all-seven validation.
+
+Submission freezes the specification; target-study acceptance replays each supplied query and
+verifies selected original ranges, then binds `target_knowledge_quality` to the report and corpus.
+The stage bundle validator repeats this check. Forged queries, stale originals and stale reports
+still fail. This is provenance accounting, not another analysis report or an independent probe agent.
+
+`RETRIEVAL_VALIDATED` proves query results and original-byte identity. It does not prove the worker
+read the passages, relevance, complete API coverage, or semantic entailment. The worker self-checks
+its explanations against originals and the source task, whether optional reviewers are enabled or not.
+Acceptance cases establish only their actual observed scenarios. Optional analysis review can inspect
+the same observations but is not needed to execute the mechanical knowledge gate.
 
 ```sh
 dpf knowledge status RUN
 dpf knowledge inventory RUN --domain target
-dpf knowledge search RUN --query "interrupt acknowledgement" --domain target
+dpf knowledge search RUN --query "actual target symbols" --domain target --limit 20
 dpf knowledge show RUN --chunk-id CHUNK_ID
+dpf knowledge check-probes RUN --report /path/to/report.md
+dpf knowledge rag RUN --query "Which API waits for callbacks?" --domain target
 dpf knowledge rebuild RUN
 ```
 
-Search returns compact locators; inspect selected originals to support actual decisions. Each query
-checks its corpus/index, not unrelated runtime images; a separate status call before every search is
-unnecessary. If originals are missing, inspect the pinned tree and explain the exact paths needed in
-the current work report, then submit it with `--decision rework --repair-stage evidence_closure`.
-The controller reopens acquisition and rebuilds downstream evidence. This explicit prerequisite
-route replaces the upstream template's manual manifest edits; workers must not modify frozen files
-or controller state. An empty search is never evidence that the target lacks a capability.
+Probe replay uses the deterministic BM25 `search` interface. Optional mixed semantic retrieval uses
+`rag`; citations selected for replay must appear in the specified BM25 query results. No per-iteration
+catalog prefetch or fixed query quota is introduced. Changed premises require checking relevant original evidence; retrieval is optional when its
+location is already known. Final worker self-check does not mandate another search.
 
-Source closure retains all compiler dependency identities, but adds full-text search chunks only
-for translation units and driver-local headers. Shared headers remain controlled originals and
-are reached through selected compiler facts or direct source inspection, not blanket text indexing.
+Weak retrieval requires direct inspection of the pinned target repository. Name missing paths in the
+same report and request `--decision rework --repair-stage evidence_closure`. After controlled corpus
+repair and rebuilding, repeat the affected query. Empty search results never prove API absence.
+Changed originals, vectors or model identities fail rather than silently degrading retrieval.
 
-On success DPF fills the upstream `project-kb-skill/SKILL.md` template without placeholders and
-records the template hash, corpus digest, generated Skill path, integrity command, search command,
-exact retrieval command, and rebuild command. Changing controlled bytes makes
-`status/search/show` fail until a validated immutable corpus successor is published and indexed.
+See [RAG configuration and measured probe](RAG.zh-CN.md) and [alignment/compatibility](SKILL_ALIGNMENT_2026-10-02.zh-CN.md).

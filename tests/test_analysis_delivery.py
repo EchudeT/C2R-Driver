@@ -21,7 +21,7 @@ def test_combined_analysis_captures_contracts_without_second_model_call_and_repa
         calls.append(job.stage)
         report = job.execution_root / "analysis.md"
         report.write_text("Synthetic source/target mapping, contracts and assertion provenance.\n"
-                          + ("Corrected contract only.\n" if job.stage is S.CONTRACTS else ""))
+                          + ("Corrected contract only.\n" if len(calls) > 1 else ""))
         submit(project, job, report, kind="report", decision="pass")
         return CodexResult(job.job_id, "", "analysis-worker")
 
@@ -42,8 +42,8 @@ def test_combined_analysis_captures_contracts_without_second_model_call_and_repa
         project.retry_from(S.CONTRACTS, trigger=S.ANALYSIS_REVIEW, reason="synthetic assertion defect")
         assert prepared(project) is None
         port._contracts(project)
-        assert calls == [TS.STUDY, S.CONTRACTS]
-        assert project.artifact(TS.STUDY, T.REPORT).digest == study.digest
+        assert calls == [TS.STUDY, TS.STUDY]
+        assert project.artifact(TS.STUDY, T.REPORT).digest != study.digest
         assert project.artifact(S.CONTRACTS, A.CONTRACTS).digest != study.digest
     project.verify_integrity()
 

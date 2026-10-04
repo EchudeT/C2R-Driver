@@ -49,6 +49,10 @@ def _scope_confirmation(data: bytes) -> None:
 
 def _migration_envelope(data: bytes) -> None:
     value = json_object(data, IntakeArtifact.MIGRATION_ENVELOPE.value)
+    if "behavior_scope" in value:
+        from .behavior_scope import validate
+
+        validate(value["behavior_scope"])
     require_fields(
         value,
         {

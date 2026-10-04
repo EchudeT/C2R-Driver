@@ -9,6 +9,8 @@ still apply.
 import json
 import sqlite3
 
+from .target_framework import framework_stage
+
 from ..acquisition.repository import load_repository_acquisition
 from ..core.events import RunEvent
 from ..core.models import WorkflowError
@@ -37,10 +39,10 @@ def identity(project):
     from .contracts import MigrationArtifact as A
     inputs = ((S.HANDOFF, A.HANDOFF), (S.CONTRACTS, A.CONTRACTS),
               (S.CONTRACTS, A.TEST_PORT_MATRIX),
-              (S.TARGET_FRAMEWORK_ENABLEMENT, A.TARGET_FRAMEWORK_BUNDLE))
+              (framework_stage(project), A.TARGET_FRAMEWORK_BUNDLE))
     from .review_policy import review_policy_digest
     rules = {stage.value: review_policy_digest(project, None, stage)
-             for stage in (S.TARGET_FRAMEWORK_ENABLEMENT, S.DRIVER_IMPLEMENTATION)}
+             for stage in tuple(dict.fromkeys((framework_stage(project), S.DRIVER_IMPLEMENTATION)))}
     return {"rules": rules, "inputs": {kind.value: project.artifact(stage, kind).digest for stage, kind in inputs},
             "files": worktree_files(worktree, target.base_commit),
             "prepared": {p.name: file_sha256(p) for p in paths},

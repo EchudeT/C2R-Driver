@@ -117,7 +117,9 @@ def test_worker_receives_navigation_and_complete_feedback_reference(tmp_path, lo
         assert "driver_port_factory.read_evidence" in runtime["text_reader"]
         assert "not proof" in runtime["cargo_home_note"]
         record = material["controller_feedback"]["full_record"]
-        assert project.artifacts.path_for_digest(record["digest"]).read_text() == feedback
+        from driver_port_factory.short_refs import References
+        bound = References(project.root).get(record["evidence_ref"])
+        assert project.artifacts.path_for_digest(bound["digest"]).read_text() == feedback
         assert material["reading_plan"]["first"][0]["kind"] == "migration_contracts"
         assert "repair_focus" not in material  # No history or changed inputs to summarize.
         report = job.execution_root / ".dpf-output/focus-report.md"

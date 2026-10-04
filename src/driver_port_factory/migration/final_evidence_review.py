@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+from .target_framework import framework_stage
 import json
 from copy import deepcopy
 from pathlib import Path
@@ -32,7 +33,7 @@ class FinalEvidenceReviewService:
         runtime = project.artifact(S.ARTIFACT_PREPARATION, A.RUNTIME_ARTIFACT)
         project.artifacts.read(runtime)
         target_framework = project.load_json_artifact(
-            S.TARGET_FRAMEWORK_ENABLEMENT, A.TARGET_FRAMEWORK_BUNDLE
+            framework_stage(project), A.TARGET_FRAMEWORK_BUNDLE
         )
         artifact_identity = project.load_json_artifact(S.ARTIFACT_PREPARATION, A.ARTIFACT_IDENTITY)
         public = project.load_json_artifact(S.PUBLIC_QEMU_VALIDATION, A.PUBLIC_QEMU_REPORT)
@@ -72,10 +73,10 @@ class FinalEvidenceReviewService:
                 A.PUBLIC_QEMU_WORK_REPORT,
             ).digest,
             target_framework_report=project.artifact(
-                S.TARGET_FRAMEWORK_ENABLEMENT, A.TARGET_FRAMEWORK_REPORT
+                framework_stage(project), A.TARGET_FRAMEWORK_REPORT
             ).digest,
             target_framework_inventory=project.artifact(
-                S.TARGET_FRAMEWORK_ENABLEMENT, A.TARGET_FRAMEWORK_CHANGE_INVENTORY
+                framework_stage(project), A.TARGET_FRAMEWORK_CHANGE_INVENTORY
             ).digest,
             implementation_report=project.artifact(
                 S.DRIVER_IMPLEMENTATION, A.COMPLIANCE_REPORT

@@ -13,6 +13,7 @@ from ..core.models import (
 )
 from ..core.project import Project
 from ..intake.contracts import IntakeArtifact, IntakeStage
+from .accounting import gap_basis
 from .contracts import AcquisitionArtifact, AcquisitionStage
 from .facet_policy import validate_locator_authority
 from .facets import (
@@ -49,6 +50,7 @@ _STATIC_GIT_POLICY = MaterialPolicy(
     True,
 )
 
+
 @dataclass(frozen=True, slots=True)
 class ProposalImport:
     occurrence: ArtifactOccurrence
@@ -60,13 +62,14 @@ class GapDeclaration:
     reason: GapReason | None
     impact: str
     repair_trigger: str
+    basis: tuple[EvidenceFacet, ...] = ()
 
     @classmethod
     def from_dict(cls, value: object) -> GapDeclaration:
         candidate = exact_object(
             value,
             required={"impact", "repair_trigger"},
-            optional={"reason"},
+            optional={"reason", "basis"},
             label="explicit evidence gap",
         )
         reason = None
@@ -79,15 +82,18 @@ class GapDeclaration:
             reason,
             nonempty(candidate["impact"], "gap impact"),
             nonempty(candidate["repair_trigger"], "gap repair trigger"),
+            gap_basis(candidate.get("basis", [])),
         )
 
-    def to_dict(self) -> dict[str, str]:
+    def to_dict(self) -> dict[str, object]:
         value = {
             "impact": self.impact,
             "repair_trigger": self.repair_trigger,
         }
         if self.reason is not None:
             value["reason"] = self.reason.value
+        if self.basis:
+            value["basis"] = [facet.to_dict() for facet in self.basis]
         return value
 
 
@@ -115,8 +121,6 @@ class FacetProposal:
         raw_locators = candidate["locators"]
         if not isinstance(raw_locators, list):
             raise WorkflowError("evidence facet locators must be a list")
-        if not raw_locators:
-            raise WorkflowError("evidence facet proposal requires retrieval locators")
         locators = tuple(parse_locator(locator) for locator in raw_locators)
         for locator in locators:
             validate_locator_authority(facet, locator)
@@ -125,6 +129,10 @@ class FacetProposal:
         ):
             raise WorkflowError("controlled evidence requires content-bound locators")
         gap = GapDeclaration.from_dict(candidate["gap"]) if "gap" in candidate else None
+        if not locators and not (gap and gap.basis):
+            raise WorkflowError(
+                "evidence facet proposal requires retrieval locators or controlled gap basis"
+            )
         if disposition is FacetDisposition.EXPLICIT_GAP and gap is None:
             raise WorkflowError("explicit evidence gap requires gap accounting")
         if disposition is FacetDisposition.CONTROLLED and gap is not None:
@@ -191,6 +199,14 @@ class EvidenceDiscoveryProposal:
             raise WorkflowError("evidence proposal requires the frozen source driver entry")
         if source.disposition is not FacetDisposition.CONTROLLED:
             raise WorkflowError("source driver entry cannot be an explicit evidence gap")
+        by_facet = {item.facet: item for item in facets}
+        for item in facets:
+            for basis in item.gap.basis if item.gap else ():
+                referenced = by_facet.get(basis)
+                if referenced is None or referenced.disposition is not FacetDisposition.CONTROLLED:
+                    raise WorkflowError(
+                        "gap basis must reference a controlled facet in this proposal"
+                    )
         return cls(
             envelope,
             repository,
@@ -240,7 +256,9 @@ def normalize_codex_evidence_selection(
             continue
         facets.append(normalized)
     if errors:
-        raise WorkflowError("Fix all invalid evidence facets in one response:\n" + "\n".join(errors))
+        raise WorkflowError(
+            "Fix all invalid evidence facets in one response:\n" + "\n".join(errors)
+        )
     return EvidenceDiscoveryProposal.from_dict(
         {
             "schema_version": 1,
@@ -281,9 +299,7 @@ def _normalize_codex_facet(value: object, *, bind_document=None) -> FacetProposa
         raise WorkflowError("Codex evidence repository_paths must be a list")
     if not isinstance(external_urls, list):
         raise WorkflowError("Codex evidence external_urls must be a list")
-    locators: list[EvidenceLocator] = [
-        _static_git_locator(item) for item in repository_paths
-    ]
+    locators: list[EvidenceLocator] = [_static_git_locator(item) for item in repository_paths]
     documents = candidate.get("external_documents", [])
     if not isinstance(documents, list):
         raise WorkflowError("external_documents must be a list")
@@ -301,14 +317,17 @@ def _normalize_codex_facet(value: object, *, bind_document=None) -> FacetProposa
     gap = GapDeclaration.from_dict(candidate["gap"]) if "gap" in candidate else None
     if gap is None:
         if not locators:
-            raise WorkflowError("controlled evidence requires repository_paths or external_documents")
+            raise WorkflowError(
+                "controlled evidence requires repository_paths or external_documents"
+            )
         if external_urls:
             raise WorkflowError("controlled Codex evidence must use frozen repository paths")
         disposition = FacetDisposition.CONTROLLED
     else:
-        if not locators:
+        if not locators and not gap.basis:
             raise WorkflowError(
-                "Codex evidence gap requires a repository path or external URL that was checked"
+                "Codex evidence gap requires a checked locator or basis "
+                "referencing controlled facets"
             )
         disposition = FacetDisposition.EXPLICIT_GAP
     return FacetProposal(
@@ -329,9 +348,7 @@ def _static_git_locator(value: object) -> GitBlobLocator:
     try:
         repository = RepositoryRole(candidate["repository"])
     except (TypeError, ValueError) as error:
-        raise WorkflowError(
-            "Codex evidence repository must be source, target, or qemu"
-        ) from error
+        raise WorkflowError("Codex evidence repository must be source, target, or qemu") from error
     return GitBlobLocator(
         repository,
         relative_path(candidate["path"], "Codex evidence repository path"),
@@ -405,9 +422,7 @@ class EvidenceProposalImporter:
                     raw_proposal,
                     migration_envelope_sha256=envelope_ref.digest,
                     repository_manifest_sha256=repository_ref.digest,
-                    source_driver_path=envelope_document[
-                        "source_driver_entry_or_repository_hint"
-                    ],
+                    source_driver_path=envelope_document["source_driver_entry_or_repository_hint"],
                     bind_document=self._document_binder(project),
                 )
         except (UnicodeDecodeError, json.JSONDecodeError, WorkflowError) as error:
@@ -417,6 +432,7 @@ class EvidenceProposalImporter:
         if proposal.repository_manifest_sha256 != repository_ref.digest:
             raise CodexOutputError("evidence proposal repository manifest digest is stale")
         from .directory_selection import expand_directories
+
         proposal = expand_directories(project, proposal)
         binding = JobResultBinding(job.digest, ordinal(job.ordinal), job.source)
         imported = project.record_artifact(
@@ -435,6 +451,7 @@ class EvidenceProposalImporter:
     @staticmethod
     def _document_binder(project: Project):
         from .document_binding import ExternalDocumentBinder
+
         return ExternalDocumentBinder(project).bind
 
 

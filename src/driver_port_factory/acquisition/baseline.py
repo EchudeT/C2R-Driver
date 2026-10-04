@@ -22,7 +22,9 @@ class BaselineRepositoryAcquirer:
         *,
         caches=(),
         local_repositories=None,
+        compact_paths=False,
     ) -> None:
+        self.compact_paths = compact_paths
         self.project_root = project_root.resolve()
         self.control_root = control_root.resolve()
         self.git = git
@@ -44,7 +46,18 @@ class BaselineRepositoryAcquirer:
             operation=RepositoryCommandKind.BASELINE_COMMIT,
             role=spec.role,
         ).stdout.lower()
-        checkout = checkouts / f"{checkout_name}-{self.store.repository_name(spec)}-{fetched_commit}"
+        checkout = (
+            checkouts / f"{checkout_name}-{self.store.repository_name(spec)}-{fetched_commit}"
+        )
+        if self.compact_paths:
+            from .short_paths import allocate
+
+            checkout = allocate(
+                self.project_root,
+                self.control_root,
+                spec.role.value,
+                {"url": spec.url, "commit": fetched_commit},
+            )
         if getattr(spec, "resolved_commit", fetched_commit) != fetched_commit:
             raise WorkflowError(
                 f"fetched {spec.role.value} commit {fetched_commit} does not match "

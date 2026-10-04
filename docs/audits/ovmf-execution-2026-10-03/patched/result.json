@@ -1,0 +1,22 @@
+{
+  "status": "PASS",
+  "scope": "firmware and QEMU model, not translated driver",
+  "expected": "assigned",
+  "devices": 1,
+  "observations": [
+    {
+      "slot": 3,
+      "raw_bar0": 2164805632,
+      "qmp_bar": {
+        "prefetch": false,
+        "mem_type_64": false,
+        "bar": 0,
+        "size": 2,
+        "address": 2164805632,
+        "type": "memory"
+      },
+      "capability": 7,
+      "observed_event": "GUEST_PANICKED"
+    }
+  ]
+}

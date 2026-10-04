@@ -17,6 +17,10 @@ Scope or frozen upstream changes still require user authority. Preserve unrelate
   describe the earlier checkpoint and are bound into the implementation inputs. The final
   implementation snapshot supersedes checkpoint file contents and covers all changed source
   paths; any target API/framework change is minimal, evidenced and checked.
+- Confirm target compliance was checked before packaging and after relevant repairs. Inspect the
+  affected original target rules for API/layering, safety, concurrency, lifecycle, errors and build;
+  target changes need necessity, alternatives, affected callers, checks and rollback. Missing prose
+  alone is not a defect: identify the concrete violated rule or unsupported correctness premise.
 - The runtime artifact, packaged variants, entrypoint and artifact identity match the current code.
   Treat the CAS runtime bytes, the artifact-preparation attempt, the checker result and the
   implementation snapshot as the authoritative artifact identity. Human-readable artifact

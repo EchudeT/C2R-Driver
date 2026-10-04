@@ -79,7 +79,11 @@ repair the cause and repeat only after changed inputs. Later stage capture reuse
 observations instead of executing the same experiment again. Use --fresh for an intentional new
 independent repetition, not to evade a failed assertion. Runtime and source identity are still checked.
 
-For multiple independent public cases, optionally write .dpf-output/experiments.json as a list:
+For the managed platform, prefer platform action=register_case with id, case (object or JSON path)
+and contracts. It generates each case wrapper and experiments.json; both delivery entrypoints are
+preinstalled. Use driver_checks.check cases=[id] for selected checks, or omit cases for the suite.
+Final smoke/public capture reuses matching per-case observations; do not rewrite these wrappers.
+For a custom harness outside the managed case interface, experiments.json can still be supplied as:
 [{"id":"probe","script":".dpf-output/harness/probe.sh","contracts":["C1"],
   "dependencies":[".dpf-output/harness/probe-input.json"],"timeout_seconds":300}].
 Then invoke managed_experiment with --suite. Each case returns its own immutable receipt and only

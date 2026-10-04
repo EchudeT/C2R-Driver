@@ -84,7 +84,10 @@ def test_explicit_context_reset_reloads_rules_and_preserves_frozen_evidence(tmp_
     def gateway(job):
         assert job.thread_id is None
         assert '<skill_document_reference path="knowledge-guided-driver-port/SKILL.md"' in job.prompt
-        assert packet["digest"] in job.prompt
+        from driver_port_factory.short_refs import References
+        payload = json.loads(job.prompt.split("<job>")[1].split("</job>")[0])
+        handoff = payload["reference_material"]["context_handoff"]
+        assert References(project.root).get(handoff["evidence_ref"])["digest"] == packet["digest"]
         output = job.execution_root / ".dpf-output"
         output.mkdir(exist_ok=True)
         report = output / "reset-report.md"

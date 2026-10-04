@@ -155,3 +155,21 @@ stage fails with a local-revision error instead of silently trying `origin`, a c
 another network source. The local fetch command and its output remain in the repository
 manifest, and the import receipt is reused after a controller restart. Omit a role's
 local option to retain the ordinary remote or cache acquisition behavior for that role.
+
+### Operator-pinned experiment inputs
+
+Set `DPF_REPOSITORY_PINS=/absolute/path/repository-pins.json` before starting or
+resuming acquisition to bypass model revision selection. The file has a
+`repositories` array containing exactly source, target and qemu entries, each
+with `role`, `url`, and `ref` (a full commit ID). The controller freezes these
+inputs as an operator proposal in CAS; `selection_job` is null, not a fabricated
+model result. Acquisition still resolves the commits and verifies source identity.
+Already completed acquisition keeps its frozen manifest. Prior failed attempts
+remain in the ledger when an operator resumes with corrected inputs.
+
+A local partial clone is not necessarily an offline-complete repository. Before
+launching an experiment, hydrate the selected tree in its original promisor
+repository (for example `git archive <commit> > /dev/null`) and verify that
+`git rev-list --objects --missing=print <commit>^{tree}` reports no missing objects.
+Shared bare clones only share objects; they do not inherit lazy-fetch configuration.
+The controller does not silently fetch a different revision or switch routes.

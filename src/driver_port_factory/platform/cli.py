@@ -26,7 +26,7 @@ def _command(args):
     # Execution writes receipts and artifacts: retain full project integrity checks.
     project = open_project(Path(args.path), read_only=args.platform_action == "status")
     if args.platform_action == "prepare":
-        value = service.prepare(project, args.image, args.accelerator)
+        value = service.prepare(project)
     elif args.platform_action == "verify":
         value = service.verify(project)
     elif args.platform_action == "build":
@@ -51,9 +51,6 @@ def register(commands):
         parser = subs.add_parser(name)
         parser.add_argument("path")
         parser.set_defaults(handler=command)
-        if name == "prepare":
-            parser.add_argument("--image", required=True)
-            parser.add_argument("--accelerator", choices=("kvm", "tcg"), required=True)
         if name == "run-case":
             parser.add_argument("case")
         if name == "format":

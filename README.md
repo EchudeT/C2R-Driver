@@ -83,14 +83,44 @@ Codex 模型可用 `--model` 指定，也可在 `CODEX_HOME` 中配置默认值�
 前置分析只解决源义务和关键适配前提，局部实现细节留在当前行为。08 提供合并 bootstrap 和简短反馈。
 真实降本效果尚未验证；实验 06 在累计约 $11.66 时因 $10 调用间预算停止，尚未完成驱动交付。
 
+新任务的[联合分析提交格式](docs/ROUTE_GUIDED_ANALYSIS.zh-CN.md#提交格式与同轮修正)已简化：
+正文用短 ID 定位，普通源码前提无需探测字段，空检索索引可省略；提交时合并反馈可检查的错误，
+允许同一回合修正重交，避免模型结束后才发现格式错误。控制器仍验证真实来源与收据。
+这是接口改进，尚未用 luna 实验验证费用与成功率；运行中的冻结实验保持原版本。
+
+最后工作包现已支持[直接交付与统一验收](docs/FINAL_PACKAGE_HANDOFF.zh-CN.md)：
+预置case集合决定必需运行检查，分析不能自行追加ktest等必交任务；最后一次done在当前回合
+交回简短自查说明，不再增加done门禁或固定追加报告模型回合。14/15保留独立控制器
+验收。实现阶段复用历史通过结果；15针对同一最终代码快照和产物完整运行预置测试一次，
+全部通过即结束。临时目录、PATH、日志和报告变化不触发另一轮；不拼接不同版本的单项PASS。实验09已使用原有结果协助完成15；新策略的真实降本效果尚未验证。
+
 ## 平台执行层
+
+镜像与加速器必须由操作者在新任务启动时通过 `--platform-image`、`--platform-accelerator`
+指定并保存在项目配置中。模型仅调用 `bootstrap`，不选择环境；构建和 QEMU 在 Docker 内执行，
+OVMF 使用固定容器路径，KVM 通过 `/dev/kvm` 传入。宿主显示 WSL2 不意味着使用 TCG。
+详见[配置传递修复](docs/CONFIGURED_PLATFORM_ROUTE.zh-CN.md)。本轮按用户要求未运行测试或重启实验。
+
+新的 Linux pvpanic-pci → Asterinas 全范围任务已提供[固定公开测试](docs/PREPARED_PUBLIC_TESTS.zh-CN.md)：
+控制器预装真实 panic、关机和控制/移除三个场景的刺激、断言及运行入口。模型只实现驱动、适配
+测试接口并运行检查，不能改写断言。单设备 QEMU 覆盖不代表全部语义正确，真实新实验结果待运行。
+其他驱动仍使用[通用测试入口与登记工具](docs/PREPARED_TEST_ENTRYPOINTS.zh-CN.md)，尚无预置设备断言。
+
+新任务已加入[逐行为工作包与工具优化](docs/BEHAVIOR_COST_TOOLS.zh-CN.md)：简单驱动可用一个完整工作包覆盖多个契约与测试、
+同一正文只传一次、按需生成 Asterinas 组件接入骨架，运行用例支持内联对象和 QMP 返回值/事件字段断言。
+当前行为先完成必要检查再推进，最终验收保留。历史 B2 的离线重放中上下文 JSON 减少约 14.4%；
+这不是费用降幅，真实模型采用情况与成本收益尚待新实验验证。
+
+新任务支持[启动日志断言与原记录重判](docs/BOOT_LOG_CHECKS.zh-CN.md)：控制器处理颜色符、
+排除命令回显，失败时直接返回相关 guest 输出；只改正向日志断言时可以检查已存运行记录，
+原失败仍保留。当前行为完成前的必要检查不推迟，最终验收不减项。真实降本尚待新实验验证。
 
 开发版本已将平台长命令统一到等待终态的 `driver_checks.platform`，监视器直接显示执行日志；
 构建前先解析依赖并记录锁文件变化，再冻结输入。新增按需组件接入源码导航，以及防止
 串口命令回显误通过的 `guest_assert`。见[平台交互重构](docs/PLATFORM_WORKER_EXECUTION.zh-CN.md)。
 真实降本尚未测量；本地执行器验证与完整模型翻译实验分开报告，冻结实验不热更新。
 
-新建 Asterinas x86_64 项目现在由控制器提供固定构建、镜像与缓存挂载、ISO 身份、QMP/串口、超时和清理工具。第 08 阶段须完成干净目标基线的实际构建与启动验证；模型负责驱动适配和设备特定测试。已实测官方镜像下 KVM 路线；其他平台/启动方式未通用化，TCG 未声称通过。旧冻结任务不受影响。实际 CLI 接入曾出现项目校验模式错误，已修复并补充命令入口、失败恢复及损坏证据拒绝回归；运行中的冻结实验不热更新。详见 [平台执行层与实测记录](docs/PLATFORM_EXECUTION.zh-CN.md)。
+新建 Asterinas x86_64 项目现在由控制器提供固定构建、镜像与缓存挂载、ISO 身份、QMP/串口、超时和清理工具。第 08 阶段须完成干净目标基线的实际构建与启动验证；模型负责驱动适配和设备特定测试。已实测官方镜像下 KVM 路线；其他平台/启动方式未通用化，TCG 未声称通过。本开发分支不兼容旧冻结任务；旧记录保留供原版本审计。实际 CLI 接入曾出现项目校验模式错误，已修复并补充命令入口、失败恢复及损坏证据拒绝回归；运行中的冻结实验不热更新。详见 [平台执行层与实测记录](docs/PLATFORM_EXECUTION.zh-CN.md)。
 
 ## 启动一个实验
 
@@ -104,6 +134,8 @@ Codex 模型可用 `--model` 指定，也可在 `CODEX_HOME` 中配置默认值�
   --driver-name e1000 \
   --catalog configs/drivers/linux-e1000.catalog.json \
   --model gpt-5.6-sol \
+  --platform-image asterinas/dev:0.18.1-20260805-dpf-ovmf-bar-v1 \
+  --platform-accelerator kvm \
   --local-source-repository /absolute/path/to/linux \
   --local-target-repository /absolute/path/to/asterinas \
   --local-qemu-repository /absolute/path/to/qemu
@@ -117,10 +149,10 @@ configs/drivers/linux-e1000.catalog.json
 configs/drivers/linux-pvpanic-pci.catalog.json
 ```
 
-迁移质量主体是工作模型自检和实际验收测例。分析审查、最终证据审查是可选辅助，当前默认开启；开发实验关闭它们时传：
+迁移质量主体是工作模型自检和实际验收测例。分析审查、最终证据审查是可选辅助，当前默认关闭。显式开启时传：
 
 ```sh
---no-analysis-review --no-final-evidence-review
+--analysis-review --final-evidence-review
 ```
 
 审查设置会冻结到 workspace，不能在 workspace 创建后随意改成另一种配置。脚本的完整参数见 `./scripts/run-experiment.sh --help`。
@@ -137,7 +169,7 @@ PYTHONPATH=src .venv/bin/python -m driver_port_factory.cli port run ./runs/e1000
 
 ## 阶段和构建路径
 
-一次默认开发运行默认有 17 个账本阶段；关闭两个可选审查后是 15 个阶段（配置 benchmark 另加一个静态验收阶段）。这不是模型调用次数：分析合并交付，框架/实现/包装连续工作，控制器复用已有收据。
+默认开发运行有 15 个账本阶段；两个模型审查默认关闭，显式全部开启时为 17 个阶段（配置 benchmark 另加一个静态验收阶段）。这不是模型调用次数：分析合并交付，框架/实现/包装连续工作，控制器复用已有收据。
 
 | 阶段 | 作用 |
 | --- | --- |
@@ -147,19 +179,19 @@ PYTHONPATH=src .venv/bin/python -m driver_port_factory.cli port run ./runs/e1000
 | `scope_confirmation` | 在候选有歧义时要求一次确认，并冻结 bus、设备 ID、QEMU model 等范围。 |
 | `migration_envelope_freeze` | 冻结允许修改的仓库、版本、证据边界和交付目标。 |
 | `repository_acquisition` | 获取或导入 Linux、Asterinas、QEMU 的精确 commit 和来源记录。 |
-| `evidence_closure` | 关闭源代码、目标 API、设备协议和环境证据缺口。 |
-| `environment_recovery` | 验证主机、官方容器、QEMU 和可运行路线；不把启动成功当成驱动成功。 |
+| `evidence_closure` | 准备初始相关原始材料与明确缺口，后续按问题读取固定仓库。 |
+| `environment_recovery` | 托管执行器验证基线构建和启动，直接绑定收据，不额外要求设备探针。 |
 | `knowledge_base` | 建立带 provenance 的本地知识库和查询契约。 |
-| `target_platform_study` | 围绕当前源义务确定目标承担者、关键适配前提和验收依据；局部实现调查留在对应行为。 |
+| `target_platform_study` | 一次联合分析形成源义务、粗路径、关键前提、必要探测、契约和行为计划。 |
 | `migration_handoff` | 将研究、证据和范围交给实现阶段。 |
-| `migration_contracts` | 固化源码行为、迁移设计、测试计划和验收契约。 |
+| `migration_contracts` | 控制器登记同一份联合分析，不再单独调用模型生成契约。 |
 | `analysis_review`（可选） | 独立 AI 按核心代码位置、行号和证据审查分析材料。 |
 | `driver_implementation` | 默认每轮一个行为，随需补齐框架、驱动接入及对应测试；最终统一提交源码证据。 |
 | `artifact_preparation` | 生成可运行制品、manifest、身份和 presence receipt；这里发生目标工程构建。 |
 | `public_qemu_validation` | 执行公开 QEMU 阶梯，保存命令、设备身份、日志、退出码和归因。 |
 | `final_evidence_review`（可选） | 独立 AI 一次性审查交付证据、代码定位和原始运行结果。 |
 
-新开发任务默认逐行为调度，框架适配在需要它的行为中完成；统一在 `driver_implementation` 验收。旧工作区仍按原 DAG 续跑，不迁移正在运行的实验。详见 [合并实现与去重规则](docs/UNIFIED_IMPLEMENTATION.zh-CN.md)。实现之后由 `artifact_preparation` 准备制品并固定身份，`public_qemu_validation` 在 QEMU 中执行公开测试。实现自检在调用 QEMU 前执行通用检查：高置信度 marker 制品会被拦截；脚本里找不到 QMP 继续命令或 runtime 变量仅产生 advisory，由实际执行证据判定，避免误拒绝 helper／外部控制器。失败记录包含精确位置与实际观察。三个不同提交在输入和观察均相同时暂停续调，计数跨重启保存，同一提交重放不重复计数；helper 修复或新观察允许继续。开发模式可因具体反证修订早期证据或设计，按数据依赖失效受影响结果并保留源码与失败记录；封存模式仍遵循其冻结边界。详见 [`docs/STAGE_GUIDE.md`](docs/STAGE_GUIDE.md)、[`docs/WORKFLOW.md`](docs/WORKFLOW.md) 和 [`docs/EXECUTION_RECOVERY.md`](docs/EXECUTION_RECOVERY.md)。
+新开发任务默认逐行为调度，框架适配在需要它的行为中完成；统一在 `driver_implementation` 验收。本次路线协议不兼容旧冻结工作区，请创建新任务；旧实验记录不改写。详见 [合并实现与去重规则](docs/UNIFIED_IMPLEMENTATION.zh-CN.md)。实现之后由 `artifact_preparation` 准备制品并固定身份，`public_qemu_validation` 在 QEMU 中执行公开测试。实现自检在调用 QEMU 前执行通用检查：高置信度 marker 制品会被拦截；脚本里找不到 QMP 继续命令或 runtime 变量仅产生 advisory，由实际执行证据判定，避免误拒绝 helper／外部控制器。失败记录包含精确位置与实际观察。三个不同提交在输入和观察均相同时暂停续调，计数跨重启保存，同一提交重放不重复计数；helper 修复或新观察允许继续。开发模式可因具体反证修订早期证据或设计，按数据依赖失效受影响结果并保留源码与失败记录；封存模式仍遵循其冻结边界。详见 [`docs/STAGE_GUIDE.md`](docs/STAGE_GUIDE.md)、[`docs/WORKFLOW.md`](docs/WORKFLOW.md) 和 [`docs/EXECUTION_RECOVERY.md`](docs/EXECUTION_RECOVERY.md)。
 
 `status` 分开展示执行结果和功能评估来源，机械执行 PASS 不代表所有设备行为已覆盖。默认继续复用会话；如果需要摆脱过期诊断，可以在控制器停止后使用 `dpf codex reset-session RUN STAGE --reason "具体原因"`，为当前 provider/model 的 worker 或 reviewer 会话建立新上下文。旧会话归档，冻结证据和未完成状态通过 CAS 交接，代码和阶段状态保持原样，不调用模型。详见 [成本与质量优化说明](docs/COST_QUALITY_OPTIMIZATION_2026-09-26.zh-CN.md)。
 
@@ -307,7 +339,7 @@ bash -n scripts/*.sh
 
 完整测试依赖 `.[dev]`。测试不能替代真实 Linux/Asterinas/QEMU 证据；合成 controller fixture 只验证流程和契约。阶段协议、artifact 类型、角色门禁和 Skill 对齐见 [`docs/SKILL_TRACEABILITY.md`](docs/SKILL_TRACEABILITY.md)、[`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)、[`docs/CODEX_JOBS.md`](docs/CODEX_JOBS.md) 和 [`docs/WORKFLOW_ALIGNMENT.md`](docs/WORKFLOW_ALIGNMENT.md)。
 
-新建 developer-evidence 项目默认 `analysis-handoff`：分析材料、契约及已启用的分析审查完成后，在首次实现前交接一次；逐行为实现、局部框架适配及连续修复复用新会话。已有项目保留其设置，未记录策略的旧项目仍为 `persistent`。可用 `--context-policy persistent` 关闭交接，或选 `implementation-handoff` 将交接推迟至首次驱动实现前。用 `dpf codex context-report RUN [--compare OTHER_RUN] [--stage STAGE]` 查看费用、缓存、会话连续性与证据，不调用模型，也不把执行 PASS 当成质量等价。详见 [分析到执行的上下文交接](docs/ANALYSIS_HANDOFF_POLICY.zh-CN.md)。
+新建 developer-evidence 项目默认 `analysis-handoff`：分析材料、契约及已启用的分析审查完成后，在首次实现前交接一次；逐行为实现、局部框架适配及连续修复复用新会话。新路线任务保存自己的会话设置。可用 `--context-policy persistent` 关闭交接，或选 `implementation-handoff` 将交接推迟至首次驱动实现前。用 `dpf codex context-report RUN [--compare OTHER_RUN] [--stage STAGE]` 查看费用、缓存、会话连续性与证据，不调用模型，也不把执行 PASS 当成质量等价。详见 [分析到执行的上下文交接](docs/ANALYSIS_HANDOFF_POLICY.zh-CN.md)。
 
 提示现支持阶段阅读导航、修复观测差异及长反馈按需读取；没有新信息时省略空摘要。高风险接口探针在现有节点内按需选择，不增加固定验收清单。实现范围、成本边界和只读回放工具见 [阅读导航与变化驱动修复](docs/CONTEXT_FOCUS_AND_PROBES.zh-CN.md)。
 
@@ -336,3 +368,30 @@ bash -n scripts/*.sh
 07/08 现提供有界仓库/环境导航、可复用的 Docker smoke 入口和具体失败原因；设备断言与实际验收保留。已验证能力及同驱动重跑尚未闭合的研究复用边界见 [前置阶段优化](docs/BOOTSTRAP_OPTIMIZATION.zh-CN.md)。
 
 环境执行已完成[采集重构与 OVMF 兼容修复](docs/OVMF_AND_EXECUTION_REFACTOR.zh-CN.md)：托管容器内跟踪替代短命进程轮询，基础设施故障不进入付费返修。OVMF 的 pvpanic BAR 兼容补丁作为显式本地派生镜像提供，原 QEMU 与目标内核不变。真实平台检查通过，端到端驱动成本仍待新实验。
+
+
+## 路线驱动的联合分析
+
+`feature/route-guided-v1` 将流程收敛为分析、连续实现、验收三个宏观阶段。
+分析只交付一份 Markdown 和 `.route.json` 引用索引，初始行为直接交给调度器；
+实现每轮一个完整行为。局部路线修改保留无关进度，普通源码修改不触发额外前提审查。
+必要探测复用配置好的执行器，选择的分析经验可进入共享知识库，模型审查默认关闭。
+
+当前接口已实现，完整离线回归 413 项通过；回归启动后的局部调整另经 25 项针对性测试通过。
+核心模块 Ruff 检查及格式检查通过，全库仍有存量检查问题；详见
+[本版验证记录](docs/audits/route-guided-2026-10-03/verification.zh-CN.md)。尚无本版真实模型端到端成本结果。
+已有平台实测不能替代新工作流实验。规格、提示词位置和验证边界见
+[路线分析](docs/ROUTE_GUIDED_ANALYSIS.zh-CN.md)与[阶段职责](docs/STAGE_GUIDE.md)。
+
+共享经验新增三字段 `knowledge_learn` 工具，控制器归档后于公开验收通过时发布；
+分析入口提供少量匹配经验，按需检索保留。隔离实验可配置 `DPF_SHARED_KB_PUBLISH`
+写回公共库，`knowledge learning RUN` 查看记录。没有新增模型阶段或交付门禁；
+真实跨驱动降本效果待验证，详见 [共享知识库](docs/SHARED_KNOWLEDGE.zh-CN.md)。
+
+Linux evbug 已增加[固定公开实验接口](docs/EVBUG_PUBLIC_EXPERIMENT.zh-CN.md)：控制器提供事件、
+生命周期与边界三个场景，以及输入子系统内的固定Rust断言；模型只实现驱动与调用接口。
+公开场景使用合成设备，通过完整Asterinas内核执行，不代表实机或完整源语义覆盖。真实结果待运行。
+
+NE2000 PCI 的[公开实验准备](docs/NE2K_PUBLIC_EXPERIMENT.zh-CN.md)已提供固定的 probe/traffic/recovery 三组断言、同容器 Ethernet socket 对端及 pc/OVMF 配置。离线 oracle 检查和真实 PCI 固件资源预检通过；尚未运行此次 Luna 翻译，不代表驱动验证通过。
+
+已准备的 NE2000 实验可用 `./scripts/start-ne2000.sh` 启动或续跑；`--check` 只读检查准备状态，不调用模型。

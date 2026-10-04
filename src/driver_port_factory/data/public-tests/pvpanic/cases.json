@@ -1,0 +1,229 @@
+[
+  {
+    "id": "pvpanic-native-panic",
+    "case": {
+      "devices": [
+        "pvpanic-pci,events=1"
+      ],
+      "timeout_seconds": 120,
+      "steps": [
+        {
+          "wait_serial": "# "
+        },
+        {
+          "guest_assert": "test \"$(cat /proc/pvpanic)\" = \"capability=1 events=1\""
+        },
+        {
+          "guest_assert": "if printf '%s\\n' 'events 2' > /proc/pvpanic; then exit 1; fi"
+        },
+        {
+          "guest_assert": "test \"$(cat /proc/pvpanic)\" = \"capability=1 events=1\""
+        },
+        {
+          "qmp": {
+            "execute": "set-action",
+            "arguments": {
+              "panic": "none"
+            }
+          }
+        },
+        {
+          "qmp": {
+            "execute": "inject-nmi"
+          }
+        },
+        {
+          "wait_event": "GUEST_PANICKED"
+        },
+        {
+          "observe_seconds": 0.2
+        },
+        {
+          "assert_event_counts": {
+            "GUEST_PANICKED": 1,
+            "GUEST_CRASHLOADED": 0,
+            "GUEST_PVSHUTDOWN": 0
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "pvpanic-native-shutdown",
+    "case": {
+      "devices": [
+        "pvpanic-pci,events=4"
+      ],
+      "timeout_seconds": 120,
+      "steps": [
+        {
+          "wait_serial": "# "
+        },
+        {
+          "send_serial": "poweroff -f\n"
+        },
+        {
+          "wait_event": "GUEST_PVSHUTDOWN"
+        },
+        {
+          "assert_event_counts": {
+            "GUEST_PANICKED": 0,
+            "GUEST_CRASHLOADED": 0,
+            "GUEST_PVSHUTDOWN": 1
+          }
+        }
+      ]
+    }
+  },
+  {
+    "id": "pvpanic-controls-lifecycle",
+    "case": {
+      "devices": [
+        "pvpanic-pci,events=7"
+      ],
+      "timeout_seconds": 120,
+      "steps": [
+        {
+          "wait_serial": "# "
+        },
+        {
+          "qmp": {
+            "execute": "set-action",
+            "arguments": {
+              "panic": "none"
+            }
+          }
+        },
+        {
+          "guest_assert": "test \"$(cat /proc/pvpanic)\" = \"capability=7 events=7\""
+        },
+        {
+          "guest_assert": "printf '%s\\n' 'events 0' > /proc/pvpanic"
+        },
+        {
+          "guest_assert": "test \"$(cat /proc/pvpanic)\" = \"capability=7 events=0\""
+        },
+        {
+          "guest_assert": "if printf '%s\\n' 'events 80' > /proc/pvpanic; then exit 1; fi"
+        },
+        {
+          "guest_assert": "if printf '%s\\n' 'events xyz' > /proc/pvpanic; then exit 1; fi"
+        },
+        {
+          "guest_assert": "if printf '%s\\n' 'events 100000000' > /proc/pvpanic; then exit 1; fi"
+        },
+        {
+          "guest_assert": "test \"$(cat /proc/pvpanic)\" = \"capability=7 events=0\""
+        },
+        {
+          "guest_assert": "printf '%s\\n' 'notify panic' > /proc/pvpanic"
+        },
+        {
+          "guest_assert": "printf '%s\\n' 'notify crash' > /proc/pvpanic"
+        },
+        {
+          "guest_assert": "printf '%s\\n' 'notify shutdown' > /proc/pvpanic"
+        },
+        {
+          "observe_seconds": 0.2
+        },
+        {
+          "assert_event_counts": {
+            "GUEST_PANICKED": 0,
+            "GUEST_CRASHLOADED": 0,
+            "GUEST_PVSHUTDOWN": 0
+          }
+        },
+        {
+          "guest_assert": "printf '%s\\n' 'events 1' > /proc/pvpanic"
+        },
+        {
+          "guest_assert": "test \"$(cat /proc/pvpanic)\" = \"capability=7 events=1\""
+        },
+        {
+          "guest_assert": "printf '%s\\n' 'notify crash' > /proc/pvpanic"
+        },
+        {
+          "observe_seconds": 0.2
+        },
+        {
+          "assert_event_counts": {
+            "GUEST_PANICKED": 0,
+            "GUEST_CRASHLOADED": 0,
+            "GUEST_PVSHUTDOWN": 0
+          }
+        },
+        {
+          "guest_assert": "printf '%s\\n' 'notify panic' > /proc/pvpanic"
+        },
+        {
+          "wait_event": "GUEST_PANICKED"
+        },
+        {
+          "assert_event_counts": {
+            "GUEST_PANICKED": 1,
+            "GUEST_CRASHLOADED": 0,
+            "GUEST_PVSHUTDOWN": 0
+          }
+        },
+        {
+          "guest_assert": "printf '%s\\n' 'events 2' > /proc/pvpanic"
+        },
+        {
+          "guest_assert": "test \"$(cat /proc/pvpanic)\" = \"capability=7 events=2\""
+        },
+        {
+          "guest_assert": "printf '%s\\n' 'notify panic' > /proc/pvpanic"
+        },
+        {
+          "observe_seconds": 0.2
+        },
+        {
+          "assert_event_counts": {
+            "GUEST_PANICKED": 1,
+            "GUEST_CRASHLOADED": 0,
+            "GUEST_PVSHUTDOWN": 0
+          }
+        },
+        {
+          "guest_assert": "printf '%s\\n' 'notify crash' > /proc/pvpanic"
+        },
+        {
+          "wait_event": "GUEST_CRASHLOADED"
+        },
+        {
+          "assert_event_counts": {
+            "GUEST_PANICKED": 1,
+            "GUEST_CRASHLOADED": 1,
+            "GUEST_PVSHUTDOWN": 0
+          }
+        },
+        {
+          "guest_assert": "printf '%s\\n' 'events 7' > /proc/pvpanic"
+        },
+        {
+          "guest_assert": "printf '%s\\n' 'remove' > /proc/pvpanic"
+        },
+        {
+          "guest_assert": "printf '%s\\n' 'notify panic' > /proc/pvpanic"
+        },
+        {
+          "guest_assert": "printf '%s\\n' 'notify crash' > /proc/pvpanic"
+        },
+        {
+          "guest_assert": "printf '%s\\n' 'notify shutdown' > /proc/pvpanic"
+        },
+        {
+          "observe_seconds": 0.2
+        },
+        {
+          "assert_event_counts": {
+            "GUEST_PANICKED": 1,
+            "GUEST_CRASHLOADED": 1,
+            "GUEST_PVSHUTDOWN": 0
+          }
+        }
+      ]
+    }
+  }
+]

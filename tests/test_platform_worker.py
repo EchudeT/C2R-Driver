@@ -45,7 +45,6 @@ def test_environment_mcp_waits_for_completion_and_monitor_reads_logs(tmp_path):
                     "action": "bootstrap",
                     "image": IMAGE,
                     "accelerator": "tcg",
-                    "probe": "probe.sh",
                 },
             },
         },
@@ -104,7 +103,7 @@ def test_platform_tool_rejects_stale_job_action_and_uploaded_verdict(tmp_path):
 def test_platform_failure_or_cancellation_keeps_terminal_activity(tmp_path, error):
     project = platform_project(tmp_path)
     job, _ = environment_job(project)
-    args = {"action": "bootstrap", "image": IMAGE, "accelerator": "tcg", "probe": "probe.sh"}
+    args = {"action": "bootstrap", "image": IMAGE, "accelerator": "tcg"}
     with patch("driver_port_factory.environment.bootstrap.prepare", side_effect=error):
         if isinstance(error, Exception):
             value = respond(

@@ -1,0 +1,78 @@
+[
+  {
+    "cell": null,
+    "code": "C901",
+    "end_location": {
+      "column": 21,
+      "row": 109
+    },
+    "filename": "/home/unix/file/C2R-Driver/c2rust-migration-test-01/driver-port-factory/src/driver_port_factory/codex/submission.py",
+    "fix": null,
+    "location": {
+      "column": 5,
+      "row": 109
+    },
+    "message": "`write_submission` is too complex (21 > 12)",
+    "name": "complex-structure",
+    "noqa_row": 109,
+    "severity": "error",
+    "url": "https://docs.astral.sh/ruff/rules/complex-structure"
+  },
+  {
+    "cell": null,
+    "code": "PLR0912",
+    "end_location": {
+      "column": 21,
+      "row": 109
+    },
+    "filename": "/home/unix/file/C2R-Driver/c2rust-migration-test-01/driver-port-factory/src/driver_port_factory/codex/submission.py",
+    "fix": null,
+    "location": {
+      "column": 5,
+      "row": 109
+    },
+    "message": "Too many branches (20 > 12)",
+    "name": "too-many-branches",
+    "noqa_row": 109,
+    "severity": "error",
+    "url": "https://docs.astral.sh/ruff/rules/too-many-branches"
+  },
+  {
+    "cell": null,
+    "code": "C901",
+    "end_location": {
+      "column": 20,
+      "row": 214
+    },
+    "filename": "/home/unix/file/C2R-Driver/c2rust-migration-test-01/driver-port-factory/src/driver_port_factory/codex/submission.py",
+    "fix": null,
+    "location": {
+      "column": 5,
+      "row": 214
+    },
+    "message": "`load_submission` is too complex (17 > 12)",
+    "name": "complex-structure",
+    "noqa_row": 214,
+    "severity": "error",
+    "url": "https://docs.astral.sh/ruff/rules/complex-structure"
+  },
+  {
+    "cell": null,
+    "code": "PLR0912",
+    "end_location": {
+      "column": 20,
+      "row": 214
+    },
+    "filename": "/home/unix/file/C2R-Driver/c2rust-migration-test-01/driver-port-factory/src/driver_port_factory/codex/submission.py",
+    "fix": null,
+    "location": {
+      "column": 5,
+      "row": 214
+    },
+    "message": "Too many branches (16 > 12)",
+    "name": "too-many-branches",
+    "noqa_row": 214,
+    "severity": "error",
+    "url": "https://docs.astral.sh/ruff/rules/too-many-branches"
+  }
+]

@@ -12,18 +12,20 @@ MAX_REQUEST = 65536
 
 
 def dispatch(project, job_id, name, arguments):
+    if name == "knowledge_learn":
+        from ..knowledge.learn_tool import run
+
+        return run(project, job_id, arguments)
     if name == "platform":
         from ..platform.worker import run
 
         return run(project, job_id, arguments)
     if name == "check":
         return check_tools.check(project, job_id, arguments)
-    if name == "plan":
-        from ..migration.behavior import propose
+    if name == "analysis":
+        from ..migration.route_tool import run
 
-        if not isinstance(arguments, dict) or set(arguments) != {"behaviors"}:
-            raise WorkflowError("Plan tool accepts behaviors only; no completion or PASS")
-        return propose(project, job_id, arguments["behaviors"])
+        return run(project, job_id, arguments)
     if name == "progress":
         from ..migration.progress_tool import submit
 
@@ -33,6 +35,21 @@ def dispatch(project, job_id, name, arguments):
 
         return run(project, job_id, arguments)
     raise WorkflowError("Unknown managed tool")
+
+
+def _active_stages(project, job_id):
+    if project is None:
+        return None, None
+    from ..migration.route_tool import authorize as analysis_authorize
+    from ..platform.worker import authorize
+
+    try:
+        return authorize(project, job_id), None
+    except WorkflowError:
+        try:
+            return None, analysis_authorize(project, job_id)
+        except WorkflowError:
+            return None, None
 
 
 def respond(project, job_id, message):
@@ -46,18 +63,33 @@ def respond(project, job_id, message):
     if method == "ping":
         return {}
     if method == "tools/list":
+        from ..migration.route_tool import tool as analysis_tool
         from ..platform.worker import tool as platform_tool
 
-        if project is not None:
-            from ..platform.worker import authorize
+        stage, analysis_stage = _active_stages(project, job_id)
+        from ..knowledge.learn_tool import tool as learn_tool
+        from ..knowledge.shared_binding import project_binding
 
-            try:
-                stage = authorize(project, job_id)
-            except WorkflowError:
-                stage = None
-            if stage in {"environment_recovery", "target_platform_study", "migration_contracts"}:
-                return {"tools": [platform_tool()]}
+        learning = (
+            [learn_tool()]
+            if project is not None
+            and project_binding(project)
+            and (stage or analysis_stage) in {"target_platform_study", "driver_implementation"}
+            else []
+        )
+        if analysis_stage == "target_platform_study" and stage is None:
+            return {"tools": [analysis_tool(), *learning]}
+        if project is not None and stage in {
+            "environment_recovery",
+            "target_platform_study",
+            "migration_contracts",
+        }:
+            return {
+                "tools": [platform_tool(), *learning]
+                + ([analysis_tool()] if stage == "target_platform_study" else [])
+            }
         tools = check_tools.tools()
+        tools.extend(learning)
         if project is not None and stage is not None:
             tools.append(platform_tool())
         from ..migration.debugging import tool
@@ -67,25 +99,7 @@ def respond(project, job_id, message):
             from ..migration.progress_tool import tool as progress_tool
 
             tools.append(progress_tool())
-            tools.append(
-                {
-                    "name": "plan",
-                    "description": "Propose or revise coarse observable behaviors; "
-                    "the controller selects this round. "
-                    "No completion is recorded here. Keep framework adaptations, test stimuli and "
-                    "lifecycle/cleanup with the behavior needing them; no standalone enablement "
-                    "or platform survey items. Continue the selected behavior in the same round. "
-                    "Each row has id, outcome, contracts (IDs), depends_on (IDs), "
-                    "constraints (strings). "
-                    "Mutual dependencies merge. Source and valid unrelated progress are preserved.",
-                    "inputSchema": {
-                        "type": "object",
-                        "required": ["behaviors"],
-                        "additionalProperties": False,
-                        "properties": {"behaviors": {"type": "array", "items": {"type": "object"}}},
-                    },
-                }
-            )
+            tools.append(analysis_tool())
         return {"tools": tools}
     if method == "tools/call":
         try:

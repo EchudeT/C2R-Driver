@@ -24,6 +24,8 @@ def command_init(arguments: argparse.Namespace) -> None:
     root = Path(arguments.path).resolve()
     config = ProjectConfig(
         project_id=arguments.project_id or root.name,
+        platform_image=arguments.platform_image,
+        platform_accelerator=arguments.platform_accelerator,
         source_platform=arguments.source,
         target_platform=arguments.target,
         driver_name=arguments.driver,
@@ -44,13 +46,24 @@ def command_init(arguments: argparse.Namespace) -> None:
             str(Path(arguments.local_qemu_repository).resolve())
             if arguments.local_qemu_repository else None
         ),
+        behavior_scheduling=(
+            arguments.mode is EvaluationMode.DEVELOPER_EVIDENCE
+            if arguments.behavior_scheduling is None else arguments.behavior_scheduling
+        ),
         enable_analysis_review=(
-            True if arguments.analysis_review is None else arguments.analysis_review
+            False if arguments.analysis_review is None else arguments.analysis_review
         ),
         enable_final_evidence_review=(
-            True if arguments.final_evidence_review is None else arguments.final_evidence_review
+            False if arguments.final_evidence_review is None else arguments.final_evidence_review
         ),
     )
+    if config.target_platform.strip().lower() == "asterinas" and config.actor_role in {
+        ActorRole.DEVELOPER,
+        ActorRole.MIGRATION_OPERATOR,
+    }:
+        from ..platform.configuration import selected
+
+        selected(config)
     initialize_project(root, config)
     print(root)
 
@@ -185,6 +198,8 @@ def register_commands(commands: CommandRegistry) -> None:
     init.add_argument("--mode", type=EvaluationMode, choices=list(EvaluationMode), required=True)
     init.add_argument("--role", type=ActorRole, choices=list(ActorRole), required=True)
     init.add_argument("--skill-root")
+    init.add_argument("--platform-image", help="local Docker image for the frozen route")
+    init.add_argument("--platform-accelerator", choices=("kvm", "tcg"))
     init.add_argument("--baseline-repository", action="append", default=[],
                       help="read-only upstream repository cache (repeatable)")
     init.add_argument(
@@ -207,6 +222,10 @@ def register_commands(commands: CommandRegistry) -> None:
     init.add_argument(
         "--final-evidence-review", action=argparse.BooleanOptionalAction, default=None,
         help="enable or disable stage 18 final evidence review (default: enabled; required for blind mode)",
+    )
+    init.add_argument(
+        "--behavior-scheduling", action=argparse.BooleanOptionalAction, default=None,
+        help="controller-selected behavior rounds (default: enabled for developer mode)",
     )
     init.set_defaults(handler=command_init)
 

@@ -8,7 +8,7 @@ from dataclasses import asdict
 from ..core.execution import CommandRunner
 from ..core.models import WorkflowError
 from ..knowledge.index import file_sha256
-from . import guest
+from . import guest, network_peer
 from .activity import update
 from .profile import container_argv, digest
 
@@ -66,6 +66,7 @@ def boot(profile, worktree, directory, artifact, case, cache_key):
     for name, value in (("profile.json", profile), ("case.json", case)):
         (directory / name).write_text(json.dumps(value, indent=2) + "\n")
     shutil.copyfile(guest.__file__, directory / "guest.py")
+    shutil.copyfile(network_peer.__file__, directory / "network_peer.py")
     command = [
         "python3",
         str(directory / "guest.py"),

@@ -1,0 +1,305 @@
+{
+  "scope": "Completed shell command matches with original event locations; not a semantic audit",
+  "limits": "Counts include compound command text and cannot prove each subcommand ran, that evidence was read or used, or that cost was saved. Shell helpers, MCP retrieval and direct report/original reads are not counted. Inspect cited outputs and implementation decisions for adoption. Zero here does not prove no knowledge reuse.",
+  "stages": {
+    "driver_implementation": {},
+    "environment_recovery": {},
+    "evidence_closure": {},
+    "repository_acquisition": {},
+    "target_platform_study": {
+      "search:command": 12,
+      "show:help": 1,
+      "packet:command": 1,
+      "show:command": 7,
+      "check-probes:command": 1
+    }
+  },
+  "commands": [
+    {
+      "stage": "target_platform_study",
+      "events": "../experiments/pvpanic-behavior-sol-medium-20261003-04/run/.dpf/codex/target_platform_study-1802b532-70b1-4f1e-b6e0-8570fb310800.events.jsonl",
+      "line": 37,
+      "matched_commands": [
+        "search"
+      ],
+      "help_present": false,
+      "exit_code": 0,
+      "command": "/usr/bin/zsh -lc \"/home/unix/file/C2R-Driver/c2rust-migration-test-01/experiments/pvpanic-behavior-sol-medium-20261003-04/runtime/bin/python -m driver_port_factory.cli knowledge search /home/unix/file/C2R-Driver/c2rust-migration-test-01/experiments/pvpanic-behavior-sol-medium-20261003-04/run --query 'PciDriver probe register_driver PCI_BUS init_component' --domain target --limit 20\"",
+      "output_excerpt": "{\n  \"count\": 20,\n  \"matched_chunks\": 79,\n  \"query\": \"PciDriver probe register_driver PCI_BUS init_component\",\n  \"results\": [\n    {\n      \"chunk_id\": \"target.pci_framework.94a60fac001a391d-L1-L80\",\n      \"domain\": \"target\",\n      \"evidence_ref\": \"Rebc617c5-85\",\n      \"line_end\": 80,\n      \"line_start\": 1,\n      \"path\": \".dpf/worktrees/target/kernel/core/comps/pci/src/lib.rs\",\n      \"record_id\": \"target.pci_framework.94a60fac001a391d\",\n      \"score\": 29.11822,\n      \"source_url\": \"https://github.com/asterinas/asterinas.git\",\n      \"summary\": \"… f Asterinas. //! //! Users can implement the bus under the `PciDriver` to register devices to //! the PCI bus. When the physical device and the driver match successfully, it //! will be provided through the driver's `construct` function to …\",\n      \"summary_line_end\": 7,\n      \"summary_line_start\": 3\n    },\n    {\n      \"chunk_id\": \"target.pci_framework.4b05d690cd5a8bac-L1-L80\",\n      \"domain\": \"target\",\n      \"evidence_ref\": \"Rebc617c5-86\",\n      \"line_end\": 80,\n      \"line_start\": 1,\n      \"path\": \".dpf/worktrees/target/kernel/core/comps/pci/src/bus.rs\",\n      \"record_id\": \"target.pci_framework.4b05d690cd5a8bac\",\n      \"score\": 25.134768,\n  ",
+      "adoption": "NOT_ASSESSED"
+    },
+    {
+      "stage": "target_platform_study",
+      "events": "../experiments/pvpanic-behavior-sol-medium-20261003-04/run/.dpf/codex/target_platform_study-1802b532-70b1-4f1e-b6e0-8570fb310800.events.jsonl",
+      "line": 39,
+      "matched_commands": [
+        "search"
+      ],
+      "help_present": false,
+      "exit_code": 0,
+      "command": "/usr/bin/zsh -lc \"/home/unix/file/C2R-Driver/c2rust-migration-test-01/experiments/pvpanic-behavior-sol-medium-20261003-04/runtime/bin/python -m driver_port_factory.cli knowledge search /home/unix/file/C2R-Driver/c2rust-migration-test-01/experiments/pvpanic-behavior-sol-medium-20261003-04/run --query 'BarAccess read_once write_once bar_manager acquire IoMem' --domain target --limit 20\"",
+      "output_excerpt": "{\n  \"count\": 20,\n  \"matched_chunks\": 74,\n  \"query\": \"BarAccess read_once write_once bar_manager acquire IoMem\",\n  \"results\": [\n    {\n      \"chunk_id\": \"target.pci_framework.a0aadcb6edc562bf-L241-L320\",\n      \"domain\": \"target\",\n      \"evidence_ref\": \"Rebc617c5-105\",\n      \"line_end\": 320,\n      \"line_start\": 241,\n      \"path\": \".dpf/worktrees/target/kernel/core/comps/pci/src/cfg_space.rs\",\n      \"record_id\": \"target.pci_framework.a0aadcb6edc562bf\",\n      \"score\": 32.867051,\n      \"source_url\": \"https://github.com/asterinas/asterinas.git\",\n      \"summary\": \"… impl Bar { /// Acquires access to the BAR. pub fn acquire(&mut self) -> Result<BarAccess> { match self { Self::Memory(mem_bar) => mem_bar.acquire().cloned().map(BarAccess::Memory), // TODO: Implemen …\",\n      \"summary_line_end\": 251,\n      \"summary_line_start\": 244\n    },\n    {\n      \"chunk_id\": \"target.pci_framework.e94f67d33c6e42f8-L1-L80\",\n      \"domain\": \"target\",\n      \"evidence_ref\": \"Rebc617c5-106\",\n      \"line_end\": 80,\n      \"line_start\": 1,\n      \"path\": \".dpf/worktrees/target/kernel/core/comps/pci/src/capability/msix.rs\",\n      \"record_id\": \"target.pci_framework.e94f67d33c6e42f8\",\n      \"score\": 28.451681,\n      \"sou",
+      "adoption": "NOT_ASSESSED"
+    },
+    {
+      "stage": "target_platform_study",
+      "events": "../experiments/pvpanic-behavior-sol-medium-20261003-04/run/.dpf/codex/target_platform_study-1802b532-70b1-4f1e-b6e0-8570fb310800.events.jsonl",
+      "line": 41,
+      "matched_commands": [
+        "search"
+      ],
+      "help_present": false,
+      "exit_code": 0,
+      "command": "/usr/bin/zsh -lc \"/home/unix/file/C2R-Driver/c2rust-migration-test-01/experiments/pvpanic-behavior-sol-medium-20261003-04/runtime/bin/python -m driver_port_factory.cli knowledge search /home/unix/file/C2R-Driver/c2rust-migration-test-01/experiments/pvpanic-behavior-sol-medium-20261003-04/run --query 'PciBus Mutex register_driver PciDriver interrupt deferred' --domain target --limit 20\"",
+      "output_excerpt": "{\n  \"count\": 20,\n  \"matched_chunks\": 71,\n  \"query\": \"PciBus Mutex register_driver PciDriver interrupt deferred\",\n  \"results\": [\n    {\n      \"chunk_id\": \"target.pci_framework.4b05d690cd5a8bac-L1-L80\",\n      \"domain\": \"target\",\n      \"evidence_ref\": \"Rebc617c5-125\",\n      \"line_end\": 80,\n      \"line_start\": 1,\n      \"path\": \".dpf/worktrees/target/kernel/core/comps/pci/src/bus.rs\",\n      \"record_id\": \"target.pci_framework.4b05d690cd5a8bac\",\n      \"score\": 23.184024,\n      \"source_url\": \"https://github.com/asterinas/asterinas.git\",\n      \"summary\": \"… ructure that implements the [`PciDevice`] trait. /// 2. A [`PciDriver`] instance. pub struct PciBus { common_devices: VecDeque<PciCommonDevice>, devices: Vec<Arc<dyn PciDevice>>, drivers: Vec<Arc<dyn PciDriver>>, } impl PciBus …\",\n      \"summary_line_end\": 48,\n      \"summary_line_start\": 40\n    },\n    {\n      \"chunk_id\": \"target.pci_framework.94a60fac001a391d-L1-L80\",\n      \"domain\": \"target\",\n      \"evidence_ref\": \"Rebc617c5-126\",\n      \"line_end\": 80,\n      \"line_start\": 1,\n      \"path\": \".dpf/worktrees/target/kernel/core/comps/pci/src/lib.rs\",\n      \"record_id\": \"target.pci_framework.94a60fac001a391d\",\n      \"score\": 22.173004,\n      \"",
+      "adoption": "NOT_ASSESSED"
+    },
+    {
+      "stage": "target_platform_study",
+      "events": "../experiments/pvpanic-behavior-sol-medium-20261003-04/run/.dpf/codex/target_platform_study-1802b532-70b1-4f1e-b6e0-8570fb310800.events.jsonl",
+      "line": 43,
+      "matched_commands": [
+        "search"
+      ],
+      "help_present": false,
+      "exit_code": 0,
+      "command": "/usr/bin/zsh -lc \"/home/unix/file/C2R-Driver/c2rust-migration-test-01/experiments/pvpanic-behavior-sol-medium-20261003-04/runtime/bin/python -m driver_port_factory.cli knowledge search /home/unix/file/C2R-Driver/c2rust-migration-test-01/experiments/pvpanic-behavior-sol-medium-20261003-04/run --query 'BusProbeError DeviceNotMatch PciCommonDevice Arc Result probe' --domain target --limit 20\"",
+      "output_excerpt": "{\n  \"count\": 20,\n  \"matched_chunks\": 96,\n  \"query\": \"BusProbeError DeviceNotMatch PciCommonDevice Arc Result probe\",\n  \"results\": [\n    {\n      \"chunk_id\": \"target.pci_framework.4b05d690cd5a8bac-L1-L80\",\n      \"domain\": \"target\",\n      \"evidence_ref\": \"Rebc617c5-145\",\n      \"line_end\": 80,\n      \"line_start\": 1,\n      \"path\": \".dpf/worktrees/target/kernel/core/comps/pci/src/bus.rs\",\n      \"record_id\": \"target.pci_framework.4b05d690cd5a8bac\",\n      \"score\": 30.896047,\n      \"source_url\": \"https://github.com/asterinas/asterinas.git\",\n      \"summary\": \"… use ostd::{bus::BusProbeError, debug, error}; use super::{PciCommonDevice, device_info::PciDeviceId}; /// A trait that represents PCI devices. pub trait PciDevice: Sync + Send + Debug { /// Returns the device ID. fn device_id(&se …\",\n      \"summary_line_end\": 15,\n      \"summary_line_start\": 7\n    },\n    {\n      \"chunk_id\": \"target.analogous_pci_driver.d610477bd30ebb33-L1-L71\",\n      \"domain\": \"target\",\n      \"evidence_ref\": \"Rebc617c5-146\",\n      \"line_end\": 71,\n      \"line_start\": 1,\n      \"path\": \".dpf/worktrees/target/kernel/core/comps/nvme/src/transport/pci/driver.rs\",\n      \"record_id\": \"target.analogous_pci_driver.d610477bd30ebb",
+      "adoption": "NOT_ASSESSED"
+    },
+    {
+      "stage": "target_platform_study",
+      "events": "../experiments/pvpanic-behavior-sol-medium-20261003-04/run/.dpf/codex/target_platform_study-1802b532-70b1-4f1e-b6e0-8570fb310800.events.jsonl",
+      "line": 45,
+      "matched_commands": [
+        "search"
+      ],
+      "help_present": false,
+      "exit_code": 0,
+      "command": "/usr/bin/zsh -lc \"/home/unix/file/C2R-Driver/c2rust-migration-test-01/experiments/pvpanic-behavior-sol-medium-20261003-04/runtime/bin/python -m driver_port_factory.cli knowledge search /home/unix/file/C2R-Driver/c2rust-migration-test-01/experiments/pvpanic-behavior-sol-medium-20261003-04/run --query 'deny unsafe_code IoMem read_once write_once safety' --domain target --limit 20\"",
+      "output_excerpt": "{\n  \"count\": 20,\n  \"matched_chunks\": 83,\n  \"query\": \"deny unsafe_code IoMem read_once write_once safety\",\n  \"results\": [\n    {\n      \"chunk_id\": \"target.safety_coding_rules.0b2e4581af6225db-L61-L140\",\n      \"domain\": \"target\",\n      \"evidence_ref\": \"Rebc617c5-165\",\n      \"line_end\": 140,\n      \"line_start\": 61,\n      \"path\": \".dpf/worktrees/target/book/src/ostd/soundness/safe-kernel-peripheral-interactions.md\",\n      \"record_id\": \"target.safety_coding_rules.0b2e4581af6225db\",\n      \"score\": 21.842272,\n      \"source_url\": \"https://github.com/asterinas/asterinas.git\",\n      \"summary\": \"… clusively by OSTD — no client can access or modify it. > **Safety Invariant.** Devices cannot inject interrupts to arbitrary vectors. All interrupt delivery is mediated by the remapping table, which OSTD controls exclusively. ## I/O Memo …\",\n      \"summary_line_end\": 69,\n      \"summary_line_start\": 61\n    },\n    {\n      \"chunk_id\": \"target.pci_framework.a0aadcb6edc562bf-L241-L320\",\n      \"domain\": \"target\",\n      \"evidence_ref\": \"Rebc617c5-166\",\n      \"line_end\": 320,\n      \"line_start\": 241,\n      \"path\": \".dpf/worktrees/target/kernel/core/comps/pci/src/cfg_space.rs\",\n      \"record_id\": \"target.pci_",
+      "adoption": "NOT_ASSESSED"
+    },
+    {
+      "stage": "target_platform_study",
+      "events": "../experiments/pvpanic-behavior-sol-medium-20261003-04/run/.dpf/codex/target_platform_study-1802b532-70b1-4f1e-b6e0-8570fb310800.events.jsonl",
+      "line": 47,
+      "matched_commands": [
+        "search"
+      ],
+      "help_present": false,
+      "exit_code": 0,
+      "command": "/usr/bin/zsh -lc \"/home/unix/file/C2R-Driver/c2rust-migration-test-01/experiments/pvpanic-behavior-sol-medium-20261003-04/runtime/bin/python -m driver_port_factory.cli knowledge search /home/unix/file/C2R-Driver/c2rust-migration-test-01/experiments/pvpanic-behavior-sol-medium-20261003-04/run --query 'NvmePciDriver probe bar_manager acquire register_driver' --domain target --limit 20\"",
+      "output_excerpt": "{\n  \"count\": 20,\n  \"matched_chunks\": 69,\n  \"query\": \"NvmePciDriver probe bar_manager acquire register_driver\",\n  \"results\": [\n    {\n      \"chunk_id\": \"target.analogous_pci_driver.703a5b1293ea5ad0-L1-L20\",\n      \"domain\": \"target\",\n      \"evidence_ref\": \"Rebc617c5-185\",\n      \"line_end\": 20,\n      \"line_start\": 1,\n      \"path\": \".dpf/worktrees/target/kernel/core/comps/nvme/src/transport/pci/mod.rs\",\n      \"record_id\": \"target.analogous_pci_driver.703a5b1293ea5ad0\",\n      \"score\": 21.594502,\n      \"source_url\": \"https://github.com/asterinas/asterinas.git\",\n      \"summary\": \"… NvmePciDriver; pub(crate) static NVME_PCI_DRIVER: Once<Arc<NvmePciDriver>> = Once::new(); pub(crate) fn nvme_pci_init() { NVME_PCI_DRIVER.call_once(|| Arc::new(NvmePciDriver::new())); PCI_BUS .lock() .register_driv …\",\n      \"summary_line_end\": 19,\n      \"summary_line_start\": 11\n    },\n    {\n      \"chunk_id\": \"target.analogous_pci_driver.d610477bd30ebb33-L1-L71\",\n      \"domain\": \"target\",\n      \"evidence_ref\": \"Rebc617c5-186\",\n      \"line_end\": 71,\n      \"line_start\": 1,\n      \"path\": \".dpf/worktrees/target/kernel/core/comps/nvme/src/transport/pci/driver.rs\",\n      \"record_id\": \"target.analogous_pci_driver.d6104",
+      "adoption": "NOT_ASSESSED"
+    },
+    {
+      "stage": "target_platform_study",
+      "events": "../experiments/pvpanic-behavior-sol-medium-20261003-04/run/.dpf/codex/target_platform_study-1802b532-70b1-4f1e-b6e0-8570fb310800.events.jsonl",
+      "line": 49,
+      "matched_commands": [
+        "search"
+      ],
+      "help_present": false,
+      "exit_code": 0,
+      "command": "/usr/bin/zsh -lc \"/home/unix/file/C2R-Driver/c2rust-migration-test-01/experiments/pvpanic-behavior-sol-medium-20261003-04/runtime/bin/python -m driver_port_factory.cli knowledge search /home/unix/file/C2R-Driver/c2rust-migration-test-01/experiments/pvpanic-behavior-sol-medium-20261003-04/run --query 'Components.toml init_component make kernel OSDK QEMU' --domain target --limit 20\"",
+      "output_excerpt": "{\n  \"count\": 20,\n  \"matched_chunks\": 59,\n  \"query\": \"Components.toml init_component make kernel OSDK QEMU\",\n  \"results\": [\n    {\n      \"chunk_id\": \"target.component_lifecycle.2737335d70bfc03e-L1-L80\",\n      \"domain\": \"target\",\n      \"evidence_ref\": \"Rebc617c5-205\",\n      \"line_end\": 80,\n      \"line_start\": 1,\n      \"path\": \".dpf/worktrees/target/kernel/libs/comp-sys/component-macro/src/lib.rs\",\n      \"record_id\": \"target.component_lifecycle.2737335d70bfc03e\",\n      \"score\": 22.786222,\n      \"source_url\": \"https://github.com/asterinas/asterinas.git\",\n      \"summary\": \"… macro_input; pub(crate) const COMPONENT_FILE_NAME: &str = \\\"Components.toml\\\"; /// Register a function to be called when the component system is initialized. The function should not public. /// /// You can specify the initialization stage b …\",\n      \"summary_line_end\": 19,\n      \"summary_line_start\": 13\n    },\n    {\n      \"chunk_id\": \"target.component_lifecycle.2737335d70bfc03e-L61-L90\",\n      \"domain\": \"target\",\n      \"evidence_ref\": \"Rebc617c5-206\",\n      \"line_end\": 90,\n      \"line_start\": 61,\n      \"path\": \".dpf/worktrees/target/kernel/libs/comp-sys/component-macro/src/lib.rs\",\n      \"record_id\": \"target.compone",
+      "adoption": "NOT_ASSESSED"
+    },
+    {
+      "stage": "target_platform_study",
+      "events": "../experiments/pvpanic-behavior-sol-medium-20261003-04/run/.dpf/codex/target_platform_study-1802b532-70b1-4f1e-b6e0-8570fb310800.events.jsonl",
+      "line": 51,
+      "matched_commands": [
+        "search"
+      ],
+      "help_present": false,
+      "exit_code": 0,
+      "command": "/usr/bin/zsh -lc \"/home/unix/file/C2R-Driver/c2rust-migration-test-01/experiments/pvpanic-behavior-sol-medium-20261003-04/runtime/bin/python -m driver_port_factory.cli knowledge search /home/unix/file/C2R-Driver/c2rust-migration-test-01/experiments/pvpanic-behavior-sol-medium-20261003-04/run --query 'PciBus Mutex register_driver PciDriver interrupt deferred' --domain target --limit 20\"",
+      "output_excerpt": "{\n  \"count\": 20,\n  \"matched_chunks\": 71,\n  \"query\": \"PciBus Mutex register_driver PciDriver interrupt deferred\",\n  \"results\": [\n    {\n      \"chunk_id\": \"target.pci_framework.4b05d690cd5a8bac-L1-L80\",\n      \"domain\": \"target\",\n      \"evidence_ref\": \"Rebc617c5-125\",\n      \"line_end\": 80,\n      \"line_start\": 1,\n      \"path\": \".dpf/worktrees/target/kernel/core/comps/pci/src/bus.rs\",\n      \"record_id\": \"target.pci_framework.4b05d690cd5a8bac\",\n      \"score\": 23.184024,\n      \"source_url\": \"https://github.com/asterinas/asterinas.git\",\n      \"summary\": \"… ructure that implements the [`PciDevice`] trait. /// 2. A [`PciDriver`] instance. pub struct PciBus { common_devices: VecDeque<PciCommonDevice>, devices: Vec<Arc<dyn PciDevice>>, drivers: Vec<Arc<dyn PciDriver>>, } impl PciBus …\",\n      \"summary_line_end\": 48,\n      \"summary_line_start\": 40\n    },\n    {\n      \"chunk_id\": \"target.pci_framework.94a60fac001a391d-L1-L80\",\n      \"domain\": \"target\",\n      \"evidence_ref\": \"Rebc617c5-126\",\n      \"line_end\": 80,\n      \"line_start\": 1,\n      \"path\": \".dpf/worktrees/target/kernel/core/comps/pci/src/lib.rs\",\n      \"record_id\": \"target.pci_framework.94a60fac001a391d\",\n      \"score\": 22.173004,\n      \"",
+      "adoption": "NOT_ASSESSED"
+    },
+    {
+      "stage": "target_platform_study",
+      "events": "../experiments/pvpanic-behavior-sol-medium-20261003-04/run/.dpf/codex/target_platform_study-1802b532-70b1-4f1e-b6e0-8570fb310800.events.jsonl",
+      "line": 53,
+      "matched_commands": [
+        "search"
+      ],
+      "help_present": false,
+      "exit_code": 0,
+      "command": "/usr/bin/zsh -lc \"/home/unix/file/C2R-Driver/c2rust-migration-test-01/experiments/pvpanic-behavior-sol-medium-20261003-04/runtime/bin/python -m driver_port_factory.cli knowledge search /home/unix/file/C2R-Driver/c2rust-migration-test-01/experiments/pvpanic-behavior-sol-medium-20261003-04/run --query 'BusProbeError DeviceNotMatch PciCommonDevice Arc Result probe' --domain target --limit 20\"",
+      "output_excerpt": "{\n  \"count\": 20,\n  \"matched_chunks\": 96,\n  \"query\": \"BusProbeError DeviceNotMatch PciCommonDevice Arc Result probe\",\n  \"results\": [\n    {\n      \"chunk_id\": \"target.pci_framework.4b05d690cd5a8bac-L1-L80\",\n      \"domain\": \"target\",\n      \"evidence_ref\": \"Rebc617c5-145\",\n      \"line_end\": 80,\n      \"line_start\": 1,\n      \"path\": \".dpf/worktrees/target/kernel/core/comps/pci/src/bus.rs\",\n      \"record_id\": \"target.pci_framework.4b05d690cd5a8bac\",\n      \"score\": 30.896047,\n      \"source_url\": \"https://github.com/asterinas/asterinas.git\",\n      \"summary\": \"… use ostd::{bus::BusProbeError, debug, error}; use super::{PciCommonDevice, device_info::PciDeviceId}; /// A trait that represents PCI devices. pub trait PciDevice: Sync + Send + Debug { /// Returns the device ID. fn device_id(&se …\",\n      \"summary_line_end\": 15,\n      \"summary_line_start\": 7\n    },\n    {\n      \"chunk_id\": \"target.analogous_pci_driver.d610477bd30ebb33-L1-L71\",\n      \"domain\": \"target\",\n      \"evidence_ref\": \"Rebc617c5-146\",\n      \"line_end\": 71,\n      \"line_start\": 1,\n      \"path\": \".dpf/worktrees/target/kernel/core/comps/nvme/src/transport/pci/driver.rs\",\n      \"record_id\": \"target.analogous_pci_driver.d610477bd30ebb",
+      "adoption": "NOT_ASSESSED"
+    },
+    {
+      "stage": "target_platform_study",
+      "events": "../experiments/pvpanic-behavior-sol-medium-20261003-04/run/.dpf/codex/target_platform_study-1802b532-70b1-4f1e-b6e0-8570fb310800.events.jsonl",
+      "line": 55,
+      "matched_commands": [
+        "search"
+      ],
+      "help_present": false,
+      "exit_code": 0,
+      "command": "/usr/bin/zsh -lc \"/home/unix/file/C2R-Driver/c2rust-migration-test-01/experiments/pvpanic-behavior-sol-medium-20261003-04/runtime/bin/python -m driver_port_factory.cli knowledge search /home/unix/file/C2R-Driver/c2rust-migration-test-01/experiments/pvpanic-behavior-sol-medium-20261003-04/run --query 'deny unsafe_code IoMem read_once write_once safety' --domain target --limit 20\"",
+      "output_excerpt": "{\n  \"count\": 20,\n  \"matched_chunks\": 83,\n  \"query\": \"deny unsafe_code IoMem read_once write_once safety\",\n  \"results\": [\n    {\n      \"chunk_id\": \"target.safety_coding_rules.0b2e4581af6225db-L61-L140\",\n      \"domain\": \"target\",\n      \"evidence_ref\": \"Rebc617c5-165\",\n      \"line_end\": 140,\n      \"line_start\": 61,\n      \"path\": \".dpf/worktrees/target/book/src/ostd/soundness/safe-kernel-peripheral-interactions.md\",\n      \"record_id\": \"target.safety_coding_rules.0b2e4581af6225db\",\n      \"score\": 21.842272,\n      \"source_url\": \"https://github.com/asterinas/asterinas.git\",\n      \"summary\": \"… clusively by OSTD — no client can access or modify it. > **Safety Invariant.** Devices cannot inject interrupts to arbitrary vectors. All interrupt delivery is mediated by the remapping table, which OSTD controls exclusively. ## I/O Memo …\",\n      \"summary_line_end\": 69,\n      \"summary_line_start\": 61\n    },\n    {\n      \"chunk_id\": \"target.pci_framework.a0aadcb6edc562bf-L241-L320\",\n      \"domain\": \"target\",\n      \"evidence_ref\": \"Rebc617c5-166\",\n      \"line_end\": 320,\n      \"line_start\": 241,\n      \"path\": \".dpf/worktrees/target/kernel/core/comps/pci/src/cfg_space.rs\",\n      \"record_id\": \"target.pci_",
+      "adoption": "NOT_ASSESSED"
+    },
+    {
+      "stage": "target_platform_study",
+      "events": "../experiments/pvpanic-behavior-sol-medium-20261003-04/run/.dpf/codex/target_platform_study-1802b532-70b1-4f1e-b6e0-8570fb310800.events.jsonl",
+      "line": 57,
+      "matched_commands": [
+        "search"
+      ],
+      "help_present": false,
+      "exit_code": 0,
+      "command": "/usr/bin/zsh -lc \"/home/unix/file/C2R-Driver/c2rust-migration-test-01/experiments/pvpanic-behavior-sol-medium-20261003-04/runtime/bin/python -m driver_port_factory.cli knowledge search /home/unix/file/C2R-Driver/c2rust-migration-test-01/experiments/pvpanic-behavior-sol-medium-20261003-04/run --query 'NvmePciDriver probe bar_manager acquire register_driver' --domain target --limit 20\"",
+      "output_excerpt": "{\n  \"count\": 20,\n  \"matched_chunks\": 69,\n  \"query\": \"NvmePciDriver probe bar_manager acquire register_driver\",\n  \"results\": [\n    {\n      \"chunk_id\": \"target.analogous_pci_driver.703a5b1293ea5ad0-L1-L20\",\n      \"domain\": \"target\",\n      \"evidence_ref\": \"Rebc617c5-185\",\n      \"line_end\": 20,\n      \"line_start\": 1,\n      \"path\": \".dpf/worktrees/target/kernel/core/comps/nvme/src/transport/pci/mod.rs\",\n      \"record_id\": \"target.analogous_pci_driver.703a5b1293ea5ad0\",\n      \"score\": 21.594502,\n      \"source_url\": \"https://github.com/asterinas/asterinas.git\",\n      \"summary\": \"… NvmePciDriver; pub(crate) static NVME_PCI_DRIVER: Once<Arc<NvmePciDriver>> = Once::new(); pub(crate) fn nvme_pci_init() { NVME_PCI_DRIVER.call_once(|| Arc::new(NvmePciDriver::new())); PCI_BUS .lock() .register_driv …\",\n      \"summary_line_end\": 19,\n      \"summary_line_start\": 11\n    },\n    {\n      \"chunk_id\": \"target.analogous_pci_driver.d610477bd30ebb33-L1-L71\",\n      \"domain\": \"target\",\n      \"evidence_ref\": \"Rebc617c5-186\",\n      \"line_end\": 71,\n      \"line_start\": 1,\n      \"path\": \".dpf/worktrees/target/kernel/core/comps/nvme/src/transport/pci/driver.rs\",\n      \"record_id\": \"target.analogous_pci_driver.d6104",
+      "adoption": "NOT_ASSESSED"
+    },
+    {
+      "stage": "target_platform_study",
+      "events": "../experiments/pvpanic-behavior-sol-medium-20261003-04/run/.dpf/codex/target_platform_study-1802b532-70b1-4f1e-b6e0-8570fb310800.events.jsonl",
+      "line": 63,
+      "matched_commands": [
+        "search"
+      ],
+      "help_present": false,
+      "exit_code": 0,
+      "command": "/usr/bin/zsh -lc \"/home/unix/file/C2R-Driver/c2rust-migration-test-01/experiments/pvpanic-behavior-sol-medium-20261003-04/runtime/bin/python -m driver_port_factory.cli knowledge search /home/unix/file/C2R-Driver/c2rust-migration-test-01/experiments/pvpanic-behavior-sol-medium-20261003-04/run --query 'panic_handler poweroff inject_poweroff_handler ExitCode reboot' --domain target --limit 20\"",
+      "output_excerpt": "{\n  \"count\": 20,\n  \"matched_chunks\": 43,\n  \"query\": \"panic_handler poweroff inject_poweroff_handler ExitCode reboot\",\n  \"results\": [\n    {\n      \"chunk_id\": \"target.panic_shutdown_paths.9b95d42863507d97-L61-L94\",\n      \"domain\": \"target\",\n      \"evidence_ref\": \"Rebc617c5-305\",\n      \"line_end\": 94,\n      \"line_start\": 61,\n      \"path\": \".dpf/worktrees/target/ostd/src/power.rs\",\n      \"record_id\": \"target.panic_shutdown_paths.9b95d42863507d97\",\n      \"score\": 32.851328,\n      \"source_url\": \"https://github.com/asterinas/asterinas.git\",\n      \"summary\": \"/// - riscv64: Always; /// - loongarch64: Never. pub fn inject_poweroff_handler(handler: fn(ExitCode)) { POWEROFF_HANDLER.call_once(|| handler); } /// Powers off the system. /// /// This function will not return. If a poweroff handle …\",\n      \"summary_line_end\": 69,\n      \"summary_line_start\": 61\n    },\n    {\n      \"chunk_id\": \"target.panic_shutdown_paths.7c11a4f2dc24f8e0-L1-L62\",\n      \"domain\": \"target\",\n      \"evidence_ref\": \"Rebc617c5-306\",\n      \"line_end\": 62,\n      \"line_start\": 1,\n      \"path\": \".dpf/worktrees/target/ostd/src/arch/x86/power.rs\",\n      \"record_id\": \"target.panic_shutdown_paths.7c11a4f2dc24f8e0\",\n      \"score\":",
+      "adoption": "NOT_ASSESSED"
+    },
+    {
+      "stage": "target_platform_study",
+      "events": "../experiments/pvpanic-behavior-sol-medium-20261003-04/run/.dpf/codex/target_platform_study-1802b532-70b1-4f1e-b6e0-8570fb310800.events.jsonl",
+      "line": 65,
+      "matched_commands": [
+        "show"
+      ],
+      "help_present": true,
+      "exit_code": 0,
+      "command": "/usr/bin/zsh -lc '/home/unix/file/C2R-Driver/c2rust-migration-test-01/experiments/pvpanic-behavior-sol-medium-20261003-04/runtime/bin/python -m driver_port_factory.cli knowledge show --help'",
+      "output_excerpt": "usage: dpf knowledge show [-h] --chunk-id CHUNK_ID path\n\npositional arguments:\n  path\n\noptions:\n  -h, --help           show this help message and exit\n  --chunk-id CHUNK_ID\n",
+      "adoption": "NOT_ASSESSED"
+    },
+    {
+      "stage": "target_platform_study",
+      "events": "../experiments/pvpanic-behavior-sol-medium-20261003-04/run/.dpf/codex/target_platform_study-1802b532-70b1-4f1e-b6e0-8570fb310800.events.jsonl",
+      "line": 74,
+      "matched_commands": [
+        "packet"
+      ],
+      "help_present": false,
+      "exit_code": 2,
+      "command": "/usr/bin/zsh -lc '/home/unix/file/C2R-Driver/c2rust-migration-test-01/experiments/pvpanic-behavior-sol-medium-20261003-04/runtime/bin/python -m driver_port_factory.cli knowledge packet /home/unix/file/C2R-Driver/c2rust-migration-test-01/experiments/pvpanic-behavior-sol-medium-20261003-04/run'",
+      "output_excerpt": "usage: dpf knowledge packet [-h] --question QUESTION\n                            [--contract-id CONTRACT_ID] [--budget BUDGET]\n                            [--obligations-query OBLIGATIONS_QUERY]\n                            [--source-query SOURCE_QUERY]\n                            [--target-query TARGET_QUERY]\n                            [--test-query TEST_QUERY]\n                            path\ndpf knowledge packet: error: the following arguments are required: --question\n",
+      "adoption": "NOT_ASSESSED"
+    },
+    {
+      "stage": "target_platform_study",
+      "events": "../experiments/pvpanic-behavior-sol-medium-20261003-04/run/.dpf/codex/target_platform_study-1802b532-70b1-4f1e-b6e0-8570fb310800.events.jsonl",
+      "line": 84,
+      "matched_commands": [
+        "show"
+      ],
+      "help_present": false,
+      "exit_code": 0,
+      "command": "/usr/bin/zsh -lc \"/home/unix/file/C2R-Driver/c2rust-migration-test-01/experiments/pvpanic-behavior-sol-medium-20261003-04/runtime/bin/python -m driver_port_factory.cli knowledge show /home/unix/file/C2R-Driver/c2rust-migration-test-01/experiments/pvpanic-behavior-sol-medium-20261003-04/run --chunk-id 'target.pci_framework.94a60fac001a391d-L1-L80'\"",
+      "output_excerpt": "{\n  \"result\": {\n    \"chunk_id\": \"target.pci_framework.94a60fac001a391d-L1-L80\",\n    \"domain\": \"target\",\n    \"evidence_ref\": \"Rebc617c5-327\",\n    \"line_end\": 80,\n    \"line_start\": 1,\n    \"path\": \".dpf/worktrees/target/kernel/core/comps/pci/src/lib.rs\",\n    \"record_id\": \"target.pci_framework.94a60fac001a391d\",\n    \"source_url\": \"https://github.com/asterinas/asterinas.git\",\n    \"text\": \"// SPDX-License-Identifier: MPL-2.0\\n\\n//! The PCI bus of Asterinas.\\n//!\\n//! Users can implement the bus under the `PciDriver` to register devices to\\n//! the PCI bus. When the physical device and the driver match successfully, it\\n//! will be provided through the driver's `construct` function to construct a\\n//! structure that implements the `PciDevice` trait. And in the end, the PCI\\n//! bus will store a reference to the structure and finally call the driver's\\n//! probe function to remind the driver of a new device access.\\n//!\\n//! Use case:\\n//!\\n//! ```rust no_run\\n//! #[derive(Debug)]\\n//! pub struct PciDeviceA {\\n//!     common_device: PciCommonDevice,\\n//! }\\n//!\\n//! impl PciDevice for PciDeviceA {\\n//!     fn device_id(&self) -> PciDeviceId {\\n//!         self.common_device.device_id().clo",
+      "adoption": "NOT_ASSESSED"
+    },
+    {
+      "stage": "target_platform_study",
+      "events": "../experiments/pvpanic-behavior-sol-medium-20261003-04/run/.dpf/codex/target_platform_study-1802b532-70b1-4f1e-b6e0-8570fb310800.events.jsonl",
+      "line": 86,
+      "matched_commands": [
+        "show"
+      ],
+      "help_present": false,
+      "exit_code": 0,
+      "command": "/usr/bin/zsh -lc \"/home/unix/file/C2R-Driver/c2rust-migration-test-01/experiments/pvpanic-behavior-sol-medium-20261003-04/runtime/bin/python -m driver_port_factory.cli knowledge show /home/unix/file/C2R-Driver/c2rust-migration-test-01/experiments/pvpanic-behavior-sol-medium-20261003-04/run --chunk-id 'target.pci_framework.a0aadcb6edc562bf-L241-L320'\"",
+      "output_excerpt": "{\n  \"result\": {\n    \"chunk_id\": \"target.pci_framework.a0aadcb6edc562bf-L241-L320\",\n    \"domain\": \"target\",\n    \"evidence_ref\": \"Rebc617c5-328\",\n    \"line_end\": 320,\n    \"line_start\": 241,\n    \"path\": \".dpf/worktrees/target/kernel/core/comps/pci/src/cfg_space.rs\",\n    \"record_id\": \"target.pci_framework.a0aadcb6edc562bf\",\n    \"source_url\": \"https://github.com/asterinas/asterinas.git\",\n    \"text\": \"    Memory(MemoryBar),\\n    /// I/O BAR\\n    Io(IoBar),\\n}\\n\\nimpl Bar {\\n    /// Acquires access to the BAR.\\n    pub fn acquire(&mut self) -> Result<BarAccess> {\\n        match self {\\n            Self::Memory(mem_bar) => mem_bar.acquire().cloned().map(BarAccess::Memory),\\n            // TODO: Implement the `acquire` operation based on `IoPortAllocator`.\\n            Self::Io(_) => Ok(BarAccess::Io),\\n        }\\n    }\\n\\n    /// Returns access to the BAR.\\n    ///\\n    /// This method will return `None` if the access is not [`acquire`]d before.\\n    ///\\n    /// [`acquire`]: Self::acquire\\n    pub fn access(&self) -> Option<BarAccess> {\\n        match self {\\n            Self::Memory(mem_bar) => mem_bar.access().cloned().map(BarAccess::Memory),\\n            // TODO: Implement the `access`",
+      "adoption": "NOT_ASSESSED"
+    },
+    {
+      "stage": "target_platform_study",
+      "events": "../experiments/pvpanic-behavior-sol-medium-20261003-04/run/.dpf/codex/target_platform_study-1802b532-70b1-4f1e-b6e0-8570fb310800.events.jsonl",
+      "line": 88,
+      "matched_commands": [
+        "show"
+      ],
+      "help_present": false,
+      "exit_code": 0,
+      "command": "/usr/bin/zsh -lc \"/home/unix/file/C2R-Driver/c2rust-migration-test-01/experiments/pvpanic-behavior-sol-medium-20261003-04/runtime/bin/python -m driver_port_factory.cli knowledge show /home/unix/file/C2R-Driver/c2rust-migration-test-01/experiments/pvpanic-behavior-sol-medium-20261003-04/run --chunk-id 'target.pci_framework.4b05d690cd5a8bac-L1-L80'\"",
+      "output_excerpt": "{\n  \"result\": {\n    \"chunk_id\": \"target.pci_framework.4b05d690cd5a8bac-L1-L80\",\n    \"domain\": \"target\",\n    \"evidence_ref\": \"Rebc617c5-329\",\n    \"line_end\": 80,\n    \"line_start\": 1,\n    \"path\": \".dpf/worktrees/target/kernel/core/comps/pci/src/bus.rs\",\n    \"record_id\": \"target.pci_framework.4b05d690cd5a8bac\",\n    \"source_url\": \"https://github.com/asterinas/asterinas.git\",\n    \"text\": \"// SPDX-License-Identifier: MPL-2.0\\n\\n//! PCI bus\\n\\nuse alloc::{collections::VecDeque, sync::Arc, vec::Vec};\\nuse core::fmt::Debug;\\n\\nuse ostd::{bus::BusProbeError, debug, error};\\n\\nuse super::{PciCommonDevice, device_info::PciDeviceId};\\n\\n/// A trait that represents PCI devices.\\npub trait PciDevice: Sync + Send + Debug {\\n    /// Returns the device ID.\\n    fn device_id(&self) -> PciDeviceId;\\n}\\n\\n/// A trait that represents PCI device drivers.\\n///\\n/// The PCI bus will pass the device through the `probe` function when a new device is registered.\\npub trait PciDriver: Sync + Send + Debug {\\n    /// Probes an unclaimed PCI device.\\n    ///\\n    /// If the driver matches and succeeds in initializing the unclaimed device,\\n    /// then the driver will return an claimed instance of the device,\\n  ",
+      "adoption": "NOT_ASSESSED"
+    },
+    {
+      "stage": "target_platform_study",
+      "events": "../experiments/pvpanic-behavior-sol-medium-20261003-04/run/.dpf/codex/target_platform_study-1802b532-70b1-4f1e-b6e0-8570fb310800.events.jsonl",
+      "line": 90,
+      "matched_commands": [
+        "show"
+      ],
+      "help_present": false,
+      "exit_code": 0,
+      "command": "/usr/bin/zsh -lc \"/home/unix/file/C2R-Driver/c2rust-migration-test-01/experiments/pvpanic-behavior-sol-medium-20261003-04/runtime/bin/python -m driver_port_factory.cli knowledge show /home/unix/file/C2R-Driver/c2rust-migration-test-01/experiments/pvpanic-behavior-sol-medium-20261003-04/run --chunk-id 'target.analogous_pci_driver.d610477bd30ebb33-L1-L71'\"",
+      "output_excerpt": "{\n  \"result\": {\n    \"chunk_id\": \"target.analogous_pci_driver.d610477bd30ebb33-L1-L71\",\n    \"domain\": \"target\",\n    \"evidence_ref\": \"Rebc617c5-330\",\n    \"line_end\": 71,\n    \"line_start\": 1,\n    \"path\": \".dpf/worktrees/target/kernel/core/comps/nvme/src/transport/pci/driver.rs\",\n    \"record_id\": \"target.analogous_pci_driver.d610477bd30ebb33\",\n    \"source_url\": \"https://github.com/asterinas/asterinas.git\",\n    \"text\": \"// SPDX-License-Identifier: MPL-2.0\\n\\nuse alloc::{sync::Arc, vec::Vec};\\n\\nuse aster_pci::{\\n    PciDeviceId,\\n    bus::{PciDevice, PciDriver},\\n    common_device::PciCommonDevice,\\n};\\nuse ostd::{bus::BusProbeError, sync::SpinLock};\\n\\nuse super::transport::NvmePciTransport;\\n\\n#[derive(Debug)]\\nstruct NvmePciDevice {\\n    device_id: PciDeviceId,\\n}\\n\\nimpl NvmePciDevice {\\n    fn new(device_id: PciDeviceId) -> Self {\\n        Self { device_id }\\n    }\\n}\\n\\nimpl PciDevice for NvmePciDevice {\\n    fn device_id(&self) -> PciDeviceId {\\n        self.device_id\\n    }\\n}\\n\\n#[derive(Debug)]\\npub(crate) struct NvmePciDriver {\\n    devices: SpinLock<Vec<NvmePciTransport>>,\\n}\\n\\nimpl NvmePciDriver {\\n    pub(crate) fn pop_device_transport(&self) -> Option<NvmePciTransport> {",
+      "adoption": "NOT_ASSESSED"
+    },
+    {
+      "stage": "target_platform_study",
+      "events": "../experiments/pvpanic-behavior-sol-medium-20261003-04/run/.dpf/codex/target_platform_study-1802b532-70b1-4f1e-b6e0-8570fb310800.events.jsonl",
+      "line": 92,
+      "matched_commands": [
+        "show"
+      ],
+      "help_present": false,
+      "exit_code": 0,
+      "command": "/usr/bin/zsh -lc \"/home/unix/file/C2R-Driver/c2rust-migration-test-01/experiments/pvpanic-behavior-sol-medium-20261003-04/runtime/bin/python -m driver_port_factory.cli knowledge show /home/unix/file/C2R-Driver/c2rust-migration-test-01/experiments/pvpanic-behavior-sol-medium-20261003-04/run --chunk-id 'target.safety_coding_rules.b8645ae6e2870811-L61-L84'\"",
+      "output_excerpt": "{\n  \"result\": {\n    \"chunk_id\": \"target.safety_coding_rules.b8645ae6e2870811-L61-L84\",\n    \"domain\": \"target\",\n    \"evidence_ref\": \"Rebc617c5-331\",\n    \"line_end\": 84,\n    \"line_start\": 61,\n    \"path\": \".dpf/worktrees/target/book/src/to-contribute/coding-guidelines/for-security/memory-safety.md\",\n    \"record_id\": \"target.safety_coding_rules.b8645ae6e2870811\",\n    \"source_url\": \"https://github.com/asterinas/asterinas.git\",\n    \"text\": \"in the smallest possible module\\nto minimize the \\\"audit surface.\\\"\\nAny code in the same module\\nthat can modify relied-upon fields\\nis part of the safety argument.\\n\\n```rust\\n// Good — small, focused module limits the audit surface\\nmod frame_allocator {\\n    /// Invariant: `next` is always a valid frame index.\\n    struct FrameAlloc {\\n        next: usize,\\n        // ...\\n    }\\n\\n    impl FrameAlloc {\\n        pub fn alloc(&mut self) -> PhysAddr {\\n            // SAFETY: `next` is always valid (see invariant above).\\n            // Only code in this module can modify `next`.\\n            unsafe { self.alloc_frame_unchecked(self.next) }\\n        }\\n    }\\n}\\n```\"\n  },\n  \"status\": \"READY\"\n}\n",
+      "adoption": "NOT_ASSESSED"
+    },
+    {
+      "stage": "target_platform_study",
+      "events": "../experiments/pvpanic-behavior-sol-medium-20261003-04/run/.dpf/codex/target_platform_study-1802b532-70b1-4f1e-b6e0-8570fb310800.events.jsonl",
+      "line": 94,
+      "matched_commands": [
+        "show"
+      ],
+      "help_present": false,
+      "exit_code": 0,
+      "command": "/usr/bin/zsh -lc \"/home/unix/file/C2R-Driver/c2rust-migration-test-01/experiments/pvpanic-behavior-sol-medium-20261003-04/runtime/bin/python -m driver_port_factory.cli knowledge show /home/unix/file/C2R-Driver/c2rust-migration-test-01/experiments/pvpanic-behavior-sol-medium-20261003-04/run --chunk-id 'target.analogous_pci_driver.c76604633a189eb3-L61-L140'\"",
+      "output_excerpt": "{\n  \"result\": {\n    \"chunk_id\": \"target.analogous_pci_driver.c76604633a189eb3-L61-L140\",\n    \"domain\": \"target\",\n    \"evidence_ref\": \"Rebc617c5-332\",\n    \"line_end\": 140,\n    \"line_start\": 61,\n    \"path\": \".dpf/worktrees/target/kernel/core/comps/nvme/src/transport/pci/transport.rs\",\n    \"record_id\": \"target.analogous_pci_driver.c76604633a189eb3\",\n    \"source_url\": \"https://github.com/asterinas/asterinas.git\",\n    \"text\": \"        Ok(Self {\\n            inner: NvmePciTransportInner {\\n                common_device,\\n                msix_manager,\\n            },\\n            config_bar,\\n        })\\n    }\\n\\n    /// Validates BAR0, maps it, and checks its size against the fixed layout and\\n    /// [`Self::required_bar0_size_bytes`].\\n    fn check_and_acquire_bar0(device: &mut PciCommonDevice) -> Option<BarAccess> {\\n        let bar0 = device.bar_manager_mut().bar_mut(0)?;\\n        let bar_size = match bar0 {\\n            Bar::Memory(mem) => mem.size(),\\n            Bar::Io(_) => return None,\\n        };\\n\\n        if bar_size < NVME_BAR0_FIXED_REGS_END {\\n            return None;\\n        }\\n\\n        let config_bar = bar0.acquire().ok()?;\\n        let cap = RegAccess(&config_bar).re",
+      "adoption": "NOT_ASSESSED"
+    },
+    {
+      "stage": "target_platform_study",
+      "events": "../experiments/pvpanic-behavior-sol-medium-20261003-04/run/.dpf/codex/target_platform_study-1802b532-70b1-4f1e-b6e0-8570fb310800.events.jsonl",
+      "line": 96,
+      "matched_commands": [
+        "show"
+      ],
+      "help_present": false,
+      "exit_code": 0,
+      "command": "/usr/bin/zsh -lc \"/home/unix/file/C2R-Driver/c2rust-migration-test-01/experiments/pvpanic-behavior-sol-medium-20261003-04/runtime/bin/python -m driver_port_factory.cli knowledge show /home/unix/file/C2R-Driver/c2rust-migration-test-01/experiments/pvpanic-behavior-sol-medium-20261003-04/run --chunk-id 'target.component_lifecycle.2737335d70bfc03e-L1-L80'\"",
+      "output_excerpt": "{\n  \"result\": {\n    \"chunk_id\": \"target.component_lifecycle.2737335d70bfc03e-L1-L80\",\n    \"domain\": \"target\",\n    \"evidence_ref\": \"Rebc617c5-333\",\n    \"line_end\": 80,\n    \"line_start\": 1,\n    \"path\": \".dpf/worktrees/target/kernel/libs/comp-sys/component-macro/src/lib.rs\",\n    \"record_id\": \"target.component_lifecycle.2737335d70bfc03e\",\n    \"source_url\": \"https://github.com/asterinas/asterinas.git\",\n    \"text\": \"// SPDX-License-Identifier: MPL-2.0\\n\\n//！This crate defines the component system related macros.\\n\\n#![deny(unsafe_code)]\\n\\nmod init_comp;\\nmod priority;\\n\\nuse init_comp::ComponentInitFunction;\\nuse proc_macro::TokenStream;\\nuse quote::quote;\\nuse syn::parse_macro_input;\\n\\npub(crate) const COMPONENT_FILE_NAME: &str = \\\"Components.toml\\\";\\n\\n/// Register a function to be called when the component system is initialized. The function should not public.\\n///\\n/// You can specify the initialization stage by:\\n/// - `#[init_component]` or `#[init_component(bootstrap)]` - the **Bootstrap** stage\\n/// - `#[init_component(kthread)]` - the **Kthread** stage\\n/// - `#[init_component(process)]` - the **Process** stage\\n///\\n/// Example:\\n/// ```rust\\n/// #[init_component]\\n/// fn ini",
+      "adoption": "NOT_ASSESSED"
+    },
+    {
+      "stage": "target_platform_study",
+      "events": "../experiments/pvpanic-behavior-sol-medium-20261003-04/run/.dpf/codex/target_platform_study-1802b532-70b1-4f1e-b6e0-8570fb310800.events.jsonl",
+      "line": 104,
+      "matched_commands": [
+        "check-probes"
+      ],
+      "help_present": false,
+      "exit_code": 0,
+      "command": "/usr/bin/zsh -lc \"ls -l report.md report.probes.json; wc -l report.md; jq -e '.probes | length == 7 and ([.[].topic] | unique | length == 7)' report.probes.json; rg -n '\"'^## |'\"\\\\b(C[0-9]+|T[0-9]+)\\\\b|NOT_RUN|Open decisions' report.md | head -120; /home/unix/file/C2R-Driver/c2rust-migration-test-01/experiments/pvpanic-behavior-sol-medium-20261003-04/runtime/bin/python -m driver_port_factory.cli knowledge check-probes /home/unix/file/C2R-Driver/c2rust-migration-test-01/experiments/pvpanic-behavior-sol-medium-20261003-04/run --report /home/unix/file/C2R-Driver/c2rust-migration-test-01/experiments/pvpanic-behavior-sol-medium-20261003-04/run/work/stage-work/target_platform_study/report.md\"",
+      "output_excerpt": "zsh:1: command not found: jq\n3:## Delivery essentials\n5:**Current status (2026-10-03).** Analysis is complete for Linux v7.2 `pvpanic-pci`, Asterinas v0.18.1, and QEMU v10.2.1. The target PCI, MMIO, ownership, initialization, panic, and power paths were inspected in pinned originals. Implementation and migrated-driver execution are **NOT_RUN** in this analysis stage. The accepted environment route is the official-container artifact route recorded by `Rebc617c5-65`; the artifact mode is `official-container-or-sdk` (`Rebc617c5-69`). Two evidence limits remain explicit: no physical-hardware authority exists, so conclusions are limited to QEMU `pvpanic-pci`; and no Linux executable pvpanic-specific driver test was acquired (`Rebc617c5-82`). QEMU qtests therefore establish the device-model oracle, not source-driver parity.\n9:| C1, C9 | Only PCI `1b36:0011` is claimed; mismatch and failed construction return the original unclaimed device; no half-initialized instance is published. | `PciDriver::probe(PciCommonDevice)` and a component init that calls `PCI_BUS.lock().register_driver(...)`. | New `aster-pvpanic` component, workspace/component manifest entries, and an `aster-core` dependency",
+      "adoption": "NOT_ASSESSED"
+    }
+  ]
+}

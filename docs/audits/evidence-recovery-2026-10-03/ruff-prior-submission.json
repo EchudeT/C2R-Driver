@@ -1,0 +1,132 @@
+[
+  {
+    "cell": null,
+    "code": "I001",
+    "end_location": {
+      "column": 41,
+      "row": 23
+    },
+    "filename": "/home/unix/file/C2R-Driver/c2rust-migration-test-01/experiments/pvpanic-behavior-sol-medium-20261003-02/controller/src/driver_port_factory/codex/submission.py",
+    "fix": {
+      "applicability": "safe",
+      "edits": [
+        {
+          "content": "from __future__ import annotations\n\nimport hashlib\nimport json\nimport os\nimport stat\nimport uuid\nfrom datetime import UTC, datetime\nfrom pathlib import Path\nfrom typing import Any\n\nfrom ..core.contracts import StageKey\nfrom ..core.events import RunEvent\nfrom ..core.models import StageStatus, WorkflowError\nfrom ..core.project import Project\nfrom .policy import CodexExecutionPolicy\n\n",
+          "end_location": {
+            "column": 1,
+            "row": 26
+          },
+          "location": {
+            "column": 1,
+            "row": 8
+          }
+        }
+      ],
+      "message": "Organize imports"
+    },
+    "location": {
+      "column": 1,
+      "row": 8
+    },
+    "message": "Import block is un-sorted or un-formatted",
+    "name": "unsorted-imports",
+    "noqa_row": 8,
+    "severity": "error",
+    "url": "https://docs.astral.sh/ruff/rules/unsorted-imports"
+  },
+  {
+    "cell": null,
+    "code": "E501",
+    "end_location": {
+      "column": 104,
+      "row": 92
+    },
+    "filename": "/home/unix/file/C2R-Driver/c2rust-migration-test-01/experiments/pvpanic-behavior-sol-medium-20261003-02/controller/src/driver_port_factory/codex/submission.py",
+    "fix": null,
+    "location": {
+      "column": 101,
+      "row": 92
+    },
+    "message": "Line too long (103 > 100)",
+    "name": "line-too-long",
+    "noqa_row": 92,
+    "severity": "error",
+    "url": "https://docs.astral.sh/ruff/rules/line-too-long"
+  },
+  {
+    "cell": null,
+    "code": "C901",
+    "end_location": {
+      "column": 21,
+      "row": 99
+    },
+    "filename": "/home/unix/file/C2R-Driver/c2rust-migration-test-01/experiments/pvpanic-behavior-sol-medium-20261003-02/controller/src/driver_port_factory/codex/submission.py",
+    "fix": null,
+    "location": {
+      "column": 5,
+      "row": 99
+    },
+    "message": "`write_submission` is too complex (21 > 12)",
+    "name": "complex-structure",
+    "noqa_row": 99,
+    "severity": "error",
+    "url": "https://docs.astral.sh/ruff/rules/complex-structure"
+  },
+  {
+    "cell": null,
+    "code": "PLR0912",
+    "end_location": {
+      "column": 21,
+      "row": 99
+    },
+    "filename": "/home/unix/file/C2R-Driver/c2rust-migration-test-01/experiments/pvpanic-behavior-sol-medium-20261003-02/controller/src/driver_port_factory/codex/submission.py",
+    "fix": null,
+    "location": {
+      "column": 5,
+      "row": 99
+    },
+    "message": "Too many branches (20 > 12)",
+    "name": "too-many-branches",
+    "noqa_row": 99,
+    "severity": "error",
+    "url": "https://docs.astral.sh/ruff/rules/too-many-branches"
+  },
+  {
+    "cell": null,
+    "code": "C901",
+    "end_location": {
+      "column": 20,
+      "row": 203
+    },
+    "filename": "/home/unix/file/C2R-Driver/c2rust-migration-test-01/experiments/pvpanic-behavior-sol-medium-20261003-02/controller/src/driver_port_factory/codex/submission.py",
+    "fix": null,
+    "location": {
+      "column": 5,
+      "row": 203
+    },
+    "message": "`load_submission` is too complex (17 > 12)",
+    "name": "complex-structure",
+    "noqa_row": 203,
+    "severity": "error",
+    "url": "https://docs.astral.sh/ruff/rules/complex-structure"
+  },
+  {
+    "cell": null,
+    "code": "PLR0912",
+    "end_location": {
+      "column": 20,
+      "row": 203
+    },
+    "filename": "/home/unix/file/C2R-Driver/c2rust-migration-test-01/experiments/pvpanic-behavior-sol-medium-20261003-02/controller/src/driver_port_factory/codex/submission.py",
+    "fix": null,
+    "location": {
+      "column": 5,
+      "row": 203
+    },
+    "message": "Too many branches (16 > 12)",
+    "name": "too-many-branches",
+    "noqa_row": 203,
+    "severity": "error",
+    "url": "https://docs.astral.sh/ruff/rules/too-many-branches"
+  }
+]

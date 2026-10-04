@@ -1,0 +1,635 @@
+{
+  "scope": "real Docker/QEMU execution-layer checks; no translated driver",
+  "image": "asterinas/dev:0.18.1-20260805",
+  "image_id": "sha256:7da64501ca8c05dcc903ef1d5a83e85d38030a166da45289df8af91206913b71",
+  "results": [
+    {
+      "case": "short-00",
+      "expected_result_matched": true,
+      "command": {
+        "argv": [
+          "docker",
+          "start",
+          "--attach",
+          "709d21b3aadb6f6b406bb23ab05c6742df3a3087b63db293823bd558352ba419"
+        ],
+        "cwd": "/tmp/dpf-managed-verification-20261003-02/short-00",
+        "started_at": "2026-10-03T06:13:06.762357+00:00",
+        "completed_at": "2026-10-03T06:13:07.480425+00:00",
+        "exit_code": 0,
+        "launched": true,
+        "launch_error": null,
+        "timed_out": false,
+        "duration_milliseconds": 718,
+        "stdout_sha256": "35958178c71d66a04f72ab7a85974d52a0e0528d3ae47a56db3ebc9e60be6648",
+        "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stdout_path": "/tmp/dpf-managed-verification-20261003-02/short-00/attempt/commands/cc4956f4d6fa531e15a1/stdout.bin",
+        "stderr_path": "/tmp/dpf-managed-verification-20261003-02/short-00/attempt/commands/cc4956f4d6fa531e15a1/stderr.bin"
+      },
+      "infrastructure_errors": [],
+      "qemu_observed": true
+    },
+    {
+      "case": "short-01",
+      "expected_result_matched": true,
+      "command": {
+        "argv": [
+          "docker",
+          "start",
+          "--attach",
+          "6a3931d551e3b1c3f0ecf0951cfe7f26ff9b54d9fbd4856c213a300f372a998e"
+        ],
+        "cwd": "/tmp/dpf-managed-verification-20261003-02/short-01",
+        "started_at": "2026-10-03T06:13:07.753446+00:00",
+        "completed_at": "2026-10-03T06:13:08.471606+00:00",
+        "exit_code": 0,
+        "launched": true,
+        "launch_error": null,
+        "timed_out": false,
+        "duration_milliseconds": 718,
+        "stdout_sha256": "d4fddc2dabaa2fd1ed8c8f86b2bbf0dbf1864d73d0c9f22e8304285ab76bdd63",
+        "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stdout_path": "/tmp/dpf-managed-verification-20261003-02/short-01/attempt/commands/eb88698a310f32bb83e0/stdout.bin",
+        "stderr_path": "/tmp/dpf-managed-verification-20261003-02/short-01/attempt/commands/eb88698a310f32bb83e0/stderr.bin"
+      },
+      "infrastructure_errors": [],
+      "qemu_observed": true
+    },
+    {
+      "case": "short-02",
+      "expected_result_matched": true,
+      "command": {
+        "argv": [
+          "docker",
+          "start",
+          "--attach",
+          "7a149a5c5006bdaf644b0fd0aae8dde78051f127d73e9b589ababa1a7889ce13"
+        ],
+        "cwd": "/tmp/dpf-managed-verification-20261003-02/short-02",
+        "started_at": "2026-10-03T06:13:08.794077+00:00",
+        "completed_at": "2026-10-03T06:13:09.512539+00:00",
+        "exit_code": 0,
+        "launched": true,
+        "launch_error": null,
+        "timed_out": false,
+        "duration_milliseconds": 718,
+        "stdout_sha256": "a4965ce037129d9add9ee610c3ea0ea5ebad273c94d8f5ef4aab613095cbdbaa",
+        "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stdout_path": "/tmp/dpf-managed-verification-20261003-02/short-02/attempt/commands/285de991ee9be63a997b/stdout.bin",
+        "stderr_path": "/tmp/dpf-managed-verification-20261003-02/short-02/attempt/commands/285de991ee9be63a997b/stderr.bin"
+      },
+      "infrastructure_errors": [],
+      "qemu_observed": true
+    },
+    {
+      "case": "short-03",
+      "expected_result_matched": true,
+      "command": {
+        "argv": [
+          "docker",
+          "start",
+          "--attach",
+          "662a1f2920cbd973682e25452328cd8910a5e8f0c8a2cd820923e710beb41b4b"
+        ],
+        "cwd": "/tmp/dpf-managed-verification-20261003-02/short-03",
+        "started_at": "2026-10-03T06:13:09.786298+00:00",
+        "completed_at": "2026-10-03T06:13:10.505033+00:00",
+        "exit_code": 0,
+        "launched": true,
+        "launch_error": null,
+        "timed_out": false,
+        "duration_milliseconds": 718,
+        "stdout_sha256": "a6ddefbe5c89d407116124b7c63a36713a1fc9aaa19eb9af60fcf695533452fd",
+        "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stdout_path": "/tmp/dpf-managed-verification-20261003-02/short-03/attempt/commands/f307cb131a30d3917146/stdout.bin",
+        "stderr_path": "/tmp/dpf-managed-verification-20261003-02/short-03/attempt/commands/f307cb131a30d3917146/stderr.bin"
+      },
+      "infrastructure_errors": [],
+      "qemu_observed": true
+    },
+    {
+      "case": "short-04",
+      "expected_result_matched": true,
+      "command": {
+        "argv": [
+          "docker",
+          "start",
+          "--attach",
+          "f752a7192886c1602518a7f09a9ac60e01d29ad51ca537e2a1ba7a228e7dec5a"
+        ],
+        "cwd": "/tmp/dpf-managed-verification-20261003-02/short-04",
+        "started_at": "2026-10-03T06:13:10.779177+00:00",
+        "completed_at": "2026-10-03T06:13:11.497811+00:00",
+        "exit_code": 0,
+        "launched": true,
+        "launch_error": null,
+        "timed_out": false,
+        "duration_milliseconds": 718,
+        "stdout_sha256": "f1a4dd21b204690e454d28ce9379e19ca617ff7f78fdff9bf07fc4e6ba0b826c",
+        "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stdout_path": "/tmp/dpf-managed-verification-20261003-02/short-04/attempt/commands/9d588edbf6b0174aee55/stdout.bin",
+        "stderr_path": "/tmp/dpf-managed-verification-20261003-02/short-04/attempt/commands/9d588edbf6b0174aee55/stderr.bin"
+      },
+      "infrastructure_errors": [],
+      "qemu_observed": true
+    },
+    {
+      "case": "short-05",
+      "expected_result_matched": true,
+      "command": {
+        "argv": [
+          "docker",
+          "start",
+          "--attach",
+          "53d2228365a060b381f2d34884f6660f14c9ee564d4a83a9cc10f32a8e05ab0c"
+        ],
+        "cwd": "/tmp/dpf-managed-verification-20261003-02/short-05",
+        "started_at": "2026-10-03T06:13:11.771426+00:00",
+        "completed_at": "2026-10-03T06:13:12.439385+00:00",
+        "exit_code": 0,
+        "launched": true,
+        "launch_error": null,
+        "timed_out": false,
+        "duration_milliseconds": 668,
+        "stdout_sha256": "d204bf0feaf647a4fb9bddd9753d1e01bac5ac774c650752be24de25f5783c24",
+        "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stdout_path": "/tmp/dpf-managed-verification-20261003-02/short-05/attempt/commands/befcc3955b63ba25c390/stdout.bin",
+        "stderr_path": "/tmp/dpf-managed-verification-20261003-02/short-05/attempt/commands/befcc3955b63ba25c390/stderr.bin"
+      },
+      "infrastructure_errors": [],
+      "qemu_observed": true
+    },
+    {
+      "case": "short-06",
+      "expected_result_matched": true,
+      "command": {
+        "argv": [
+          "docker",
+          "start",
+          "--attach",
+          "9064dbf8ab2867bd781e59ea45cd99acc2a3fb18b3e13902a6f3944e110c117c"
+        ],
+        "cwd": "/tmp/dpf-managed-verification-20261003-02/short-06",
+        "started_at": "2026-10-03T06:13:12.712316+00:00",
+        "completed_at": "2026-10-03T06:13:13.380505+00:00",
+        "exit_code": 0,
+        "launched": true,
+        "launch_error": null,
+        "timed_out": false,
+        "duration_milliseconds": 668,
+        "stdout_sha256": "6dbb900474210f517c2f0e38d36baadf6b3e417409c6053f193b5315bff3fe8e",
+        "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stdout_path": "/tmp/dpf-managed-verification-20261003-02/short-06/attempt/commands/3cece1ce64ad865ab3d7/stdout.bin",
+        "stderr_path": "/tmp/dpf-managed-verification-20261003-02/short-06/attempt/commands/3cece1ce64ad865ab3d7/stderr.bin"
+      },
+      "infrastructure_errors": [],
+      "qemu_observed": true
+    },
+    {
+      "case": "short-07",
+      "expected_result_matched": true,
+      "command": {
+        "argv": [
+          "docker",
+          "start",
+          "--attach",
+          "fc69e8b4e3664bbd413146db15e8368f9530beaeaeaeb3f4cac12f2023aea0c1"
+        ],
+        "cwd": "/tmp/dpf-managed-verification-20261003-02/short-07",
+        "started_at": "2026-10-03T06:13:13.654350+00:00",
+        "completed_at": "2026-10-03T06:13:14.372686+00:00",
+        "exit_code": 0,
+        "launched": true,
+        "launch_error": null,
+        "timed_out": false,
+        "duration_milliseconds": 718,
+        "stdout_sha256": "7f2e1a2be3c57719a2fc1ea0aa1701e3c6e9c346b0d1111111b64443345339ec",
+        "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stdout_path": "/tmp/dpf-managed-verification-20261003-02/short-07/attempt/commands/68bb48eb7b61dec6afe6/stdout.bin",
+        "stderr_path": "/tmp/dpf-managed-verification-20261003-02/short-07/attempt/commands/68bb48eb7b61dec6afe6/stderr.bin"
+      },
+      "infrastructure_errors": [],
+      "qemu_observed": true
+    },
+    {
+      "case": "short-08",
+      "expected_result_matched": true,
+      "command": {
+        "argv": [
+          "docker",
+          "start",
+          "--attach",
+          "d5fa89b0606cdc53ae78be0e0a449c5895c96efb76ef2f7e8f78874f46fe0305"
+        ],
+        "cwd": "/tmp/dpf-managed-verification-20261003-02/short-08",
+        "started_at": "2026-10-03T06:13:14.646092+00:00",
+        "completed_at": "2026-10-03T06:13:15.314469+00:00",
+        "exit_code": 0,
+        "launched": true,
+        "launch_error": null,
+        "timed_out": false,
+        "duration_milliseconds": 668,
+        "stdout_sha256": "abf6d525a830f3035f0ad698e55c7b4fc1424f643358e57d730cdd5eac4b3725",
+        "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stdout_path": "/tmp/dpf-managed-verification-20261003-02/short-08/attempt/commands/13e084d9906c21b77e61/stdout.bin",
+        "stderr_path": "/tmp/dpf-managed-verification-20261003-02/short-08/attempt/commands/13e084d9906c21b77e61/stderr.bin"
+      },
+      "infrastructure_errors": [],
+      "qemu_observed": true
+    },
+    {
+      "case": "short-09",
+      "expected_result_matched": true,
+      "command": {
+        "argv": [
+          "docker",
+          "start",
+          "--attach",
+          "11a1c5d22aee7ea39f76f35dca03c843890059f5c05223cf69a82d06ba624b1d"
+        ],
+        "cwd": "/tmp/dpf-managed-verification-20261003-02/short-09",
+        "started_at": "2026-10-03T06:13:15.588660+00:00",
+        "completed_at": "2026-10-03T06:13:16.256692+00:00",
+        "exit_code": 0,
+        "launched": true,
+        "launch_error": null,
+        "timed_out": false,
+        "duration_milliseconds": 668,
+        "stdout_sha256": "c0d266282c04d44713b58ff81bcec066cd599056af1769548f803138d63deec3",
+        "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stdout_path": "/tmp/dpf-managed-verification-20261003-02/short-09/attempt/commands/d44240d68381d744c432/stdout.bin",
+        "stderr_path": "/tmp/dpf-managed-verification-20261003-02/short-09/attempt/commands/d44240d68381d744c432/stderr.bin"
+      },
+      "infrastructure_errors": [],
+      "qemu_observed": true
+    },
+    {
+      "case": "short-10",
+      "expected_result_matched": true,
+      "command": {
+        "argv": [
+          "docker",
+          "start",
+          "--attach",
+          "06c9ac8cdc4faff4e58c730517064b1feb01a2dc53170137ebfced32c8fde704"
+        ],
+        "cwd": "/tmp/dpf-managed-verification-20261003-02/short-10",
+        "started_at": "2026-10-03T06:13:16.530021+00:00",
+        "completed_at": "2026-10-03T06:13:17.148196+00:00",
+        "exit_code": 0,
+        "launched": true,
+        "launch_error": null,
+        "timed_out": false,
+        "duration_milliseconds": 618,
+        "stdout_sha256": "9658f87d238fe24b52b6a5c0f342f66b8a7b8663566ec30c0d3cd7ffd0d80d67",
+        "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stdout_path": "/tmp/dpf-managed-verification-20261003-02/short-10/attempt/commands/f91a413f94ba84bb236b/stdout.bin",
+        "stderr_path": "/tmp/dpf-managed-verification-20261003-02/short-10/attempt/commands/f91a413f94ba84bb236b/stderr.bin"
+      },
+      "infrastructure_errors": [],
+      "qemu_observed": true
+    },
+    {
+      "case": "short-11",
+      "expected_result_matched": true,
+      "command": {
+        "argv": [
+          "docker",
+          "start",
+          "--attach",
+          "966998706ae1021fc83bd604cda2975b7beaec5824ecaa3dfe3ae4509d578f1d"
+        ],
+        "cwd": "/tmp/dpf-managed-verification-20261003-02/short-11",
+        "started_at": "2026-10-03T06:13:17.422034+00:00",
+        "completed_at": "2026-10-03T06:13:18.140515+00:00",
+        "exit_code": 0,
+        "launched": true,
+        "launch_error": null,
+        "timed_out": false,
+        "duration_milliseconds": 718,
+        "stdout_sha256": "0ee4fdc14366d662bf6744f7380dbb833f30af91d318f0b03d2221042af28c2c",
+        "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stdout_path": "/tmp/dpf-managed-verification-20261003-02/short-11/attempt/commands/c4266521c9a52df2fccb/stdout.bin",
+        "stderr_path": "/tmp/dpf-managed-verification-20261003-02/short-11/attempt/commands/c4266521c9a52df2fccb/stderr.bin"
+      },
+      "infrastructure_errors": [],
+      "qemu_observed": true
+    },
+    {
+      "case": "short-12",
+      "expected_result_matched": true,
+      "command": {
+        "argv": [
+          "docker",
+          "start",
+          "--attach",
+          "af9e201da663c3e122a7348ff4f260092d4d088bf2a25ddc03fa2e33a0b9f8db"
+        ],
+        "cwd": "/tmp/dpf-managed-verification-20261003-02/short-12",
+        "started_at": "2026-10-03T06:13:18.413366+00:00",
+        "completed_at": "2026-10-03T06:13:19.081968+00:00",
+        "exit_code": 0,
+        "launched": true,
+        "launch_error": null,
+        "timed_out": false,
+        "duration_milliseconds": 668,
+        "stdout_sha256": "50785b7ec7640c21da74bffbb96055862957bb210631fbb213a04ffe83940a3d",
+        "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stdout_path": "/tmp/dpf-managed-verification-20261003-02/short-12/attempt/commands/b2c25b82c140e9b973e9/stdout.bin",
+        "stderr_path": "/tmp/dpf-managed-verification-20261003-02/short-12/attempt/commands/b2c25b82c140e9b973e9/stderr.bin"
+      },
+      "infrastructure_errors": [],
+      "qemu_observed": true
+    },
+    {
+      "case": "short-13",
+      "expected_result_matched": true,
+      "command": {
+        "argv": [
+          "docker",
+          "start",
+          "--attach",
+          "d5cea1fb516e99073d189beba0fc5419b8d68c679629a13ab874a433d85581f6"
+        ],
+        "cwd": "/tmp/dpf-managed-verification-20261003-02/short-13",
+        "started_at": "2026-10-03T06:13:19.355053+00:00",
+        "completed_at": "2026-10-03T06:13:20.023411+00:00",
+        "exit_code": 0,
+        "launched": true,
+        "launch_error": null,
+        "timed_out": false,
+        "duration_milliseconds": 668,
+        "stdout_sha256": "4bc20b4f65798ccb0b50b5642e36fa47b07606f4e25c077132355626bd9cd7a3",
+        "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stdout_path": "/tmp/dpf-managed-verification-20261003-02/short-13/attempt/commands/1256ee1e10e6be91db66/stdout.bin",
+        "stderr_path": "/tmp/dpf-managed-verification-20261003-02/short-13/attempt/commands/1256ee1e10e6be91db66/stderr.bin"
+      },
+      "infrastructure_errors": [],
+      "qemu_observed": true
+    },
+    {
+      "case": "short-14",
+      "expected_result_matched": true,
+      "command": {
+        "argv": [
+          "docker",
+          "start",
+          "--attach",
+          "e3c829fb03c8daa24ad5fdff9c12931be737733aa31cafecaaea9d37d3fadc05"
+        ],
+        "cwd": "/tmp/dpf-managed-verification-20261003-02/short-14",
+        "started_at": "2026-10-03T06:13:20.297481+00:00",
+        "completed_at": "2026-10-03T06:13:20.966004+00:00",
+        "exit_code": 0,
+        "launched": true,
+        "launch_error": null,
+        "timed_out": false,
+        "duration_milliseconds": 668,
+        "stdout_sha256": "783990ed165a522998b6d1ef343b0ddfc23187cad979e8d36778fc74b9d6d2ea",
+        "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stdout_path": "/tmp/dpf-managed-verification-20261003-02/short-14/attempt/commands/9dd3d7c73632235fa3cb/stdout.bin",
+        "stderr_path": "/tmp/dpf-managed-verification-20261003-02/short-14/attempt/commands/9dd3d7c73632235fa3cb/stderr.bin"
+      },
+      "infrastructure_errors": [],
+      "qemu_observed": true
+    },
+    {
+      "case": "short-15",
+      "expected_result_matched": true,
+      "command": {
+        "argv": [
+          "docker",
+          "start",
+          "--attach",
+          "5d380633e5a2d5f44a4ddf402f087dfff956a9903cbe9d7c035e7b455f94eba6"
+        ],
+        "cwd": "/tmp/dpf-managed-verification-20261003-02/short-15",
+        "started_at": "2026-10-03T06:13:21.272900+00:00",
+        "completed_at": "2026-10-03T06:13:21.940815+00:00",
+        "exit_code": 0,
+        "launched": true,
+        "launch_error": null,
+        "timed_out": false,
+        "duration_milliseconds": 668,
+        "stdout_sha256": "11818e4c5db63c0e8d84d6a4a71de38ef75b49074f83ad354046f2b7f72f9cb8",
+        "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stdout_path": "/tmp/dpf-managed-verification-20261003-02/short-15/attempt/commands/a77fb84241ef823af4b8/stdout.bin",
+        "stderr_path": "/tmp/dpf-managed-verification-20261003-02/short-15/attempt/commands/a77fb84241ef823af4b8/stderr.bin"
+      },
+      "infrastructure_errors": [],
+      "qemu_observed": true
+    },
+    {
+      "case": "short-16",
+      "expected_result_matched": true,
+      "command": {
+        "argv": [
+          "docker",
+          "start",
+          "--attach",
+          "e611a75d309d749ee04c4ee70ed7f7da5836f5037d974457051f9170bac67089"
+        ],
+        "cwd": "/tmp/dpf-managed-verification-20261003-02/short-16",
+        "started_at": "2026-10-03T06:13:22.215393+00:00",
+        "completed_at": "2026-10-03T06:13:22.883822+00:00",
+        "exit_code": 0,
+        "launched": true,
+        "launch_error": null,
+        "timed_out": false,
+        "duration_milliseconds": 668,
+        "stdout_sha256": "f870ec7adcd3a4bcbe3cc7319a73e620746be2fc8f4fb2832b8ee6f46adf6d8f",
+        "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stdout_path": "/tmp/dpf-managed-verification-20261003-02/short-16/attempt/commands/4fc57d7d8fc42f30107d/stdout.bin",
+        "stderr_path": "/tmp/dpf-managed-verification-20261003-02/short-16/attempt/commands/4fc57d7d8fc42f30107d/stderr.bin"
+      },
+      "infrastructure_errors": [],
+      "qemu_observed": true
+    },
+    {
+      "case": "short-17",
+      "expected_result_matched": true,
+      "command": {
+        "argv": [
+          "docker",
+          "start",
+          "--attach",
+          "7b854e0c3fee838ac8b155bf50efb612bf69389261ee7bea5fcda32db6c9ff9b"
+        ],
+        "cwd": "/tmp/dpf-managed-verification-20261003-02/short-17",
+        "started_at": "2026-10-03T06:13:23.158760+00:00",
+        "completed_at": "2026-10-03T06:13:23.827274+00:00",
+        "exit_code": 0,
+        "launched": true,
+        "launch_error": null,
+        "timed_out": false,
+        "duration_milliseconds": 668,
+        "stdout_sha256": "6545d84c5ad0fd843ab10bb830280d995b8575064d5b287d370f8b32ea3208a1",
+        "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stdout_path": "/tmp/dpf-managed-verification-20261003-02/short-17/attempt/commands/e69ade66576a8b2a0ff3/stdout.bin",
+        "stderr_path": "/tmp/dpf-managed-verification-20261003-02/short-17/attempt/commands/e69ade66576a8b2a0ff3/stderr.bin"
+      },
+      "infrastructure_errors": [],
+      "qemu_observed": true
+    },
+    {
+      "case": "short-18",
+      "expected_result_matched": true,
+      "command": {
+        "argv": [
+          "docker",
+          "start",
+          "--attach",
+          "0d764bef1d9d0e9f5582c7c07bba26f65d742efdd5a25f6eb14cfa8986611599"
+        ],
+        "cwd": "/tmp/dpf-managed-verification-20261003-02/short-18",
+        "started_at": "2026-10-03T06:13:24.099936+00:00",
+        "completed_at": "2026-10-03T06:13:24.767639+00:00",
+        "exit_code": 0,
+        "launched": true,
+        "launch_error": null,
+        "timed_out": false,
+        "duration_milliseconds": 667,
+        "stdout_sha256": "fc24fe7cb6fe236ee9c06a9dc0bf8d13a7fe13665b6a590ce89011539fd6bfd1",
+        "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stdout_path": "/tmp/dpf-managed-verification-20261003-02/short-18/attempt/commands/0057121c3867a3f2f53a/stdout.bin",
+        "stderr_path": "/tmp/dpf-managed-verification-20261003-02/short-18/attempt/commands/0057121c3867a3f2f53a/stderr.bin"
+      },
+      "infrastructure_errors": [],
+      "qemu_observed": true
+    },
+    {
+      "case": "short-19",
+      "expected_result_matched": true,
+      "command": {
+        "argv": [
+          "docker",
+          "start",
+          "--attach",
+          "84231b1fdb1a4ecc527bd36ab79b7a10ddd1d43a09ad74c21b1568dd3a720118"
+        ],
+        "cwd": "/tmp/dpf-managed-verification-20261003-02/short-19",
+        "started_at": "2026-10-03T06:13:25.040595+00:00",
+        "completed_at": "2026-10-03T06:13:25.709224+00:00",
+        "exit_code": 0,
+        "launched": true,
+        "launch_error": null,
+        "timed_out": false,
+        "duration_milliseconds": 668,
+        "stdout_sha256": "9ad751efa6c05e4d2dc788988c779bc96bddb762bf79b2836176583a076f50e0",
+        "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stdout_path": "/tmp/dpf-managed-verification-20261003-02/short-19/attempt/commands/1cc921e52b862c87877f/stdout.bin",
+        "stderr_path": "/tmp/dpf-managed-verification-20261003-02/short-19/attempt/commands/1cc921e52b862c87877f/stderr.bin"
+      },
+      "infrastructure_errors": [],
+      "qemu_observed": true
+    },
+    {
+      "case": "assertion-failure",
+      "expected_result_matched": true,
+      "command": {
+        "argv": [
+          "docker",
+          "start",
+          "--attach",
+          "106d28585d36474ca58c780e4bb2eb2124bcc5e0292ca64fda4452d6849e518a"
+        ],
+        "cwd": "/tmp/dpf-managed-verification-20261003-02/assertion-failure",
+        "started_at": "2026-10-03T06:13:25.983925+00:00",
+        "completed_at": "2026-10-03T06:13:26.702505+00:00",
+        "exit_code": 9,
+        "launched": true,
+        "launch_error": null,
+        "timed_out": false,
+        "duration_milliseconds": 718,
+        "stdout_sha256": "997baa73b51873a69465017c344e352f48bf10b00608268e4d77ddd37be32762",
+        "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stdout_path": "/tmp/dpf-managed-verification-20261003-02/assertion-failure/attempt/commands/a29532726548ceea216f/stdout.bin",
+        "stderr_path": "/tmp/dpf-managed-verification-20261003-02/assertion-failure/attempt/commands/a29532726548ceea216f/stderr.bin"
+      },
+      "infrastructure_errors": [],
+      "qemu_observed": true
+    },
+    {
+      "case": "timeout",
+      "expected_result_matched": true,
+      "command": {
+        "argv": [
+          "docker",
+          "start",
+          "--attach",
+          "3f9761eba7171b19a564860062ac153360fe09bedd2efa5f12210119d93adcad"
+        ],
+        "cwd": "/tmp/dpf-managed-verification-20261003-02/timeout",
+        "started_at": "2026-10-03T06:13:26.975744+00:00",
+        "completed_at": "2026-10-03T06:13:27.993614+00:00",
+        "exit_code": 124,
+        "launched": true,
+        "launch_error": null,
+        "timed_out": true,
+        "duration_milliseconds": 1017,
+        "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stderr_sha256": "41efca96946b9c6f5fbe16ba9b43e70c4396fe28030633bda45ddc9005075e14",
+        "stdout_path": "/tmp/dpf-managed-verification-20261003-02/timeout/attempt/commands/0aaddfb7305e375cbea0/stdout.bin",
+        "stderr_path": "/tmp/dpf-managed-verification-20261003-02/timeout/attempt/commands/0aaddfb7305e375cbea0/stderr.bin"
+      },
+      "infrastructure_errors": [],
+      "qemu_observed": false
+    },
+    {
+      "case": "help-only",
+      "expected_result_matched": true,
+      "command": {
+        "argv": [
+          "docker",
+          "start",
+          "--attach",
+          "1c81e776c69843d292ca1b8f1dfd58269e36865aef5b2f230cff92c2753230f9"
+        ],
+        "cwd": "/tmp/dpf-managed-verification-20261003-02/help-only",
+        "started_at": "2026-10-03T06:13:28.384804+00:00",
+        "completed_at": "2026-10-03T06:13:28.651287+00:00",
+        "exit_code": 0,
+        "launched": true,
+        "launch_error": null,
+        "timed_out": false,
+        "duration_milliseconds": 266,
+        "stdout_sha256": "5188552714cebf1d8c4d725c8a143e5d21b954a9cbc627bd06cf3c014c395ba4",
+        "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stdout_path": "/tmp/dpf-managed-verification-20261003-02/help-only/attempt/commands/cb225e5cabf19cc80411/stdout.bin",
+        "stderr_path": "/tmp/dpf-managed-verification-20261003-02/help-only/attempt/commands/cb225e5cabf19cc80411/stderr.bin"
+      },
+      "infrastructure_errors": [],
+      "qemu_observed": false
+    },
+    {
+      "case": "wrong-image",
+      "expected_result_matched": true,
+      "command": {
+        "argv": [
+          "docker",
+          "image",
+          "inspect",
+          "--format",
+          "{{.Id}}",
+          "asterinas/dev:0.18.1-20260805"
+        ],
+        "cwd": "/tmp/dpf-managed-verification-20261003-02/wrong-image",
+        "started_at": "2026-10-03T06:13:28.790123+00:00",
+        "completed_at": "2026-10-03T06:13:28.823431+00:00",
+        "exit_code": 0,
+        "launched": true,
+        "launch_error": null,
+        "timed_out": false,
+        "duration_milliseconds": 33,
+        "stdout_sha256": "d3cd1911de32217049611bd925607631dac5d4185250e7b89e65ab6d29da851f",
+        "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stdout_path": "/tmp/dpf-managed-verification-20261003-02/wrong-image/attempt/commands/451ae46a114952f06339/stdout.bin",
+        "stderr_path": "/tmp/dpf-managed-verification-20261003-02/wrong-image/attempt/commands/451ae46a114952f06339/stderr.bin"
+      },
+      "infrastructure_errors": [
+        "Selected image identity changed before execution"
+      ],
+      "qemu_observed": false
+    }
+  ]
+}

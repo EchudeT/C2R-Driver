@@ -88,3 +88,21 @@ def accepted(root):
         report.write_text("Synthetic independent fixture review.\n")
         FinalEvidenceReviewService().finalize(project, review_path=report)
     return project, worktree, report
+
+
+def delivery_fixture(worktree, *, case_count=1):
+    """One generated suite around the synthetic fixture, never a real driver test."""
+    import json
+    from driver_port_factory.platform.suite import entry_text
+
+    smoke_fixture(worktree)
+    output = worktree / ".dpf-output"
+    harness = output / "harness"
+    harness.mkdir(exist_ok=True)
+    (harness / "case.sh").write_text((output / "implementation-smoke.sh").read_text())
+    for name in ("implementation-smoke.sh", "public-qemu.sh"):
+        (output / name).write_text(entry_text(worktree))
+    (output / "experiments.json").write_text(json.dumps([
+        {"id": f"synthetic-{i}", "script": ".dpf-output/harness/case.sh", "timeout_seconds": 300}
+        for i in range(case_count)
+    ]))

@@ -1,0 +1,170 @@
+{
+  "experiment": "/home/unix/file/C2R-Driver/c2rust-migration-test-01/experiments/pvpanic-behavior-sol-medium-20261003-02",
+  "controller_log_tail": [
+    "error: evidence_closure: repeated recovery with unchanged repair inputs. Evidence: /home/unix/file/C2R-Driver/c2rust-migration-test-01/experiments/pvpanic-behavior-sol-medium-20261003-02/run/.dpf/checker-decisions/evidence_closure-a5221c2104e3485b9dac56011d0eeb52.json. Repair executable inputs then resume; for external changes not represented in files, use stage recovery-resume with a reason. No new worker call was made."
+  ],
+  "calls": 8,
+  "metrics": [
+    {
+      "stage": "evidence_closure",
+      "job_id": "0a4ca8c2-5fd2-45d9-9a52-fcc5024cf85a",
+      "elapsed_seconds": 180.613,
+      "invocation_state": "COMPLETED",
+      "usage": {
+        "input_tokens": 202415,
+        "cached_input_tokens": 159488,
+        "output_tokens": 3125,
+        "cache_write_input_tokens": 0
+      },
+      "estimate": {
+        "usd": 0.2980032,
+        "model": "gpt-5.6-sol",
+        "service_tier": "standard",
+        "source": "https://developers.openai.com/api/docs/pricing",
+        "price_date": "2026-09-19",
+        "basis": "short context assumed with 224k auto-compaction; public API rates, not relay invoice"
+      }
+    },
+    {
+      "stage": "evidence_closure",
+      "job_id": "2e3d3ee4-b87d-4cab-9adc-f50b6a62e901",
+      "elapsed_seconds": 50.478,
+      "invocation_state": "COMPLETED",
+      "usage": {
+        "input_tokens": 249178,
+        "cached_input_tokens": 239616,
+        "output_tokens": 760,
+        "cache_write_input_tokens": 0
+      },
+      "estimate": {
+        "usd": 0.1492944,
+        "model": "gpt-5.6-sol",
+        "service_tier": "standard",
+        "source": "https://developers.openai.com/api/docs/pricing",
+        "price_date": "2026-09-19",
+        "basis": "short context assumed with 224k auto-compaction; public API rates, not relay invoice"
+      }
+    },
+    {
+      "stage": "evidence_closure",
+      "job_id": "4746a3f6-ae2f-4d41-a591-31b164e7a04f",
+      "elapsed_seconds": 33.506,
+      "invocation_state": "COMPLETED",
+      "usage": {
+        "input_tokens": 138746,
+        "cached_input_tokens": 130560,
+        "output_tokens": 343,
+        "cache_write_input_tokens": 0
+      },
+      "estimate": {
+        "usd": 0.091828,
+        "model": "gpt-5.6-sol",
+        "service_tier": "standard",
+        "source": "https://developers.openai.com/api/docs/pricing",
+        "price_date": "2026-09-19",
+        "basis": "short context assumed with 224k auto-compaction; public API rates, not relay invoice"
+      }
+    },
+    {
+      "stage": "evidence_closure",
+      "job_id": "60ad1728-0f7f-4a0b-9af7-cf8bd2622498",
+      "elapsed_seconds": 24.876,
+      "invocation_state": "COMPLETED",
+      "usage": {
+        "input_tokens": 165821,
+        "cached_input_tokens": 157184,
+        "output_tokens": 316,
+        "cache_write_input_tokens": 0
+      },
+      "estimate": {
+        "usd": 0.1037416,
+        "model": "gpt-5.6-sol",
+        "service_tier": "standard",
+        "source": "https://developers.openai.com/api/docs/pricing",
+        "price_date": "2026-09-19",
+        "basis": "short context assumed with 224k auto-compaction; public API rates, not relay invoice"
+      }
+    },
+    {
+      "stage": "evidence_closure",
+      "job_id": "73b68d31-fdf8-40a2-80c4-c399c5b9fde5",
+      "elapsed_seconds": 46.959,
+      "invocation_state": "COMPLETED",
+      "usage": {
+        "input_tokens": 164024,
+        "cached_input_tokens": 153856,
+        "output_tokens": 613,
+        "cache_write_input_tokens": 0
+      },
+      "estimate": {
+        "usd": 0.1144744,
+        "model": "gpt-5.6-sol",
+        "service_tier": "standard",
+        "source": "https://developers.openai.com/api/docs/pricing",
+        "price_date": "2026-09-19",
+        "basis": "short context assumed with 224k auto-compaction; public API rates, not relay invoice"
+      }
+    },
+    {
+      "stage": "evidence_closure",
+      "job_id": "a95ab374-a5e1-4d27-ab1f-3ad7eb0daf34",
+      "elapsed_seconds": 110.171,
+      "invocation_state": "COMPLETED",
+      "usage": {
+        "input_tokens": 233074,
+        "cached_input_tokens": 228096,
+        "output_tokens": 1053,
+        "cache_write_input_tokens": 0
+      },
+      "estimate": {
+        "usd": 0.1322104,
+        "model": "gpt-5.6-sol",
+        "service_tier": "standard",
+        "source": "https://developers.openai.com/api/docs/pricing",
+        "price_date": "2026-09-19",
+        "basis": "short context assumed with 224k auto-compaction; public API rates, not relay invoice"
+      }
+    },
+    {
+      "stage": "evidence_closure",
+      "job_id": "aa7e2601-4167-4c8d-8d3a-c4da4d71625d",
+      "elapsed_seconds": 26.778,
+      "invocation_state": "COMPLETED",
+      "usage": {
+        "input_tokens": 152298,
+        "cached_input_tokens": 144896,
+        "output_tokens": 307,
+        "cache_write_input_tokens": 0
+      },
+      "estimate": {
+        "usd": 0.0937064,
+        "model": "gpt-5.6-sol",
+        "service_tier": "standard",
+        "source": "https://developers.openai.com/api/docs/pricing",
+        "price_date": "2026-09-19",
+        "basis": "short context assumed with 224k auto-compaction; public API rates, not relay invoice"
+      }
+    },
+    {
+      "stage": "repository_acquisition",
+      "job_id": "6e6bc62e-ef0d-465b-a221-9349fe08b053",
+      "elapsed_seconds": 55.024,
+      "invocation_state": "COMPLETED",
+      "usage": {
+        "input_tokens": 62468,
+        "cached_input_tokens": 51200,
+        "output_tokens": 777,
+        "cache_write_input_tokens": 0
+      },
+      "estimate": {
+        "usd": 0.081092,
+        "model": "gpt-5.6-sol",
+        "service_tier": "standard",
+        "source": "https://developers.openai.com/api/docs/pricing",
+        "price_date": "2026-09-19",
+        "basis": "short context assumed with 224k auto-compaction; public API rates, not relay invoice"
+      }
+    }
+  ],
+  "note": "Historical failed run retained; usage/cost estimates are not billing invoices. No outcome excluded."
+}

@@ -10,7 +10,7 @@
 
 | action | 输入 | 职责 |
 | --- | --- | --- |
-| bootstrap | image、accelerator、probe | 环境基线验证、probe 包装和短报告；不执行 probe 或通过阶段 |
+| bootstrap | 无 | 使用项目配置中的 Docker 镜像和加速器，验证干净基线构建/启动并返回短报告；不自行通过阶段 |
 | format | packages、可选 write | 固定容器内检查或应用格式化 |
 | build | 无 | 依赖解析、冻结输入、构建、检查身份、发布当前制品 |
 | run_case | case（worktree 内 JSON 路径） | 固定制品和路线上的实际观察 |

@@ -80,10 +80,11 @@ class _RunPersistence:
 
     @contextmanager
     def _connect(self) -> Iterator[sqlite3.Connection]:
-        # Codex queries run after the controller closes its transaction. Immutable mode
-        # keeps those readers from creating WAL/SHM sidecars outside their writable sandbox.
+        # Committed controller updates can remain in WAL while other readers are open.
+        # mode=ro forbids writes but still reads those commits; immutable=1 ignores WAL
+        # and is only appropriate for a sealed, checkpointed database snapshot.
         connection = sqlite3.connect(
-            f"{self.path.as_uri()}?mode=ro&immutable=1" if self.read_only else self.path,
+            f"{self.path.as_uri()}?mode=ro" if self.read_only else self.path,
             uri=self.read_only,
         )
         connection.row_factory = sqlite3.Row

@@ -1,0 +1,51 @@
+{
+  "kind": "real Docker/QEMU execution-envelope check; not driver validation",
+  "workspace": "/tmp/dpf-bootstrap-real-qok4fdnq",
+  "command": {
+    "argv": [
+      "/bin/strace",
+      "-f",
+      "-qq",
+      "-s",
+      "65535",
+      "-e",
+      "trace=execve",
+      "-o",
+      "/tmp/dpf-bootstrap-real-qok4fdnq/execve.log",
+      "/bin/sh",
+      "/tmp/dpf-bootstrap-real-qok4fdnq/environment-smoke.sh"
+    ],
+    "cwd": "/tmp/dpf-bootstrap-real-qok4fdnq",
+    "started_at": "2026-10-02T15:53:30.425841+00:00",
+    "completed_at": "2026-10-02T15:53:33.355360+00:00",
+    "exit_code": 0,
+    "launched": true,
+    "launch_error": null,
+    "timed_out": false,
+    "duration_milliseconds": 2929,
+    "stdout_sha256": "63f9dca79e87e0c13f7e0220c00a9a31850268416f7db05bb776bb0d7fca1b5d",
+    "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "stdout_path": "/tmp/dpf-bootstrap-real-qok4fdnq/commands/23c772a9bbd93838c8f4/stdout.bin",
+    "stderr_path": "/tmp/dpf-bootstrap-real-qok4fdnq/commands/23c772a9bbd93838c8f4/stderr.bin"
+  },
+  "container": {
+    "required": true,
+    "satisfied": true,
+    "images": [
+      "asterinas/dev:0.18.1-20260805"
+    ],
+    "image_ids": [
+      "sha256:7da64501ca8c05dcc903ef1d5a83e85d38030a166da45289df8af91206913b71"
+    ],
+    "qemu_programs": [
+      "qemu-system-x86_64"
+    ],
+    "observation_errors": [
+      "Docker inspection HTTP 409",
+      "Docker event stream exited; periodic inspection remains active"
+    ],
+    "observation_path": "/tmp/dpf-bootstrap-real-qok4fdnq/container-processes.json"
+  },
+  "qemu_observed": 1,
+  "probe": "/tmp/dpf-bootstrap-real-qok4fdnq/probe.sh"
+}

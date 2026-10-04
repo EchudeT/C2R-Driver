@@ -1,4 +1,5 @@
 """Cheap repair input identities, collected only after a stage failure."""
+
 import hashlib
 import json
 import os
@@ -9,6 +10,7 @@ import subprocess
 
 def observe_file(path):
     from ..knowledge.index import file_sha256
+
     try:
         mode = path.lstat().st_mode
         if stat.S_ISLNK(mode):
@@ -24,35 +26,80 @@ def observe_source(worktree, base):
     """Observe malformed files too: recovery must not repeat the failed validator."""
     paths = set()
     errors = []
-    for args in (("diff", "--no-renames", "--name-only", "-z", base),
-                 ("ls-files", "--others", "--exclude-standard", "-z")):
+    for args in (
+        ("diff", "--no-renames", "--name-only", "-z", base),
+        ("ls-files", "--others", "--exclude-standard", "-z"),
+    ):
         try:
-            result = subprocess.run(["git", "-C", str(worktree), *args],
-                                    capture_output=True, text=True, timeout=30)
+            result = subprocess.run(
+                ["git", "-C", str(worktree), *args],
+                capture_output=True,
+                text=True,
+                timeout=30,
+                check=False,
+            )
             if result.returncode:
-                errors.append({"operation": args[0], "exit": result.returncode,
-                               "error": result.stderr.strip()})
+                errors.append(
+                    {
+                        "operation": args[0],
+                        "exit": result.returncode,
+                        "error": result.stderr.strip(),
+                    }
+                )
             else:
                 paths.update(filter(None, result.stdout.split("\0")))
         except (OSError, subprocess.SubprocessError) as error:
             errors.append({"operation": args[0], "error": type(error).__name__})
-    return {"files": {path: observe_file(worktree / path) for path in sorted(paths)
-                      if not path.startswith(".dpf-output/")}, "errors": errors}
+    return {
+        "files": {
+            path: observe_file(worktree / path)
+            for path in sorted(paths)
+            if not path.startswith(".dpf-output/")
+        },
+        "errors": errors,
+    }
+
+
+def selection_inputs(value):
+    """Prose-only proposal edits do not repair acquisition inputs."""
+    if isinstance(value, dict):
+        return {
+            key: selection_inputs(item)
+            for key, item in value.items()
+            if key not in {"rationale", "impact", "repair_trigger"}
+        }
+    if isinstance(value, list):
+        return [selection_inputs(item) for item in value]
+    return value
 
 
 def repair_inputs(project, stage):
     state = {}
     roots = [project.root / "work" / "stage-work" / stage.value]
-    if stage.value in {"target_framework_enablement", "driver_implementation", "artifact_preparation", "public_qemu_validation"}:
+    if stage.value in {
+        "target_framework_enablement",
+        "driver_implementation",
+        "artifact_preparation",
+        "public_qemu_validation",
+    }:
         from ..acquisition.repository import load_repository_acquisition
+
         target = load_repository_acquisition(project).target_worktree
         worktree = project.root / target.path
         state["source"] = observe_source(worktree, target.base_commit)
         roots = [worktree / ".dpf-output"]
     files = {}
     for root in roots:
-        candidates = [root / name for name in (
-            "environment-smoke.sh", "implementation-smoke.sh", "public-qemu.sh", "check-presence.sh", "runtime-artifact")]
+        candidates = [
+            root / name
+            for name in (
+                "environment-smoke.sh",
+                "implementation-smoke.sh",
+                "public-qemu.sh",
+                "check-presence.sh",
+                "runtime-artifact",
+            )
+        ]
         if stage.value in {"target_platform_study", "migration_contracts"}:
             candidates.extend(root.rglob("*.md"))
         helpers = root / "harness"
@@ -62,12 +109,13 @@ def repair_inputs(project, stage):
             files[str(path.relative_to(project.root))] = observe_file(path)
     state["execution_files"] = files
     if stage.value in {"repository_acquisition", "evidence_closure"}:
-        jobs = [r for r in project.current_artifact_refs(stage=stage)
-                if r.kind == "codex_job_result"]
+        jobs = [
+            r for r in project.current_artifact_refs(stage=stage) if r.kind == "codex_job_result"
+        ]
         if jobs:
             text = project.artifacts.read(max(jobs, key=lambda r: r.ordinal)).decode()
             try:
-                state["selection"] = json.loads(text)
+                state["selection"] = selection_inputs(json.loads(text))
             except ValueError:
                 # Malformed prose is not evidence of a changed acquisition input.
                 state["selection"] = None
@@ -78,9 +126,10 @@ def fingerprint(project, stage, payload):
     value = {"upstream": payload["inputs"], "repair": repair_inputs(project, stage)}
     # Diagnostic identity separates distinct failures; ephemeral evidence paths
     # and run hashes must not turn the same failure into apparent progress.
-    value["failure"] = [re.sub(r"\b[0-9a-f]{20,64}\b", "<digest>",
-                              re.sub(r"(?<!\w)/[^\s,;]+", "<path>", finding))
-                        for finding in payload["findings"]]
+    value["failure"] = [
+        re.sub(r"\b[0-9a-f]{20,64}\b", "<digest>", re.sub(r"(?<!\w)/[^\s,;]+", "<path>", finding))
+        for finding in payload["findings"]
+    ]
     reset = project.control / "checker-decisions" / f"{stage.value}.resume"
     value["operator_resume"] = reset.read_text() if reset.is_file() else None
     return hashlib.sha256(json.dumps(value, sort_keys=True).encode()).hexdigest()

@@ -1,0 +1,1178 @@
+Loading previous configuration from /edk2/Conf/BuildEnv.sh
+WORKSPACE: /edk2
+EDK_TOOLS_PATH: /edk2/BaseTools
+CONF_PATH: /edk2/Conf
+make: Entering directory '/edk2/BaseTools'
+make -C Source/C
+make -C Source/Python
+make[1]: Entering directory '/edk2/BaseTools/Source/C'
+make[1]: Entering directory '/edk2/BaseTools/Source/Python'
+make[1]: Nothing to be done for 'all'.
+make[1]: Leaving directory '/edk2/BaseTools/Source/Python'
+python3 ./Makefiles/GnuMakeUtils.py md .
+make -C Common
+make[2]: Entering directory '/edk2/BaseTools/Source/C/Common'
+make[2]: Nothing to be done for 'all'.
+make[2]: Leaving directory '/edk2/BaseTools/Source/C/Common'
+make -C BrotliCompress
+make -C VfrCompile
+make -C EfiRom
+make[2]: Entering directory '/edk2/BaseTools/Source/C/BrotliCompress'
+make -C GenFfs
+make -C GenFv
+make[2]: Entering directory '/edk2/BaseTools/Source/C/VfrCompile'
+make[2]: Entering directory '/edk2/BaseTools/Source/C/EfiRom'
+make -C GenFw
+make[2]: Entering directory '/edk2/BaseTools/Source/C/GenFfs'
+make -C GenSec
+make[2]: Entering directory '/edk2/BaseTools/Source/C/GenFv'
+make[2]: Entering directory '/edk2/BaseTools/Source/C/GenSec'
+make[2]: Entering directory '/edk2/BaseTools/Source/C/GenFw'
+make[2]: Nothing to be done for 'all'.
+make[2]: Leaving directory '/edk2/BaseTools/Source/C/VfrCompile'
+make -C GenCrc32
+make[2]: Nothing to be done for 'all'.
+make[2]: Leaving directory '/edk2/BaseTools/Source/C/EfiRom'
+make[2]: Nothing to be done for 'all'.
+make[2]: Leaving directory '/edk2/BaseTools/Source/C/GenSec'
+make[2]: Nothing to be done for 'all'.
+make -C LzmaCompress
+make[2]: Leaving directory '/edk2/BaseTools/Source/C/GenFfs'
+make[2]: Entering directory '/edk2/BaseTools/Source/C/GenCrc32'
+make -C TianoCompress
+make -C VolInfo
+make[2]: Entering directory '/edk2/BaseTools/Source/C/LzmaCompress'
+make[2]: Nothing to be done for 'all'.
+make[2]: Leaving directory '/edk2/BaseTools/Source/C/GenFw'
+Directory . already exists.make -C DevicePath
+make[2]: Entering directory '/edk2/BaseTools/Source/C/TianoCompress'
+make[2]: Entering directory '/edk2/BaseTools/Source/C/VolInfo'
+make[2]: Nothing to be done for 'all'.
+make[2]: Entering directory '/edk2/BaseTools/Source/C/DevicePath'
+make[2]: Leaving directory '/edk2/BaseTools/Source/C/GenFv'
+make[2]: Nothing to be done for 'all'.
+make[2]: Leaving directory '/edk2/BaseTools/Source/C/GenCrc32'
+make[2]: Nothing to be done for 'all'.
+make[2]: Leaving directory '/edk2/BaseTools/Source/C/TianoCompress'
+make[2]: Nothing to be done for 'all'.
+make[2]: Leaving directory '/edk2/BaseTools/Source/C/VolInfo'
+make[2]: Nothing to be done for 'all'.
+make[2]: Leaving directory '/edk2/BaseTools/Source/C/LzmaCompress'
+make[2]: Nothing to be done for 'all'.
+make[2]: Leaving directory '/edk2/BaseTools/Source/C/DevicePath'
+make[2]: Nothing to be done for 'all'.
+make[2]: Leaving directory '/edk2/BaseTools/Source/C/BrotliCompress'
+Finished building BaseTools C Tools with HOST_ARCH=X64
+make[1]: Leaving directory '/edk2/BaseTools/Source/C'
+make -C Tests
+make[1]: Entering directory '/edk2/BaseTools/Tests'
+python3 RunTests.py
+testHelp (TianoCompress.Tests.testHelp) ... ok
+testRandomDataCycles (TianoCompress.Tests.testRandomDataCycles) ... ok
+test_AmlToC_AmlToC (CheckPythonSyntax.Tests.test_AmlToC_AmlToC) ... ok
+test_AutoGen_AutoGen (CheckPythonSyntax.Tests.test_AutoGen_AutoGen) ... ok
+test_AutoGen_AutoGenWorker (CheckPythonSyntax.Tests.test_AutoGen_AutoGenWorker) ... ok
+test_AutoGen_BuildEngine (CheckPythonSyntax.Tests.test_AutoGen_BuildEngine) ... ok
+test_AutoGen_DataPipe (CheckPythonSyntax.Tests.test_AutoGen_DataPipe) ... ok
+test_AutoGen_GenC (CheckPythonSyntax.Tests.test_AutoGen_GenC) ... ok
+test_AutoGen_GenDepex (CheckPythonSyntax.Tests.test_AutoGen_GenDepex) ... ok
+test_AutoGen_GenMake (CheckPythonSyntax.Tests.test_AutoGen_GenMake) ... ok
+test_AutoGen_GenPcdDb (CheckPythonSyntax.Tests.test_AutoGen_GenPcdDb) ... ok
+test_AutoGen_GenVar (CheckPythonSyntax.Tests.test_AutoGen_GenVar) ... ok
+test_AutoGen_IdfClassObject (CheckPythonSyntax.Tests.test_AutoGen_IdfClassObject) ... ok
+test_AutoGen_IncludesAutoGen (CheckPythonSyntax.Tests.test_AutoGen_IncludesAutoGen) ... ok
+test_AutoGen_InfSectionParser (CheckPythonSyntax.Tests.test_AutoGen_InfSectionParser) ... ok
+test_AutoGen_ModuleAutoGen (CheckPythonSyntax.Tests.test_AutoGen_ModuleAutoGen) ... ok
+test_AutoGen_ModuleAutoGenHelper (CheckPythonSyntax.Tests.test_AutoGen_ModuleAutoGenHelper) ... ok
+test_AutoGen_PlatformAutoGen (CheckPythonSyntax.Tests.test_AutoGen_PlatformAutoGen) ... ok
+test_AutoGen_StrGather (CheckPythonSyntax.Tests.test_AutoGen_StrGather) ... ok
+test_AutoGen_UniClassObject (CheckPythonSyntax.Tests.test_AutoGen_UniClassObject) ... ok
+test_AutoGen_ValidCheckingInfoObject (CheckPythonSyntax.Tests.test_AutoGen_ValidCheckingInfoObject) ... ok
+test_AutoGen_WorkspaceAutoGen (CheckPythonSyntax.Tests.test_AutoGen_WorkspaceAutoGen) ... ok
+test_AutoGen___init__ (CheckPythonSyntax.Tests.test_AutoGen___init__) ... ok
+test_BPDG_BPDG (CheckPythonSyntax.Tests.test_BPDG_BPDG) ... ok
+test_BPDG_GenVpd (CheckPythonSyntax.Tests.test_BPDG_GenVpd) ... ok
+test_BPDG_StringTable (CheckPythonSyntax.Tests.test_BPDG_StringTable) ... ok
+test_BPDG___init__ (CheckPythonSyntax.Tests.test_BPDG___init__) ... ok
+test_Capsule_GenerateCapsule (CheckPythonSyntax.Tests.test_Capsule_GenerateCapsule) ... ok
+test_Capsule_GenerateWindowsDriver (CheckPythonSyntax.Tests.test_Capsule_GenerateWindowsDriver) ... ok
+test_Capsule_WindowsCapsuleSupportHelper (CheckPythonSyntax.Tests.test_Capsule_WindowsCapsuleSupportHelper) ... ok
+test_CommonDataClass_CommonClass (CheckPythonSyntax.Tests.test_CommonDataClass_CommonClass) ... ok
+test_CommonDataClass_DataClass (CheckPythonSyntax.Tests.test_CommonDataClass_DataClass) ... ok
+test_CommonDataClass_Exceptions (CheckPythonSyntax.Tests.test_CommonDataClass_Exceptions) ... ok
+test_CommonDataClass_FdfClass (CheckPythonSyntax.Tests.test_CommonDataClass_FdfClass) ... ok
+test_CommonDataClass___init__ (CheckPythonSyntax.Tests.test_CommonDataClass___init__) ... ok
+test_Common_BuildToolError (CheckPythonSyntax.Tests.test_Common_BuildToolError) ... ok
+test_Common_BuildVersion (CheckPythonSyntax.Tests.test_Common_BuildVersion) ... ok
+test_Common_DataType (CheckPythonSyntax.Tests.test_Common_DataType) ... ok
+test_Common_Edk2_Capsule_FmpPayloadHeader (CheckPythonSyntax.Tests.test_Common_Edk2_Capsule_FmpPayloadHeader) ... ok
+test_Common_Edk2_Capsule___init__ (CheckPythonSyntax.Tests.test_Common_Edk2_Capsule___init__) ... ok
+test_Common_Edk2___init__ (CheckPythonSyntax.Tests.test_Common_Edk2___init__) ... ok
+test_Common_EdkLogger (CheckPythonSyntax.Tests.test_Common_EdkLogger) ... ok
+test_Common_Expression (CheckPythonSyntax.Tests.test_Common_Expression) ... ok
+test_Common_GlobalData (CheckPythonSyntax.Tests.test_Common_GlobalData) ... ok
+test_Common_LongFilePathOs (CheckPythonSyntax.Tests.test_Common_LongFilePathOs) ... ok
+test_Common_LongFilePathOsPath (CheckPythonSyntax.Tests.test_Common_LongFilePathOsPath) ... ok
+test_Common_LongFilePathSupport (CheckPythonSyntax.Tests.test_Common_LongFilePathSupport) ... ok
+test_Common_Misc (CheckPythonSyntax.Tests.test_Common_Misc) ... ok
+test_Common_MultipleWorkspace (CheckPythonSyntax.Tests.test_Common_MultipleWorkspace) ... ok
+test_Common_Parsing (CheckPythonSyntax.Tests.test_Common_Parsing) ... ok
+test_Common_RangeExpression (CheckPythonSyntax.Tests.test_Common_RangeExpression) ... ok
+test_Common_StringUtils (CheckPythonSyntax.Tests.test_Common_StringUtils) ... ok
+test_Common_TargetTxtClassObject (CheckPythonSyntax.Tests.test_Common_TargetTxtClassObject) ... ok
+test_Common_ToolDefClassObject (CheckPythonSyntax.Tests.test_Common_ToolDefClassObject) ... ok
+test_Common_Uefi_Capsule_CapsuleDependency (CheckPythonSyntax.Tests.test_Common_Uefi_Capsule_CapsuleDependency) ... ok
+test_Common_Uefi_Capsule_FmpAuthHeader (CheckPythonSyntax.Tests.test_Common_Uefi_Capsule_FmpAuthHeader) ... ok
+test_Common_Uefi_Capsule_FmpCapsuleHeader (CheckPythonSyntax.Tests.test_Common_Uefi_Capsule_FmpCapsuleHeader) ... ok
+test_Common_Uefi_Capsule_UefiCapsuleHeader (CheckPythonSyntax.Tests.test_Common_Uefi_Capsule_UefiCapsuleHeader) ... ok
+test_Common_Uefi_Capsule___init__ (CheckPythonSyntax.Tests.test_Common_Uefi_Capsule___init__) ... ok
+test_Common_Uefi___init__ (CheckPythonSyntax.Tests.test_Common_Uefi___init__) ... ok
+test_Common_VariableAttributes (CheckPythonSyntax.Tests.test_Common_VariableAttributes) ... ok
+test_Common_VpdInfoFile (CheckPythonSyntax.Tests.test_Common_VpdInfoFile) ... ok
+test_Common___init__ (CheckPythonSyntax.Tests.test_Common___init__) ... ok
+test_Common_caching (CheckPythonSyntax.Tests.test_Common_caching) ... ok
+test_Ecc_CParser3_CLexer (CheckPythonSyntax.Tests.test_Ecc_CParser3_CLexer) ... ok
+test_Ecc_CParser3_CParser (CheckPythonSyntax.Tests.test_Ecc_CParser3_CParser) ... ok
+test_Ecc_CParser3___init__ (CheckPythonSyntax.Tests.test_Ecc_CParser3___init__) ... ok
+test_Ecc_CParser4_CLexer (CheckPythonSyntax.Tests.test_Ecc_CParser4_CLexer) ... ok
+test_Ecc_CParser4_CListener (CheckPythonSyntax.Tests.test_Ecc_CParser4_CListener) ... ok
+test_Ecc_CParser4_CParser (CheckPythonSyntax.Tests.test_Ecc_CParser4_CParser) ... ok
+test_Ecc_CParser4___init__ (CheckPythonSyntax.Tests.test_Ecc_CParser4___init__) ... ok
+test_Ecc_Check (CheckPythonSyntax.Tests.test_Ecc_Check) ... ok
+test_Ecc_CodeFragment (CheckPythonSyntax.Tests.test_Ecc_CodeFragment) ... ok
+test_Ecc_CodeFragmentCollector (CheckPythonSyntax.Tests.test_Ecc_CodeFragmentCollector) ... ok
+test_Ecc_Configuration (CheckPythonSyntax.Tests.test_Ecc_Configuration) ... ok
+test_Ecc_Database (CheckPythonSyntax.Tests.test_Ecc_Database) ... ok
+test_Ecc_EccGlobalData (CheckPythonSyntax.Tests.test_Ecc_EccGlobalData) ... ok
+test_Ecc_EccMain (CheckPythonSyntax.Tests.test_Ecc_EccMain) ... ok
+test_Ecc_EccToolError (CheckPythonSyntax.Tests.test_Ecc_EccToolError) ... ok
+test_Ecc_Exception (CheckPythonSyntax.Tests.test_Ecc_Exception) ... ok
+test_Ecc_FileProfile (CheckPythonSyntax.Tests.test_Ecc_FileProfile) ... ok
+test_Ecc_MetaDataParser (CheckPythonSyntax.Tests.test_Ecc_MetaDataParser) ... ok
+test_Ecc_MetaFileWorkspace_MetaDataTable (CheckPythonSyntax.Tests.test_Ecc_MetaFileWorkspace_MetaDataTable) ... ok
+test_Ecc_MetaFileWorkspace_MetaFileParser (CheckPythonSyntax.Tests.test_Ecc_MetaFileWorkspace_MetaFileParser) ... ok
+test_Ecc_MetaFileWorkspace_MetaFileTable (CheckPythonSyntax.Tests.test_Ecc_MetaFileWorkspace_MetaFileTable) ... ok
+test_Ecc_MetaFileWorkspace___init__ (CheckPythonSyntax.Tests.test_Ecc_MetaFileWorkspace___init__) ... ok
+test_Ecc_ParserWarning (CheckPythonSyntax.Tests.test_Ecc_ParserWarning) ... ok
+test_Ecc_Xml_XmlRoutines (CheckPythonSyntax.Tests.test_Ecc_Xml_XmlRoutines) ... ok
+test_Ecc_Xml___init__ (CheckPythonSyntax.Tests.test_Ecc_Xml___init__) ... ok
+test_Ecc___init__ (CheckPythonSyntax.Tests.test_Ecc___init__) ... ok
+test_Ecc_c (CheckPythonSyntax.Tests.test_Ecc_c) ... ok
+test_Eot_CParser3_CLexer (CheckPythonSyntax.Tests.test_Eot_CParser3_CLexer) ... ok
+test_Eot_CParser3_CParser (CheckPythonSyntax.Tests.test_Eot_CParser3_CParser) ... ok
+test_Eot_CParser3___init__ (CheckPythonSyntax.Tests.test_Eot_CParser3___init__) ... ok
+test_Eot_CParser4_CLexer (CheckPythonSyntax.Tests.test_Eot_CParser4_CLexer) ... ok
+test_Eot_CParser4_CListener (CheckPythonSyntax.Tests.test_Eot_CParser4_CListener) ... ok
+test_Eot_CParser4_CParser (CheckPythonSyntax.Tests.test_Eot_CParser4_CParser) ... ok
+test_Eot_CParser4___init__ (CheckPythonSyntax.Tests.test_Eot_CParser4___init__) ... ok
+test_Eot_CodeFragment (CheckPythonSyntax.Tests.test_Eot_CodeFragment) ... ok
+test_Eot_CodeFragmentCollector (CheckPythonSyntax.Tests.test_Eot_CodeFragmentCollector) ... ok
+test_Eot_Database (CheckPythonSyntax.Tests.test_Eot_Database) ... ok
+test_Eot_EotGlobalData (CheckPythonSyntax.Tests.test_Eot_EotGlobalData) ... ok
+test_Eot_EotMain (CheckPythonSyntax.Tests.test_Eot_EotMain) ... ok
+test_Eot_EotToolError (CheckPythonSyntax.Tests.test_Eot_EotToolError) ... ok
+test_Eot_FileProfile (CheckPythonSyntax.Tests.test_Eot_FileProfile) ... ok
+test_Eot_Identification (CheckPythonSyntax.Tests.test_Eot_Identification) ... ok
+test_Eot_InfParserLite (CheckPythonSyntax.Tests.test_Eot_InfParserLite) ... ok
+test_Eot_Parser (CheckPythonSyntax.Tests.test_Eot_Parser) ... ok
+test_Eot_ParserWarning (CheckPythonSyntax.Tests.test_Eot_ParserWarning) ... ok
+test_Eot_Report (CheckPythonSyntax.Tests.test_Eot_Report) ... ok
+test_Eot___init__ (CheckPythonSyntax.Tests.test_Eot___init__) ... ok
+test_Eot_c (CheckPythonSyntax.Tests.test_Eot_c) ... ok
+test_FMMT_FMMT (CheckPythonSyntax.Tests.test_FMMT_FMMT) ... ok
+test_FMMT___init__ (CheckPythonSyntax.Tests.test_FMMT___init__) ... ok
+test_FMMT_core_BinaryFactoryProduct (CheckPythonSyntax.Tests.test_FMMT_core_BinaryFactoryProduct) ... ok
+test_FMMT_core_BiosTree (CheckPythonSyntax.Tests.test_FMMT_core_BiosTree) ... ok
+test_FMMT_core_BiosTreeNode (CheckPythonSyntax.Tests.test_FMMT_core_BiosTreeNode) ... ok
+test_FMMT_core_FMMTOperation (CheckPythonSyntax.Tests.test_FMMT_core_FMMTOperation) ... ok
+test_FMMT_core_FMMTParser (CheckPythonSyntax.Tests.test_FMMT_core_FMMTParser) ... ok
+test_FMMT_core_FvHandler (CheckPythonSyntax.Tests.test_FMMT_core_FvHandler) ... ok
+test_FMMT_core_GuidTools (CheckPythonSyntax.Tests.test_FMMT_core_GuidTools) ... ok
+test_FMMT_utils_FmmtLogger (CheckPythonSyntax.Tests.test_FMMT_utils_FmmtLogger) ... ok
+test_FMMT_utils_FvLayoutPrint (CheckPythonSyntax.Tests.test_FMMT_utils_FvLayoutPrint) ... ok
+test_FirmwareStorageFormat_Common (CheckPythonSyntax.Tests.test_FirmwareStorageFormat_Common) ... ok
+test_FirmwareStorageFormat_FfsFileHeader (CheckPythonSyntax.Tests.test_FirmwareStorageFormat_FfsFileHeader) ... ok
+test_FirmwareStorageFormat_FvHeader (CheckPythonSyntax.Tests.test_FirmwareStorageFormat_FvHeader) ... ok
+test_FirmwareStorageFormat_SectionHeader (CheckPythonSyntax.Tests.test_FirmwareStorageFormat_SectionHeader) ... ok
+test_FirmwareStorageFormat_UPLHeader (CheckPythonSyntax.Tests.test_FirmwareStorageFormat_UPLHeader) ... ok
+test_FirmwareStorageFormat___init__ (CheckPythonSyntax.Tests.test_FirmwareStorageFormat___init__) ... ok
+test_GenFds_AprioriSection (CheckPythonSyntax.Tests.test_GenFds_AprioriSection) ... ok
+test_GenFds_Capsule (CheckPythonSyntax.Tests.test_GenFds_Capsule) ... ok
+test_GenFds_CapsuleData (CheckPythonSyntax.Tests.test_GenFds_CapsuleData) ... ok
+test_GenFds_CompressSection (CheckPythonSyntax.Tests.test_GenFds_CompressSection) ... ok
+test_GenFds_DataSection (CheckPythonSyntax.Tests.test_GenFds_DataSection) ... ok
+test_GenFds_DepexSection (CheckPythonSyntax.Tests.test_GenFds_DepexSection) ... ok
+test_GenFds_EfiSection (CheckPythonSyntax.Tests.test_GenFds_EfiSection) ... ok
+test_GenFds_Fd (CheckPythonSyntax.Tests.test_GenFds_Fd) ... ok
+test_GenFds_FdfParser (CheckPythonSyntax.Tests.test_GenFds_FdfParser) ... ok
+test_GenFds_Ffs (CheckPythonSyntax.Tests.test_GenFds_Ffs) ... ok
+test_GenFds_FfsFileStatement (CheckPythonSyntax.Tests.test_GenFds_FfsFileStatement) ... ok
+test_GenFds_FfsInfStatement (CheckPythonSyntax.Tests.test_GenFds_FfsInfStatement) ... ok
+test_GenFds_Fv (CheckPythonSyntax.Tests.test_GenFds_Fv) ... ok
+test_GenFds_FvImageSection (CheckPythonSyntax.Tests.test_GenFds_FvImageSection) ... ok
+test_GenFds_GenFds (CheckPythonSyntax.Tests.test_GenFds_GenFds) ... ok
+test_GenFds_GenFdsGlobalVariable (CheckPythonSyntax.Tests.test_GenFds_GenFdsGlobalVariable) ... ok
+test_GenFds_GuidSection (CheckPythonSyntax.Tests.test_GenFds_GuidSection) ... ok
+test_GenFds_OptRomFileStatement (CheckPythonSyntax.Tests.test_GenFds_OptRomFileStatement) ... ok
+test_GenFds_OptRomInfStatement (CheckPythonSyntax.Tests.test_GenFds_OptRomInfStatement) ... ok
+test_GenFds_OptionRom (CheckPythonSyntax.Tests.test_GenFds_OptionRom) ... ok
+test_GenFds_Region (CheckPythonSyntax.Tests.test_GenFds_Region) ... ok
+test_GenFds_Rule (CheckPythonSyntax.Tests.test_GenFds_Rule) ... ok
+test_GenFds_RuleComplexFile (CheckPythonSyntax.Tests.test_GenFds_RuleComplexFile) ... ok
+test_GenFds_RuleSimpleFile (CheckPythonSyntax.Tests.test_GenFds_RuleSimpleFile) ... ok
+test_GenFds_Section (CheckPythonSyntax.Tests.test_GenFds_Section) ... ok
+test_GenFds_SubTypeGuidSection (CheckPythonSyntax.Tests.test_GenFds_SubTypeGuidSection) ... ok
+test_GenFds_UiSection (CheckPythonSyntax.Tests.test_GenFds_UiSection) ... ok
+test_GenFds_VerSection (CheckPythonSyntax.Tests.test_GenFds_VerSection) ... ok
+test_GenFds___init__ (CheckPythonSyntax.Tests.test_GenFds___init__) ... ok
+test_GenPatchPcdTable_GenPatchPcdTable (CheckPythonSyntax.Tests.test_GenPatchPcdTable_GenPatchPcdTable) ... ok
+test_GenPatchPcdTable___init__ (CheckPythonSyntax.Tests.test_GenPatchPcdTable___init__) ... ok
+test_PatchPcdValue_PatchPcdValue (CheckPythonSyntax.Tests.test_PatchPcdValue_PatchPcdValue) ... ok
+test_PatchPcdValue___init__ (CheckPythonSyntax.Tests.test_PatchPcdValue___init__) ... ok
+test_Pkcs7Sign_Pkcs7Sign (CheckPythonSyntax.Tests.test_Pkcs7Sign_Pkcs7Sign) ... ok
+test_Rsa2048Sha256Sign_Rsa2048Sha256GenerateKeys (CheckPythonSyntax.Tests.test_Rsa2048Sha256Sign_Rsa2048Sha256GenerateKeys) ... ok
+test_Rsa2048Sha256Sign_Rsa2048Sha256Sign (CheckPythonSyntax.Tests.test_Rsa2048Sha256Sign_Rsa2048Sha256Sign) ... ok
+test_Split_Split (CheckPythonSyntax.Tests.test_Split_Split) ... ok
+test_Split___init__ (CheckPythonSyntax.Tests.test_Split___init__) ... ok
+test_Table_Table (CheckPythonSyntax.Tests.test_Table_Table) ... ok
+test_Table_TableDataModel (CheckPythonSyntax.Tests.test_Table_TableDataModel) ... ok
+test_Table_TableDec (CheckPythonSyntax.Tests.test_Table_TableDec) ... ok
+test_Table_TableDsc (CheckPythonSyntax.Tests.test_Table_TableDsc) ... ok
+test_Table_TableEotReport (CheckPythonSyntax.Tests.test_Table_TableEotReport) ... ok
+test_Table_TableFdf (CheckPythonSyntax.Tests.test_Table_TableFdf) ... ok
+test_Table_TableFile (CheckPythonSyntax.Tests.test_Table_TableFile) ... ok
+test_Table_TableFunction (CheckPythonSyntax.Tests.test_Table_TableFunction) ... ok
+test_Table_TableIdentifier (CheckPythonSyntax.Tests.test_Table_TableIdentifier) ... ok
+test_Table_TableInf (CheckPythonSyntax.Tests.test_Table_TableInf) ... ok
+test_Table_TablePcd (CheckPythonSyntax.Tests.test_Table_TablePcd) ... ok
+test_Table_TableQuery (CheckPythonSyntax.Tests.test_Table_TableQuery) ... ok
+test_Table_TableReport (CheckPythonSyntax.Tests.test_Table_TableReport) ... ok
+test_Table___init__ (CheckPythonSyntax.Tests.test_Table___init__) ... ok
+test_TargetTool_TargetTool (CheckPythonSyntax.Tests.test_TargetTool_TargetTool) ... ok
+test_TargetTool___init__ (CheckPythonSyntax.Tests.test_TargetTool___init__) ... ok
+test_Trim_Trim (CheckPythonSyntax.Tests.test_Trim_Trim) ... ok
+test_UPT_BuildVersion (CheckPythonSyntax.Tests.test_UPT_BuildVersion) ... ok
+test_UPT_Core_DependencyRules (CheckPythonSyntax.Tests.test_UPT_Core_DependencyRules) ... ok
+test_UPT_Core_DistributionPackageClass (CheckPythonSyntax.Tests.test_UPT_Core_DistributionPackageClass) ... ok
+test_UPT_Core_FileHook (CheckPythonSyntax.Tests.test_UPT_Core_FileHook) ... ok
+test_UPT_Core_IpiDb (CheckPythonSyntax.Tests.test_UPT_Core_IpiDb) ... ok
+test_UPT_Core_PackageFile (CheckPythonSyntax.Tests.test_UPT_Core_PackageFile) ... ok
+test_UPT_Core___init__ (CheckPythonSyntax.Tests.test_UPT_Core___init__) ... ok
+test_UPT_GenMetaFile_GenDecFile (CheckPythonSyntax.Tests.test_UPT_GenMetaFile_GenDecFile) ... ok
+test_UPT_GenMetaFile_GenInfFile (CheckPythonSyntax.Tests.test_UPT_GenMetaFile_GenInfFile) ... ok
+test_UPT_GenMetaFile_GenMetaFileMisc (CheckPythonSyntax.Tests.test_UPT_GenMetaFile_GenMetaFileMisc) ... ok
+test_UPT_GenMetaFile_GenXmlFile (CheckPythonSyntax.Tests.test_UPT_GenMetaFile_GenXmlFile) ... ok
+test_UPT_GenMetaFile___init__ (CheckPythonSyntax.Tests.test_UPT_GenMetaFile___init__) ... ok
+test_UPT_InstallPkg (CheckPythonSyntax.Tests.test_UPT_InstallPkg) ... ok
+test_UPT_InventoryWs (CheckPythonSyntax.Tests.test_UPT_InventoryWs) ... ok
+test_UPT_Library_CommentGenerating (CheckPythonSyntax.Tests.test_UPT_Library_CommentGenerating) ... ok
+test_UPT_Library_CommentParsing (CheckPythonSyntax.Tests.test_UPT_Library_CommentParsing) ... ok
+test_UPT_Library_DataType (CheckPythonSyntax.Tests.test_UPT_Library_DataType) ... ok
+test_UPT_Library_ExpressionValidate (CheckPythonSyntax.Tests.test_UPT_Library_ExpressionValidate) ... ok
+test_UPT_Library_GlobalData (CheckPythonSyntax.Tests.test_UPT_Library_GlobalData) ... ok
+test_UPT_Library_Misc (CheckPythonSyntax.Tests.test_UPT_Library_Misc) ... ok
+test_UPT_Library_ParserValidate (CheckPythonSyntax.Tests.test_UPT_Library_ParserValidate) ... ok
+test_UPT_Library_Parsing (CheckPythonSyntax.Tests.test_UPT_Library_Parsing) ... ok
+test_UPT_Library_StringUtils (CheckPythonSyntax.Tests.test_UPT_Library_StringUtils) ... ok
+test_UPT_Library_UniClassObject (CheckPythonSyntax.Tests.test_UPT_Library_UniClassObject) ... ok
+test_UPT_Library_Xml_XmlRoutines (CheckPythonSyntax.Tests.test_UPT_Library_Xml_XmlRoutines) ... ok
+test_UPT_Library_Xml___init__ (CheckPythonSyntax.Tests.test_UPT_Library_Xml___init__) ... ok
+test_UPT_Library___init__ (CheckPythonSyntax.Tests.test_UPT_Library___init__) ... ok
+test_UPT_Logger_Log (CheckPythonSyntax.Tests.test_UPT_Logger_Log) ... ok
+test_UPT_Logger_StringTable (CheckPythonSyntax.Tests.test_UPT_Logger_StringTable) ... ok
+test_UPT_Logger_ToolError (CheckPythonSyntax.Tests.test_UPT_Logger_ToolError) ... ok
+test_UPT_Logger___init__ (CheckPythonSyntax.Tests.test_UPT_Logger___init__) ... ok
+test_UPT_MkPkg (CheckPythonSyntax.Tests.test_UPT_MkPkg) ... ok
+test_UPT_Object_POM_CommonObject (CheckPythonSyntax.Tests.test_UPT_Object_POM_CommonObject) ... ok
+test_UPT_Object_POM_ModuleObject (CheckPythonSyntax.Tests.test_UPT_Object_POM_ModuleObject) ... ok
+test_UPT_Object_POM_PackageObject (CheckPythonSyntax.Tests.test_UPT_Object_POM_PackageObject) ... ok
+test_UPT_Object_POM___init__ (CheckPythonSyntax.Tests.test_UPT_Object_POM___init__) ... ok
+test_UPT_Object_Parser_DecObject (CheckPythonSyntax.Tests.test_UPT_Object_Parser_DecObject) ... ok
+test_UPT_Object_Parser_InfBinaryObject (CheckPythonSyntax.Tests.test_UPT_Object_Parser_InfBinaryObject) ... ok
+test_UPT_Object_Parser_InfBuildOptionObject (CheckPythonSyntax.Tests.test_UPT_Object_Parser_InfBuildOptionObject) ... ok
+test_UPT_Object_Parser_InfCommonObject (CheckPythonSyntax.Tests.test_UPT_Object_Parser_InfCommonObject) ... ok
+test_UPT_Object_Parser_InfDefineCommonObject (CheckPythonSyntax.Tests.test_UPT_Object_Parser_InfDefineCommonObject) ... ok
+test_UPT_Object_Parser_InfDefineObject (CheckPythonSyntax.Tests.test_UPT_Object_Parser_InfDefineObject) ... ok
+test_UPT_Object_Parser_InfDepexObject (CheckPythonSyntax.Tests.test_UPT_Object_Parser_InfDepexObject) ... ok
+test_UPT_Object_Parser_InfGuidObject (CheckPythonSyntax.Tests.test_UPT_Object_Parser_InfGuidObject) ... ok
+test_UPT_Object_Parser_InfHeaderObject (CheckPythonSyntax.Tests.test_UPT_Object_Parser_InfHeaderObject) ... ok
+test_UPT_Object_Parser_InfLibraryClassesObject (CheckPythonSyntax.Tests.test_UPT_Object_Parser_InfLibraryClassesObject) ... ok
+test_UPT_Object_Parser_InfMisc (CheckPythonSyntax.Tests.test_UPT_Object_Parser_InfMisc) ... ok
+test_UPT_Object_Parser_InfPackagesObject (CheckPythonSyntax.Tests.test_UPT_Object_Parser_InfPackagesObject) ... ok
+test_UPT_Object_Parser_InfPcdObject (CheckPythonSyntax.Tests.test_UPT_Object_Parser_InfPcdObject) ... ok
+test_UPT_Object_Parser_InfPpiObject (CheckPythonSyntax.Tests.test_UPT_Object_Parser_InfPpiObject) ... ok
+test_UPT_Object_Parser_InfProtocolObject (CheckPythonSyntax.Tests.test_UPT_Object_Parser_InfProtocolObject) ... ok
+test_UPT_Object_Parser_InfSoucesObject (CheckPythonSyntax.Tests.test_UPT_Object_Parser_InfSoucesObject) ... ok
+test_UPT_Object_Parser_InfUserExtensionObject (CheckPythonSyntax.Tests.test_UPT_Object_Parser_InfUserExtensionObject) ... ok
+test_UPT_Object_Parser___init__ (CheckPythonSyntax.Tests.test_UPT_Object_Parser___init__) ... ok
+test_UPT_Object___init__ (CheckPythonSyntax.Tests.test_UPT_Object___init__) ... ok
+test_UPT_Parser_DecParser (CheckPythonSyntax.Tests.test_UPT_Parser_DecParser) ... ok
+test_UPT_Parser_DecParserMisc (CheckPythonSyntax.Tests.test_UPT_Parser_DecParserMisc) ... ok
+test_UPT_Parser_InfAsBuiltProcess (CheckPythonSyntax.Tests.test_UPT_Parser_InfAsBuiltProcess) ... ok
+test_UPT_Parser_InfBinarySectionParser (CheckPythonSyntax.Tests.test_UPT_Parser_InfBinarySectionParser) ... ok
+test_UPT_Parser_InfBuildOptionSectionParser (CheckPythonSyntax.Tests.test_UPT_Parser_InfBuildOptionSectionParser) ... ok
+test_UPT_Parser_InfDefineSectionParser (CheckPythonSyntax.Tests.test_UPT_Parser_InfDefineSectionParser) ... ok
+test_UPT_Parser_InfDepexSectionParser (CheckPythonSyntax.Tests.test_UPT_Parser_InfDepexSectionParser) ... ok
+test_UPT_Parser_InfGuidPpiProtocolSectionParser (CheckPythonSyntax.Tests.test_UPT_Parser_InfGuidPpiProtocolSectionParser) ... ok
+test_UPT_Parser_InfLibrarySectionParser (CheckPythonSyntax.Tests.test_UPT_Parser_InfLibrarySectionParser) ... ok
+test_UPT_Parser_InfPackageSectionParser (CheckPythonSyntax.Tests.test_UPT_Parser_InfPackageSectionParser) ... ok
+test_UPT_Parser_InfParser (CheckPythonSyntax.Tests.test_UPT_Parser_InfParser) ... ok
+test_UPT_Parser_InfParserMisc (CheckPythonSyntax.Tests.test_UPT_Parser_InfParserMisc) ... ok
+test_UPT_Parser_InfPcdSectionParser (CheckPythonSyntax.Tests.test_UPT_Parser_InfPcdSectionParser) ... ok
+test_UPT_Parser_InfSectionParser (CheckPythonSyntax.Tests.test_UPT_Parser_InfSectionParser) ... ok
+test_UPT_Parser_InfSourceSectionParser (CheckPythonSyntax.Tests.test_UPT_Parser_InfSourceSectionParser) ... ok
+test_UPT_Parser___init__ (CheckPythonSyntax.Tests.test_UPT_Parser___init__) ... ok
+test_UPT_PomAdapter_DecPomAlignment (CheckPythonSyntax.Tests.test_UPT_PomAdapter_DecPomAlignment) ... ok
+test_UPT_PomAdapter_InfPomAlignment (CheckPythonSyntax.Tests.test_UPT_PomAdapter_InfPomAlignment) ... ok
+test_UPT_PomAdapter_InfPomAlignmentMisc (CheckPythonSyntax.Tests.test_UPT_PomAdapter_InfPomAlignmentMisc) ... ok
+test_UPT_PomAdapter___init__ (CheckPythonSyntax.Tests.test_UPT_PomAdapter___init__) ... ok
+test_UPT_ReplacePkg (CheckPythonSyntax.Tests.test_UPT_ReplacePkg) ... ok
+test_UPT_RmPkg (CheckPythonSyntax.Tests.test_UPT_RmPkg) ... ok
+test_UPT_TestInstall (CheckPythonSyntax.Tests.test_UPT_TestInstall) ... ok
+test_UPT_UPT (CheckPythonSyntax.Tests.test_UPT_UPT) ... ok
+test_UPT_UnitTest_CommentGeneratingUnitTest (CheckPythonSyntax.Tests.test_UPT_UnitTest_CommentGeneratingUnitTest) ... ok
+test_UPT_UnitTest_CommentParsingUnitTest (CheckPythonSyntax.Tests.test_UPT_UnitTest_CommentParsingUnitTest) ... ok
+test_UPT_UnitTest_DecParserTest (CheckPythonSyntax.Tests.test_UPT_UnitTest_DecParserTest) ... ok
+test_UPT_UnitTest_DecParserUnitTest (CheckPythonSyntax.Tests.test_UPT_UnitTest_DecParserUnitTest) ... ok
+test_UPT_UnitTest_InfBinarySectionTest (CheckPythonSyntax.Tests.test_UPT_UnitTest_InfBinarySectionTest) ... ok
+test_UPT_Xml_CommonXml (CheckPythonSyntax.Tests.test_UPT_Xml_CommonXml) ... ok
+test_UPT_Xml_GuidProtocolPpiXml (CheckPythonSyntax.Tests.test_UPT_Xml_GuidProtocolPpiXml) ... ok
+test_UPT_Xml_IniToXml (CheckPythonSyntax.Tests.test_UPT_Xml_IniToXml) ... ok
+test_UPT_Xml_ModuleSurfaceAreaXml (CheckPythonSyntax.Tests.test_UPT_Xml_ModuleSurfaceAreaXml) ... ok
+test_UPT_Xml_PackageSurfaceAreaXml (CheckPythonSyntax.Tests.test_UPT_Xml_PackageSurfaceAreaXml) ... ok
+test_UPT_Xml_PcdXml (CheckPythonSyntax.Tests.test_UPT_Xml_PcdXml) ... ok
+test_UPT_Xml_XmlParser (CheckPythonSyntax.Tests.test_UPT_Xml_XmlParser) ... ok
+test_UPT_Xml_XmlParserMisc (CheckPythonSyntax.Tests.test_UPT_Xml_XmlParserMisc) ... ok
+test_UPT_Xml___init__ (CheckPythonSyntax.Tests.test_UPT_Xml___init__) ... ok
+test_Workspace_BuildClassObject (CheckPythonSyntax.Tests.test_Workspace_BuildClassObject) ... ok
+test_Workspace_DecBuildData (CheckPythonSyntax.Tests.test_Workspace_DecBuildData) ... ok
+test_Workspace_DscBuildData (CheckPythonSyntax.Tests.test_Workspace_DscBuildData) ... ok
+test_Workspace_InfBuildData (CheckPythonSyntax.Tests.test_Workspace_InfBuildData) ... ok
+test_Workspace_MetaDataTable (CheckPythonSyntax.Tests.test_Workspace_MetaDataTable) ... ok
+test_Workspace_MetaFileCommentParser (CheckPythonSyntax.Tests.test_Workspace_MetaFileCommentParser) ... ok
+test_Workspace_MetaFileParser (CheckPythonSyntax.Tests.test_Workspace_MetaFileParser) ... ok
+test_Workspace_MetaFileTable (CheckPythonSyntax.Tests.test_Workspace_MetaFileTable) ... ok
+test_Workspace_WorkspaceCommon (CheckPythonSyntax.Tests.test_Workspace_WorkspaceCommon) ... ok
+test_Workspace_WorkspaceDatabase (CheckPythonSyntax.Tests.test_Workspace_WorkspaceDatabase) ... ok
+test_Workspace___init__ (CheckPythonSyntax.Tests.test_Workspace___init__) ... ok
+test_build_BuildReport (CheckPythonSyntax.Tests.test_build_BuildReport) ... ok
+test_build___init__ (CheckPythonSyntax.Tests.test_build___init__) ... ok
+test_build_build (CheckPythonSyntax.Tests.test_build_build) ... ok
+test_build_buildoptions (CheckPythonSyntax.Tests.test_build_buildoptions) ... ok
+test_sitecustomize (CheckPythonSyntax.Tests.test_sitecustomize) ... ok
+test_tests_Split_test_split (CheckPythonSyntax.Tests.test_tests_Split_test_split) ... ok
+test32bitUnicodeCharInUtf8Comment (CheckUnicodeSourceFiles.Tests.test32bitUnicodeCharInUtf8Comment) ... ok
+test32bitUnicodeCharInUtf8File (CheckUnicodeSourceFiles.Tests.test32bitUnicodeCharInUtf8File) ... ok
+testSupplementaryPlaneUnicodeCharInUtf16File (CheckUnicodeSourceFiles.Tests.testSupplementaryPlaneUnicodeCharInUtf16File) ... ok
+testSurrogatePairUnicodeCharInUtf16File (CheckUnicodeSourceFiles.Tests.testSurrogatePairUnicodeCharInUtf16File) ... ok
+testSurrogatePairUnicodeCharInUtf8File (CheckUnicodeSourceFiles.Tests.testSurrogatePairUnicodeCharInUtf8File) ... ok
+testSurrogatePairUnicodeCharInUtf8FileWithBom (CheckUnicodeSourceFiles.Tests.testSurrogatePairUnicodeCharInUtf8FileWithBom) ... ok
+testUtf16InUniFile (CheckUnicodeSourceFiles.Tests.testUtf16InUniFile) ... ok
+testValidUtf8File (CheckUnicodeSourceFiles.Tests.testValidUtf8File) ... ok
+testValidUtf8FileWithBom (CheckUnicodeSourceFiles.Tests.testValidUtf8FileWithBom) ... ok
+
+----------------------------------------------------------------------
+Ran 303 tests in 1.658s
+
+OK
+make[1]: Leaving directory '/edk2/BaseTools/Tests'
+make: Leaving directory '/edk2/BaseTools'
+Build environment: Linux-5.15.133.1-microsoft-standard-WSL2-x86_64-with-glibc2.39
+Build start time: 06:35:46, Oct.03 2026
+
+WORKSPACE        = /edk2
+EDK_TOOLS_PATH   = /edk2/BaseTools
+CONF_PATH        = /edk2/Conf
+PYTHON_COMMAND   = python3
+
+
+Processing meta-data .
+Architecture(s)  = X64
+Build target     = RELEASE
+Toolchain        = GCC5
+
+Active Platform          = /edk2/OvmfPkg/OvmfPkgX64.dsc
+.... done!
+Building ... /edk2/MdeModulePkg/Library/DxeReportStatusCodeLib/DxeReportStatusCodeLib.inf [X64]
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/MdePkg/Library/UefiDriverEntryPoint/UefiDriverEntryPoint.inf [X64]
+Building ... /edk2/MdePkg/Library/UefiLib/UefiLib.inf [X64]
+make: Nothing to be done for 'tbuild'.
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/MdePkg/Library/StackCheckLibNull/StackCheckLibNull.inf [X64]
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/MdePkg/Library/UefiDevicePathLibDevicePathProtocol/UefiDevicePathLibDevicePathProtocol.inf [X64]
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/MdePkg/Library/UefiRuntimeServicesTableLib/UefiRuntimeServicesTableLib.inf [X64]
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/MdePkg/Library/UefiMemoryAllocationLib/UefiMemoryAllocationLib.inf [X64]
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/MdePkg/Library/UefiBootServicesTableLib/UefiBootServicesTableLib.inf [X64]
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/OvmfPkg/Library/CcProbeLib/DxeCcProbeLib.inf [X64]
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/OvmfPkg/Library/PlatformDebugLibIoPort/PlatformDebugLibIoPort.inf [X64]
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/MdePkg/Library/BaseIoLibIntrinsic/BaseIoLibIntrinsicSev.inf [X64]
+Building ... /edk2/MdePkg/Library/BasePrintLib/BasePrintLib.inf [X64]
+make: Nothing to be done for 'tbuild'.
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/MdePkg/Library/BaseDebugPrintErrorLevelLib/BaseDebugPrintErrorLevelLib.inf [X64]
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/OvmfPkg/Library/MemDebugLogLib/MemDebugLogLibNull.inf [X64]
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/MdePkg/Library/TdxLib/TdxLib.inf [X64]
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/MdePkg/Library/BaseLib/BaseLib.inf [X64]
+Building ... /edk2/MdePkg/Library/BaseMemoryLibRepStr/BaseMemoryLibRepStr.inf [X64]
+Building ... /edk2/MdePkg/Library/DxePcdLib/DxePcdLib.inf [X64]
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/MdePkg/Library/RegisterFilterLibNull/RegisterFilterLibNull.inf [X64]
+make: Nothing to be done for 'tbuild'.
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/OvmfPkg/Library/NestedInterruptTplLib/NestedInterruptTplLib.inf [X64]
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/MdeModulePkg/Library/CustomizedDisplayLib/CustomizedDisplayLib.inf [X64]
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/MdeModulePkg/Library/BaseBmpSupportLib/BaseBmpSupportLib.inf [X64]
+make: Nothing to be done for 'tbuild'.
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/OvmfPkg/Library/AcpiPlatformLib/DxeAcpiPlatformLib.inf [X64]
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/MdeModulePkg/Library/BootMaintenanceManagerUiLib/BootMaintenanceManagerUiLib.inf [X64]
+Building ... /edk2/MdeModulePkg/Library/BootManagerUiLib/BootManagerUiLib.inf [X64]
+make: Nothing to be done for 'tbuild'.
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/MdeModulePkg/Library/DeviceManagerUiLib/DeviceManagerUiLib.inf [X64]
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/MdeModulePkg/Library/DxeCapsuleLibNull/DxeCapsuleLibNull.inf [X64]
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/OvmfPkg/Library/BasePciCapPciSegmentLib/BasePciCapPciSegmentLib.inf [X64]
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/OvmfPkg/Library/PxeBcPcdProducerLib/PxeBcPcdProducerLib.inf [X64]
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/OvmfPkg/ResetVector/ResetVector.inf [X64]
+Building ... /edk2/MdePkg/Library/DxeHstiLib/DxeHstiLib.inf [X64]
+make: Nothing to be done for 'tbuild'.
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/OvmfPkg/Library/PlatformBootManagerLib/PlatformBootManagerLib.inf [X64]
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/MdeModulePkg/Library/BootLogoLib/BootLogoLib.inf [X64]
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/OvmfPkg/Library/NvVarsFileLib/NvVarsFileLib.inf [X64]
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/OvmfPkg/Library/QemuFwCfgS3Lib/DxeQemuFwCfgS3LibFwCfg.inf [X64]
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/OvmfPkg/Library/X86QemuLoadImageLib/X86QemuLoadImageLib.inf [X64]
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/OvmfPkg/Library/QemuBootOrderLib/QemuBootOrderLib.inf [X64]
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/OvmfPkg/Library/PlatformBmPrintScLib/PlatformBmPrintScLib.inf [X64]
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/OvmfPkg/Library/Tcg2PhysicalPresenceLibNull/DxeTcg2PhysicalPresenceLib.inf [X64]
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/OvmfPkg/Library/XenPlatformLib/XenPlatformLib.inf [X64]
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/OvmfPkg/Library/PlatformBootManagerCommonLib/PlatformBootManagerCommonLib.inf [X64]
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/OvmfPkg/Library/SerializeVariablesLib/SerializeVariablesLib.inf [X64]
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/OvmfPkg/Library/LoadLinuxLib/LoadLinuxLib.inf [X64]
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/OvmfPkg/Library/UefiPciCapPciIoLib/UefiPciCapPciIoLib.inf [X64]
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/OvmfPkg/Library/BasePciCapLib/BasePciCapLib.inf [X64]
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/MdePkg/Library/UefiUsbLib/UefiUsbLib.inf [X64]
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/MdeModulePkg/Library/FileExplorerLib/FileExplorerLib.inf [X64]
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/MdePkg/Library/PeiExtractGuidedSectionLib/PeiExtractGuidedSectionLib.inf [X64]
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/OvmfPkg/Library/MpInitLibDepLib/DxeMpInitLibMpDepLib.inf [X64]
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/UefiCpuPkg/Library/MpInitLib/DxeMpInitLib.inf [X64]
+Building ... /edk2/MdeModulePkg/Library/ImagePropertiesRecordLib/ImagePropertiesRecordLib.inf [X64]
+make: Nothing to be done for 'tbuild'.
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/MdePkg/Library/BaseUefiDecompressLib/BaseUefiDecompressLib.inf [X64]
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/MdePkg/Library/DxeExtractGuidedSectionLib/DxeExtractGuidedSectionLib.inf [X64]
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/MdePkg/Library/DxeCoreHobLib/DxeCoreHobLib.inf [X64]
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/MdePkg/Library/DxeCoreEntryPoint/DxeCoreEntryPoint.inf [X64]
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/MdeModulePkg/Library/DxeCoreMemoryAllocationLib/DxeCoreMemoryAllocationLib.inf [X64]
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/OvmfPkg/Library/PlatformHasIoMmuLib/PlatformHasIoMmuLib.inf [X64]
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/OvmfPkg/Library/PciHostBridgeLib/PciHostBridgeLib.inf [X64]
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/OvmfPkg/Library/PciHostBridgeUtilityLib/PciHostBridgeUtilityLib.inf [X64]
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/OvmfPkg/Library/HardwareInfoLib/DxeHardwareInfoLib.inf [X64]
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/MdeModulePkg/Library/RuntimeDxeReportStatusCodeLib/RuntimeDxeReportStatusCodeLib.inf [X64]
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/OvmfPkg/Library/ResetSystemLib/DxeResetSystemLib.inf [X64]
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/NetworkPkg/Library/DxeHttpLib/DxeHttpLib.inf [X64]
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/SecurityPkg/Library/HashInstanceLibSha384/HashInstanceLibSha384.inf [X64]
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/OvmfPkg/IntelTdx/TdxMeasurementLib/DxeTdxMeasurementLib.inf [X64]
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/OvmfPkg/Library/HashLibTdx/HashLibTdx.inf [X64]
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/SecurityPkg/Library/DxeTpm2MeasureBootLib/DxeTpm2MeasureBootLib.inf [X64]
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/MdeModulePkg/Library/DxeSecurityManagementLib/DxeSecurityManagementLib.inf [X64]
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/EmbeddedPkg/Library/TimeBaseLib/TimeBaseLib.inf [X64]
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/OvmfPkg/Library/MpInitLibDepLib/PeiMpInitLibMpDepLib.inf [X64]
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/UefiCpuPkg/Library/MpInitLib/PeiMpInitLib.inf [X64]
+Building ... /edk2/UefiCpuPkg/Library/MicrocodeLib/MicrocodeLib.inf [X64]
+make: Nothing to be done for 'tbuild'.
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/ShellPkg/Library/UefiShellNetwork1CommandsLib/UefiShellNetwork1CommandsLib.inf [X64]
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/ShellPkg/Library/UefiShellInstall1CommandsLib/UefiShellInstall1CommandsLib.inf [X64]
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/ShellPkg/Library/UefiShellDebug1CommandsLib/UefiShellDebug1CommandsLib.inf [X64]
+Building ... /edk2/ShellPkg/Library/UefiShellDriver1CommandsLib/UefiShellDriver1CommandsLib.inf [X64]
+Building ... /edk2/ShellPkg/Library/UefiShellLevel3CommandsLib/UefiShellLevel3CommandsLib.inf [X64]
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/ShellPkg/Library/UefiShellLevel1CommandsLib/UefiShellLevel1CommandsLib.inf [X64]
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/ShellPkg/Library/UefiShellLevel2CommandsLib/UefiShellLevel2CommandsLib.inf [X64]
+make: Nothing to be done for 'tbuild'.
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/MdePkg/Library/UefiApplicationEntryPoint/UefiApplicationEntryPoint.inf [X64]
+make: Nothing to be done for 'tbuild'.
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/ShellPkg/Library/UefiShellBcfgCommandLib/UefiShellBcfgCommandLib.inf [X64]
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/ShellPkg/Library/UefiShellCommandLib/UefiShellCommandLib.inf [X64]
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/MdeModulePkg/Library/UefiBootManagerLib/UefiBootManagerLib.inf [X64]
+Building ... /edk2/ShellPkg/Library/UefiHandleParsingLib/UefiHandleParsingLib.inf [X64]
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/MdePkg/Library/DxeServicesLib/DxeServicesLib.inf [X64]
+make: Nothing to be done for 'tbuild'.
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/OvmfPkg/IntelTdx/TdxHelperLib/SecTdxHelperLib.inf [X64]
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/MdeModulePkg/Library/LzmaCustomDecompressLib/LzmaCustomDecompressLib.inf [X64]
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/UefiCpuPkg/Library/CpuExceptionHandlerLib/SecPeiCpuExceptionHandlerLib.inf [X64]
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/MdePkg/Library/BaseExtractGuidedSectionLib/BaseExtractGuidedSectionLib.inf [X64]
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/CryptoPkg/Library/BaseCryptLib/SecCryptLib.inf [X64]
+Building ... /edk2/OvmfPkg/Library/AcpiTimerLib/BaseRomAcpiTimerLib.inf [X64]
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/OvmfPkg/Library/BaseMemEncryptSevLib/SecMemEncryptSevLib.inf [X64]
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/OvmfPkg/Library/CcExitLib/SecCcExitLib.inf [X64]
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/OvmfPkg/Library/BlobVerifierLibNull/BlobVerifierLibNull.inf [X64]
+make: Nothing to be done for 'tbuild'.
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/OvmfPkg/Library/SmbiosVersionLib/DetectSmbiosVersionLib.inf [X64]
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/OvmfPkg/IntelTdx/TdxHelperLib/PeiTdxHelperLib.inf [X64]
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/OvmfPkg/Library/SmmRelocationLib/SmmRelocationLib.inf [X64]
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/OvmfPkg/Library/PlatformInitLib/PlatformInitLib.inf [X64]
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/OvmfPkg/Library/QemuFwCfgS3Lib/PeiQemuFwCfgS3LibFwCfg.inf [X64]
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/MdePkg/Library/PeiResourcePublicationLib/PeiResourcePublicationLib.inf [X64]
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/OvmfPkg/IntelTdx/TdxMeasurementLib/SecPeiTdxMeasurementLib.inf [X64]
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/OvmfPkg/Library/HardwareInfoLib/PeiHardwareInfoLib.inf [X64]
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/CryptoPkg/Library/BaseCryptLib/PeiCryptLib.inf [X64]
+Building ... /edk2/OvmfPkg/Library/QemuFwCfgLib/QemuFwCfgPeiLib.inf [X64]
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/SecurityPkg/Library/PeiTpmMeasurementLib/PeiTpmMeasurementLib.inf [X64]
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/OvmfPkg/Library/EmuVariableFvbLib/EmuVariableFvbLib.inf [X64]
+make: Nothing to be done for 'tbuild'.
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/OvmfPkg/Library/MpInitLibDepLib/PeiMpInitLibUpDepLib.inf [X64]
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/UefiCpuPkg/Library/CpuPageTableLib/CpuPageTableLib.inf [X64]
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/UefiCpuPkg/Library/CpuExceptionHandlerLib/PeiCpuExceptionHandlerLib.inf [X64]
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/OvmfPkg/Library/BaseMemEncryptSevLib/PeiMemEncryptSevLib.inf [X64]
+Building ... /edk2/MdePkg/Library/UefiScsiLib/UefiScsiLib.inf [X64]
+make: Nothing to be done for 'tbuild'.
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/ShellPkg/Library/UefiShellLib/UefiShellLib.inf [X64]
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/MdePkg/Library/UefiFileHandleLib/UefiFileHandleLib.inf [X64]
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/MdeModulePkg/Library/UefiSortLib/UefiSortLib.inf [X64]
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/MdePkg/Library/BaseOrderedCollectionRedBlackTreeLib/BaseOrderedCollectionRedBlackTreeLib.inf [X64]
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/MdeModulePkg/Library/VarCheckUefiLib/VarCheckUefiLib.inf [X64]
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/MdeModulePkg/Library/VariablePolicyHelperLib/VariablePolicyHelperLib.inf [X64]
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/MdeModulePkg/Library/VariablePolicyLib/VariablePolicyLibRuntimeDxe.inf [X64]
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/MdeModulePkg/Library/AuthVariableLibNull/AuthVariableLibNull.inf [X64]
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/SecurityPkg/Library/DxeTpmMeasurementLib/DxeTpmMeasurementLib.inf [X64]
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/MdePkg/Library/UefiRuntimeLib/UefiRuntimeLib.inf [X64]
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/MdeModulePkg/Library/VarCheckLib/VarCheckLib.inf [X64]
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/OvmfPkg/Library/MpInitLibDepLib/DxeMpInitLibUpDepLib.inf [X64]
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/UefiCpuPkg/Library/MpInitLibUp/MpInitLibUp.inf [X64]
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/UefiCpuPkg/Library/CpuExceptionHandlerLib/DxeCpuExceptionHandlerLib.inf [X64]
+Building ... /edk2/UefiCpuPkg/Library/MtrrLib/MtrrLib.inf [X64]
+make: Nothing to be done for 'tbuild'.
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/OvmfPkg/Library/LockBoxLib/LockBoxBaseLib.inf [X64]
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/MdePkg/Library/PeiPcdLib/PeiPcdLib.inf [X64]
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/OvmfPkg/Library/VirtioLib/VirtioLib.inf [X64]
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/OvmfPkg/Library/AcpiTimerLib/BaseAcpiTimerLib.inf [X64]
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/MdePkg/Library/PeiCoreEntryPoint/PeiCoreEntryPoint.inf [X64]
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/MdePkg/Library/BasePerformanceLibNull/BasePerformanceLibNull.inf [X64]
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/MdePkg/Library/BasePeCoffGetEntryPointLib/BasePeCoffGetEntryPointLib.inf [X64]
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/OvmfPkg/Library/UefiDriverEntryPointFwCfgOverrideLib/UefiDriverEntryPointFwCfgOverrideLib.inf [X64]
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/NetworkPkg/Library/DxeTcpIoLib/DxeTcpIoLib.inf [X64]
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/CryptoPkg/Library/BaseCryptLib/BaseCryptLib.inf [X64]
+Building ... /edk2/OvmfPkg/Library/QemuFwCfgSimpleParserLib/QemuFwCfgSimpleParserLib.inf [X64]
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/CryptoPkg/Library/OpensslLib/OpensslLibCrypto.inf [X64]
+Building ... /edk2/CryptoPkg/Library/IntrinsicLib/IntrinsicLib.inf [X64]
+make: Nothing to be done for 'tbuild'.
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/MdeModulePkg/Library/BaseRngLibTimerLib/BaseRngLibTimerLib.inf [X64]
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/MdePkg/Library/BasePciLibCf8/BasePciLibCf8.inf [X64]
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/OvmfPkg/Library/BaseMemEncryptSevLib/DxeMemEncryptSevLib.inf [X64]
+Building ... /edk2/OvmfPkg/Library/CcExitLib/CcExitLib.inf [X64]
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/OvmfPkg/Library/AmdSvsmLib/AmdSvsmLib.inf [X64]
+make: Nothing to be done for 'tbuild'.
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/UefiCpuPkg/Library/BaseXApicX2ApicLib/BaseXApicX2ApicLib.inf [X64]
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/MdeModulePkg/Library/BaseVariableFlashInfoLib/BaseVariableFlashInfoLib.inf [X64]
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/MdePkg/Library/UefiDevicePathLib/UefiDevicePathLib.inf [X64]
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/MdePkg/Library/BaseRngLib/BaseRngLib.inf [X64]
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/MdePkg/Library/BasePeCoffLib/BasePeCoffLib.inf [X64]
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/MdePkg/Library/BasePeCoffExtraActionLibNull/BasePeCoffExtraActionLibNull.inf [X64]
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/MdePkg/Library/BaseSafeIntLib/BaseSafeIntLib.inf [X64]
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/MdeModulePkg/Library/PiDxeS3BootScriptLib/DxeS3BootScriptLib.inf [X64]
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/OvmfPkg/Library/LockBoxLib/LockBoxDxeLib.inf [X64]
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/MdePkg/Library/BaseSmbusLibNull/BaseSmbusLibNull.inf [X64]
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/MdePkg/Library/BasePciSegmentLibPci/BasePciSegmentLibPci.inf [X64]
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/MdeModulePkg/Library/UefiHiiLib/UefiHiiLib.inf [X64]
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/MdeModulePkg/Library/UefiHiiServicesLib/UefiHiiServicesLib.inf [X64]
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/OvmfPkg/Library/QemuFwCfgLib/QemuFwCfgDxeLib.inf [X64]
+Building ... /edk2/MdeModulePkg/Library/FrameBufferBltLib/FrameBufferBltLib.inf [X64]
+make: Nothing to be done for 'tbuild'.
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/MdeModulePkg/Library/PeiReportStatusCodeLib/PeiReportStatusCodeLib.inf [X64]
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/PcAtChipsetPkg/Library/SerialIoLib/SerialIoLib.inf [X64]
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/MdePkg/Library/PeimEntryPoint/PeimEntryPoint.inf [X64]
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/MdeModulePkg/Library/OemHookStatusCodeLibNull/OemHookStatusCodeLibNull.inf [X64]
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/OvmfPkg/Library/PlatformDebugLibIoPort/PlatformRomDebugLibIoPort.inf [X64]
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/OvmfPkg/Library/CcProbeLib/SecPeiCcProbeLib.inf [X64]
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/MdePkg/Library/PeiServicesLib/PeiServicesLib.inf [X64]
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/MdePkg/Library/BasePcdLibNull/BasePcdLibNull.inf [X64]
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/MdePkg/Library/PeiHobLib/PeiHobLib.inf [X64]
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/MdePkg/Library/PeiServicesTablePointerLibIdt/PeiServicesTablePointerLibIdt.inf [X64]
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/MdePkg/Library/PeiMemoryAllocationLib/PeiMemoryAllocationLib.inf [X64]
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/NetworkPkg/Library/DxeUdpIoLib/DxeUdpIoLib.inf [X64]
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/NetworkPkg/Library/DxeNetLib/DxeNetLib.inf [X64]
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/NetworkPkg/Library/DxeIpIoLib/DxeIpIoLib.inf [X64]
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/NetworkPkg/Library/DxeDpcLib/DxeDpcLib.inf [X64]
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/OvmfPkg/Library/BaseMemEncryptTdxLib/BaseMemEncryptTdxLib.inf [X64]
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/OvmfPkg/Library/TdxMailboxLib/TdxMailboxLib.inf [X64]
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/MdePkg/Library/DxeServicesTableLib/DxeServicesTableLib.inf [X64]
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/MdePkg/Library/BaseCacheMaintenanceLib/BaseCacheMaintenanceLib.inf [X64]
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/MdePkg/Library/BaseCpuLib/BaseCpuLib.inf [X64]
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/MdeModulePkg/Library/DebugAgentLibNull/DebugAgentLibNull.inf [X64]
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/MdePkg/Library/BaseSynchronizationLib/BaseSynchronizationLib.inf [X64]
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/OvmfPkg/Library/AcpiTimerLib/DxeAcpiTimerLib.inf [X64]
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/MdePkg/Library/DxeHobLib/DxeHobLib.inf [X64]
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/OvmfPkg/Library/DxePciLibI440FxQ35/DxePciLibI440FxQ35.inf [X64]
+make: Nothing to be done for 'tbuild'.
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/MdePkg/Library/BasePciCf8Lib/BasePciCf8Lib.inf [X64]
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/MdePkg/Library/BasePciExpressLib/BasePciExpressLib.inf [X64]
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/OvmfPkg/LinuxInitrdDynamicShellCommand/LinuxInitrdDynamicShellCommand.inf [X64]
+Building ... /edk2/MdeModulePkg/Bus/Pci/PciBusDxe/PciBusDxe.inf [X64]
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/NetworkPkg/Mtftp4Dxe/Mtftp4Dxe.inf [X64]
+Building ... /edk2/MdeModulePkg/Bus/Isa/Ps2KeyboardDxe/Ps2KeyboardDxe.inf [X64]
+"gcc" -MMD -MF /edk2/Build/OvmfX64/RELEASE_GCC5/X64/MdeModulePkg/Bus/Pci/PciBusDxe/PciBusDxe/OUTPUT/PciEnumeratorSupport.obj.deps -g -Os -fshort-wchar -fno-builtin -fno-strict-aliasing -Wall -Werror -Wno-array-bounds -include AutoGen.h -fno-common -fstack-protector -ffunction-sections -fdata-sections -DSTRING_ARRAY_NAME=PciBusDxeStrings -mstack-protector-guard=global -m64 "-DEFIAPI=__attribute__((ms_abi))" -maccumulate-outgoing-args -mno-red-zone -Wno-address -mcmodel=small -fpie -fno-asynchronous-unwind-tables -Wno-address -fno-omit-frame-pointer -flto -DUSING_LTO -Wno-unused-but-set-variable -Wno-unused-const-variable -DMDEPKG_NDEBUG -mno-mmx -mno-sse -D DISABLE_NEW_DEPRECATED_INTERFACES -D TDX_GUEST_SUPPORTED -D ENABLE_MD5_DEPRECATED_INTERFACES -c -o /edk2/Build/OvmfX64/RELEASE_GCC5/X64/MdeModulePkg/Bus/Pci/PciBusDxe/PciBusDxe/OUTPUT/./PciEnumeratorSupport.obj -I/edk2/MdeModulePkg/Bus/Pci/PciBusDxe -I/edk2/Build/OvmfX64/RELEASE_GCC5/X64/MdeModulePkg/Bus/Pci/PciBusDxe/PciBusDxe/DEBUG -I/edk2/MdePkg -I/edk2/MdePkg/Include -I/edk2/MdePkg/Test/UnitTest/Include -I/edk2/MdePkg/Test/Mock/Include -I/edk2/MdePkg/Library/MipiSysTLib/mipisyst/library/include -I/edk2/MdePkg/Include/X64 -I/edk2/MdeModulePkg -I/edk2/MdeModulePkg/Include -I/edk2/MdeModulePkg/Test/Mock/Include -I/edk2/MdeModulePkg/Library/BrotliCustomDecompressLib/brotli/c/include /edk2/MdeModulePkg/Bus/Pci/PciBusDxe/PciEnumeratorSupport.c
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/OvmfPkg/VirtioKeyboardDxe/VirtioKeyboard.inf [X64]
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/MdeModulePkg/Universal/Acpi/BootScriptExecutorDxe/BootScriptExecutorDxe.inf [X64]
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/MdeModulePkg/Universal/DriverHealthManagerDxe/DriverHealthManagerDxe.inf [X64]
+Building ... /edk2/OvmfPkg/QemuVideoDxe/QemuVideoDxe.inf [X64]
+make: Nothing to be done for 'tbuild'.
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/MdeModulePkg/Universal/WatchdogTimerDxe/WatchdogTimer.inf [X64]
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/MdeModulePkg/Bus/Pci/SdMmcPciHcDxe/SdMmcPciHcDxe.inf [X64]
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/MdeModulePkg/Bus/Pci/PciSioSerialDxe/PciSioSerialDxe.inf [X64]
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/OvmfPkg/LocalApicTimerDxe/LocalApicTimerDxe.inf [X64]
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/MdeModulePkg/Universal/StatusCodeHandler/RuntimeDxe/StatusCodeHandlerRuntimeDxe.inf [X64]
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/MdeModulePkg/Universal/DisplayEngineDxe/DisplayEngineDxe.inf [X64]
+Building ... /edk2/MdeModulePkg/Universal/Acpi/BootGraphicsResourceTableDxe/BootGraphicsResourceTableDxe.inf [X64]
+rm -f /edk2/Build/OvmfX64/RELEASE_GCC5/X64/MdeModulePkg/Bus/Pci/PciBusDxe/PciBusDxe/OUTPUT/PciBusDxe.lib
+"gcc-ar" cr /edk2/Build/OvmfX64/RELEASE_GCC5/X64/MdeModulePkg/Bus/Pci/PciBusDxe/PciBusDxe/OUTPUT/PciBusDxe.lib  @/edk2/Build/OvmfX64/RELEASE_GCC5/X64/MdeModulePkg/Bus/Pci/PciBusDxe/PciBusDxe/OUTPUT/object_files.lst
+make: Nothing to be done for 'tbuild'.
+make: Nothing to be done for 'tbuild'.
+"gcc" -o /edk2/Build/OvmfX64/RELEASE_GCC5/X64/MdeModulePkg/Bus/Pci/PciBusDxe/PciBusDxe/DEBUG/PciBusDxe.dll -nostdlib -Wl,-n,-q,--gc-sections -z common-page-size=0x40 -Wl,--entry,_ModuleEntryPoint -u _ModuleEntryPoint -Wl,-Map,/edk2/Build/OvmfX64/RELEASE_GCC5/X64/MdeModulePkg/Bus/Pci/PciBusDxe/PciBusDxe/DEBUG/PciBusDxe.map,--whole-archive -Wl,-melf_x86_64,--oformat=elf64-x86-64,-pie -Wl,--fatal-warnings -Wl,-z,noexecstack -Wl,-z,notext -flto -Os -Wl,--start-group,@/edk2/Build/OvmfX64/RELEASE_GCC5/X64/MdeModulePkg/Bus/Pci/PciBusDxe/PciBusDxe/OUTPUT/static_library_files.lst,--end-group -g -Os -fshort-wchar -fno-builtin -fno-strict-aliasing -Wall -Werror -Wno-array-bounds -include AutoGen.h -fno-common -fstack-protector -ffunction-sections -fdata-sections -DSTRING_ARRAY_NAME=PciBusDxeStrings -mstack-protector-guard=global -m64 "-DEFIAPI=__attribute__((ms_abi))" -maccumulate-outgoing-args -mno-red-zone -Wno-address -mcmodel=small -fpie -fno-asynchronous-unwind-tables -Wno-address -fno-omit-frame-pointer -flto -DUSING_LTO -Wno-unused-but-set-variable -Wno-unused-const-variable -DMDEPKG_NDEBUG -mno-mmx -mno-sse -D DISABLE_NEW_DEPRECATED_INTERFACES -D TDX_GUEST_SUPPORTED -D ENABLE_MD5_DEPRECATED_INTERFACES -Wl,--defsym=PECOFF_HEADER_SIZE=0x228 -Wl,--script=/edk2/BaseTools/Scripts/GccBase.lds -Wno-error
+Building ... /edk2/NetworkPkg/SnpDxe/SnpDxe.inf [X64]
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/MdeModulePkg/Application/BootManagerMenuApp/BootManagerMenuApp.inf [X64]
+Building ... /edk2/OvmfPkg/AcpiPlatformDxe/AcpiPlatformDxe.inf [X64]
+make: Nothing to be done for 'tbuild'.
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/MdeModulePkg/Application/UiApp/UiApp.inf [X64]
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/MdeModulePkg/Universal/CapsuleRuntimeDxe/CapsuleRuntimeDxe.inf [X64]
+Building ... /edk2/OvmfPkg/PciHotPlugInitDxe/PciHotPlugInit.inf [X64]
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/PcAtChipsetPkg/PcatRealTimeClockRuntimeDxe/PcatRealTimeClockRuntimeDxe.inf [X64]
+make: Nothing to be done for 'tbuild'.
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/NetworkPkg/UefiPxeBcDxe/UefiPxeBcDxe.inf [X64]
+make: Nothing to be done for 'tbuild'.
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/MdeModulePkg/Universal/Console/ConSplitterDxe/ConSplitterDxe.inf [X64]
+Building ... /edk2/NetworkPkg/ArpDxe/ArpDxe.inf [X64]
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/MdeModulePkg/Universal/PCD/Dxe/Pcd.inf [X64]
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/MdeModulePkg/Bus/Pci/NvmExpressDxe/NvmExpressDxe.inf [X64]
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/MdeModulePkg/Universal/Disk/PartitionDxe/PartitionDxe.inf [X64]
+make: Nothing to be done for 'tbuild'.
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/OvmfPkg/VirtHstiDxe/VirtHstiDxe.inf [X64]
+Building ... /edk2/MdeModulePkg/Universal/BdsDxe/BdsDxe.inf [X64]
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/OvmfPkg/PlatformDxe/Platform.inf [X64]
+Building ... /edk2/OvmfPkg/VirtioPciDeviceDxe/VirtioPciDeviceDxe.inf [X64]
+make: Nothing to be done for 'tbuild'.
+make: Nothing to be done for 'tbuild'.
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/OvmfPkg/Virtio10Dxe/Virtio10.inf [X64]
+Building ... /edk2/MdeModulePkg/Bus/Usb/UsbKbDxe/UsbKbDxe.inf [X64]
+Building ... /edk2/OvmfPkg/SmbiosPlatformDxe/SmbiosPlatformDxe.inf [X64]
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/MdeModulePkg/Bus/Pci/UhciDxe/UhciDxe.inf [X64]
+make: Nothing to be done for 'tbuild'.
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/MdeModulePkg/Universal/Console/GraphicsConsoleDxe/GraphicsConsoleDxe.inf [X64]
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/MdeModulePkg/Universal/MonotonicCounterRuntimeDxe/MonotonicCounterRuntimeDxe.inf [X64]
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/UefiCpuPkg/CpuIo2Dxe/CpuIo2Dxe.inf [X64]
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/NetworkPkg/TcpDxe/TcpDxe.inf [X64]
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/MdeModulePkg/Universal/Disk/RamDiskDxe/RamDiskDxe.inf [X64]
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/MdeModulePkg/Core/DxeIplPeim/DxeIpl.inf [X64]
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/MdeModulePkg/Bus/Sd/SdDxe/SdDxe.inf [X64]
+Building ... /edk2/UefiCpuPkg/CpuDxe/CpuDxe.inf [X64]
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/MdeModulePkg/Core/Dxe/DxeMain.inf [X64]
+make: Nothing to be done for 'tbuild'.
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/MdeModulePkg/Bus/Pci/SataControllerDxe/SataControllerDxe.inf [X64]
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/FatPkg/EnhancedFatDxe/Fat.inf [X64]
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/NetworkPkg/DpcDxe/DpcDxe.inf [X64]
+Building ... /edk2/OvmfPkg/VirtioGpuDxe/VirtioGpu.inf [X64]
+make: Nothing to be done for 'tbuild'.
+make: Nothing to be done for 'tbuild'.
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/MdeModulePkg/Bus/Pci/XhciDxe/XhciDxe.inf [X64]
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/MdeModulePkg/Core/RuntimeDxe/RuntimeDxe.inf [X64]
+Building ... /edk2/MdeModulePkg/Bus/Usb/UsbBusDxe/UsbBusDxe.inf [X64]
+make: Nothing to be done for 'tbuild'.
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/MdeModulePkg/Bus/Pci/PciHostBridgeDxe/PciHostBridgeDxe.inf [X64]
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/MdeModulePkg/Bus/Sd/EmmcDxe/EmmcDxe.inf [X64]
+Building ... /edk2/MdeModulePkg/Universal/ResetSystemRuntimeDxe/ResetSystemRuntimeDxe.inf [X64]
+make: Nothing to be done for 'tbuild'.
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/MdeModulePkg/Universal/Console/ConPlatformDxe/ConPlatformDxe.inf [X64]
+Building ... /edk2/ShellPkg/DynamicCommand/HttpDynamicCommand/HttpDynamicCommand.inf [X64]
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/MdeModulePkg/Universal/ReportStatusCodeRouter/RuntimeDxe/ReportStatusCodeRouterRuntimeDxe.inf [X64]
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/MdeModulePkg/Bus/Scsi/ScsiDiskDxe/ScsiDiskDxe.inf [X64]
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/OvmfPkg/VirtioFsDxe/VirtioFsDxe.inf [X64]
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/UefiCpuPkg/CpuMpPei/CpuMpPei.inf [X64]
+Building ... /edk2/MdeModulePkg/Universal/Disk/UdfDxe/UdfDxe.inf [X64]
+Building ... /edk2/MdeModulePkg/Universal/Console/TerminalDxe/TerminalDxe.inf [X64]
+make: Nothing to be done for 'tbuild'.
+make: Nothing to be done for 'tbuild'.
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/ShellPkg/Application/Shell/Shell.inf [X64]
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/MdeModulePkg/Universal/Disk/DiskIoDxe/DiskIoDxe.inf [X64]
+make: Nothing to be done for 'tbuild'.
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/MdeModulePkg/Bus/Ata/AtaAtapiPassThru/AtaAtapiPassThru.inf [X64]
+Building ... /edk2/OvmfPkg/VirtioBlkDxe/VirtioBlk.inf [X64]
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/OvmfPkg/VirtioRngDxe/VirtioRng.inf [X64]
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/OvmfPkg/QemuKernelLoaderFsDxe/QemuKernelLoaderFsDxe.inf [X64]
+make: Nothing to be done for 'tbuild'.
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/ShellPkg/DynamicCommand/TftpDynamicCommand/TftpDynamicCommand.inf [X64]
+Building ... /edk2/OvmfPkg/SioBusDxe/SioBusDxe.inf [X64]
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/NetworkPkg/VlanConfigDxe/VlanConfigDxe.inf [X64]
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/OvmfPkg/QemuFlashFvbServicesRuntimeDxe/FvbServicesRuntimeDxe.inf [X64]
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/MdeModulePkg/Universal/Acpi/AcpiTableDxe/AcpiTableDxe.inf [X64]
+Building ... /edk2/MdeModulePkg/Universal/SmbiosDxe/SmbiosDxe.inf [X64]
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/OvmfPkg/VirtioSerialDxe/VirtioSerial.inf [X64]
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/MdeModulePkg/Bus/Usb/UsbMassStorageDxe/UsbMassStorageDxe.inf [X64]
+make: Nothing to be done for 'tbuild'.
+make: Nothing to be done for 'tbuild'.
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/OvmfPkg/IncompatiblePciDeviceSupportDxe/IncompatiblePciDeviceSupport.inf [X64]
+Building ... /edk2/MdeModulePkg/Universal/HiiDatabaseDxe/HiiDatabaseDxe.inf [X64]
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/OvmfPkg/EmuVariableFvbRuntimeDxe/Fvb.inf [X64]
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/MdeModulePkg/Universal/Disk/UnicodeCollation/EnglishDxe/EnglishDxe.inf [X64]
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/Conf/.cache/280251c4-1d09-4035-9062-839acb5f18c1CpuMpPei.inf [X64]
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/OvmfPkg/IoMmuDxe/IoMmuDxe.inf [X64]
+Building ... /edk2/NetworkPkg/Ip4Dxe/Ip4Dxe.inf [X64]
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/MdeModulePkg/Bus/Scsi/ScsiBusDxe/ScsiBusDxe.inf [X64]
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/MdeModulePkg/Universal/PCD/Pei/Pcd.inf [X64]
+make: Nothing to be done for 'tbuild'.
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/MdeModulePkg/Universal/SmbiosMeasurementDxe/SmbiosMeasurementDxe.inf [X64]
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/ShellPkg/DynamicCommand/VariablePolicyDynamicCommand/VariablePolicyDynamicCommand.inf [X64]
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/OvmfPkg/VirtioNetDxe/VirtioNet.inf [X64]
+Building ... /edk2/MdeModulePkg/Universal/Metronome/Metronome.inf [X64]
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/MdeModulePkg/Universal/Variable/RuntimeDxe/VariableRuntimeDxe.inf [X64]
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/NetworkPkg/MnpDxe/MnpDxe.inf [X64]
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/SecurityPkg/Tcg/MemoryOverwriteControl/TcgMor.inf [X64]
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/Conf/.cache/6490f1c5-ebcc-4665-8892-0075b9bb49b7CpuDxe.inf [X64]
+make: Nothing to be done for 'tbuild'.
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/UefiCpuPkg/Universal/Acpi/S3Resume2Pei/S3Resume2Pei.inf [X64]
+Building ... /edk2/OvmfPkg/VirtioScsiDxe/VirtioScsi.inf [X64]
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/MdeModulePkg/Core/Pei/PeiMain.inf [X64]
+make: Nothing to be done for 'tbuild'.
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/MdeModulePkg/Logo/LogoDxe.inf [X64]
+Building ... /edk2/OvmfPkg/AmdSevDxe/AmdSevDxe.inf [X64]
+make: Nothing to be done for 'tbuild'.
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/MdeModulePkg/Universal/FaultTolerantWriteDxe/FaultTolerantWriteDxe.inf [X64]
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/MdeModulePkg/Universal/DevicePathDxe/DevicePathDxe.inf [X64]
+Building ... /edk2/SecurityPkg/RandomNumberGenerator/RngDxe/RngDxe.inf [X64]
+make: Nothing to be done for 'tbuild'.
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/MdeModulePkg/Bus/Ata/AtaBusDxe/AtaBusDxe.inf [X64]
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/MdeModulePkg/Universal/EbcDxe/EbcDxe.inf [X64]
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/MdeModulePkg/Universal/Acpi/S3SaveStateDxe/S3SaveStateDxe.inf [X64]
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/MdeModulePkg/Universal/ReportStatusCodeRouter/Pei/ReportStatusCodeRouterPei.inf [X64]
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/MdeModulePkg/Universal/SetupBrowserDxe/SetupBrowserDxe.inf [X64]
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/OvmfPkg/QemuRamfbDxe/QemuRamfbDxe.inf [X64]
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/MdeModulePkg/Universal/StatusCodeHandler/Pei/StatusCodeHandlerPei.inf [X64]
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/NetworkPkg/Dhcp4Dxe/Dhcp4Dxe.inf [X64]
+Building ... /edk2/NetworkPkg/Udp4Dxe/Udp4Dxe.inf [X64]
+make: Nothing to be done for 'tbuild'.
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/OvmfPkg/TdxDxe/TdxDxe.inf [X64]
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/MdeModulePkg/Bus/Pci/EhciDxe/EhciDxe.inf [X64]
+make: Nothing to be done for 'tbuild'.
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/SecurityPkg/Hash2DxeCrypto/Hash2DxeCrypto.inf [X64]
+Building ... /edk2/OvmfPkg/Tcg/TdTcg2Pei/TdTcg2Pei.inf [X64]
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/OvmfPkg/Tcg/TdTcg2Dxe/TdTcg2Dxe.inf [X64]
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/MdeModulePkg/Universal/SecurityStubDxe/SecurityStubDxe.inf [X64]
+Building ... /edk2/OvmfPkg/Sec/SecMain.inf [X64]
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/OvmfPkg/PlatformPei/PlatformPei.inf [X64]
+make: Nothing to be done for 'tbuild'.
+Building ... /edk2/NetworkPkg/IScsiDxe/IScsiDxe.inf [X64]
+make: Nothing to be done for 'tbuild'.
+make: Nothing to be done for 'tbuild'.
+"gcc" -MMD -MF /edk2/Build/OvmfX64/RELEASE_GCC5/X64/NetworkPkg/IScsiDxe/IScsiDxe/OUTPUT/AutoGen.obj.deps -g -Os -fshort-wchar -fno-builtin -fno-strict-aliasing -Wall -Werror -Wno-array-bounds -include AutoGen.h -fno-common -fstack-protector -ffunction-sections -fdata-sections -DSTRING_ARRAY_NAME=IScsiDxeStrings -mstack-protector-guard=global -m64 "-DEFIAPI=__attribute__((ms_abi))" -maccumulate-outgoing-args -mno-red-zone -Wno-address -mcmodel=small -fpie -fno-asynchronous-unwind-tables -Wno-address -fno-omit-frame-pointer -flto -DUSING_LTO -Wno-unused-but-set-variable -Wno-unused-const-variable -DMDEPKG_NDEBUG -mno-mmx -mno-sse -D DISABLE_NEW_DEPRECATED_INTERFACES -D TDX_GUEST_SUPPORTED -D ENABLE_MD5_DEPRECATED_INTERFACES -c -o /edk2/Build/OvmfX64/RELEASE_GCC5/X64/NetworkPkg/IScsiDxe/IScsiDxe/OUTPUT/./AutoGen.obj -I/edk2/NetworkPkg/IScsiDxe -I/edk2/Build/OvmfX64/RELEASE_GCC5/X64/NetworkPkg/IScsiDxe/IScsiDxe/DEBUG -I/edk2/MdePkg -I/edk2/MdePkg/Include -I/edk2/MdePkg/Test/UnitTest/Include -I/edk2/MdePkg/Test/Mock/Include -I/edk2/MdePkg/Library/MipiSysTLib/mipisyst/library/include -I/edk2/MdePkg/Include/X64 -I/edk2/MdeModulePkg -I/edk2/MdeModulePkg/Test/Mock/Include -I/edk2/MdeModulePkg/Include -I/edk2/CryptoPkg -I/edk2/CryptoPkg/Include -I/edk2/NetworkPkg -I/edk2/NetworkPkg/Include /edk2/Build/OvmfX64/RELEASE_GCC5/X64/NetworkPkg/IScsiDxe/IScsiDxe/DEBUG/AutoGen.c
+rm -f /edk2/Build/OvmfX64/RELEASE_GCC5/X64/NetworkPkg/IScsiDxe/IScsiDxe/OUTPUT/IScsiDxe.lib
+"gcc-ar" cr /edk2/Build/OvmfX64/RELEASE_GCC5/X64/NetworkPkg/IScsiDxe/IScsiDxe/OUTPUT/IScsiDxe.lib  @/edk2/Build/OvmfX64/RELEASE_GCC5/X64/NetworkPkg/IScsiDxe/IScsiDxe/OUTPUT/object_files.lst
+"gcc" -o /edk2/Build/OvmfX64/RELEASE_GCC5/X64/NetworkPkg/IScsiDxe/IScsiDxe/DEBUG/IScsiDxe.dll -nostdlib -Wl,-n,-q,--gc-sections -z common-page-size=0x40 -Wl,--entry,_ModuleEntryPoint -u _ModuleEntryPoint -Wl,-Map,/edk2/Build/OvmfX64/RELEASE_GCC5/X64/NetworkPkg/IScsiDxe/IScsiDxe/DEBUG/IScsiDxe.map,--whole-archive -Wl,-melf_x86_64,--oformat=elf64-x86-64,-pie -Wl,--fatal-warnings -Wl,-z,noexecstack -Wl,-z,notext -flto -Os -Wl,--start-group,@/edk2/Build/OvmfX64/RELEASE_GCC5/X64/NetworkPkg/IScsiDxe/IScsiDxe/OUTPUT/static_library_files.lst,--end-group -g -Os -fshort-wchar -fno-builtin -fno-strict-aliasing -Wall -Werror -Wno-array-bounds -include AutoGen.h -fno-common -fstack-protector -ffunction-sections -fdata-sections -DSTRING_ARRAY_NAME=IScsiDxeStrings -mstack-protector-guard=global -m64 "-DEFIAPI=__attribute__((ms_abi))" -maccumulate-outgoing-args -mno-red-zone -Wno-address -mcmodel=small -fpie -fno-asynchronous-unwind-tables -Wno-address -fno-omit-frame-pointer -flto -DUSING_LTO -Wno-unused-but-set-variable -Wno-unused-const-variable -DMDEPKG_NDEBUG -mno-mmx -mno-sse -D DISABLE_NEW_DEPRECATED_INTERFACES -D TDX_GUEST_SUPPORTED -D ENABLE_MD5_DEPRECATED_INTERFACES -Wl,--defsym=PECOFF_HEADER_SIZE=0x228 -Wl,--script=/edk2/BaseTools/Scripts/GccBase.lds -Wno-error
+"objcopy"  /edk2/Build/OvmfX64/RELEASE_GCC5/X64/MdeModulePkg/Bus/Pci/PciBusDxe/PciBusDxe/DEBUG/PciBusDxe.dll
+cp -p -f /edk2/Build/OvmfX64/RELEASE_GCC5/X64/MdeModulePkg/Bus/Pci/PciBusDxe/PciBusDxe/DEBUG/PciBusDxe.dll /edk2/Build/OvmfX64/RELEASE_GCC5/X64/MdeModulePkg/Bus/Pci/PciBusDxe/PciBusDxe/DEBUG/PciBusDxe.debug
+"objcopy" --strip-unneeded -R .eh_frame /edk2/Build/OvmfX64/RELEASE_GCC5/X64/MdeModulePkg/Bus/Pci/PciBusDxe/PciBusDxe/DEBUG/PciBusDxe.dll
+"objcopy"  /edk2/Build/OvmfX64/RELEASE_GCC5/X64/MdeModulePkg/Bus/Pci/PciBusDxe/PciBusDxe/DEBUG/PciBusDxe.dll
+cp -p -f /edk2/Build/OvmfX64/RELEASE_GCC5/X64/MdeModulePkg/Bus/Pci/PciBusDxe/PciBusDxe/DEBUG/PciBusDxe.debug /edk2/Build/OvmfX64/RELEASE_GCC5/X64/PciBusDxe.debug
+"GenFw" -e UEFI_DRIVER -o /edk2/Build/OvmfX64/RELEASE_GCC5/X64/MdeModulePkg/Bus/Pci/PciBusDxe/PciBusDxe/OUTPUT/PciBusDxe.efi /edk2/Build/OvmfX64/RELEASE_GCC5/X64/MdeModulePkg/Bus/Pci/PciBusDxe/PciBusDxe/DEBUG/PciBusDxe.dll --zero
+cp -p -f /edk2/Build/OvmfX64/RELEASE_GCC5/X64/MdeModulePkg/Bus/Pci/PciBusDxe/PciBusDxe/OUTPUT/PciBusDxe.efi /edk2/Build/OvmfX64/RELEASE_GCC5/X64/MdeModulePkg/Bus/Pci/PciBusDxe/PciBusDxe/DEBUG
+cp -p -f /edk2/Build/OvmfX64/RELEASE_GCC5/X64/MdeModulePkg/Bus/Pci/PciBusDxe/PciBusDxe/OUTPUT/PciBusDxe.efi /edk2/Build/OvmfX64/RELEASE_GCC5/X64/PciBusDxe.efi
+cp -p -f /edk2/Build/OvmfX64/RELEASE_GCC5/X64/MdeModulePkg/Bus/Pci/PciBusDxe/PciBusDxe/DEBUG/*.map /edk2/Build/OvmfX64/RELEASE_GCC5/X64/MdeModulePkg/Bus/Pci/PciBusDxe/PciBusDxe/OUTPUT
+test -f /edk2/Build/OvmfX64/RELEASE_GCC5/X64/MdeModulePkg/Bus/Pci/PciBusDxe/PciBusDxe/OUTPUT/PciBusDxe.map && cp -p -f /edk2/Build/OvmfX64/RELEASE_GCC5/X64/MdeModulePkg/Bus/Pci/PciBusDxe/PciBusDxe/OUTPUT/PciBusDxe.map /edk2/Build/OvmfX64/RELEASE_GCC5/FV/Ffs/93B80004-9FB3-11d4-9A3A-0090273FC14DPciBusDxe/93B80004-9FB3-11d4-9A3A-0090273FC14D.map
+test -e /edk2/Build/OvmfX64/RELEASE_GCC5/X64/MdeModulePkg/Bus/Pci/PciBusDxe/PciBusDxe/OUTPUT/PciBusDxe.efi && GenSec -s EFI_SECTION_PE32 -o /edk2/Build/OvmfX64/RELEASE_GCC5/FV/Ffs/93B80004-9FB3-11d4-9A3A-0090273FC14DPciBusDxe/93B80004-9FB3-11d4-9A3A-0090273FC14DSEC2.1.pe32 /edk2/Build/OvmfX64/RELEASE_GCC5/X64/MdeModulePkg/Bus/Pci/PciBusDxe/PciBusDxe/OUTPUT/PciBusDxe.efi
+GenFfs -t EFI_FV_FILETYPE_DRIVER -g 93B80004-9FB3-11d4-9A3A-0090273FC14D -o /edk2/Build/OvmfX64/RELEASE_GCC5/FV/Ffs/93B80004-9FB3-11d4-9A3A-0090273FC14DPciBusDxe/93B80004-9FB3-11d4-9A3A-0090273FC14D.ffs -oi /edk2/Build/OvmfX64/RELEASE_GCC5/FV/Ffs/93B80004-9FB3-11d4-9A3A-0090273FC14DPciBusDxe/93B80004-9FB3-11d4-9A3A-0090273FC14DSEC2.1.pe32 -oi /edk2/Build/OvmfX64/RELEASE_GCC5/FV/Ffs/93B80004-9FB3-11d4-9A3A-0090273FC14DPciBusDxe/93B80004-9FB3-11d4-9A3A-0090273FC14DSEC3.ui -oi /edk2/Build/OvmfX64/RELEASE_GCC5/FV/Ffs/93B80004-9FB3-11d4-9A3A-0090273FC14DPciBusDxe/93B80004-9FB3-11d4-9A3A-0090273FC14DSEC4.ver
+lto-wrapper: warning: using serial compilation of 3 LTRANS jobs
+lto-wrapper: note: see the ‘-flto’ option documentation for more information
+"objcopy"  /edk2/Build/OvmfX64/RELEASE_GCC5/X64/NetworkPkg/IScsiDxe/IScsiDxe/DEBUG/IScsiDxe.dll
+cp -p -f /edk2/Build/OvmfX64/RELEASE_GCC5/X64/NetworkPkg/IScsiDxe/IScsiDxe/DEBUG/IScsiDxe.dll /edk2/Build/OvmfX64/RELEASE_GCC5/X64/NetworkPkg/IScsiDxe/IScsiDxe/DEBUG/IScsiDxe.debug
+"objcopy" --strip-unneeded -R .eh_frame /edk2/Build/OvmfX64/RELEASE_GCC5/X64/NetworkPkg/IScsiDxe/IScsiDxe/DEBUG/IScsiDxe.dll
+"objcopy"  /edk2/Build/OvmfX64/RELEASE_GCC5/X64/NetworkPkg/IScsiDxe/IScsiDxe/DEBUG/IScsiDxe.dll
+cp -p -f /edk2/Build/OvmfX64/RELEASE_GCC5/X64/NetworkPkg/IScsiDxe/IScsiDxe/DEBUG/IScsiDxe.debug /edk2/Build/OvmfX64/RELEASE_GCC5/X64/IScsiDxe.debug
+"GenFw" -e UEFI_DRIVER -o /edk2/Build/OvmfX64/RELEASE_GCC5/X64/NetworkPkg/IScsiDxe/IScsiDxe/OUTPUT/IScsiDxe.efi /edk2/Build/OvmfX64/RELEASE_GCC5/X64/NetworkPkg/IScsiDxe/IScsiDxe/DEBUG/IScsiDxe.dll --zero
+cp -p -f /edk2/Build/OvmfX64/RELEASE_GCC5/X64/NetworkPkg/IScsiDxe/IScsiDxe/OUTPUT/IScsiDxe.efi /edk2/Build/OvmfX64/RELEASE_GCC5/X64/NetworkPkg/IScsiDxe/IScsiDxe/DEBUG
+cp -p -f /edk2/Build/OvmfX64/RELEASE_GCC5/X64/NetworkPkg/IScsiDxe/IScsiDxe/OUTPUT/IScsiDxe.efi /edk2/Build/OvmfX64/RELEASE_GCC5/X64/IScsiDxe.efi
+cp -p -f /edk2/Build/OvmfX64/RELEASE_GCC5/X64/NetworkPkg/IScsiDxe/IScsiDxe/DEBUG/*.map /edk2/Build/OvmfX64/RELEASE_GCC5/X64/NetworkPkg/IScsiDxe/IScsiDxe/OUTPUT
+test -f /edk2/Build/OvmfX64/RELEASE_GCC5/X64/NetworkPkg/IScsiDxe/IScsiDxe/OUTPUT/IScsiDxe.map && cp -p -f /edk2/Build/OvmfX64/RELEASE_GCC5/X64/NetworkPkg/IScsiDxe/IScsiDxe/OUTPUT/IScsiDxe.map /edk2/Build/OvmfX64/RELEASE_GCC5/FV/Ffs/86CDDF93-4872-4597-8AF9-A35AE4D3725FIScsiDxe/86CDDF93-4872-4597-8AF9-A35AE4D3725F.map
+Trim --Vfr-Uni-Offset -o /edk2/Build/OvmfX64/RELEASE_GCC5/FV/Ffs/86CDDF93-4872-4597-8AF9-A35AE4D3725FIScsiDxe/IScsiDxe.offset --ModuleName=IScsiDxe --DebugDir=/edk2/Build/OvmfX64/RELEASE_GCC5/X64/NetworkPkg/IScsiDxe/IScsiDxe/DEBUG
+test -e /edk2/Build/OvmfX64/RELEASE_GCC5/FV/Ffs/86CDDF93-4872-4597-8AF9-A35AE4D3725FIScsiDxe/IScsiDxe.offset && GenSec -s EFI_SECTION_RAW -o /edk2/Build/OvmfX64/RELEASE_GCC5/FV/Ffs/86CDDF93-4872-4597-8AF9-A35AE4D3725FIScsiDxe/IScsiDxeOffset.raw /edk2/Build/OvmfX64/RELEASE_GCC5/FV/Ffs/86CDDF93-4872-4597-8AF9-A35AE4D3725FIScsiDxe/IScsiDxe.offset
+test -e /edk2/Build/OvmfX64/RELEASE_GCC5/X64/NetworkPkg/IScsiDxe/IScsiDxe/OUTPUT/IScsiDxe.efi && GenSec -s EFI_SECTION_PE32 -o /edk2/Build/OvmfX64/RELEASE_GCC5/FV/Ffs/86CDDF93-4872-4597-8AF9-A35AE4D3725FIScsiDxe/86CDDF93-4872-4597-8AF9-A35AE4D3725FSEC2.1.pe32 /edk2/Build/OvmfX64/RELEASE_GCC5/X64/NetworkPkg/IScsiDxe/IScsiDxe/OUTPUT/IScsiDxe.efi
+GenFfs -t EFI_FV_FILETYPE_DRIVER -g 86CDDF93-4872-4597-8AF9-A35AE4D3725F -o /edk2/Build/OvmfX64/RELEASE_GCC5/FV/Ffs/86CDDF93-4872-4597-8AF9-A35AE4D3725FIScsiDxe/86CDDF93-4872-4597-8AF9-A35AE4D3725F.ffs -oi /edk2/Build/OvmfX64/RELEASE_GCC5/FV/Ffs/86CDDF93-4872-4597-8AF9-A35AE4D3725FIScsiDxe/86CDDF93-4872-4597-8AF9-A35AE4D3725FSEC1.1.dpx -oi /edk2/Build/OvmfX64/RELEASE_GCC5/FV/Ffs/86CDDF93-4872-4597-8AF9-A35AE4D3725FIScsiDxe/IScsiDxeOffset.raw -oi /edk2/Build/OvmfX64/RELEASE_GCC5/FV/Ffs/86CDDF93-4872-4597-8AF9-A35AE4D3725FIScsiDxe/86CDDF93-4872-4597-8AF9-A35AE4D3725FSEC2.1.pe32 -oi /edk2/Build/OvmfX64/RELEASE_GCC5/FV/Ffs/86CDDF93-4872-4597-8AF9-A35AE4D3725FIScsiDxe/86CDDF93-4872-4597-8AF9-A35AE4D3725FSEC3.ui -oi /edk2/Build/OvmfX64/RELEASE_GCC5/FV/Ffs/86CDDF93-4872-4597-8AF9-A35AE4D3725FIScsiDxe/86CDDF93-4872-4597-8AF9-A35AE4D3725FSEC4.ver
+
+Fd File Name:OVMF (/edk2/Build/OvmfX64/RELEASE_GCC5/FV/OVMF.fd)
+
+Generate Region at Offset 0x0
+   Region Size = 0x40000
+   Region Name = DATA
+
+Generate Region at Offset 0x40000
+   Region Size = 0x1000
+   Region Name = None
+
+Generate Region at Offset 0x41000
+   Region Size = 0x1000
+   Region Name = DATA
+
+Generate Region at Offset 0x42000
+   Region Size = 0x42000
+   Region Name = None
+
+Generate Region at Offset 0x84000
+   Region Size = 0x348000
+   Region Name = FV
+
+Generating FVMAIN_COMPACT FV
+
+Generating PEIFV FV
+###
+Generating DXEFV FV
+########
+Generate Region at Offset 0x3CC000
+   Region Size = 0x34000
+   Region Name = FV
+
+Generating SECFV FV
+
+Fd File Name:OVMF_VARS (/edk2/Build/OvmfX64/RELEASE_GCC5/FV/OVMF_VARS.fd)
+
+Generate Region at Offset 0x0
+   Region Size = 0x40000
+   Region Name = DATA
+
+Generate Region at Offset 0x40000
+   Region Size = 0x1000
+   Region Name = None
+
+Generate Region at Offset 0x41000
+   Region Size = 0x1000
+   Region Name = DATA
+
+Generate Region at Offset 0x42000
+   Region Size = 0x42000
+   Region Name = None
+
+Fd File Name:OVMF_CODE (/edk2/Build/OvmfX64/RELEASE_GCC5/FV/OVMF_CODE.fd)
+
+Generate Region at Offset 0x0
+   Region Size = 0x348000
+   Region Name = FV
+
+Generate Region at Offset 0x348000
+   Region Size = 0x34000
+   Region Name = FV
+
+Fd File Name:MEMFD (/edk2/Build/OvmfX64/RELEASE_GCC5/FV/MEMFD.fd)
+
+Generate Region at Offset 0x0
+   Region Size = 0x6000
+   Region Name = None
+
+Generate Region at Offset 0x6000
+   Region Size = 0x1000
+   Region Name = None
+
+Generate Region at Offset 0x7000
+   Region Size = 0x1000
+   Region Name = None
+
+Generate Region at Offset 0x8000
+   Region Size = 0x1000
+   Region Name = None
+
+Generate Region at Offset 0x9000
+   Region Size = 0x2000
+   Region Name = None
+
+Generate Region at Offset 0xB000
+   Region Size = 0x1000
+   Region Name = None
+
+Generate Region at Offset 0xC000
+   Region Size = 0x1000
+   Region Name = None
+
+Generate Region at Offset 0xD000
+   Region Size = 0x1000
+   Region Name = None
+
+Generate Region at Offset 0xE000
+   Region Size = 0x1000
+   Region Name = None
+
+Generate Region at Offset 0xF000
+   Region Size = 0x1000
+   Region Name = None
+
+Generate Region at Offset 0x10000
+   Region Size = 0x1000
+   Region Name = None
+
+Generate Region at Offset 0x11000
+   Region Size = 0xF000
+   Region Name = None
+
+Generate Region at Offset 0x20000
+   Region Size = 0xD0000
+   Region Name = FV
+
+Generate Region at Offset 0xF0000
+   Region Size = 0x10000
+   Region Name = None
+
+Generate Region at Offset 0x100000
+   Region Size = 0xE80000
+   Region Name = FV
+
+GUID cross reference file can be found at /edk2/Build/OvmfX64/RELEASE_GCC5/FV/Guid.xref
+
+FV Space Information
+SECFV [23%Full] 212992 (0x34000) total, 49264 (0xc070) used, 163728 (0x27f90) free
+PEIFV [23%Full] 851968 (0xd0000) total, 202664 (0x317a8) used, 649304 (0x9e858) free
+DXEFV [22%Full] 15204352 (0xe80000) total, 3411880 (0x340fa8) used, 11792472 (0xb3f058) free
+FVMAIN_COMPACT [31%Full] 3440640 (0x348000) total, 1077384 (0x107088) used, 2363256 (0x240f78) free
+
+- Done -
+Build end time: 06:36:03, Oct.03 2026
+Build total time: 00:00:17
+

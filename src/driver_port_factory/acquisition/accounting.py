@@ -15,6 +15,18 @@ from .material import EvidenceContentRef
 from .parsing import exact_object
 
 
+def gap_basis(value: object) -> tuple[EvidenceFacet, ...]:
+    if not isinstance(value, list):
+        raise WorkflowError("gap basis must be a list of controlled facet references")
+    refs = []
+    for item in value:
+        row = exact_object(item, required={"lane", "facet"}, label="gap basis")
+        refs.append(parse_facet(row["lane"], row["facet"]))
+    if len(set(refs)) != len(refs):
+        raise WorkflowError("gap basis must not duplicate facets")
+    return tuple(refs)
+
+
 @dataclass(frozen=True, slots=True)
 class RetrievalAttempt:
     identifier: str
@@ -91,6 +103,7 @@ class EvidenceGap:
     impact: str
     repair_trigger: str
     retrieval_attempt_ids: tuple[str, ...]
+    basis: tuple[EvidenceFacet, ...] = ()
 
     @classmethod
     def from_dict(cls, value: object) -> EvidenceGap:
@@ -105,6 +118,7 @@ class EvidenceGap:
                 "repair_trigger",
                 "retrieval_attempt_ids",
             },
+            optional={"basis"},
             label="evidence gap",
         )
         try:
@@ -112,8 +126,11 @@ class EvidenceGap:
         except (TypeError, ValueError) as error:
             raise WorkflowError("evidence gap has an invalid reason") from error
         attempts = _identifiers(candidate["retrieval_attempt_ids"], "gap attempt IDs")
-        if not attempts:
-            raise WorkflowError("evidence gap requires actual retrieval attempts")
+        basis = gap_basis(candidate.get("basis", []))
+        if not attempts and not basis:
+            raise WorkflowError(
+                "evidence gap requires actual retrieval attempts or controlled basis"
+            )
         return cls(
             _identifier(candidate["id"], "evidence gap ID"),
             parse_facet(candidate["lane"], candidate["facet"]),
@@ -121,6 +138,7 @@ class EvidenceGap:
             _nonempty(candidate["impact"], "evidence gap impact"),
             _nonempty(candidate["repair_trigger"], "evidence gap repair trigger"),
             attempts,
+            basis,
         )
 
     def to_dict(self) -> dict[str, object]:
@@ -131,6 +149,7 @@ class EvidenceGap:
             "impact": self.impact,
             "repair_trigger": self.repair_trigger,
             "retrieval_attempt_ids": list(self.retrieval_attempt_ids),
+            **({"basis": [facet.to_dict() for facet in self.basis]} if self.basis else {}),
         }
 
 
@@ -211,6 +230,32 @@ def reason_for_attempts(attempts: tuple[RetrievalAttempt, ...]) -> GapReason:
         ) from error
     if len(reasons) == 1:
         return next(iter(reasons))
+    return GapReason.UNAVAILABLE_PUBLIC_EVIDENCE
+
+
+def gap_reason(facet, attempts, basis):
+    """Acquisition failures are not evidence that a semantic obligation is uncovered."""
+    transient = [a for a in attempts if a.outcome is RetrievalOutcome.FAILED]
+    if transient:
+        details = "; ".join(
+            f"{a.locator.to_dict().get('path', a.locator.to_dict().get('url', a.identifier))}: "
+            f"{a.detail}"
+            for a in transient[:8]
+        )
+        raise WorkflowError(
+            f"{facet.lane.value}/{facet.name}: {len(transient)} material retrieval failure(s): "
+            f"{details}. Narrow unrelated directory selections or fix the named input/tool. "
+            "FAILED is not a coverage limitation; adding gap.basis cannot waive it."
+        )
+    failed = tuple(a for a in attempts if a.outcome is not RetrievalOutcome.RETRIEVED)
+    if failed:
+        return reason_for_attempts(failed)
+    if not basis:
+        raise WorkflowError(
+            f"{facet.lane.value}/{facet.name}: available material does not establish a retrieval "
+            "gap. For an uncovered requirement supply gap.basis referencing a controlled facet, "
+            "with the precise limitation in gap.impact; otherwise remove gap."
+        )
     return GapReason.UNAVAILABLE_PUBLIC_EVIDENCE
 
 

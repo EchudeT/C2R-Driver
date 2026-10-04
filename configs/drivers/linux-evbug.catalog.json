@@ -1,0 +1,24 @@
+{
+  "schema_version": 1,
+  "catalog_id": "linux-evbug-local",
+  "catalog_version": 1,
+  "source_platform": "linux",
+  "drivers": [{
+    "candidate_id": "linux-evbug",
+    "canonical_name": "evbug",
+    "source_entry_hint": "drivers/input/evbug.c",
+    "device_family": "Linux input event debug handler",
+    "bus_or_transport": "input subsystem handler (bus independent)",
+    "aliases": ["drivers/input/evbug.c"],
+    "device_scope": ["All input devices matched by evbug; event logging and handler/device lifecycle"],
+    "candidate_device_ids": [],
+    "qemu_models": [],
+    "evidence_hints": [
+      "Linux commit 6d4a0f4ea72319c9a37c1a7191695467006dd272 includes drivers/input/evbug.c; newer local HEAD removed this driver",
+      "Use supplied local repositories and their pinned HEAD; no network clone is needed",
+      "Source input handler contract: drivers/input/input.c and include/linux/input.h",
+      "Target input component: kernel/core/comps/input/src/lib.rs, input_core.rs, input_dev.rs, input_handler.rs",
+      "evbug is a software handler; no evbug PCI IDs, DMA or dedicated QEMU device model exists"
+    ]
+  }]
+}

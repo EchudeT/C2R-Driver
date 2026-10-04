@@ -86,3 +86,9 @@ For REWORK return all findings together and select the earliest actually affecte
 later related fixes remain in the same report. On re-review consider worker counterevidence, retain closed
 findings unless relevant evidence changed, and inspect changed claims plus their affected dependencies.
 PASS means the assigned stage's requirements are met, not that unexecuted later stages have passed.
+
+Target knowledge-quality observations establish actual retrieval and original bytes only.
+Review each topic's interpretation/applicability against the source scope and cited target
+originals. Reusing a generic paragraph for unrelated topics is not semantic coverage. Reject
+unsupported API claims or NOT_APPLICABLE conclusions with concrete contrary evidence; do not
+require new searches when the accepted originals already settle the same question.

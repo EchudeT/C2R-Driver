@@ -249,7 +249,9 @@ class SkillPromptComposer:
             raise ControllerError(
                 f"stage {stage.value} needs an objective in the prompt pack or caller"
             )
-        prompt_context = dict(context or {})
+        from .behavior_prompt import focused_context
+
+        prompt_context = focused_context(stage, context or {})
         instructions: dict[str, Any] = {
             "stage": stage.value,
             "actor_role": actor_role.value,
@@ -258,12 +260,32 @@ class SkillPromptComposer:
         }
         from ..orchestration.protocol import describe
         instructions["protocol"] = describe(stage.value)
+        if (context or {}).get("behavior_progress"):
+            instructions["objective"] = context["behavior_progress"]["objective"]
+            instructions["protocol"] = {**instructions["protocol"],
+                "completion": (
+                    "Follow reference_material.behavior_progress. This scheduling boundary "
+                    "takes precedence over the default continuous-task increment guidance. "
+                    "Work on the selected complete behavior only. Prefer driver_checks.progress "
+                    "with status done/continue and an optional short note; no report required. "
+                    "Alternatively submit the existing report with "
+                    "decision=operation and operation=behavior_done or behavior_continue. "
+                    "This advances progress, not acceptance. When no behavior remains, prepare "
+                    "the full delivery and submit pass through the ordinary gates."
+                ),
+                "operations": ["behavior_done", "behavior_continue"],
+                "operation_delivery": (
+                    "Submit --decision operation --operation behavior_done or behavior_continue "
+                    "with the same report. Neither records stage acceptance."
+                ),
+            }
         if deciding and effective_objective != recovery:
             instructions["recovery"] = recovery
         if prompt_context.get("repair_execution"):
-            instructions["protocol"]["completion"] = (
-                prompt_context["repair_execution"]["completion"]
-            )
+            if not prompt_context.get("behavior_progress"):
+                instructions["protocol"]["completion"] = (
+                    prompt_context["repair_execution"]["completion"]
+                )
             instructions["delivery_repair"] = repair_task
         for key in ("tool_runtime", "phase", "repair_targets", "repair_execution"):
             if key in prompt_context:
@@ -272,11 +294,23 @@ class SkillPromptComposer:
             instructions["correction"] = self.render_correction(
                 "See reference_material.controller_feedback for the diagnostic."
             )
+        from ..short_refs import References, compact
+        runtime = instructions.get("tool_runtime", {})
+        root = runtime.get("project_root")
+        if root and (Path(root) / ".dpf").is_dir():
+            prompt_context = compact(prompt_context, References(root))
         header = {"instructions": instructions, "reference_material": prompt_context}
+        from .behavior_prompt import documents as behavior_documents
+        from .behavior_prompt import template as behavior_template
+
+        documents = behavior_documents(stage, context, documents)
         on_demand = set(stage_specification.on_demand_documents) if stage_specification else set()
+        from .behavior_prompt import active as behavior_active
+        if behavior_active(stage, context):
+            on_demand.add("delivery-task.md")
         embedded_documents = "\n\n".join(
             (f'<skill_document_reference path="{document.relative_path}" '
-             f'sha256="{document.digest}" source_path="{escape(str(document.source_path), quote=True)}" '
+             f'source_path="{escape(str(document.source_path), quote=True)}" '
              f'use="read applicable sections on demand; not assumed read" />')
             if document.relative_path in on_demand else
             (f'<skill_document path="{document.relative_path}" '
@@ -284,16 +318,16 @@ class SkillPromptComposer:
              f"{document.content}\n</skill_document>"
              if (known_documents or {}).get(document.relative_path) != document.digest
              else f'<skill_document_unchanged path="{document.relative_path}" '
-                  f'sha256="{document.digest}" '
                   f'source_path="{escape(str(document.source_path), quote=True)}" />')
             for document in documents
         )
-        text = self.prompt_pack.template
+        text = behavior_template(stage, context, self.prompt_pack)
+        template_digest = hashlib.sha256(text.encode("utf-8")).hexdigest()
         substitutions = {
             "{{job_json}}": json.dumps(header, ensure_ascii=False, sort_keys=True, indent=2).replace("<", "\\u003c").replace(">", "\\u003e"),
             "{{skill_documents}}": embedded_documents,
             "{{execution_rules}}": (
-                (self.prompt_pack.root / "execution.md").read_text(encoding="utf-8")
+                self.execution_rules(stage, context)
                 if "{{execution_rules}}" in text and self._executable(stage.value) else ""
             ),
             "{{review_rules}}": self.review_rules(stage),
@@ -311,9 +345,18 @@ class SkillPromptComposer:
             documents=documents,
             prompt_pack_name=self.prompt_pack.name,
             prompt_pack_manifest_digest=self.prompt_pack.manifest_digest,
-            prompt_template_digest=self.prompt_pack.template_digest,
+            prompt_template_digest=template_digest,
             policy_digest=self.policy_digest(stage),
         )
+
+    def execution_rules(self, stage, context):
+        if stage.value == "environment_recovery":
+            return ""  # environment-task owns this stage; driver execution rules do not apply.
+        progress = (context or {}).get("behavior_progress")
+        focused = self.prompt_pack.root / "behavior-execution.md"
+        if progress and (progress.get("current") or not progress.get("plan_exists")) and focused.is_file():
+            return focused.read_text(encoding="utf-8")
+        return (self.prompt_pack.root / "execution.md").read_text(encoding="utf-8")
 
     def review_rules(self, stage: StageKey) -> str:
         if stage.value not in {"analysis_review", "final_evidence_review"}:
@@ -330,7 +373,7 @@ class SkillPromptComposer:
         specification = self.prompt_pack.stages.get(stage.value)
         documents = self.documents_for_stage(stage) if specification else ()
         recovery = self.prompt_pack.root / "checker-decision.md"
-        execution_rules = (self.prompt_pack.root / "execution.md").read_text() if self._executable(stage.value) else None
+        execution_rules = self.execution_rules(stage, None) if self._executable(stage.value) else None
         repair_stages = {"driver_implementation", "artifact_preparation"}
         repair_rules = None
         if stage.value in repair_stages:
@@ -351,10 +394,30 @@ class SkillPromptComposer:
                              .get(stage.value, ()))
             },
             "execution_rules": execution_rules,
+            "behavior_execution_rules": (
+                (self.prompt_pack.root / "behavior-execution.md").read_text()
+                if stage.value in {"driver_implementation", "target_framework_enablement"}
+                and (self.prompt_pack.root / "behavior-execution.md").is_file() else None
+            ),
             "repair_rules": repair_rules,
             "document_delivery": list(specification.on_demand_documents) if specification else [],
             "objective": specification.objective if specification else None,
             "template": self.prompt_pack.template,
+            "analysis_template": (
+                (self.prompt_pack.root / "analysis-job.md").read_text()
+                if stage.value in {"target_platform_study", "migration_contracts"}
+                and (self.prompt_pack.root / "analysis-job.md").is_file() else None
+            ),
+            "environment_template": (
+                (self.prompt_pack.root / "environment-job.md").read_text()
+                if stage.value == "environment_recovery"
+                and (self.prompt_pack.root / "environment-job.md").is_file() else None
+            ),
+            "behavior_template": (
+                (self.prompt_pack.root / "behavior-job.md").read_text()
+                if stage.value == "driver_implementation"
+                and (self.prompt_pack.root / "behavior-job.md").is_file() else None
+            ),
             "correction": self.prompt_pack.correction_template,
             "protocol": describe(stage.value),
             "documents": {d.relative_path: d.digest for d in documents},

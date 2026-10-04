@@ -18,6 +18,7 @@ from ..environment.smoke_recipe import binding, image_identity
 from ..knowledge.index import file_sha256
 from ..migration.implementation import worktree_files
 from . import executor
+from .configuration import describe, selected
 from .profile import adapter_identity, asterinas, digest
 
 
@@ -76,6 +77,8 @@ def latest(project, kind):
 
 def load(project):
     profile = latest(project, A.PLATFORM_PROFILE)
+    if (profile["image"], profile["accelerator"]) != selected(project.config):
+        raise WorkflowError("Platform profile differs from the configured Docker route")
     worktree, revision = location(project)
     if (
         profile["binding"] != binding(project)
@@ -91,8 +94,9 @@ def check_image(project, profile):
         raise WorkflowError("Selected platform image changed; no fallback")
 
 
-def prepare(project, image, accelerator):
+def prepare(project):
     active(project, environment=True)
+    image, accelerator = selected(project.config)
     worktree, revision = location(project)
     if project.config.target_platform.strip().lower() != "asterinas":
         raise WorkflowError("The built-in platform adapter currently supports Asterinas only")
@@ -104,7 +108,10 @@ def prepare(project, image, accelerator):
         if not (worktree / relative).is_file():
             raise WorkflowError(f"Platform prerequisite missing: {relative}")
     with locked(project) as directory:
-        profile = asterinas(image, image_identity(project, image), revision, accelerator)
+        profile = asterinas(
+            image, image_identity(project, image), revision, accelerator,
+            machine="pc" if project.config.driver_name == "ne2k-pci" else "q35",
+        )
         profile["binding"] = binding(project)
         profile["cache_key"] = digest(
             {"image": profile["image_id"], "revision": revision, "project": str(project.root)}
@@ -315,12 +322,30 @@ def run_case(project, case_path):
             or file_sha256(artifact) != built["published_sha256"]
         ):
             raise WorkflowError("Inputs changed during runtime check")
+        from .log_checks import capture
+
+        captured = capture(
+            project, attempt, result, profile, files, built["published_sha256"], case
+        )
         if result["status"] != "PASS":
-            raise WorkflowError(f"Platform/case failed; inspect {attempt / 'boot.json'}")
-        return {"status": "CASE_OBSERVED", "receipt": str(attempt / "boot.json")}
+            raise WorkflowError(
+                f"Platform/case failed: {result.get('error', 'inspect execution logs')}\n"
+                f"Boot-log capture={captured}; original run stays FAIL. "
+                f"Inspect {attempt / 'boot.json'}"
+            )
+        return {
+            "status": "CASE_OBSERVED",
+            "receipt": str(attempt / "boot.json"),
+            "capture": captured,
+        }
 
 
 def install_entrypoints(project):
+    from .public_tests import install as install_public_tests
+    from .suite import install
+
+    install(location(project)[0])
+    install_public_tests(project, location(project)[0])
     directory = location(project)[0] / ".dpf-output/harness/platform"
     directory.mkdir(parents=True, exist_ok=True)
     (directory / "binding.json").write_text(json.dumps(load(project)[0], indent=2) + "\n")
@@ -345,6 +370,7 @@ def context(project):
         return {}
     value = {
         "required": True,
+        "configured_route": describe(project.config),
         "prepare": command(project, "prepare"),
         "verify": command(project, "verify"),
         "scope": "baseline build/boot and transport, not migrated-driver acceptance",
@@ -379,20 +405,33 @@ def context(project):
                     "steps": "1..100 ordered single-action objects",
                 },
                 "steps": {
-                    "wait_serial": "literal text",
+                    "wait_serial": "literal text (raw stream; may include command echo)",
+                    "assert_boot_log": "literal boot message before guest input; controller "
+                    "ignores display colors. Prefer this over dmesg/grep for kernel boot logs. "
+                    "A missing message fails once boot output ends, without waiting full timeout",
                     "send_serial": "text including newline",
                     "guest_assert": "shell command that exits 0 iff its behavioral assertion "
                     "holds; requires a ready guest shell. Controller checks a fresh "
                     "echo-resistant exit marker; no authored success marker needed",
                     "qmp": {"execute": "command", "arguments": {}},
                     "wait_event": "QMP event name",
+                    "expect_event": {"event": "QMP event name", "data": {"<field>": "<expected>"}},
+                    "qmp_assert": {
+                        "execute": "query command",
+                        "arguments": {},
+                        "match": {"<returned-field>": "<expected>"},
+                    },
                     "observe_seconds": "positive seconds, at most timeout_seconds",
                     "assert_no_event": "QMP event name",
+                    "assert_event_counts": "object mapping event names to exact cumulative counts; "
+                    "use observe_seconds first when checking an absence window",
                 },
                 "example": {"devices": [], "timeout_seconds": 60, "steps": [{"wait_serial": "# "}]},
                 "limits": "Example is only a shell readiness check. Supply the selected device "
                 "and actual required assertions. QMP command success does not assert "
-                "its return value. For shell tests use guest_assert; send_serial followed by "
+                "its return value; use qmp_assert to match explicit returned fields, expect_event "
+                "to match event data. Object matches are subsets; scalars/lists match exactly. "
+                "For shell tests use guest_assert; send_serial followed by "
                 "a text marker may match terminal command echo. wait_serial is a low-level "
                 "literal observation, not a shell exit-code assertion. "
                 "Complete raw results remain in the returned logs.",

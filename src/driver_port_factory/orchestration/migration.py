@@ -47,20 +47,39 @@ def migration_workflow(config: ProjectConfig) -> tuple[StageSpec, ...]:
         specs.append(
             stage_spec(
                 MigrationStage.FINAL_EVIDENCE_REVIEW,
-                "Independent AI checks functional completion against original requirements and actual evidence.",
+                "Independent AI checks functional completion against original requirements "
+                "and actual evidence.",
                 StageOwner.CODEX,
                 previous,
                 (MigrationArtifact.FINAL_EVIDENCE_REVIEW_REPORT,),
                 MIGRATION_ROLES,
-                prerequisites=(MigrationStage.DRIVER_IMPLEMENTATION,
-                               MigrationStage.CONTRACTS,
-                               MigrationStage.TARGET_FRAMEWORK_ENABLEMENT,
-                               MigrationStage.ARTIFACT_PREPARATION),
+                prerequisites=(
+                    MigrationStage.DRIVER_IMPLEMENTATION,
+                    MigrationStage.CONTRACTS,
+                    MigrationStage.TARGET_FRAMEWORK_ENABLEMENT,
+                    MigrationStage.ARTIFACT_PREPARATION,
+                ),
             )
         )
         previous = MigrationStage.FINAL_EVIDENCE_REVIEW
     if config.evaluation_mode is EvaluationMode.DEVELOPER_EVIDENCE:
-        return _data_dependencies(tuple(specs))
+        if config.benchmark is not None:
+            specs.append(
+                stage_spec(
+                    MigrationStage.BENCHMARK_VALIDATION,
+                    "Execute the frozen benchmark and mechanically accept its complete results.",
+                    StageOwner.STATIC,
+                    previous,
+                    (MigrationArtifact.BENCHMARK_REPORT,),
+                    MIGRATION_ROLES,
+                    auxiliary_outputs=(MigrationArtifact.BENCHMARK_ATTEMPT,),
+                    prerequisites=(
+                        MigrationStage.DRIVER_IMPLEMENTATION,
+                        MigrationStage.ARTIFACT_PREPARATION,
+                    ),
+                )
+            )
+        return _data_dependencies(_unify(tuple(specs), config))
     specs.append(
         stage_spec(
             SealingStage.CANDIDATE_SEALING,
@@ -113,9 +132,18 @@ def migration_workflow(config: ProjectConfig) -> tuple[StageSpec, ...]:
             previous,
             (MigrationArtifact.EVIDENCE_AUDIT,),
             MIGRATION_ROLES,
+            prerequisites=(
+                *(
+                    (MigrationStage.FINAL_EVIDENCE_REVIEW,)
+                    if config.enable_final_evidence_review
+                    else ()
+                ),
+                MigrationStage.ARTIFACT_PREPARATION,
+                MigrationStage.PUBLIC_QEMU_VALIDATION,
+            ),
         )
     )
-    return _data_dependencies(tuple(specs))
+    return _data_dependencies(_unify(tuple(specs), config))
 
 
 def _data_dependencies(specs):
@@ -125,8 +153,10 @@ def _data_dependencies(specs):
         KnowledgeStage.KNOWLEDGE_BASE: (AcquisitionStage.EVIDENCE_CLOSURE,),
         TargetStudyStage.STUDY: (KnowledgeStage.KNOWLEDGE_BASE, EnvironmentStage.RECOVERY),
     }
-    return tuple(replace(spec, dependencies=changes[spec.name])
-                 if spec.name in changes else spec for spec in specs)
+    return tuple(
+        replace(spec, dependencies=changes[spec.name]) if spec.name in changes else spec
+        for spec in specs
+    )
 
 
 def _migration_rows(config: ProjectConfig) -> tuple[StageRow, ...]:
@@ -166,13 +196,15 @@ def _migration_rows(config: ProjectConfig) -> tuple[StageRow, ...]:
                 AcquisitionArtifact.REPOSITORY_MANIFEST,
                 AcquisitionArtifact.SOURCE_IDENTITY_VERIFICATION,
             ),
-            (AcquisitionArtifact.REVISION_SELECTION_PROPOSAL,
-             AcquisitionArtifact.REPOSITORY_ACQUISITION_ATTEMPT,),
+            (
+                AcquisitionArtifact.REVISION_SELECTION_PROPOSAL,
+                AcquisitionArtifact.REPOSITORY_ACQUISITION_ATTEMPT,
+            ),
             prerequisites=(IntakeStage.ENVELOPE_FREEZE,),
         ),
         StageRow(
             AcquisitionStage.EVIDENCE_CLOSURE,
-            "Close every required evidence facet with controlled content or an audited gap.",
+            "Prepare scoped originals and explicit material gaps for route analysis.",
             StageOwner.HYBRID,
             (
                 AcquisitionArtifact.EVIDENCE_CLOSURE_PLAN,
@@ -185,13 +217,11 @@ def _migration_rows(config: ProjectConfig) -> tuple[StageRow, ...]:
                 AcquisitionArtifact.EVIDENCE_DISCOVERY_PROPOSAL,
                 AcquisitionArtifact.EVIDENCE_HTTP_CONTENT,
             ),
-            prerequisites=(
-                IntakeStage.ENVELOPE_FREEZE,
-            ),
+            prerequisites=(IntakeStage.ENVELOPE_FREEZE,),
         ),
         StageRow(
             EnvironmentStage.RECOVERY,
-            "Establish artifact mode and a concrete executable experiment route.",
+            "Validate the configured build/boot/check route without a driver capability survey.",
             StageOwner.HYBRID,
             (
                 EnvironmentArtifact.INVENTORY,
@@ -200,7 +230,15 @@ def _migration_rows(config: ProjectConfig) -> tuple[StageRow, ...]:
                 EnvironmentArtifact.EXPERIMENT_READY_RUN,
                 EnvironmentArtifact.EXPERIMENT_ROUTE,
             ),
-            (EnvironmentArtifact.RECOVERY_ATTEMPT,),
+            (
+                (
+                    EnvironmentArtifact.RECOVERY_ATTEMPT,
+                    EnvironmentArtifact.PLATFORM_PROFILE,
+                    EnvironmentArtifact.PLATFORM_VALIDATION,
+                )
+                if config.managed_platform
+                else (EnvironmentArtifact.RECOVERY_ATTEMPT,)
+            ),
         ),
         StageRow(
             KnowledgeStage.KNOWLEDGE_BASE,
@@ -215,10 +253,12 @@ def _migration_rows(config: ProjectConfig) -> tuple[StageRow, ...]:
         ),
         StageRow(
             TargetStudyStage.STUDY,
-            "Build the target profile, API evidence table, and analogous call chain.",
+            "Resolve source obligations, coarse route and critical premises in one joint analysis.",
             StageOwner.CODEX,
             (
                 TargetStudyArtifact.REPORT,
+                TargetStudyArtifact.ROUTE,
+                TargetStudyArtifact.KNOWLEDGE_QUALITY,
             ),
             (TargetStudyArtifact.VALIDATION_ATTEMPT,),
         ),
@@ -242,8 +282,8 @@ def _migration_rows(config: ProjectConfig) -> tuple[StageRow, ...]:
         ),
         StageRow(
             MigrationStage.CONTRACTS,
-            "Analyze source behavior, design migration contracts and plan tests in one worker task.",
-            StageOwner.HYBRID,
+            "Bind contracts and test oracles from the accepted joint analysis.",
+            StageOwner.STATIC,
             (MigrationArtifact.CONTRACTS, MigrationArtifact.TEST_PORT_MATRIX),
             prerequisites=(
                 MigrationStage.HANDOFF,
@@ -253,21 +293,32 @@ def _migration_rows(config: ProjectConfig) -> tuple[StageRow, ...]:
                 AcquisitionStage.EVIDENCE_CLOSURE,
             ),
         ),
-        *((StageRow(
-            MigrationStage.ANALYSIS_REVIEW,
-            "Independently review analysis evidence, contracts and test provenance before implementation.",
-            StageOwner.INDEPENDENT,
-            (MigrationArtifact.ANALYSIS_REVIEW_REPORT,),
-            prerequisites=(TargetStudyStage.STUDY, MigrationStage.HANDOFF,
-                           AcquisitionStage.EVIDENCE_CLOSURE,
-                           EnvironmentStage.RECOVERY),
-        ),) if (
-            config.evaluation_mode is EvaluationMode.DEVELOPER_EVIDENCE
-            and config.enable_analysis_review
-        ) else ()),
+        *(
+            (
+                StageRow(
+                    MigrationStage.ANALYSIS_REVIEW,
+                    "Independently review analysis evidence, contracts and test provenance "
+                    "before implementation.",
+                    StageOwner.INDEPENDENT,
+                    (MigrationArtifact.ANALYSIS_REVIEW_REPORT,),
+                    prerequisites=(
+                        TargetStudyStage.STUDY,
+                        MigrationStage.HANDOFF,
+                        AcquisitionStage.EVIDENCE_CLOSURE,
+                        EnvironmentStage.RECOVERY,
+                    ),
+                ),
+            )
+            if (
+                config.evaluation_mode is EvaluationMode.DEVELOPER_EVIDENCE
+                and config.enable_analysis_review
+            )
+            else ()
+        ),
         StageRow(
             MigrationStage.TARGET_FRAMEWORK_ENABLEMENT,
-            "Implement and validate the minimal target framework interfaces required by the frozen migration contracts.",
+            "Implement and validate the minimal target framework interfaces "
+            "required by the frozen migration contracts.",
             StageOwner.CODEX,
             (
                 MigrationArtifact.TARGET_FRAMEWORK_BUNDLE,
@@ -327,3 +378,34 @@ def _migration_rows(config: ProjectConfig) -> tuple[StageRow, ...]:
             ),
         ),
     )
+
+
+def _unify(specs, config):
+    """New runs have one implementation gate; historical workspaces retain their frozen DAG."""
+    if not config.unified_implementation:
+        return specs
+    framework = next(s for s in specs if s.name is MigrationStage.TARGET_FRAMEWORK_ENABLEMENT)
+    result = []
+    for spec in specs:
+        if spec is framework:
+            continue
+        dependencies = tuple(
+            dict.fromkeys(
+                MigrationStage.DRIVER_IMPLEMENTATION if dep is framework.name else dep
+                for dep in spec.dependencies
+            )
+        )
+        if spec.name is MigrationStage.DRIVER_IMPLEMENTATION:
+            dependencies = tuple(
+                dict.fromkeys(
+                    (*framework.dependencies, *(d for d in dependencies if d is not spec.name))
+                )
+            )
+            spec = replace(
+                spec,
+                description="Implement and integrate the driver, target adaptations "
+                "and public tests.",
+                required_outputs=(*framework.required_outputs, *spec.required_outputs),
+            )
+        result.append(replace(spec, dependencies=dependencies))
+    return tuple(result)

@@ -1,5 +1,21 @@
 # 架构设计
 
+## 平台配置归属
+
+操作者通过启动参数提供镜像与加速器，控制器把它们保存在 `ProjectConfig`，在模型调用前检查
+配置齐备，续跑沿用已存值。`driver_checks.platform` 的 `bootstrap` 不接受模型选择的环境参数；
+底层 prepare 也只读取项目配置。Docker 是构建和 QEMU 的执行环境，宿主信息只用于诊断，
+不用于推断 TCG/KVM。现有镜像身份、OVMF、执行收据和失败保留机制继续使用。
+
+## 最后工作包交付
+
+预置测试的case集合同时用于实现完成检查与公开验收；分析正文不能扩张必需运行测试。
+最后一个工作包的done保存模型的简短源码论证及验证限制，直接进入原实现捕获与14/15控制器
+验收。没有新增提交门禁，不固定启动另一个模型收尾回合；公开检查通过后也不再要求模型
+重新确认已通过的运行记录。实现阶段可复用历史结果；15完整执行一次同一最终代码快照及
+产物上的所有预置测试。最终整组通过后，恢复流程直接复用该批结果，临时路径、PATH、
+日志和报告差异不触发复测。详见[交付边界](FINAL_PACKAGE_HANDOFF.zh-CN.md)。
+
 ## 1. 架构约束
 
 DPF 是证据驱动的工作流控制器，不是拥有全局权限的长对话。其不可弱化的约束是：
@@ -67,11 +83,11 @@ WorkflowDefinition   ValidationRegistry
 | 0 迁移 envelope | `project_init` → intake 四阶段 → `repository_acquisition` |
 | 1 证据、运行环境和 baseline | `repository_acquisition` → `evidence_closure` → `environment_recovery` → `knowledge_base` |
 | 2 目标平台研究 | `target_platform_study` |
-| 3 来源范围闭包 | 合入 `migration_contracts`：直接读源码，按问题验证 |
-| 4 编码前迁移合同 | `migration_contracts` |
-| 5 公开测试筛选与映射 | 同一个 `migration_contracts` 调用和报告 |
-| 2–5 分析证据核验 | `analysis_review`：封存设计阶段前由独立审查者合并核对原文、契约与测试断言 |
-| 6 Rust 设计与实现 | 统一 `driver_implementation`：框架适配与驱动集成一次验收，保留最小目标变更依据；旧项目保留原检查点 |
+| 3 来源范围闭包 | 合入 `target_platform_study`：直接读源码，按问题验证 |
+| 4 编码前迁移合同 | 同一次联合分析；`migration_contracts` 仅由控制器登记 |
+| 5 公开测试筛选与映射 | 同一个 `target_platform_study` 调用和报告 |
+| 2–5 分析证据核验 | 工作者自检；`analysis_review` 默认关闭，可显式开启 |
+| 6 Rust 设计与实现 | 统一 `driver_implementation`：框架适配与驱动集成一次验收，保留最小目标变更依据；当前分支不兼容旧冻结任务 |
 | 7 目标合规复核 | 工作模型在第一次包装前与受影响修复后自检、按需复查目标原文；无独立模型节点 |
 | 8 runtime artifact 与公开 QEMU ladder | `artifact_preparation` → `public_qemu_validation`；复用当前制品与收据 |
 | 9 归因与窄修复 | 原工作者修复具体原因，测试受影响行为；开发模式允许反证推翻分析前提 |
@@ -123,7 +139,8 @@ required-output cardinality、foreign key、CAS canonical path/size/digest，以
 - `auxiliary` 是 attempt、Prompt、Codex 原始结果和事件等过程证据；可在 `RUNNING` 中追加，但永远
   不能补足 required output 或独立触发成功。
 
-源码理解、迁移契约和测试计划由同一工作者在 `migration_contracts` 完成。编译器证据按具体问题触发，
+源码理解、粗路线、迁移契约和测试计划由同一工作者在 `target_platform_study` 联合完成；
+`migration_contracts` 是控制器登记检查点，不再启动独立研究。编译器证据按具体问题触发，
 记录在现有报告，不再自动生成全量索引或复建验收。输入只有冻结原始材料、目标研究和环境证据。
 参见 [源码与设计](SOURCE_DESIGN.md)。
 
@@ -180,7 +197,7 @@ checker、fault schedule 和私有结果。
 07 负责固定材料，后续研究负责语义分析；08 的通用容器执行包装可由控制器生成。失败 attempt 在返回原因前保存，不走 PASS 登记。配方复用要求版本/镜像匹配及当前执行，不能导入旧验收。接口与验证见 [前置阶段优化](BOOTSTRAP_OPTIMIZATION.zh-CN.md)。
 
 新任务默认启用 `unified_implementation`；开发 CLI 同时默认启用 `behavior_scheduling`，
-每轮只推进一个可观察行为及其必要框架适配、测试和清理；不再单列框架使能或全面能力探测。缺少该字段的历史配置恢复为旧 DAG。框架与驱动产物在同一事务提交，校验同一源码、worktree 和报告；下游仍验证制品身份和实际运行。详见 [合并实现与去重规则](UNIFIED_IMPLEMENTATION.zh-CN.md)。
+每轮只推进一个可观察行为及其必要框架适配、测试和清理；不再单列框架使能或全面能力探测。实验配置的旧分支不用于新路线任务续跑。框架与驱动产物在同一事务提交，校验同一源码、worktree 和报告；下游仍验证制品身份和实际运行。详见 [合并实现与去重规则](UNIFIED_IMPLEMENTATION.zh-CN.md)。
 
 ## 平台执行层
 
@@ -209,3 +226,47 @@ checker、fault schedule 和私有结果。
 功能范围和设备身份分开冻结；目标 kernel 接入与 callback harness 的验证层级不能混用。
 前置分析停止于源义务、目标承担关系、必要前提和验收设计明确，局部实现调查由当前行为承担。
 实现调度与最终验收不变，详细规则及能力限制见 [分析边界](ANALYSIS_BOUNDARY.zh-CN.md)。
+
+
+## 当前路线协议
+
+三个宏观阶段及逐步职责以 [STAGE_GUIDE.md](STAGE_GUIDE.md) 为准。
+`target_study` 接受报告、路线索引和检索来源收据；契约和测试正文引用同一报告。
+`migration/route_model.py` 处理纯引用关系，`route.py` 负责保存和局部修订，
+`behavior.py` 直接从分析图选取一个行为。粗路径节点不会自动变成实现单元。
+
+实现候选绑定最新路线记录，普通代码编辑不触发路线重审。明确路线修订才按行为关系
+更新完成进度；改变当前行为的目标不能借旧回合的 done 完成新目标。最终接受仍由
+现有构建、运行和固定断言决定；引用关系本身不证明语义覆盖。
+
+托管 08 使用平台已有基线收据，取消强制模型设备探针。按需 `analysis probe` 绑定
+联合分析中的一个问题，使用固定执行器。知识积累选取已有分析段落和证据，不新建
+知识写作任务；共享库写入失败只记录未发布，不能使已接受实现返工。
+详见 [ROUTE_GUIDED_ANALYSIS.zh-CN.md](ROUTE_GUIDED_ANALYSIS.zh-CN.md)。
+
+## 逐行为工作包与平台工具
+
+[工作包与通用工具优化](BEHAVIOR_COST_TOOLS.zh-CN.md)只改变提示投影和按需执行能力。
+联合分析选择完整工作目标；简单驱动可只有一个包，多个义务或内部步骤不强制拆分。
+控制器维持每轮一个工作包、同一会话和最终独立验收。
+正文 D 引用由提示渲染器生成，不是新的计划格式或模型交付。组件 scaffold 属于实现阶段的可选操作；
+内联用例继续通过同一平台执行器记录真实观察。当前行为必要检查不推迟到最终验收。
+这些工具不生成设备语义或质量真值，尚未用新付费实验验证成本收益。
+
+托管平台基线验证后自动安装 smoke/public 入口；实现阶段 register_case 保存设备用例、包装及
+既有 experiments.json 清单。开发按 ID 执行，最终消费完整清单，统一使用逐用例身份绑定收据。
+不新增计划格式或模型阶段，不把临时探测自动算入验收。见[自动测试入口](PREPARED_TEST_ENTRYPOINTS.zh-CN.md)。
+
+### 固定公开测试的责任分工
+
+新的 Linux pvpanic-pci → Asterinas 全范围任务预装三个公开用例。控制器固定刺激、断言和完整
+最终执行集合，模型只适配调用接口、实现并修复驱动；一个工作包可以包含全部场景。原生入口与
+接口调用覆盖分开报告，不缩减源范围，不增加 reviewer。其他驱动继续用已有登记机制。详见
+[固定公开测试](PREPARED_PUBLIC_TESTS.zh-CN.md)。
+
+## 共享经验工具
+
+分析和实现通过可选 `knowledge_learn(lesson, conditions, sources)` 保存已有发现，
+控制器归档源码，15验收通过后发布。进度工具仍只有 status/note；没有经验交付清单。
+读快照与发布目标分别冻结，分析入口只提供少量匹配经验；查询按需，写回失败不影响验收。
+见 [共享知识库](SHARED_KNOWLEDGE.zh-CN.md)。

@@ -109,7 +109,7 @@ class RevisionSelectionProposal:
 
 @dataclass(frozen=True, slots=True)
 class RevisionProposalEnvelope:
-    job_result: JobResultBinding
+    job_result: JobResultBinding | None
     proposal: RevisionSelectionProposal
     schema_version = 1
 
@@ -122,19 +122,71 @@ class RevisionProposalEnvelope:
         )
         schema_version(candidate, "controlled revision proposal wrapper")
         return cls(
-            JobResultBinding.from_dict(candidate["job_result"]),
+            JobResultBinding.from_dict(candidate["job_result"])
+            if candidate["job_result"] is not None
+            else None,
             RevisionSelectionProposal.from_dict(candidate["proposal"]),
         )
 
     def to_dict(self) -> dict[str, object]:
         return {
             "schema_version": self.schema_version,
-            "job_result": self.job_result.to_dict(),
+            "job_result": self.job_result.to_dict() if self.job_result else None,
             "proposal": self.proposal.to_dict(),
         }
 
 
 class RevisionProposalImporter:
+    def import_operator_pins(self, project: Project, path: Path) -> ArtifactOccurrence:
+        """Freeze explicit operator commits without inventing a model selection."""
+        raw = json.loads(path.read_text(encoding="utf-8"))
+        proposed = normalize_codex_revision_selection(project, raw)
+        if any(not _FULL_COMMIT.fullmatch(row.requested_ref) for row in proposed.repositories):
+            raise WorkflowError("operator repository pins require full commit IDs")
+        proposal = RevisionSelectionProposal(
+            proposed.migration_envelope_sha256,
+            tuple(
+                RepositoryCandidate(
+                    row.role,
+                    row.platform,
+                    row.url,
+                    row.requested_ref,
+                    "exact commit supplied by the experiment operator",
+                )
+                for row in proposed.repositories
+            ),
+        )
+        data = (
+            json.dumps(
+                RevisionProposalEnvelope(None, proposal).to_dict(),
+                ensure_ascii=False,
+                sort_keys=True,
+                indent=2,
+            )
+            + "\n"
+        ).encode()
+        stage = AcquisitionStage.REPOSITORY_ACQUISITION
+        if project.stage(stage).status is StageStatus.READY:
+            project.start(stage)
+        if project.stage(stage).status is not StageStatus.RUNNING:
+            raise WorkflowError("repository acquisition must be RUNNING to import pins")
+        for ref in project.current_artifact_refs(stage=stage):
+            if (
+                ref.kind == AcquisitionArtifact.REVISION_SELECTION_PROPOSAL.value
+                and ref.source.startswith("operator-repository-pins:")
+                and project.artifacts.read(ref) == data
+            ):
+                return ArtifactOccurrence(ref.digest, ordinal(ref.ordinal))
+        ref = project.record_artifact(
+            stage,
+            GeneratedArtifact(
+                AcquisitionArtifact.REVISION_SELECTION_PROPOSAL,
+                data,
+                f"operator-repository-pins:{path.resolve()}",
+            ),
+        )
+        return ArtifactOccurrence(ref.digest, ordinal(ref.ordinal))
+
     def import_job_result(
         self,
         project: Project,
@@ -219,13 +271,9 @@ def normalize_codex_revision_selection(
                 "exact revision selected by Codex for the confirmed migration scope",
             )
         )
-    if Counter(item.role for item in repositories) != Counter(
-        {role: 1 for role in RepositoryRole}
-    ):
+    if Counter(item.role for item in repositories) != Counter({role: 1 for role in RepositoryRole}):
         raise WorkflowError("select exactly one source, target, and qemu repository")
-    envelope = project.artifact(
-        IntakeStage.ENVELOPE_FREEZE, IntakeArtifact.MIGRATION_ENVELOPE
-    )
+    envelope = project.artifact(IntakeStage.ENVELOPE_FREEZE, IntakeArtifact.MIGRATION_ENVELOPE)
     return RevisionSelectionProposal(
         envelope.digest,
         tuple(sorted(repositories, key=lambda item: item.role.sequence)),
