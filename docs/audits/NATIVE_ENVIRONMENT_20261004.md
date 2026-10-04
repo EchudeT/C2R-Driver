@@ -25,3 +25,9 @@ Operational limits:
 - No private assertions, independent blind evaluation or performance threshold study was performed.
 - Git history isolation is verified; host-level denial of access to operator repositories requires separate worker deployment. Development mode is not an adversarial security boundary.
 - Docker and existing download caches are shared; compiler intermediates were removed after the controls. WSL filesystem deletion did not reclaim the Windows VHDX allocation; D: still had about 5.2 GB free.
+
+Distribution update:
+
+- Four source-only tasks and portable prepare/build/check entry points are published together.
+- The RNG task was exported to a new Git root with no remote or unreachable objects; shared SDK/test media reuse succeeded.
+- The additional exported-workspace build/check was stopped at the user’s request before completion. It is not a passing validation; the earlier control results above remain the only completed real-driver checks.

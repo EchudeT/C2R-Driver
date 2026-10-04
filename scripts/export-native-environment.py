@@ -67,7 +67,7 @@ def main():
     (destination / "PROVENANCE.json").write_text(
         json.dumps(
             {
-                "source_repository": "https://github.com/EchudeT/C2R-Driver",
+                "source_repository": "https://github.com/C2R-Driver/driver-port-factory",
                 "source_commit": commit,
                 "files_sha256": files,
                 "scope": (
