@@ -19,6 +19,11 @@ def export(repository, revision, target, paths=()):
         with tarfile.open(fileobj=process.stdout, mode="r|") as archive:
             for member in archive:
                 archive.extract(member, target, filter="data")
+                # The safe tar filter may normalize link text; retain upstream Git bytes.
+                if member.issym():
+                    link = target / member.name
+                    link.unlink()
+                    link.symlink_to(member.linkname)
         if process.wait() != 0:
             raise RuntimeError("Pinned git archive failed")
     finally:

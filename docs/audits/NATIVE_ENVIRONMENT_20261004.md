@@ -35,6 +35,6 @@ Distribution update:
 Source-input correction:
 
 - Initial task publication included a Linux subset. It was inadequate for autonomous kernel-context investigation and is superseded by a complete pinned Linux tree shared across the four tasks.
-- Distribution completeness is checked against the upstream Git tree ID (paths, bytes and file modes), rather than just the presence of selected directories.
+- All 96,034 upstream files match Linux Git tree `ee8992a89ee73041aec86568874afabc5b67aa8c` exactly, including paths, bytes, executable modes and symbolic-link text.
 - DPF source pins and Codex exports now use the same complete Linux revision. Driver entry hints do not restrict source reading.
 - No additional build, QEMU suite or paid model experiment was run for this source-distribution correction.

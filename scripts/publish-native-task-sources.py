@@ -20,6 +20,11 @@ def archive(repository, destination, revision="HEAD", paths=()):
         with tarfile.open(fileobj=process.stdout, mode="r|") as stream:
             for member in stream:
                 stream.extract(member, destination, filter="data")
+                # The safe tar filter may normalize link text; retain upstream Git bytes.
+                if member.issym():
+                    link = destination / member.name
+                    link.unlink()
+                    link.symlink_to(member.linkname)
         if process.wait():
             raise RuntimeError("Seed export failed")
     finally:
