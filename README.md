@@ -113,6 +113,7 @@ ruff format --check src tests scripts
 
 测试默认离线，不启动付费模型。仓库存在历史全量检查债务；具体检查结果应如实记录，不能把局部通过写成全量通过。
 
+- [科研汇报：架构优势与创新点](docs/research/FACTORY_RESEARCH_REPORT.zh-CN.md)
 - [文档导航](docs/README.md)
 - [架构](docs/workflow/ARCHITECTURE.md)与[阶段指南](docs/workflow/STAGE_GUIDE.md)
 - [平台环境](docs/platform/README.md)
