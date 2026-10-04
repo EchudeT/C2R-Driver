@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Export the small, standalone environment repository; never copy experimental data."""
+"""Export shared runtime and docs; task sources are staged separately, without build data."""
 
 import argparse
 import hashlib
@@ -21,7 +21,10 @@ def main():
         parser.error(
             "destination must be the dedicated Git checkout, not a trial or data directory"
         )
-    sources = [ROOT / "scripts/native-experiment.py"]
+    sources = [
+        ROOT / "scripts" / name
+        for name in ["native-experiment.py", "export-task.py", "task-runtime.py"]
+    ]
     sources += sorted((ROOT / "scripts/native_experiment").glob("*.py"))
     sources += [ROOT / "scripts/native_experiment/README.md"]
     sources += [
@@ -68,8 +71,8 @@ def main():
                 "source_commit": commit,
                 "files_sha256": files,
                 "scope": (
-                    "Shared native environment runtime only; "
-                    "no upstream driver implementation or build data"
+                    "Shared native environment runtime and documentation; "
+                    "per-task source snapshots have their own provenance; no build data"
                 ),
             },
             indent=2,

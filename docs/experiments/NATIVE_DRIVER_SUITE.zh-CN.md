@@ -19,14 +19,15 @@
 DPF 对固定测试的登记和最终断言保护已接入；全流程模型翻译尚未运行。
 
 共享环境仓库：<https://github.com/C2R-Driver/driver-experiment-env>。
-仓库只分发配置、脚本、文档和验证摘要，按需在本机生成数据。
+仓库集中分发 `tasks/<driver>/source`、`target`、可移植入口，以及配置、文档和验证摘要。
+使用 `scripts/export-task.py` 导出单项工作区后再交给模型，不直接在全任务分发仓库中运行模型。
 
 ## 冻结环境
 
 - Linux：`587858367581b9c55c3690f4e63382ad622719d4`。
 - Asterinas：`d4b407ca87de203f79c27c9a83ada1d8223fe280`。
 - QEMU 源码依据：`2d3df8abca265c9bcc9e438d691d561592060998`。
-- Docker：`asterinas/dev:0.18.1-20260901`；校验 image ID
+- Docker：星绽 OS 官方推荐的预构建开发镜像 `asterinas/dev:0.18.1-20260901`；校验 image ID
   `sha256:a2c8b011ebe635fc7257fe9edaf4135b76c278600374536539edd41125fb4dca`。
 - 实际容器 QEMU：10.2.1；二进制 SHA256
   `924966a935f0429f99e093f4abaca04edfbdf8c6fa7b8b206145e1108b51c5b0`。
@@ -37,6 +38,11 @@ DPF 对固定测试的登记和最终断言保护已接入；全流程模型翻�
 - 容器工具链直接复用；SDK 为 `OSDK_LOCAL_DEV=1` 构建的 cargo-osdk，按哈希复用。
 - `CARGO_INCREMENTAL=0`、`CARGO_PROFILE_DEV_DEBUG=0`、构建并行度4，对两种方法一致。
 - 配置源：[native-drivers.json](../../configs/experiments/native-drivers.json)。
+
+镜像版本依据固定 Asterinas commit 的
+[官方 README](https://github.com/asterinas/asterinas/blob/d4b407ca87de203f79c27c9a83ada1d8223fe280/README.md#for-kernel-developers)
+和 [DOCKER_IMAGE_VERSION](https://github.com/asterinas/asterinas/blob/d4b407ca87de203f79c27c9a83ada1d8223fe280/DOCKER_IMAGE_VERSION)。
+直接下载并复用该官方镜像，本实验不要求自行构建派生 Docker 镜像；DPF 与 Codex＋goal 使用同一 image ID。
 
 使用原始 `tools/qemu_args.sh normal` 的设备配置；统一为无图形串口交互和 OVMF/KVM。
 原始与空心基线均只统一调整 `OSDK.toml` 的 init 参数以进入交互 shell，不更改测试断言。
@@ -60,6 +66,24 @@ FN_TEST 必须逐函数有实际成功计数且无失败；exit 0 的 skip 不�
 每次完整验收只构建一次 ISO，所有用例运行这个相同产物，测试之间不编译。
 每例从同一套稀疏磁盘种子创建可写测试介质，防止上例磁盘状态影响下一例。
 DPF 最终测试使用控制器发布的最终产物路径；Codex 使用同一 runner、构建参数与完整测试集合。
+
+## 从已发布源码直接开始
+
+```sh
+# 在环境分发仓库中执行；导出目录必须在该 checkout 之外。
+python3.11 scripts/export-task.py virtio-rng /path/to/worker/rng-01
+cd /path/to/worker/rng-01
+./prepare.sh
+# 或复用已有环境：./prepare.sh --reuse /path/to/verified-runtime
+./build.sh
+./check.sh
+```
+
+导出目录自带 `source/`、`target/`、公共运行器、`PROMPT.md` 和入口脚本，不保留分发库 Git 历史。
+入口会在 `.runtime/` 中登记本机共享环境位置；这些运行数据不提交 Git。
+初始 target 是空心基线，`check.sh` 因缺少驱动而失败是预期结果，不能误标为翻译通过。
+在支持 goal 的 Codex 会话中以该目录为工作目录，按下面定义设置目标即可开始实现。
+只有需要重新制作数据集时，才需要下一节的原始 Linux/Asterinas/QEMU 操作者仓库。
 
 ## 新机器准备
 
@@ -104,7 +128,7 @@ done
 不要把整个环境复制成“备份”。`validate-adapter` 可在 DPF 安装后复现生产适配器控制，复用已有
 ISO；独立环境仓库加 `--factory /path/to/driver-port-factory`。
 
-## 启动 DPF 或 Codex
+## 启动 DPF 或纯 Codex＋goal
 
 创建启动目录不调用模型，也不预生成所有方法的工作树。DPF 在实际启动后由采集阶段创建工作树；
 Codex 仅为所选任务创建 source/target。每个 trial 已存在时拒绝覆盖；重复实验用 `--trial 02` 等新编号，仍复用相同 suite 和 seed，
@@ -118,11 +142,25 @@ Codex 仅为所选任务创建 source/target。每个 trial 已存在时拒绝�
 # 显式执行此命令才产生模型调用；模型和预算由操作者指定。
 "$SUITE/trials/dpf/virtio-rng/01/launch.sh" --model MODEL --max-model-cost-usd BUDGET
 
-# Plain Codex baseline：同一 seed，提供可审阅 PROMPT.md 和 build.sh/check.sh。
+# Codex＋goal baseline：准备同一 seed、PROMPT.md 和 build.sh/check.sh，尚未调用模型。
 .venv/bin/python scripts/native-experiment.py trial --root "$SUITE" \
   --driver virtio-rng --method codex --qemu /path/to/qemu
-"$SUITE/trials/codex/virtio-rng/01/launch.sh" --model MODEL
 ```
+
+baseline 为**纯 Codex＋goal**。准备 trial 后，在支持 goal 的 Codex 会话中将该 trial
+设为工作目录，读取 `PROMPT.md` 并显式建立目标：
+
+> 将 source/ 中指定的 Linux C 驱动迁移到 target/，完成必要的星绽集成；
+> 使用 build.sh 和 check.sh 持续实现、检查和修复，直到同一最终版本的完整公开测试通过，
+> 或达到预先规定的实验预算。不得修改断言或读取被隔离的原 Rust 实现；失败时保留真实结果。
+
+由 Codex 自行决定分析和修复过程，不接入 DPF 阶段、工作包规划、专用迁移 Skill、知识库或 reviewer。
+相同的公开源码输入、官方 Docker 镜像、设备配置和原生测试入口属于共同实验基础设施。
+goal 的完成状态不替代最终完整测试收据。
+
+目前 `launch.sh` 只执行普通 `codex exec`，不自动创建 goal；直接执行它不能记作 Codex＋goal 实验。
+当前方式是在支持 goal 的会话中显式建立目标，自动 goal 启动接线尚未实现。
+已经验证独立环境运行器，尚未执行 Codex＋goal 端到端翻译。
 
 DPF launcher 设置 `DPF_NATIVE_SUITE` 并冻结镜像、加速器与源码 pin；08只验证平台构建启动，
 不能要求空心驱动功能通过。环境通过后预装原生测试，13用相同工具实现与自检，15运行完整最终集合。
@@ -144,7 +182,8 @@ plain Codex 的美元预算控制。生成的 Codex launcher 与 DPF 开发模�
 4. 空心树必须构建和启动；测试因缺少设备行为失败才构成有效负向控制，环境失败不算。
 5. 每项导出到新的 Git 对象库，创建可复现的根提交；审核没有父提交、remote、alternates、
    不可达对象或被扣掉驱动原文件。Linux 来源亦从固定 commit 导出并记录上游 provenance。
-6. 不将所有目标放在一个模型可访问 remote 的多个分支：其他任务的分支仍包含本任务原实现。
+6. 全部任务可以放在同一个操作者分发仓库；交给模型前必须只导出选定任务，创建新 Git 根提交，
+   不保留分发仓库 remote 或其他任务历史。模型不能直接在全任务 checkout 中实验。
 7. 只交付本任务的 seed、共同 SDK/initramfs 和公开用例。原始树、其他任务 seed、operator 日志、
    旧候选和答案知识不可进入工作者工作区。容器运行器只挂载当前 target 和 shared 资产。
 
@@ -154,8 +193,8 @@ plain Codex 的美元预算控制。生成的 Codex launcher 与 DPF 开发模�
 
 ## 存储和协作
 
-GitHub 只提交配置、工具、文档、验证摘要；不上传 Docker tar、Rustup、Cargo缓存、ISO、磁盘镜像、
-工作树、凭据或 ground truth。团队复用同一镜像版本，SDK一份、下载缓存两卷，按需生成工作区。
+GitHub 提交任务源码、配置、工具、文档、验证摘要；不上传 Docker tar、Rustup、Cargo缓存、ISO、磁盘镜像、
+运行工作树、凭据或单独的 ground truth 备份。团队复用同一镜像版本，SDK一份、下载缓存两卷，按需生成工作区。
 默认串行构建，`clean` 删除显式目标的编译缓存、OSDK包装中间物和已打包的临时 rootfs，
 保留最终 ISO、源码与收据，不删除整个 Docker cache。
 

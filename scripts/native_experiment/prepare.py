@@ -64,6 +64,26 @@ def prepare(root, source, target, qemu, sdk_source=None):
         (qemu, "qemu_revision"),
     ]:
         git(repo, "cat-file", "-e", config[key] + "^{commit}")
+    initialize_environment(root, config)
+    original = root / "operator/reference"
+    print("Exporting pinned original reference (operator only)", flush=True)
+    export(target, config["target_revision"], original)
+    frozen = {}
+    for name, task in config["drivers"].items():
+        directory = original / task["omit"]
+        frozen[name] = {
+            str(p.relative_to(original)): sha(p) for p in directory.rglob("*") if p.is_file()
+        }
+    write(
+        root / "operator/ground-truth.json", {"commit": config["target_revision"], "files": frozen}
+    )
+    manifest = original / "OSDK.toml"
+    manifest.write_text(manifest.read_text().replace('init_args = ["sh", "-l"]', "init_args = []"))
+    prepare_assets(root, original, config, sdk_source)
+    print("READY for original positive controls; no target released to a model", flush=True)
+
+
+def initialize_environment(root, config):
     if not Path("/dev/kvm").exists():
         raise ValueError("KVM is required; no TCG fallback")
     root.mkdir(parents=True)
@@ -89,23 +109,13 @@ def prepare(root, source, target, qemu, sdk_source=None):
             "machine": "q35",
         },
     )
-    original = root / "operator/reference"
-    print("Exporting pinned original reference (operator only)", flush=True)
-    export(target, config["target_revision"], original)
-    frozen = {}
-    for name, task in config["drivers"].items():
-        directory = original / task["omit"]
-        frozen[name] = {
-            str(p.relative_to(original)): sha(p) for p in directory.rglob("*") if p.is_file()
-        }
-    write(
-        root / "operator/ground-truth.json", {"commit": config["target_revision"], "files": frozen}
-    )
-    manifest = original / "OSDK.toml"
-    manifest.write_text(manifest.read_text().replace('init_args = ["sh", "-l"]', "init_args = []"))
+
+
+def prepare_assets(root, original, config, sdk_source=None):
+    """Build shared tools/tests from a supplied target, including a hollow target."""
     sdk = root / "shared/sdk"
     sdk.mkdir()
-    existing_sdk = sdk_source or target / "osdk/target/release/cargo-osdk"
+    existing_sdk = sdk_source or original / "osdk/target/release/cargo-osdk"
     reuse_sdk = existing_sdk.is_file() and sha(existing_sdk) == config["sdk_reuse_sha256"]
     if sdk_source is not None and not reuse_sdk:
         raise ValueError("Supplied SDK does not match the verified local-development SDK hash")
@@ -185,9 +195,6 @@ def prepare(root, source, target, qemu, sdk_source=None):
         }
     )
     write(root / "environment.json", profile)
-    print(
-        "READY for original positive controls; no target has been released to a model", flush=True
-    )
 
 
 def copy_sparse(source, destination):
