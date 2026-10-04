@@ -1,0 +1,59 @@
+Use case: infographic-diagram
+Create a NEW scientific diagram from scratch. No reference image, no editing, no imitation of an earlier image. Intended for a software engineering research paper about cross-kernel C-to-Rust driver translation.
+
+Title: "Semantic Alignment Across Kernels"
+Subtitle: "Source obligations, target responsibilities, and explicit premises"
+Landscape, 1536 x 1024. White background, thin slate outlines, restrained pale blue and teal fills, a small pale amber accent for premises. Flat vector-like academic schematic. No gradients, shadows, decorative circuits, oversized title, or heavy color panels. Compact professional sans-serif text. English only. No bullet dots or middle-dot separators anywhere. Small consistent outline icons for source files, target framework, premise evidence, and implementation. No logos.
+
+This is a RELATIONSHIP DIAGRAM, not a pipeline of mandatory model calls. Use a clean three-column grid above a full-width implementation band, with an evidence row at the bottom. Keep every connector short and orthogonal, never through text or nodes. All text below is literal content. Do not add new arrows or new modules.
+
+TOP ROW: three separate, horizontally aligned context boxes.
+Left: "Source context" with three lines "Complete Linux tree", "Driver and callers", "Subsystem guarantees".
+Center: "Target context" with three lines "Target framework", "API definitions", "Lifecycle and calling rules".
+Right: "Premise evidence" with two lines "Original definitions", "Focused observations if needed".
+
+SECOND ROW: three equally tall aligned reasoning boxes, each directly below its context box, separated by wide arrow corridors.
+Left heading: "C | Behavioral obligations".
+Body on separate lines: "Trigger and required outcome", "Early return and failure", "Resource lifetime and cleanup".
+Center heading: "R | Target route".
+Body: "Assign each guarantee".
+Inside this box, three small adjacent equal cells labeled "Driver", "Framework", "Caller". These are possible responsibility holders, not a processing sequence. No arrows between these cells.
+Bottom text inside R: "Explicit responsibility split".
+Right heading: "P | Necessary premises".
+Body on separate lines: "Conditions for the route", "Evidence and applicability", "Concrete unresolved facts".
+
+EXACT CONNECTIONS IN THESE TWO ROWS:
+Source context -> C, vertically downward.
+Target context -> R, vertically downward.
+Premise evidence -> P, vertically downward.
+C -> R, short horizontal arrow pointing right, label "Align".
+P -> R, short horizontal arrow pointing LEFT, label "Constrain".
+The P-to-R arrow must point toward R, never toward P.
+The top context boxes must have no horizontal connections.
+
+THIRD ROW: one full-width pale-blue implementation box.
+Heading with a small processor icon: "B | One complete implementation goal".
+One body line: "Relevant obligations, route references, and necessary conditions".
+Inside the same box, four adjacent text cells: "Initialization", "Data path", "Failure handling", "Cleanup".
+These cells are parts of one goal, NOT separate work packages. Do not draw arrows between them.
+Bottom annotation: "Related behavior stays together; route steps do not force separate packages".
+
+EXACT CONNECTIONS TO B:
+C -> B, one straight vertical arrow landing on the left third of the B box, label "Required behavior".
+R -> B, one straight vertical arrow landing at the center of B, label "Realization".
+P -> B, one straight vertical arrow landing on the right third of B, label "Conditions".
+These three arrows are parallel, do not merge, and do not cross any other connector. Leave a generous horizontal whitespace strip for their labels.
+
+BOTTOM ROW: a shared group headed "Evidence used to assess the implementation".
+Within this group place two equal side-by-side boxes:
+Left heading: "Bounded source argument".
+Body: "Source obligation and target code", "Definitions and stated premises".
+Right heading: "Observed public scenarios".
+Body: "Fixed tests on the final candidate", "Actual execution receipts".
+Draw ONE downward arrow from B to the top boundary of this shared evidence group, label "Assess using". This means assessment uses the two evidence types; it must not imply that a plan automatically produces proof or test success.
+No arrows between the two evidence boxes. Neither evidence type replaces the other.
+
+At the bottom, outside all boxes, one clear small sentence:
+"Traceability is not proof of complete semantic equivalence"
+
+Preserve all C, R, P, B labels and their exact meanings. The target responsibility split belongs INSIDE the R box, not in a disconnected fourth column. All arrowheads must touch actual destination boxes. No dangling lines, no long outer-edge bypasses, no arrows from the source tree directly to B. The diagram must visibly distinguish required source behavior, target realization, applicable conditions, one complete implementation goal, and the evidence used to evaluate its implementation. Do not invent empirical results, correctness badges, theorem proving, or a mandatory reviewer model.
