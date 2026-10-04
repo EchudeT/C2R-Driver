@@ -23,6 +23,10 @@ def assets(project):
 def selected(project):
     if project is None:
         return False
+    from .native import binding
+
+    if binding(project) is not None:
+        return True
     config = project.config
     scope = effective(config)
     return (
@@ -36,6 +40,10 @@ def selected(project):
 
 
 def definition(project):
+    from . import native
+
+    if native.binding(project) is not None:
+        return native.definition(project)
     from .guest import validate_case
     from .service import command
 
@@ -131,9 +139,17 @@ def verify(project, worktree, *, final=False):
 def context(project):
     if not selected(project):
         return None
+    from . import native
+
+    native_config = native.binding(project)
+    rows = (
+        native.definition(project)[1]
+        if native_config is not None
+        else json.loads((assets(project) / "cases.json").read_text())
+    )
     return {
         "interface": f"{DIRECTORY}/INTERFACE.md",
-        "cases": [row["id"] for row in json.loads((assets(project) / "cases.json").read_text())],
+        "cases": [row["id"] for row in rows],
         "rule": "Public stimuli and assertions are fixed. Read the interface once; "
         "adapt it to real driver operations, implement the driver and run driver_checks.check. "
         "Do not author/re-register these tests, change their assertions or write suite wrappers. "

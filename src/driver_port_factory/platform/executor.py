@@ -41,6 +41,14 @@ def container(profile, worktree, directory, command, *, build, cache_key, timeou
 
 
 def build(profile, worktree, directory, cache_key, timeout=1200):
+    if "native" in profile:
+        from pathlib import Path
+
+        from .native import setup, verify_inputs
+
+        root = Path(profile["native"]["root"])
+        verify_inputs(root, worktree)
+        setup(root, worktree)
     result = container(
         profile,
         worktree,
@@ -61,6 +69,10 @@ def build(profile, worktree, directory, cache_key, timeout=1200):
 
 
 def boot(profile, worktree, directory, artifact, case, cache_key):
+    if "native" in profile:
+        from .native import boot as native_boot
+
+        return native_boot(profile, worktree, directory, artifact, case, cache_key)
     guest.validate_case(case)
     directory.mkdir(parents=True, exist_ok=True)
     for name, value in (("profile.json", profile), ("case.json", case)):

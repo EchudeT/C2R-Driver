@@ -109,13 +109,17 @@ def prepare(project):
             raise WorkflowError(f"Platform prerequisite missing: {relative}")
     with locked(project) as directory:
         profile = asterinas(
-            image, image_identity(project, image), revision, accelerator,
+            image,
+            image_identity(project, image),
+            revision,
+            accelerator,
             machine="pc" if project.config.driver_name == "ne2k-pci" else "q35",
         )
+        from .native import configure
+
+        configure(project, worktree, profile)
         profile["binding"] = binding(project)
-        profile["cache_key"] = digest(
-            {"image": profile["image_id"], "revision": revision}
-        )[:24]
+        profile["cache_key"] = digest({"image": profile["image_id"], "revision": revision})[:24]
         path = directory / f"profile-{uuid.uuid4().hex}.json"
         path.write_text(json.dumps(profile, indent=2) + "\n")
         project.record_artifact(S.RECOVERY, FileArtifact(A.PLATFORM_PROFILE, path))
@@ -195,6 +199,8 @@ def verify(project):
                 ],
                 "timeout_seconds": 120,
             }
+            if "native" in profile:
+                case = {"native_case": "boot"}
             boot = executor.boot(
                 profile,
                 worktree,
@@ -299,7 +305,12 @@ def run_case(project, case_path):
         case = json.loads(case_path.read_text())
         from .guest import validate_case
 
-        validate_case(case)
+        if "native" in profile:
+            from .native import validate_case as validate_native_case
+
+            validate_native_case(profile, case)
+        else:
+            validate_case(case)
         artifact = Path(
             os.environ.get("DPF_RUNTIME_ARTIFACT", str(worktree / ".dpf-output/runtime-artifact"))
         ).resolve()
@@ -437,6 +448,14 @@ def context(project):
                 "Complete raw results remain in the returned logs.",
             },
         )
+        if "native" in profile:
+            value["route"].pop("qemu_args", None)
+            value["route"]["qemu_args_source"] = "frozen tools/qemu_args.sh normal"
+            value["case_interface"] = {
+                "path": ".dpf-output/harness/public/native-*.json",
+                "invoke": "Use the installed case IDs with driver_checks.check. "
+                "All test stimuli and assertions are already provided; do not author cases.",
+            }
     except (WorkflowError, OSError, KeyError):
         value["status"] = "NOT_VERIFIED"
     return value

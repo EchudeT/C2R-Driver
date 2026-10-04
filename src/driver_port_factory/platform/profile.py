@@ -72,6 +72,19 @@ def asterinas(image, image_id, revision, accelerator, *, machine="q35"):
 
 
 def container_argv(profile, worktree, name, command, *, build, cache_key, artifact=None):
+    if "native" in profile:
+        from .native_runner import container_argv as native_argv
+
+        native = profile["native"]
+        return native_argv(
+            native["environment"],
+            native["root"],
+            worktree,
+            name,
+            command,
+            network=build or native["driver"] == "virtio-net",
+            artifact=artifact,
+        )
     argv = [
         "docker",
         "run",

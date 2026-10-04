@@ -3,8 +3,9 @@
 from pathlib import Path
 
 from common import docker, git, read, sha, write
-from oracle import summaries as summaries
 from prepare import setup_assets
+
+from driver_port_factory.platform.native_runner import BUILD, runtime_identity
 
 
 def source_files(target):
@@ -13,7 +14,20 @@ def source_files(target):
             "\0"
         )
         return {n: sha(target / n) if (target / n).is_file() else None for n in names if n}
-    return None
+    # Operator exports have no Git history. Bind the same source bytes, excluding build data.
+    import os
+
+    from prepare import artifact_ignore
+
+    files = {}
+    for directory, dirs, names in os.walk(target):
+        excluded = artifact_ignore(directory, [*dirs, *names])
+        dirs[:] = [d for d in dirs if d not in excluded]
+        for name in names:
+            path = Path(directory) / name
+            if name not in excluded and path.is_file():
+                files[str(path.relative_to(target))] = sha(path)
+    return files
 
 
 def check(root, name, target, output, mode):
@@ -30,15 +44,7 @@ def check(root, name, target, output, mode):
     build = docker(
         root,
         target,
-        [
-            "cargo",
-            "osdk",
-            "build",
-            "--initramfs=/root/asterinas/target/native-tests/initramfs.cpio.gz",
-            "--kcmd-args=console=ttyS0",
-            "--kcmd-args=earlycon",
-            "--kcmd-args=loglevel=error",
-        ],
+        BUILD,
         output / "build.log",
         network=True,
     )
@@ -48,6 +54,7 @@ def check(root, name, target, output, mode):
         "build": build,
         "tests": [],
         "environment": read(root / "environment.json"),
+        "runtime_identity": runtime_identity(),
         "status": "BUILD_FAILED",
     }
     if not build["exit_code"]:
@@ -57,6 +64,8 @@ def check(root, name, target, output, mode):
         result["status"] = "BOOT_FAILED"
         if result["boot_passed"]:
             run_oracles(root, name, target, output, task, result)
+            if any(row["artifact_sha256"] != boot["artifact_sha256"] for row in result["tests"]):
+                raise ValueError("A complete suite must run on one identical final ISO")
             if mode == "negative":
                 result["status"] = (
                     "NEGATIVE_CONTROL_PASS"
@@ -84,11 +93,14 @@ def check(root, name, target, output, mode):
     return result
 
 
-def runtime(root, target, case, output):
-    artifact = target / "target/osdk/asterinas-osdk-bin.iso"
-    relative = Path("target/native-tests/runs") / output.name
+def runtime(root, target, case, output, artifact=None):
+    import uuid
+
+    artifact = artifact or target / "target/osdk/asterinas-osdk-bin.iso"
+    relative = Path("target/native-tests/runs") / (output.name + "-" + uuid.uuid4().hex[:8])
     guest_output = target / relative
     guest_output.mkdir(parents=True, exist_ok=True)
+    setup_assets(root, target)
     before = sha(artifact)
     observation = docker(
         root,
@@ -97,12 +109,13 @@ def runtime(root, target, case, output):
             "python3",
             "/dpf-runner/runtime.py",
             case,
-            "/root/asterinas/target/osdk/asterinas-osdk-bin.iso",
+            str(artifact),
             "/root/asterinas/" + str(relative),
         ],
         output.with_suffix(".log"),
         network=case.startswith("iperf3/"),
         timeout=200,
+        artifact=artifact,
     )
     path = guest_output / "result.json"
     result = read(path) if path.exists() else {"status": "ERROR", "boot_passed": False}
@@ -119,10 +132,6 @@ def run_oracles(root, name, target, output, task, result):
 
 
 def verify_inputs(root, target):
-    profile = read(root / "environment.json")
-    if sha(root / "shared/sdk/cargo-osdk") != profile["sdk_sha256"]:
-        raise ValueError("The common SDK changed")
-    for relative, expected in read(root / "shared/oracle-sources.json").items():
-        path = target / relative
-        if not path.is_file() or sha(path) != expected:
-            raise ValueError("Frozen upstream test/boot source changed: " + relative)
+    from driver_port_factory.platform.native_runner import verify_inputs as verify
+
+    verify(root, target)

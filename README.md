@@ -90,7 +90,8 @@ export DPF_SHARED_KB=/path/to/shared-driver-knowledge
 
 ## 原实现移除实验与 Codex baseline
 
-RNG、Block、Network、NVMe 的统一环境与原生测试入口见[原生驱动实验协议](docs/experiments/NATIVE_DRIVER_SUITE.zh-CN.md)。计划第五项 Vsock 因本机缺少 `/dev/vhost-vsock` 暂不启用。
+独立环境仓库：[C2R-Driver/driver-experiment-env](https://github.com/C2R-Driver/driver-experiment-env)。
+RNG、Block、Network、NVMe 的统一环境与原生测试入口见[原生驱动实验协议](docs/experiments/NATIVE_DRIVER_SUITE.zh-CN.md)。第五项 Vsock 因本机缺少 `/dev/vhost-vsock` 暂不启用。
 
 该实验与上面的 evbug/NE2000 固定公开套件使用不同的、明确冻结的内核版本。不要混用旧镜像、旧工作树或曾翻译成功的候选。原始基线正向检查、可启动空心基线负向检查、DPF/Codex 输入副本和最终公共验收使用同一套方法无关工具。
 
@@ -99,7 +100,7 @@ RNG、Block、Network、NVMe 的统一环境与原生测试入口见[原生驱�
 - 已有 `pvpanic-pci`、`evbug`、`ne2k-pci` 的预置设备测试；模型适配接口，不修改断言。
 - 2026-10-03/04 的 luna-medium evbug 和 NE2000 运行均完成最终公开三项测试。NE2000 实现约2.5小时，仍有明显效率改进空间。
 - 其他驱动的 catalog 只描述输入身份，不代表已完成翻译或验收。
-- 原生移除实验使用未改写的星绽测例；准备状态、正负控制与覆盖限制见实验文档。
+- 原生移除实验的 RNG、Block、Network、NVMe 正负控制及 DPF 运行适配器均已验证；尚未运行该套件上的模型翻译。
 - 公开测试、自检和可选审阅不能替代独立私有评测，也不能证明所有硬件行为正确。
 
 ## 开发与文档

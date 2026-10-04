@@ -72,7 +72,7 @@ def hollow(target, name, task):
         net = target / "kernel/core/src/net/iface/init.rs"
         text = net.read_text().replace("aster_virtio::device::network::DEVICE_NAME", '"Virtio-Net"')
         start = text.index("fn new_virtio() -> Option<Arc<Iface>> {")
-        end = text.index('\n#[cfg(target_arch = "x86_64")]\nfn new_ne2k()', start)
+        end = len(text)  # new_virtio is the last function in the pinned upstream file.
         text = (
             text[:start]
             + (

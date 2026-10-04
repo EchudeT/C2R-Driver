@@ -15,7 +15,6 @@ from driver_port_factory.core.execution import CommandRunner
 from driver_port_factory.core.models import WorkflowError
 from driver_port_factory.platform import dependencies, integration, service, worker
 from tests.test_platform_execution import (
-    IMAGE,
     IMAGE_ID,
     boot_fixture,
     build_fixture,
@@ -43,8 +42,6 @@ def test_environment_mcp_waits_for_completion_and_monitor_reads_logs(tmp_path):
                 "name": "platform",
                 "arguments": {
                     "action": "bootstrap",
-                    "image": IMAGE,
-                    "accelerator": "tcg",
                 },
             },
         },
@@ -103,7 +100,7 @@ def test_platform_tool_rejects_stale_job_action_and_uploaded_verdict(tmp_path):
 def test_platform_failure_or_cancellation_keeps_terminal_activity(tmp_path, error):
     project = platform_project(tmp_path)
     job, _ = environment_job(project)
-    args = {"action": "bootstrap", "image": IMAGE, "accelerator": "tcg"}
+    args = {"action": "bootstrap"}
     with patch("driver_port_factory.environment.bootstrap.prepare", side_effect=error):
         if isinstance(error, Exception):
             value = respond(
@@ -156,7 +153,7 @@ def test_lock_resolution_precedes_freeze_and_drift_never_publishes(tmp_path, fau
         patch.object(service.executor, "build", side_effect=build_fixture),
         patch.object(service.executor, "boot", side_effect=boot_fixture),
     ):
-        service.prepare(project, IMAGE, "tcg")
+        service.prepare(project)
         service.verify(project)
         worktree, _ = service.location(project)
         (worktree / "Cargo.toml").write_text("[workspace]\nmembers=[]\n")

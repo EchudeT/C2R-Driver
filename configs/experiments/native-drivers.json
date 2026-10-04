@@ -102,5 +102,7 @@
       "benchmarks": [],
       "qemu_model": "vhost-vsock-pci"
     }
-  }
+  },
+  "image_id": "sha256:a2c8b011ebe635fc7257fe9edaf4135b76c278600374536539edd41125fb4dca",
+  "sdk_reuse_sha256": "52a0f790dfd78c08d130bb3a99bb84a5efd8fd695f90261d297aa2b174de1659"
 }

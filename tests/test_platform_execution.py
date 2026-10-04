@@ -98,12 +98,17 @@ def test_container_route_does_not_mask_tools_or_switch_accelerator(tmp_path):
         guest.validate_case({"steps": [{"make_up_success": True}]})
 
 
-def platform_project(tmp_path):
+def platform_project(tmp_path, *, accelerator="tcg"):
     from driver_port_factory.acquisition.repository import RepositoryAcquirer
     from tests.acquisition_support import close_evidence
     from tests.repository_support import project_config, ready_project
 
-    config = replace(project_config(), target_platform="asterinas")
+    config = replace(
+        project_config(),
+        target_platform="asterinas",
+        platform_image=IMAGE,
+        platform_accelerator=accelerator,
+    )
     files = {
         p: "synthetic fixture\n"
         for p in ("Makefile", "OSDK.toml", "rust-toolchain.toml", "tools/qemu_args.sh")
@@ -144,7 +149,7 @@ def boot_fixture(profile, worktree, directory, artifact, case, cache_key):
 def test_platform_receipt_is_required_stale_evidence_and_failed_retry_do_not_pass(tmp_path):
     project = platform_project(tmp_path)
     with patch.object(service, "image_identity", return_value=IMAGE_ID):
-        service.prepare(project, IMAGE, "tcg")
+        service.prepare(project)
         assert service.route_errors(project, {"image_ids": [IMAGE_ID]}) == []
         assert service.route_errors(project, {"image_ids": ["different-image"]})
         with pytest.raises(WorkflowError, match="Missing"):
@@ -183,7 +188,7 @@ def test_delivery_rejects_source_artifact_image_drift_and_failed_build(tmp_path,
         patch.object(service.executor, "build", side_effect=build_fixture),
         patch.object(service.executor, "boot", side_effect=boot_fixture),
     ):
-        service.prepare(project, IMAGE, "tcg")
+        service.prepare(project)
         service.verify(project)
         worktree, _ = service.location(project)
         for name in ("implementation-smoke.sh", "public-qemu.sh"):
@@ -275,13 +280,13 @@ def test_two_expected_events_cannot_reuse_one_observation(tmp_path):
 
 
 def test_container_kvm_is_not_rejected_for_host_user_permissions(tmp_path):
-    project = platform_project(tmp_path)
+    project = platform_project(tmp_path, accelerator="kvm")
     with (
         patch.object(service, "image_identity", return_value=IMAGE_ID),
         patch.object(service.os, "access", return_value=False),
         patch.object(Path, "is_char_device", return_value=True),
     ):
-        receipt = service.prepare(project, IMAGE, "kvm")
+        receipt = service.prepare(project)
         assert receipt["status"] == "PREPARED_NOT_VERIFIED"
         assert service.load(project)[0]["accelerator"] == "kvm"
         with pytest.raises(WorkflowError, match="Missing"):
@@ -290,4 +295,4 @@ def test_container_kvm_is_not_rejected_for_host_user_permissions(tmp_path):
         patch.object(Path, "is_char_device", return_value=False),
         pytest.raises(WorkflowError, match="missing; no TCG fallback"),
     ):
-        service.prepare(project, IMAGE, "kvm")
+        service.prepare(project)

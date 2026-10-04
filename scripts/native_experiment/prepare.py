@@ -1,5 +1,6 @@
 """Operator-only positive baseline and sanitized experiment preparation. No model calls."""
 
+import os
 import shutil
 import subprocess
 import tarfile
@@ -28,22 +29,32 @@ def export(repository, revision, target, paths=()):
 
 
 def root_commit(target):
-    git(target, "init", "-q")
+    git(target, "-c", "init.defaultBranch=main", "init", "-q")
     git(target, "add", ".")
-    git(
-        target,
-        "-c",
-        "user.name=Native experiment preparation",
-        "-c",
-        "user.email=experiment@localhost",
-        "commit",
-        "-qm",
-        "Sanitized experiment baseline",
+    subprocess.run(
+        [
+            "git",
+            "-C",
+            str(target),
+            "-c",
+            "user.name=Native experiment preparation",
+            "-c",
+            "user.email=experiment@localhost",
+            "commit",
+            "-qm",
+            "Sanitized experiment baseline",
+        ],
+        check=True,
+        env={
+            **os.environ,
+            "GIT_AUTHOR_DATE": "2000-01-01T00:00:00Z",
+            "GIT_COMMITTER_DATE": "2000-01-01T00:00:00Z",
+        },
     )
     return git(target, "rev-parse", "HEAD")
 
 
-def prepare(root, source, target, qemu):
+def prepare(root, source, target, qemu, sdk_source=None):
     if root.exists():
         raise ValueError("Use a new suite directory; existing evidence is never overwritten")
     config = read(CONFIG)
@@ -61,6 +72,8 @@ def prepare(root, source, target, qemu):
     image = subprocess.check_output(
         ["docker", "image", "inspect", "--format", "{{.Id}}", config["image"]], text=True
     ).strip()
+    if image != config["image_id"]:
+        raise ValueError("Docker tag no longer resolves to the pinned image ID")
     write(
         root / "environment.json",
         {
@@ -92,8 +105,11 @@ def prepare(root, source, target, qemu):
     manifest.write_text(manifest.read_text().replace('init_args = ["sh", "-l"]', "init_args = []"))
     sdk = root / "shared/sdk"
     sdk.mkdir()
-    existing_sdk = target / "osdk/target/release/cargo-osdk"
-    if existing_sdk.is_file():
+    existing_sdk = sdk_source or target / "osdk/target/release/cargo-osdk"
+    reuse_sdk = existing_sdk.is_file() and sha(existing_sdk) == config["sdk_reuse_sha256"]
+    if sdk_source is not None and not reuse_sdk:
+        raise ValueError("Supplied SDK does not match the verified local-development SDK hash")
+    if reuse_sdk:
         print("Reusing the existing local-development SDK", flush=True)
         shutil.copy2(existing_sdk, sdk / "cargo-osdk")
     else:
@@ -113,7 +129,7 @@ def prepare(root, source, target, qemu):
         root / "shared/sdk.json",
         {
             "sha256": sha(sdk / "cargo-osdk"),
-            "source": "existing-local-sdk" if existing_sdk.is_file() else "pinned-source-build",
+            "source": "verified-local-sdk" if reuse_sdk else "pinned-source-build",
         },
     )
     tests = [p for t in config["drivers"].values() if t.get("enabled", True) for p in t["tests"]]
@@ -156,6 +172,8 @@ def prepare(root, source, target, qemu):
     )
     if receipt["exit_code"]:
         raise RuntimeError("Tool identity capture failed")
+    from driver_port_factory.platform.native_runner import runtime_identity
+
     profile = read(root / "environment.json")
     profile.update(
         {
@@ -163,6 +181,7 @@ def prepare(root, source, target, qemu):
             "initramfs_sha256": sha(root / "shared/initramfs.cpio.gz"),
             "tools_log_sha256": sha(root / "operator/tools.log"),
             "runner": {p.name: sha(p) for p in HERE.glob("*.py")},
+            "runtime_identity": runtime_identity(),
         }
     )
     write(root / "environment.json", profile)
@@ -224,6 +243,9 @@ def publish(root, name, source):
     seed.mkdir(parents=True)
     # No original objects, compile products, operator logs or hidden Git alternates are exported.
     shutil.copytree(original, seed / "target", symlinks=True, ignore=artifact_ignore)
+    write(
+        seed / "target/.native-task.json", {"driver": name, "upstream": config["target_revision"]}
+    )
     base = root_commit(seed / "target")
     common = ["include", "drivers/virtio"]
     paths = list(dict.fromkeys([*task["source_entries"], *common]))
@@ -242,26 +264,32 @@ def publish(root, name, source):
             "environment": read(root / "environment.json"),
         },
     )
+    audit_seed(root, name)
     print("Published one sanitized seed; trials are created only when started:", name, flush=True)
 
 
-def create_trial(root, name, method):
+def create_trial(root, name, method, qemu, factory=None, trial_name="01"):
     seed = root / "seeds" / name
     task = read(seed / "task.json")
-    trial = root / "trials" / method / name
+    audit = read(root / "operator" / name / "seed-audit.json")
+    if audit["status"] != "PASS" or audit["root_commit"] != task["target_root_commit"]:
+        raise ValueError("Trial requires a successfully audited sanitized seed")
+    trial = root / "trials" / method / name / trial_name
     trial.mkdir(parents=True, exist_ok=False)
-    for role in ("target", "source"):
+    for role in ("target", "source") if method == "codex" else ():
         subprocess.run(
             ["git", "clone", "-q", "--no-hardlinks", str(seed / role), str(trial / role)],
             check=True,
         )
         git(trial / role, "remote", "remove", "origin")
     shutil.copy2(seed / "task.json", trial / "task.json")
-    setup_assets(root, trial / "target")
+    if method == "codex":
+        setup_assets(root, trial / "target")
     write(
         trial / "baseline.json",
         {
             "method": method,
+            "trial": trial_name,
             "driver": name,
             "target_commit": task["target_root_commit"],
             "source_commit": task["source_root_commit"],
@@ -269,13 +297,15 @@ def create_trial(root, name, method):
         },
     )
 
+    from launch import prepare_launch
+
+    prepare_launch(root, name, method, trial, qemu, factory)
+
 
 def setup_assets(root, target):
-    (target / "target/native-tests").mkdir(parents=True, exist_ok=True)
-    (target / "test/initramfs/build").mkdir(parents=True, exist_ok=True)
-    copy_sparse(root / "shared/initramfs.cpio.gz", target / "target/native-tests/initramfs.cpio.gz")
-    for disk in (root / "shared/disks").glob("*.img"):
-        copy_sparse(disk, target / "test/initramfs/build" / disk.name)
+    from driver_port_factory.platform.native_runner import setup
+
+    setup(root, target)
 
 
 def artifact_ignore(directory, names):
@@ -293,3 +323,29 @@ def freeze_oracles(root, original):
     paths += list((original / "tools/net").rglob("*"))
     files = {str(p.relative_to(original)): sha(p) for p in paths if p.is_file()}
     write(root / "shared/oracle-sources.json", files)
+
+
+def audit_seed(root, name):
+    target = root / "seeds" / name / "target"
+    if len(git(target, "rev-list", "--all").splitlines()) != 1:
+        raise ValueError("Sanitized repository must contain exactly one root commit")
+    if len(git(target, "rev-list", "--parents", "HEAD").split()) != 1:
+        raise ValueError("Sanitized commit has ancestors")
+    if (target / ".git/objects/info/alternates").exists() or git(target, "remote"):
+        raise ValueError("Sanitized repository contains an external object source")
+    if git(target, "fsck", "--full", "--no-reflogs", "--unreachable"):
+        raise ValueError("Sanitized repository contains extra unreachable objects")
+    forbidden = set(read(root / "operator/ground-truth.json")["files"][name].values())
+    for relative in git(target, "ls-files", "-z").split("\0"):
+        if relative and (target / relative).is_file() and sha(target / relative) in forbidden:
+            raise ValueError("Withheld implementation bytes present: " + relative)
+    write(
+        root / "operator" / name / "seed-audit.json",
+        {
+            "status": "PASS",
+            "root_commit": git(target, "rev-parse", "HEAD"),
+            "scope": (
+                "one root commit, no remote/alternates/unreachable objects or withheld file bytes"
+            ),
+        },
+    )
