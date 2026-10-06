@@ -97,6 +97,8 @@ RNG、Block、Network、NVMe 的统一环境与原生测试入口见[原生驱�
 
 正式对照入口见[Factory 与纯 Codex＋goal 比较说明](docs/experiments/FACTORY_CODEX_COMPARISON.zh-CN.md)。Factory 可以使用自己的知识库和迁移工具；baseline 只使用通用工具和上游命令，不提供我们的 build/check 或迁移工具。两组固定同一模型、环境、输入和断言；通过 Codex 原生 goal 接口启动 baseline，记录完整任务 token、本地费用、起止时间及总时长，导出 CSV。工作区和 Docker 挂载隔离已做本地检查，端到端模型实验尚未执行。
 
+evbug 和 NE2000 PCI 已加入环境仓库的补充对照任务，准备脚本与任务配置由环境仓库维护；见[补充实验说明](https://github.com/C2R-Driver/driver-experiment-env/blob/main/docs/experiments/PUBLIC_DRIVER_SUITE.zh-CN.md)。六项 baseline 共用同一个提示词模板。新增官方环境组合尚未运行验证，旧翻译 PASS 不能计入本次结果。
+
 ## 当前验证范围
 
 - 已有 `pvpanic-pci`、`evbug`、`ne2k-pci` 的预置设备测试；模型适配接口，不修改断言。

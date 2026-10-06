@@ -102,13 +102,17 @@ def runtime(root, target, case, output, artifact=None):
     guest_output.mkdir(parents=True, exist_ok=True)
     setup_assets(root, target)
     before = sha(artifact)
+    tag = target / ".native-task.json"
+    task = read(root / "config.json")["drivers"][read(tag)["driver"]] if tag.exists() else {}
+    runtime_script = task.get("runtime_script", "runtime.py")
+    execution_name = task.get("boot_case", "boot") if case == "boot" else case
     observation = docker(
         root,
         target,
         [
             "python3",
-            "/dpf-runner/runtime.py",
-            case,
+            "/dpf-runner/" + runtime_script,
+            execution_name,
             str(artifact),
             "/root/asterinas/" + str(relative),
         ],
@@ -135,3 +139,6 @@ def verify_inputs(root, target):
     from driver_port_factory.platform.native_runner import verify_inputs as verify
 
     verify(root, target)
+    from driver_port_factory.platform.public_fixture import verify as verify_public
+
+    verify_public(root, target)

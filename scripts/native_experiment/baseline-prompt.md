@@ -8,8 +8,8 @@ kernel is at `${target}`. Source entry points and context-navigation hints:
 
 ${source_entries}
 
-Target implementation location: `${target_location}`. The target has only this
-driver removed. Retain the existing bus, transport, queues, DMA, IRQ and upper
+Target implementation location: `${target_location}`. Target baseline: ${target_baseline}.
+Retain the existing bus, transport, queues, DMA, IRQ and upper
 subsystems; make the necessary real integration changes.
 
 Linux revision: `${linux_revision}`.
@@ -55,6 +55,8 @@ Provided public cases:
 
 ${public_cases}
 
+${public_interface}
+
 ## Autonomous execution
 
 Pursue the native persistent goal established for this session. Decide how to
@@ -76,7 +78,7 @@ Mount `${shared_assets}` read-only at `/experiment-assets`, and put
 with `OSDK_LOCAL_DEV=1`, `RUSTUP_TOOLCHAIN=nightly-2026-07-21`,
 `CARGO_INCREMENTAL=0`, `CARGO_PROFILE_DEV_DEBUG=0`, `CARGO_BUILD_JOBS=4`, and
 `VDSO_LIBRARY_DIR=/root/linux_vdso`. The full test initramfs is
-`/experiment-assets/initramfs.cpio.gz`. Retain the upstream OVMF/device profile.
+`/experiment-assets/initramfs.cpio.gz`. ${runtime_profile_rule}
 
 You may inspect tests, adapt real driver interfaces and create your own command
 scripts for native build/test execution. Do not write substitute assertions.

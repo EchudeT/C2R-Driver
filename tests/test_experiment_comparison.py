@@ -181,6 +181,22 @@ def test_baseline_prompts_are_specific_source_driven_and_do_not_supply_factory_t
         assert "Do not implement only what the tests inspect" in prompt
         assert "No\nFactory-written build.sh" in prompt
         assert "Use `./build.sh`" not in prompt
+    for driver, fixture, machine in (
+        ("evbug", "input/src/dpf_evbug_public.rs", "q35"),
+        ("ne2k-pci", "network/src/dpf_ne2k_public.rs", "pc"),
+    ):
+        task = config["drivers"]["virtio-rng"] | {
+            "driver": driver,
+            "suite_kind": "fixed-public-fixture",
+            "machine": machine,
+            "fixture_file": "kernel/core/comps/" + fixture,
+            "target_baseline": "original upstream target without this driver",
+        }
+        prompt = render(task, "/worker", "/qemu", config)
+        assert task["fixture_file"] in prompt
+        assert f"QEMU machine: `{machine}`" in prompt
+        assert "no such tools are supplied to this baseline" in prompt
+        assert "Only the unchanged fixture may emit its test success markers" in prompt
 
 
 def test_native_goal_is_established_before_the_user_turn_without_inference():

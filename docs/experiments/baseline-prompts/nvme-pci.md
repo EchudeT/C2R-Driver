@@ -1,4 +1,4 @@
-> 提示词预览；实际运行会填入当前 trial 的绝对路径。不是实验结果。
+> 提示词预览；同一模板，仅填入任务信息。
 
 # Pure Codex + goal: nvme-pci
 
@@ -11,8 +11,8 @@ kernel is at `/workspace/nvme-pci/target`. Source entry points and context-navig
 - `/workspace/nvme-pci/source/drivers/nvme/host`
 - `/workspace/nvme-pci/source/include/linux/nvme.h`
 
-Target implementation location: `/workspace/nvme-pci/target/kernel/core/comps/nvme/src`. The target has only this
-driver removed. Retain the existing bus, transport, queues, DMA, IRQ and upper
+Target implementation location: `/workspace/nvme-pci/target/kernel/core/comps/nvme/src`. Target baseline: only this driver has been removed.
+Retain the existing bus, transport, queues, DMA, IRQ and upper
 subsystems; make the necessary real integration changes.
 
 Linux revision: `587858367581b9c55c3690f4e63382ad622719d4`.
@@ -57,6 +57,8 @@ PCI NVMe controller and namespace initialization, request completion and native 
 Provided public cases:
 
 - `test/initramfs/src/regression/device/nvme.c`
+
+
 
 ## Autonomous execution
 

@@ -1,4 +1,4 @@
-> 提示词预览；实际运行会填入当前 trial 的绝对路径。不是实验结果。
+> 提示词预览；同一模板，仅填入任务信息。
 
 # Pure Codex + goal: virtio-rng
 
@@ -17,8 +17,8 @@ kernel is at `/workspace/virtio-rng/target`. Source entry points and context-nav
 - `/workspace/virtio-rng/source/include/uapi/linux/virtio_ring.h`
 - `/workspace/virtio-rng/source/include/uapi/linux/virtio_config.h`
 
-Target implementation location: `/workspace/virtio-rng/target/kernel/core/comps/virtio/src/device/entropy`. The target has only this
-driver removed. Retain the existing bus, transport, queues, DMA, IRQ and upper
+Target implementation location: `/workspace/virtio-rng/target/kernel/core/comps/virtio/src/device/entropy`. Target baseline: only this driver has been removed.
+Retain the existing bus, transport, queues, DMA, IRQ and upper
 subsystems; make the necessary real integration changes.
 
 Linux revision: `587858367581b9c55c3690f4e63382ad622719d4`.
@@ -63,6 +63,8 @@ Translate Linux VirtIO RNG hardware behavior into the existing Asterinas entropy
 Provided public cases:
 
 - `test/initramfs/src/regression/device/hwrng.c`
+
+
 
 ## Autonomous execution
 

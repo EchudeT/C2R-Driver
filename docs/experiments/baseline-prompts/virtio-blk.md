@@ -1,4 +1,4 @@
-> 提示词预览；实际运行会填入当前 trial 的绝对路径。不是实验结果。
+> 提示词预览；同一模板，仅填入任务信息。
 
 # Pure Codex + goal: virtio-blk
 
@@ -18,8 +18,8 @@ kernel is at `/workspace/virtio-blk/target`. Source entry points and context-nav
 - `/workspace/virtio-blk/source/include/uapi/linux/virtio_ring.h`
 - `/workspace/virtio-blk/source/include/uapi/linux/virtio_config.h`
 
-Target implementation location: `/workspace/virtio-blk/target/kernel/core/comps/virtio/src/device/block`. The target has only this
-driver removed. Retain the existing bus, transport, queues, DMA, IRQ and upper
+Target implementation location: `/workspace/virtio-blk/target/kernel/core/comps/virtio/src/device/block`. Target baseline: only this driver has been removed.
+Retain the existing bus, transport, queues, DMA, IRQ and upper
 subsystems; make the necessary real integration changes.
 
 Linux revision: `587858367581b9c55c3690f4e63382ad622719d4`.
@@ -66,6 +66,8 @@ Provided public cases:
 - `test/initramfs/src/regression/io/file_io/block_device.c`
 - `test/initramfs/src/regression/fs/ext2/file_io.c`
 - `test/initramfs/src/regression/fs/ext2/short_rw.c`
+
+
 
 ## Autonomous execution
 

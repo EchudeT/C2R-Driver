@@ -1,4 +1,4 @@
-> 提示词预览；实际运行会填入当前 trial 的绝对路径。不是实验结果。
+> 提示词预览；同一模板，仅填入任务信息。
 
 # Pure Codex + goal: virtio-net
 
@@ -16,8 +16,8 @@ kernel is at `/workspace/virtio-net/target`. Source entry points and context-nav
 - `/workspace/virtio-net/source/include/uapi/linux/virtio_ring.h`
 - `/workspace/virtio-net/source/include/uapi/linux/virtio_config.h`
 
-Target implementation location: `/workspace/virtio-net/target/kernel/core/comps/virtio/src/device/network`. The target has only this
-driver removed. Retain the existing bus, transport, queues, DMA, IRQ and upper
+Target implementation location: `/workspace/virtio-net/target/kernel/core/comps/virtio/src/device/network`. Target baseline: only this driver has been removed.
+Retain the existing bus, transport, queues, DMA, IRQ and upper
 subsystems; make the necessary real integration changes.
 
 Linux revision: `587858367581b9c55c3690f4e63382ad622719d4`.
@@ -64,6 +64,8 @@ Provided public cases:
 - `iperf3/tcp_virtio_bw`
 - `iperf3/udp_virtio_bw_rx`
 - `iperf3/udp_virtio_bw_tx`
+
+
 
 ## Autonomous execution
 

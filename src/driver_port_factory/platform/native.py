@@ -56,6 +56,9 @@ def configure(project, worktree, profile):
 def verify_inputs(root, target):
     try:
         check_inputs(root, target)
+        from .public_fixture import verify
+
+        verify(root, target)
     except ValueError as error:
         raise WorkflowError(str(error)) from error
 
@@ -78,6 +81,10 @@ def definition(project):
             "assertions, boot profile, or test wrappers. Device-unavailable skips do not pass.\n"
         )
     }
+    from .public_fixture import prepared_files
+
+    if config["task"].get("suite_kind") == "fixed-public-fixture":
+        files.update(prepared_files(config["root"], config["driver"]))
     rows = []
     for index, case in enumerate(case_names(config["task"]), 1):
         name = f"native-{config['driver']}-{index}"
@@ -112,11 +119,14 @@ def boot(profile, worktree, directory, artifact, case, cache_key):
     setup(root, worktree)
     directory.mkdir(parents=True, exist_ok=True)
     before = file_sha256(artifact)
+    task = profile["native"]["task"]
+    runtime_script = task.get("runtime_script", "runtime.py")
+    execution_name = task.get("boot_case", "boot") if name == "boot" else name
     result = executor.container(
         profile,
         worktree,
         directory,
-        ["python3", "/dpf-runner/runtime.py", name, str(artifact), str(directory)],
+        ["python3", "/dpf-runner/" + runtime_script, execution_name, str(artifact), str(directory)],
         build=False,
         cache_key=cache_key,
         timeout=200,

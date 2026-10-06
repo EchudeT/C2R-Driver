@@ -354,6 +354,10 @@ def collect(protocol_path, method):
         | outcome
         | {
             "driver": protocol["driver"],
+            "suite_kind": protocol["task"].get("suite_kind", "upstream-native"),
+            "source_revision": protocol["task"]["upstream_linux"],
+            "target_revision": protocol["task"]["upstream_asterinas"],
+            "image_id": protocol["task"]["environment"]["image_id"],
             "trial": protocol["trial"],
             "model": protocol["model"],
             "reasoning_effort": protocol["reasoning_effort"],
@@ -364,7 +368,9 @@ def collect(protocol_path, method):
             "pricing": protocol["pricing"],
             "unknown_usage_calls": unknown,
             "baseline_identity_confirmed": method == "dpf" or bool(record.get("native_goal")),
-            "case_unit": "fixed upstream test executable or benchmark script",
+            "case_unit": protocol["task"].get(
+                "case_unit", "fixed upstream test executable or benchmark script"
+            ),
         }
     )
     write(directory / "result.json", result)
