@@ -114,6 +114,9 @@ class CodexExecGateway:
                          str(job.checks_project), job.job_id],
                 "env": {"PYTHONPATH": os.pathsep.join(filter(None, (
                     source_root, os.environ.get("PYTHONPATH"))))},
+                # Codex filters the MCP environment separately from terminal commands.
+                # Forward these names from the actual isolated worker, not host values.
+                "env_vars": ["PATH", "C2R_DOCKER_BROKER", "DPF_NATIVE_SUITE"],
                 "tool_timeout_sec": 86400,
             }
             for name, value in config.items():

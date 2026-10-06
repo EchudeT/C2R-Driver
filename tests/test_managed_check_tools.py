@@ -136,6 +136,7 @@ def test_gateway_registers_per_job_tool_for_fresh_and_resumed_sessions(tmp_path)
         assert server["args"][-2:] == [str(tmp_path), job.job_id]
         assert server["tool_timeout_sec"] == 86400
         assert "PYTHONPATH" in server["env"]
+        assert server["env_vars"] == ["PATH", "C2R_DOCKER_BROKER", "DPF_NATIVE_SUITE"]
 
 
 def test_mcp_termination_reaps_the_owned_running_development_command(tmp_path):
