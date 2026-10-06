@@ -83,6 +83,9 @@ with `OSDK_LOCAL_DEV=1`, `RUSTUP_TOOLCHAIN=nightly-2026-07-21`,
 log level is part of the shared environment; diagnostic assertions require its
 observable output. For KVM execution, Docker must receive `--device /dev/kvm`;
 seeing the device in the worker namespace does not expose it inside Docker.
+The official image's QEMU executable is
+`/usr/local/qemu/bin/qemu-system-x86_64`; use this absolute path or add
+`/usr/local/qemu/bin` to the container PATH. A login shell may omit it.
 ${runtime_profile_rule}
 
 You may inspect tests, adapt real driver interfaces and create your own command
