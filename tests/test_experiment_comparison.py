@@ -273,4 +273,10 @@ def test_real_namespace_hides_neighboring_answer_files_and_host_docker_socket(tm
         "assert not Path('/var/run/docker.sock').exists(); "
         "assert not Path('/home/unix/.codex').exists()"
     )
+    for device in ("/dev/kvm", "/dev/net/tun"):
+        if Path(device).is_char_device():
+            program += (
+                f"; assert Path({device!r}).is_char_device(); "
+                f"assert Path({device!r}).stat().st_rdev == {Path(device).stat().st_rdev}"
+            )
     subprocess.run(namespace_command(manifest, ["/bin/python3.11", "-c", program]), check=True)

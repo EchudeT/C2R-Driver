@@ -31,9 +31,9 @@ def prepare_view(protocol, trial, directory, method, bwrap, broker_path):
     factory, root = Path(protocol["factory"]), Path(protocol["root"])
     executable, runtime = codex_paths(protocol["codex_bin"])
     home = directory / "model-home"
-    home.mkdir()
+    home.mkdir(exist_ok=True)
     # Never inherit host skills, memories, plugins or credentials from ~/.codex.
-    (home / "config.toml").write_text("")
+    (home / "config.toml").touch(exist_ok=True)
     readonly = [root / "shared", Path(protocol["qemu"]), *runtime]
     if method == "dpf":
         readonly += code_paths(factory)

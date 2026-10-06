@@ -23,6 +23,11 @@ def namespace_command(manifest, command):
         "--tmpfs",
         "/tmp",
     ]
+    # A private /dev must still expose the configured QEMU devices. Docker uses
+    # the host device through the broker; platform prerequisite checks run here.
+    for device in ("/dev/kvm", "/dev/net/tun"):
+        if Path(device).is_char_device():
+            argv += ["--dev-bind", device, device]
     for path in ("/usr", "/bin", "/lib", "/lib64"):
         if Path(path).exists():
             argv += ["--ro-bind", path, path]

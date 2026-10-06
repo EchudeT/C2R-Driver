@@ -127,6 +127,13 @@ export PROTOCOL="$SUITE/comparisons/paper-01/virtio-rng/protocol.json"
 
 ## 输出与统计分母
 
+隔离器保留私有 `/dev`，并仅映射宿主已有的 `/dev/kvm` 与 `/dev/net/tun` 字符设备。
+Docker broker 仍只允许这两项设备；不开放宿主 Docker socket、其他工作区或答案目录。
+预检应在实际隔离视图中确认设备可见，并经 broker 在固定 Docker 镜像内确认 KVM 可用；
+仅在宿主运行 `test -e /dev/kvm` 不足以验证这条执行路径。
+若因基础设施错误停止，保留原始失败记录；操作者修复后的原工作区续跑须另外记录干预、
+续跑时间和累计用量，不能作为未经干预的新独立样本。
+
 `comparisons/<trial>/<driver>/protocol.json` 是共同配置；下面的 `dpf/`、`codex/`
 分别保存 `run.json`、`namespace.json`、`result.json` 和日志。baseline 另有
 `goal-state.json`、原生 `events.jsonl`。Factory 原有完整记录仍在自己的 run/.dpf/。
