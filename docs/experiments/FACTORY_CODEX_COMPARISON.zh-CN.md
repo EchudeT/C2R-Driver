@@ -131,6 +131,9 @@ export PROTOCOL="$SUITE/comparisons/paper-01/virtio-rng/protocol.json"
 Docker broker 仍只允许这两项设备；不开放宿主 Docker socket、其他工作区或答案目录。
 预检应在实际隔离视图中确认设备可见，并经 broker 在固定 Docker 镜像内确认 KVM 可用；
 仅在宿主运行 `test -e /dev/kvm` 不足以验证这条执行路径。
+Factory 的镜像检查接受官方命名引用，也接受操作者在项目创建时冻结的完整
+`sha256:<image-ID>`；后一种引用必须与 Docker inspect 的实际 ID 相同。
+共享套件随后继续核对该 ID 与冻结环境一致，模型不能借此选择其他镜像。
 若因基础设施错误停止，保留原始失败记录；操作者修复后的原工作区续跑须另外记录干预、
 续跑时间和累计用量，不能作为未经干预的新独立样本。
 

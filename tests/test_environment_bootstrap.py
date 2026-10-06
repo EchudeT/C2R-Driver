@@ -34,6 +34,23 @@ def docker_stub(tmp_path, monkeypatch):
     return calls
 
 
+def test_operator_frozen_image_id_is_accepted_and_identity_still_checked(
+    tmp_path, docker_stub, monkeypatch
+):
+    project = SimpleNamespace(
+        root=tmp_path,
+        control=tmp_path / ".dpf",
+        config=SimpleNamespace(target_platform="asterinas", platform_image=IMAGE_ID),
+    )
+    assert smoke_recipe.image_identity(project, IMAGE_ID) == IMAGE_ID
+    other_id = "sha256:" + "b" * 64
+    with pytest.raises(WorkflowError, match="official"):
+        smoke_recipe.image_identity(project, other_id)
+    monkeypatch.setenv("FAKE_IMAGE_ID", other_id)
+    with pytest.raises(WorkflowError, match="frozen image ID"):
+        smoke_recipe.image_identity(project, IMAGE_ID)
+
+
 @pytest.mark.parametrize(
     "probe_text,expected", [("echo checked", 0), ("exit 9", 9), ("sleep 5", 124)]
 )

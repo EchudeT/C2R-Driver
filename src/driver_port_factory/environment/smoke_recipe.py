@@ -48,9 +48,11 @@ def binding(project):
 def image_identity(project, image):
     if not isinstance(image, str) or not image or image.startswith("-"):
         raise WorkflowError("Select a local image reference, not Docker options")
-    if target_requires_asterinas_container(
-        project.config.target_platform
-    ) and not is_asterinas_dev_image(image):
+    pinned_id = bool(re.fullmatch(r"sha256:[0-9a-f]{64}", image))
+    operator_pinned = pinned_id and image == getattr(project.config, "platform_image", None)
+    if target_requires_asterinas_container(project.config.target_platform) and not (
+        is_asterinas_dev_image(image) or operator_pinned
+    ):
         raise WorkflowError("Asterinas requires its official asterinas/dev image")
     result = CommandRunner(project.control / "environment" / "image-inspect").run(
         ["docker", "image", "inspect", "--format", "{{.Id}}", image],
@@ -62,6 +64,8 @@ def image_identity(project, image):
         raise WorkflowError(
             f"Selected local image unavailable; no pull or fallback. {result.stderr_path}"
         )
+    if pinned_id and identity != image:
+        raise WorkflowError("Selected local image differs from its frozen image ID")
     return identity
 
 
