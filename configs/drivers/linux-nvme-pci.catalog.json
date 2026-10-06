@@ -1,10 +1,11 @@
 {
   "schema_version": 1,
-  "candidates": [
+  "catalog_id": "linux-nvme-pci-native-suite",
+  "catalog_version": 1,
+  "source_platform": "linux",
+  "drivers": [
     {
       "canonical_name": "nvme-pci",
-      "source_platform": "linux",
-      "source_entry": "drivers/nvme/host/pci.c",
       "device_family": "nvme-pci",
       "bus_or_transport": "PCI",
       "aliases": [],
@@ -20,7 +21,9 @@
         "Pinned Asterinas d4b407ca87de203f79c27c9a83ada1d8223fe280",
         "Public oracle: unchanged upstream tests. No physical hardware, exhaustive failure or performance claim.",
         "Metadata provenance: configs/experiments/native-drivers.json; upstream Linux source and Asterinas tools/qemu_args.sh."
-      ]
+      ],
+      "candidate_id": "linux-nvme-pci",
+      "source_entry_hint": "drivers/nvme/host/pci.c"
     }
   ]
 }

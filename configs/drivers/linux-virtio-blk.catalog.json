@@ -1,10 +1,11 @@
 {
   "schema_version": 1,
-  "candidates": [
+  "catalog_id": "linux-virtio-blk-native-suite",
+  "catalog_version": 1,
+  "source_platform": "linux",
+  "drivers": [
     {
       "canonical_name": "virtio-blk",
-      "source_platform": "linux",
-      "source_entry": "drivers/block/virtio_blk.c",
       "device_family": "virtio-blk",
       "bus_or_transport": "PCI",
       "aliases": [],
@@ -20,7 +21,9 @@
         "Pinned Asterinas d4b407ca87de203f79c27c9a83ada1d8223fe280",
         "Public oracle: unchanged upstream tests. No physical hardware, exhaustive failure or performance claim.",
         "Metadata provenance: configs/experiments/native-drivers.json; upstream Linux source and Asterinas tools/qemu_args.sh."
-      ]
+      ],
+      "candidate_id": "linux-virtio-blk",
+      "source_entry_hint": "drivers/block/virtio_blk.c"
     }
   ]
 }
