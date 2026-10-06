@@ -7,7 +7,7 @@ from pathlib import Path
 
 from ..core.models import WorkflowError
 from ..knowledge.index import file_sha256
-from .native_runner import BUILD, runtime_identity, setup
+from .native_runner import build_command, runtime_identity, setup
 from .native_runner import verify_inputs as check_inputs
 
 
@@ -47,7 +47,7 @@ def configure(project, worktree, profile):
     }
     if frozen is not None and frozen != value:
         raise WorkflowError("Native suite differs from the operator-selected environment")
-    profile.update(native=value, build_argv=list(BUILD), build_network="bridge")
+    profile.update(native=value, build_argv=build_command(environment), build_network="bridge")
     (project.control / "native-suite.json").write_text(json.dumps(value, indent=2) + "\n")
     setup(root, worktree)
     verify_inputs(root, worktree)

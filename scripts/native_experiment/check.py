@@ -5,7 +5,7 @@ from pathlib import Path
 from common import docker, git, read, sha, write
 from prepare import setup_assets
 
-from driver_port_factory.platform.native_runner import BUILD, runtime_identity
+from driver_port_factory.platform.native_runner import build_command, runtime_identity
 
 
 def source_files(target):
@@ -44,7 +44,7 @@ def check(root, name, target, output, mode):
     build = docker(
         root,
         target,
-        BUILD,
+        build_command(read(root / "environment.json")),
         output / "build.log",
         network=True,
     )

@@ -9,6 +9,9 @@ def render(task, workspace, qemu_source, config, shared_assets=None):
     environment = task.get("environment", {})
     values = dict(config) | environment
     values.update(
+        kernel_log_level=environment.get(
+            "kernel_log_level", config.get("kernel_log_level", "error")
+        ),
         driver=task["driver"],
         workspace=str(workspace),
         source=str(workspace / "source"),

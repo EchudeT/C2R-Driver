@@ -21,8 +21,8 @@ Device: `${qemu_model}`. Firmware: `${firmware}`.
 QEMU source evidence: `${qemu_source}` at `${qemu_revision}`.
 The host Rust toolchain is not the execution environment.
 Use the upstream Docker/OSDK/QEMU route described below;
-there are no Factory helper tools in this workspace. Raw host devices and the
-Docker daemon socket are hidden; standard Docker commands reach the fixed
+there are no Factory helper tools in this workspace. Only the configured host devices are visible; the
+Docker daemon socket is hidden; standard Docker commands reach the fixed
 environment through the experiment's task-scoped infrastructure. Do not change
 these settings or substitute devices.
 
@@ -78,7 +78,12 @@ Mount `${shared_assets}` read-only at `/experiment-assets`, and put
 with `OSDK_LOCAL_DEV=1`, `RUSTUP_TOOLCHAIN=nightly-2026-07-21`,
 `CARGO_INCREMENTAL=0`, `CARGO_PROFILE_DEV_DEBUG=0`, `CARGO_BUILD_JOBS=4`, and
 `VDSO_LIBRARY_DIR=/root/linux_vdso`. The full test initramfs is
-`/experiment-assets/initramfs.cpio.gz`. ${runtime_profile_rule}
+`/experiment-assets/initramfs.cpio.gz`. Use the frozen kernel command line
+`console=ttyS0 earlycon loglevel=${kernel_log_level}` for builds and boots. This
+log level is part of the shared environment; diagnostic assertions require its
+observable output. For KVM execution, Docker must receive `--device /dev/kvm`;
+seeing the device in the worker namespace does not expose it inside Docker.
+${runtime_profile_rule}
 
 You may inspect tests, adapt real driver interfaces and create your own command
 scripts for native build/test execution. Do not write substitute assertions.

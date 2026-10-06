@@ -21,6 +21,33 @@ def test_skip_and_zero_exit_are_not_native_pass():
     ]
 
 
+def test_diagnostic_suite_preserves_frozen_info_log_level(tmp_path, monkeypatch):
+    import json
+
+    captured = []
+    monkeypatch.setattr(native, "setup_assets", lambda *args: None)
+    monkeypatch.setattr(native, "verify_inputs", lambda *args: None)
+    monkeypatch.setattr(native, "source_files", lambda *args: {})
+    monkeypatch.setattr(native, "sha", lambda *args: "synthetic")
+    monkeypatch.setattr(
+        native,
+        "docker",
+        lambda root, target, command, *args, **kwargs: captured.append(command) or {"exit_code": 1},
+    )
+    (tmp_path / "config.json").write_text(json.dumps({"drivers": {"synthetic": {}}}))
+    (tmp_path / "environment.json").write_text(
+        json.dumps(
+            {
+                "kernel_log_level": "info",
+                "initramfs_sha256": "synthetic",
+            }
+        )
+    )
+    native.check(tmp_path, "synthetic", tmp_path / "target", tmp_path / "out", "check")
+    assert "--kcmd-args=loglevel=info" in captured[0]
+    assert "--kcmd-args=loglevel=error" not in captured[0]
+
+
 def test_every_original_function_must_pass():
     source = "FN_TEST(read)\nFN_TEST(write)\n"
     output = "test_read summary: 12 tests passed, 0 tests failed"

@@ -16,6 +16,17 @@ BUILD = [
 ]
 
 
+def build_command(environment):
+    """Use the frozen task log level for both Factory and external evaluation."""
+    level = environment.get("kernel_log_level", "error")
+    if level not in {"error", "warn", "info", "debug", "trace"}:
+        raise ValueError("Invalid frozen kernel log level")
+    return [
+        arg if not arg.startswith("--kcmd-args=loglevel=") else "--kcmd-args=loglevel=" + level
+        for arg in BUILD
+    ]
+
+
 def container_argv(
     environment, root, target, name, command, *, network=False, workdir="kernel", artifact=None
 ):
