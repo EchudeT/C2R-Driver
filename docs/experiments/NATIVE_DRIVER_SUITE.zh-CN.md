@@ -69,21 +69,21 @@ DPF 最终测试使用控制器发布的最终产物路径；Codex 使用同一 
 
 ## 从已发布源码直接开始
 
+操作者在环境仓库导出单任务输入，不给纯 baseline 导出自写工具：
+
 ```sh
-# 在环境分发仓库中执行；导出目录必须在该 checkout 之外。
-python3.11 scripts/export-task.py virtio-rng /path/to/worker/rng-01
-cd /path/to/worker/rng-01
-./prepare.sh
-# 或复用已有环境：./prepare.sh --reuse /path/to/verified-runtime
-./build.sh
-./check.sh
+python3.11 scripts/export-task.py virtio-rng /path/to/worker/rng-01 \
+  --qemu /path/to/pinned-qemu
+# 操作者在分发仓库执行，共享已有 SDK 和介质；不要交给模型执行。
+python3.11 scripts/task-runtime.py prepare --task /path/to/worker/rng-01 \
+  --reuse /path/to/verified-runtime
 ```
 
-导出目录自带 `source/`、`target/`、公共运行器、`PROMPT.md` 和入口脚本，不保留分发库 Git 历史。
-入口会在 `.runtime/` 中登记本机共享环境位置；这些运行数据不提交 Git。
-初始 target 是空心基线，`check.sh` 因缺少驱动而失败是预期结果，不能误标为翻译通过。
-在支持 goal 的 Codex 会话中以该目录为工作目录，按下面定义设置目标即可开始实现。
-只有需要重新制作数据集时，才需要下一节的原始 Linux/Asterinas/QEMU 操作者仓库。
+导出目录包含完整 `source/`、空心 `target/`、`PROMPT.md` 和任务元数据，创建新 Git 根提交。
+没有 `.environment/` 或我们的 build/check/prepare 脚本。原生公开断言位于 target 中。
+操作者提供固定 SDK/initramfs/磁盘介质，模型自行使用通用终端、Docker 与上游 OSDK/QEMU。
+正式配对实验使用[比较入口](FACTORY_CODEX_COMPARISON.zh-CN.md)，它接入原生 goal、实际工作区隔离和统计。
+初始空心 target 编译成功而设备功能失败，是环境负向控制，不是翻译成功。
 
 ## 新机器准备
 
@@ -128,51 +128,31 @@ done
 不要把整个环境复制成“备份”。`validate-adapter` 可在 DPF 安装后复现生产适配器控制，复用已有
 ISO；独立环境仓库加 `--factory /path/to/driver-port-factory`。
 
-## 启动 DPF 或纯 Codex＋goal
+## 启动 Factory 或纯 Codex＋goal
 
-创建启动目录不调用模型，也不预生成所有方法的工作树。DPF 在实际启动后由采集阶段创建工作树；
-Codex 仅为所选任务创建 source/target。每个 trial 已存在时拒绝覆盖；重复实验用 `--trial 02` 等新编号，仍复用相同 suite 和 seed，
-不重新准备环境。默认编号为 `01`。
+正式实验使用[统一比较入口](FACTORY_CODEX_COMPARISON.zh-CN.md)，不要直接执行旧 Codex launch.sh。
+prepare 按需生成一对独立 trial，不调用模型；run 才开始付费翻译；collect/export 只读证据。
 
 ```sh
-# DPF：生成 launch.sh、固定 repository-pins.json，尚未翻译。
-.venv/bin/python scripts/native-experiment.py trial --root "$SUITE" \
-  --driver virtio-rng --method dpf --qemu /path/to/qemu \
-  --factory /path/to/driver-port-factory
-# 显式执行此命令才产生模型调用；模型和预算由操作者指定。
-"$SUITE/trials/dpf/virtio-rng/01/launch.sh" --model MODEL --max-model-cost-usd BUDGET
-
-# Codex＋goal baseline：准备同一 seed、PROMPT.md 和 build.sh/check.sh，尚未调用模型。
-.venv/bin/python scripts/native-experiment.py trial --root "$SUITE" \
-  --driver virtio-rng --method codex --qemu /path/to/qemu
+python3.11 scripts/compare-experiments.py prepare --root "$SUITE" \
+  --driver virtio-rng --trial paper-01 --qemu /path/to/pinned-qemu \
+  --factory /path/to/driver-port-factory --max-cost-usd 10 --max-seconds 1800
+export PROTOCOL="$SUITE/comparisons/paper-01/virtio-rng/protocol.json"
+python3.11 scripts/compare-experiments.py run "$PROTOCOL" --method codex
+python3.11 scripts/compare-experiments.py run "$PROTOCOL" --method dpf
 ```
 
-baseline 为**纯 Codex＋goal**。准备 trial 后，在支持 goal 的 Codex 会话中将该 trial
-设为工作目录，读取 `PROMPT.md` 并显式建立目标：
+默认两组使用 WavePulse 的 gpt-5.6-luna、medium，费率和预算冻结进协议。
+baseline 通过原生 thread/goal/set 建立持久 goal，不接入 Factory 工具、阶段调度、Skill、知识库或 reviewer。
+Factory 可以使用自己的工具；本协议默认关闭独立模型 reviewer，外部共享知识库为空，保留任务内知识。
+完整 Linux、空心目标、Docker 镜像、架构/设备/SDK/介质与最终测试断言保持一致。
 
-> 将 source/ 中指定的 Linux C 驱动迁移到 target/，完成必要的星绽集成；
-> 使用 build.sh 和 check.sh 持续实现、检查和修复，直到同一最终版本的完整公开测试通过，
-> 或达到预先规定的实验预算。不得修改断言或读取被隔离的原 Rust 实现；失败时保留真实结果。
+旧 native-experiment.py trial 仍生成操作者 build/check 包装器和普通 exec 入口，保留用于开发兼容；
+它们不是纯 Codex＋goal 实验入口。正式 baseline 隔离视图不会暴露这些脚本。
+Factory 已有完整最终测试批次时直接读取，无论 PASS/FAIL；否则由模型之外的共同运行器收尾。
+费用包含所有模型阶段与返修，不把部分实现成本当总成本；详见比较说明。
 
-由 Codex 自行决定分析和修复过程，不接入 DPF 阶段、工作包规划、专用迁移 Skill、知识库或 reviewer。
-相同的公开源码输入、官方 Docker 镜像、设备配置和原生测试入口属于共同实验基础设施。
-goal 的完成状态不替代最终完整测试收据。
-
-目前 `launch.sh` 只执行普通 `codex exec`，不自动创建 goal；直接执行它不能记作 Codex＋goal 实验。
-当前方式是在支持 goal 的会话中显式建立目标，自动 goal 启动接线尚未实现。
-已经验证独立环境运行器，尚未执行 Codex＋goal 端到端翻译。
-
-DPF launcher 设置 `DPF_NATIVE_SUITE` 并冻结镜像、加速器与源码 pin；08只验证平台构建启动，
-不能要求空心驱动功能通过。环境通过后预装原生测试，13用相同工具实现与自检，15运行完整最终集合。
-模型不负责设计断言。原生任务不能沿用 evbug/NE2000 的旧镜像及平台路线。
-
-Codex 可以用 `build.sh` 仅构建、`check.sh` 构建并完整检查；`case --case <配置中的原路径>`
-可在已有产物上单跑一个用例。每次 `check` 留存独立结果，不覆盖历史记录。
-操作者最终也应从同一 runner 执行完整 `check --target <候选目录>`，不能拿模型陈述代替验收。
-
-同模型、推理强度、权限、预算、输入范围和知识快照需在正式比较前另行固定。当前脚本未内置
-plain Codex 的美元预算控制。生成的 Codex launcher 与 DPF 开发模式一样使用
-`danger-full-access` 和 `approval_policy=never`；只应在已隔离公开材料的工作者环境执行。
+两组真实模型翻译尚未执行，已有正负控制证明环境适用，不证明方法效果。
 
 ## 干净基线与隔离
 
@@ -187,9 +167,10 @@ plain Codex 的美元预算控制。生成的 Codex launcher 与 DPF 开发模�
 7. 只交付本任务的 seed、共同 SDK/initramfs 和公开用例。原始树、其他任务 seed、operator 日志、
    旧候选和答案知识不可进入工作者工作区。容器运行器只挂载当前 target 和 shared 资产。
 
-独立 Git 对象库解决输入仓库的历史泄漏，不是宿主文件系统的安全隔离。正式研究应在独立工作者
-账户或机器上仅部署上述公开材料，禁止访问操作者目录及原实现远端。当前开发模式拥有广泛宿主
-工具权限，不能据此声称已实现对恶意读取的强隔离，也不能把此准备工作称作独立盲评。
+独立 Git 对象库解决输入历史泄漏。正式比较入口进一步使用 mount/PID namespace 和任务私有
+Docker 代理，隐藏宿主 HOME、原实现、其他任务、历史候选及 Docker socket；没有隔离能力就停止。
+网络仍可用于模型服务和依赖下载，因此不声称阻止恶意下载公开原 Rust；严格盲评需另设出口限制。
+这套公开环境与隔离机制不等同于独立私有盲评。
 
 ## 存储和协作
 

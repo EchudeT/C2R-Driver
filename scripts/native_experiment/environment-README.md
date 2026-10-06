@@ -8,6 +8,8 @@
 VirtIO Vsock 因验证主机缺少 `/dev/vhost-vsock` 排除。
 这些是环境控制结果，**尚未运行此套件上的模型翻译或独立私有评测**。
 
+- [Factory 与纯 Codex＋goal：启动、隔离、统计](docs/experiments/FACTORY_CODEX_COMPARISON.zh-CN.md)
+- [四项提示词预览](docs/experiments/baseline-prompts/README.md)
 - [完整环境、隔离和使用协议](docs/experiments/NATIVE_DRIVER_SUITE.zh-CN.md)
 - [固定版本与任务配置](configs/experiments/native-drivers.json)
 - [真实验证结果摘要](validation/local-20261004.json)
@@ -23,37 +25,32 @@ VirtIO Vsock 因验证主机缺少 `/dev/vhost-vsock` 排除。
 | Network | [source](source/linux) | [target](tasks/virtio-net/target) | [build.sh](tasks/virtio-net/build.sh)、[check.sh](tasks/virtio-net/check.sh) |
 | NVMe | [source](source/linux) | [target](tasks/nvme-pci/target) | [build.sh](tasks/nvme-pci/build.sh)、[check.sh](tasks/nvme-pci/check.sh) |
 
-每项还有 `prepare.sh`、`PROMPT.md`、`task.json`。目标树一次只扣掉对应一个驱动；
+表中脚本是操作者的环境与评测入口，不提供给纯 baseline 模型。每项还有 `prepare.sh`、`PROMPT.md`、`task.json`。目标树一次只扣掉对应一个驱动；
 被扣掉的驱动尚未实现，因此构建应成功，而其功能验收在翻译前应失败。
 
-## 直接运行纯 Codex＋goal baseline
+## 纯 Codex＋goal 与 Factory 的边界
 
-操作者在分发仓库中导出所选任务，模型在导出目录中工作：
+Factory 可以使用自己的迁移、构建、检查与知识库工具；纯 baseline 只使用通用终端、Git、Docker
+和内核上游 OSDK/QEMU。两组共享完整 Linux、空心星绽框架、固定官方镜像、设备、SDK/介质和
+公开断言，最终评测与统计在模型之外进行。我们的 runner 不提供给 baseline 模型。
+
+按需导出一个任务，避免复制全部 Linux 工作树：
 
 ```sh
-python3.11 scripts/export-task.py virtio-rng /path/to/workers/rng-01
-cd /path/to/workers/rng-01
-# 未安装时下载星绽官方开发镜像；已有时复用。
-docker pull asterinas/dev:0.18.1-20260901
-./prepare.sh
-# 已有本方案验证的环境时改用下行，复用 SDK 和测试介质，不重建一套：
-# ./prepare.sh --reuse /path/to/verified-native-suite-or-runtime
+python3.11 scripts/export-task.py virtio-rng /path/to/workers/rng-01 \
+  --qemu /path/to/pinned-qemu
+# 操作者在本仓库执行；已有本方案验证的环境就复用，不重新安装一套。
+python3.11 scripts/task-runtime.py prepare --task /path/to/workers/rng-01 \
+  --reuse /path/to/verified-native-suite-or-runtime
 ```
 
-`source/`、`target/`、`build.sh`、`check.sh` 都会出现在这个工作区中。
-导出工具只读取已提交的所选任务和公共运行器，建立无 remote 的新 Git 根提交；
-不带分发仓库历史或其他任务。`prepare.sh` 可以直接从空心 target 准备 SDK 和测试介质，
-不需要把原始完整星绽仓库提供给工作者。后续重复实验继续复用共享工具和下载缓存。
+导出只包含 `source/`、`target/`、`PROMPT.md`、`task.json` 和干净 Git 根提交。
+不导出 `.environment/`、build.sh/check.sh/prepare.sh 或 Factory 程序。
+模型从完整 Linux 自主寻找驱动及内核上下文，目标树包含原生公开断言。
+环境资产由操作者准备并只读提供；不得给模型全任务分发库或原 Rust 实现。
 
-在支持 goal 的 Codex 会话中选择该工作目录，读取 `PROMPT.md` 并显式建立目标：
-
-> 将 source/ 中指定的 Linux C 驱动迁移到 target/ 的星绽空心基线，完成必要集成；
-> 使用 build.sh 构建、check.sh 完整验收，持续修复直到同一最终版本的全部公开测试通过，
-> 或达到预先规定的实验预算。不得修改断言或读取被隔离的原 Rust 实现；如实报告剩余问题。
-
-baseline 不接入 DPF 阶段调度、工作包、专用迁移 Skill、知识库或 reviewer。
-goal 完成声明不替代测试收据；目前没有自动创建 goal 的启动器，旧 `launch.sh` 只调用普通
-`codex exec`。环境已验证可独立运行，Codex＋goal 端到端翻译尚未执行。
+正式比较请使用下一节的配对启动器，支持原生 goal、统一预算、本地费用估算、token、
+开始/结束/总时长与 CSV。普通 codex exec 不算 Codex＋goal。
 
 ## 官方 Docker 和操作者重新制作环境
 
@@ -101,41 +98,34 @@ done
 python3.11 scripts/native-experiment.py status --root "$SUITE"
 ```
 
-## 启动翻译
+## 启动正式配对实验
 
-准备 trial 本身不调用模型；只在显式执行生成的 `launch.sh` 时调用。
-重复实验加 `--trial 02`，复用 suite 和 seed，不重新安装环境。
+复用已验证 suite，先设置 `WAVEPULSE_API_KEY`，不要把密钥写入提示词或 Git。
+Factory 需要单独安装；本仓库只含共享环境运行器。安装 bubblewrap，使用本机 Codex 0.160.1
+兼容的原生 goal 接口。启动说明和日志口径见[比较协议](docs/experiments/FACTORY_CODEX_COMPARISON.zh-CN.md)。
 
 ```sh
-# DPF：固定版本、平台及公开断言由控制器接入。
-python3.11 scripts/native-experiment.py trial --root "$SUITE" \
-  --driver virtio-rng --method dpf --qemu /path/to/qemu --factory /path/to/driver-port-factory
-"$SUITE/trials/dpf/virtio-rng/01/launch.sh" --model MODEL --max-model-cost-usd BUDGET
-
-# Codex＋goal：先生成同一输入 seed 和工具入口，不在这里启动普通 exec。
-python3.11 scripts/native-experiment.py trial --root "$SUITE" \
-  --driver virtio-rng --method codex --qemu /path/to/qemu
+python3.11 scripts/compare-experiments.py prepare --root "$SUITE" \
+  --driver virtio-rng --trial paper-01 --qemu /path/to/pinned-qemu \
+  --factory /path/to/driver-port-factory --max-cost-usd 10 --max-seconds 1800
+export PROTOCOL="$SUITE/comparisons/paper-01/virtio-rng/protocol.json"
+# 以下才调用付费模型。
+python3.11 scripts/compare-experiments.py run "$PROTOCOL" --method codex
+python3.11 scripts/compare-experiments.py run "$PROTOCOL" --method dpf
+# 只读现有证据，不调用模型或重跑验收。
+python3.11 scripts/compare-experiments.py export --root "$SUITE" --output comparison.csv
 ```
 
-实验 baseline 定义为**纯 Codex＋goal**：在支持 goal 的 Codex 会话中，以生成的
-`$SUITE/trials/codex/virtio-rng/01/` 为工作目录，读取 `PROMPT.md`，明确建立并持续执行目标：
+默认 WavePulse / gpt-5.6-luna / medium；两组相同费率和预算。baseline 建立原生持久 goal，
+不加自写模型继续循环。Factory 默认关闭独立 reviewer，可使用自身工具及本次分析的任务知识，
+外部共享知识库为空。已有完整最终测试批次直接读，没有才由外部共同 runner 运行一次。
 
-> 将 source/ 中指定的 Linux C 驱动迁移到 target/ 的星绽空心基线，完成必要集成；
-> 使用 build.sh 构建、check.sh 完整验收，持续修复直到同一最终版本的全部公开测试通过，
-> 或达到预先规定的实验预算。不得修改测试断言或读取被隔离的原 Rust 实现；
-> 停止时如实报告剩余问题，不能把 goal 完成声明当作测试通过。
+旧 trial 的 build/check 包装器和普通 exec launch.sh 仅供开发兼容。纯 baseline 的隔离视图
+隐藏这些入口、Factory、宿主 HOME、其他任务及 Docker socket；只开放本任务的 Docker 挂载。
+网络仍用于服务与依赖下载，不能声称阻止恶意下载公开答案。严格盲评需要额外出口限制。
 
-只提供任务、C 源码、空心目标与公共工具。Codex 自行分析、实现和修复；
-baseline 不接入 DPF 阶段调度、工作包规划、专用迁移 Skill、知识库或 reviewer。
-两种方法共用环境与原生断言，操作者最终核对实际测试收据。
-
-**当前生成的 `launch.sh` 仅调用普通 `codex exec`，不会自动创建 goal。**
-执行它不能记为已经运行 Codex＋goal baseline；目前需要在支持 goal 的会话中显式设置目标。
-环境已验证可独立运行，Codex＋goal 的端到端翻译实验尚未执行。
-
-Codex 目录内 `build.sh` 构建，`check.sh` 对同一个 ISO 完整运行原生集合；每次检查保留独立收据。
-DPF 的工作者使用相同公开用例，最终验收绑定控制器发布的同一最终产物。
-正式比较前还需固定模型、推理强度、权限、预算和知识输入。此仓库不代替实验设计。
+本次只完成离线协议与本地隔离检查，未调用付费模型、编译内核或跑驱动测试。
+原生 goal 翻译的端到端表现仍需真实 trial 验证；goal complete 不等于测试 PASS。
 
 ## 分发仓库与模型工作区
 

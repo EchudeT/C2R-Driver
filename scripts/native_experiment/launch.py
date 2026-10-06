@@ -101,28 +101,10 @@ def prepare_launch(root, name, method, trial, qemu, factory=None):
                     trial / "target",
                 ],
             )
+        from baseline_prompt import render
+
         (trial / "PROMPT.md").write_text(
-            "Translate the supplied Linux C driver into the hollow Asterinas target in Rust.\n\n"
-            + task["scope"]
-            + "\n\n"
-            "source/ contains the complete pinned Linux tree. Locate the driver and trace callers, "
-            "subsystems and kernel implementation context on demand; source_entries are navigation "
-            "hints, not reading boundaries. Read target/ on demand. Only this task's removed driver "
-            "and necessary "
-            "integration are implementation scope. Retain other drivers and platform frameworks. "
-            "Do not obtain or consult the withheld upstream Rust implementation, other task seeds, "
-            "operator controls, other candidates or previous translation results.\n\n"
-            "Use ./build.sh for the fixed Docker build and ./check.sh for the complete unchanged "
-            "upstream test set. Tests are provided; do not write replacement assertions or edit "
-            "the test sources, wrappers, boot configuration, or shared assets. "
-            "A skip is not a pass. "
-            "You may adapt the real driver integration. Finish with a working candidate and report "
-            "any remaining limitations honestly. These public tests are not exhaustive.\n\n"
-            "QEMU source evidence (read-only; no host toolchain build is needed): "
-            + str(qemu)
-            + " at "
-            + task["environment"]["qemu_evidence_revision"]
-            + ".\n"
+            render(task, trial, qemu, read(root / "config.json"), root / "shared")
         )
         script(
             trial / "launch.sh",

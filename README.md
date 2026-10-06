@@ -95,6 +95,8 @@ RNG、Block、Network、NVMe 的统一环境与原生测试入口见[原生驱�
 
 该实验与上面的 evbug/NE2000 固定公开套件使用不同的、明确冻结的内核版本。不要混用旧镜像、旧工作树或曾翻译成功的候选。原始基线正向检查、可启动空心基线负向检查、DPF/Codex 输入副本和最终公共验收使用同一套方法无关工具。
 
+正式对照入口见[Factory 与纯 Codex＋goal 比较说明](docs/experiments/FACTORY_CODEX_COMPARISON.zh-CN.md)。Factory 可以使用自己的知识库和迁移工具；baseline 只使用通用工具和上游命令，不提供我们的 build/check 或迁移工具。两组固定同一模型、环境、输入和断言；通过 Codex 原生 goal 接口启动 baseline，记录完整任务 token、本地费用、起止时间及总时长，导出 CSV。工作区和 Docker 挂载隔离已做本地检查，端到端模型实验尚未执行。
+
 ## 当前验证范围
 
 - 已有 `pvpanic-pci`、`evbug`、`ne2k-pci` 的预置设备测试；模型适配接口，不修改断言。

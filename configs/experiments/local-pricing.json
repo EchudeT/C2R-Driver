@@ -1,0 +1,10 @@
+{
+  "schema_version": 1,
+  "label": "Frozen local estimates; not a WavePulse invoice",
+  "date": "2026-09-19",
+  "unit": "USD per million tokens",
+  "models": {
+    "gpt-5.6-luna": {"input": 0.2, "cached_input": 0.02, "output": 1.2},
+    "gpt-5.6-sol": {"input": 4.0, "cached_input": 0.4, "output": 20.0}
+  }
+}
