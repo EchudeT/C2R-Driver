@@ -148,10 +148,15 @@ class GoalState:
             self.failed = params["turn"].get("status") == "failed"
 
     def stop_reason(self, seconds, limits, rates):
-        if seconds >= limits["seconds"]:
+        if limits["seconds"] is not None and seconds >= limits["seconds"]:
             return "TIME_LIMIT"
         cost = quote(self.usage, rates)
-        if not self.turn_active and cost is not None and cost >= limits["usd"]:
+        if (
+            limits["usd"] is not None
+            and not self.turn_active
+            and cost is not None
+            and cost >= limits["usd"]
+        ):
             return "COST_LIMIT"
         if self.failed:
             return "MODEL_FAILED"

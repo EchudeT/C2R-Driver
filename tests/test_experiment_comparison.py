@@ -82,6 +82,8 @@ def test_goals_do_not_self_approve_the_public_suite_and_budget_waits_for_turn():
     assert state.stop_reason(10, limits, RATES) is None
     state.turn_active = False
     assert state.stop_reason(10, limits, RATES) == "COST_LIMIT"
+    state.goal = {"status": "active"}
+    assert state.stop_reason(36000, {"usd": None, "seconds": None}, RATES) is None
     assert not native_outcome({}, ["native-test"])["suite_passed"]
 
 

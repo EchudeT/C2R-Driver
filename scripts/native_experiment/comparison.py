@@ -6,6 +6,7 @@ import json
 import os
 import shlex
 import subprocess
+import sys
 import time
 from datetime import UTC, datetime
 from pathlib import Path
@@ -27,6 +28,11 @@ REPO = HERE.parents[1]
 
 def now():
     return datetime.now(UTC).isoformat()
+
+
+def configure_factory(factory):
+    """Operator-side import path; the baseline model never receives this package."""
+    sys.path.insert(0, str(Path(factory) / "src"))
 
 
 def settings(protocol):
@@ -54,6 +60,7 @@ def settings(protocol):
 
 
 def prepare(args):
+    configure_factory(args.factory)
     from prepare import create_trial
 
     task = read(args.root / "seeds" / args.driver / "task.json")
@@ -140,10 +147,13 @@ def run_dpf(protocol, trial, directory, configured_codex):
             while process.poll() is None:
                 usage, _ = dpf_usage(trial / "run")
                 cost = quote(usage, rates)
-                if time.monotonic() - started >= limits["seconds"]:
+                if (
+                    limits["seconds"] is not None
+                    and time.monotonic() - started >= limits["seconds"]
+                ):
                     reason = "TIME_LIMIT"
                     break
-                if cost is not None and cost >= limits["usd"]:
+                if limits["usd"] is not None and cost is not None and cost >= limits["usd"]:
                     reason = "COST_LIMIT"
                     break
                 time.sleep(1)
@@ -193,6 +203,8 @@ def run_codex(protocol, trial, directory, configured_codex):
 
 def execute(args):
     protocol = read(args.protocol)
+    if args.method == "dpf":
+        configure_factory(protocol["factory"])
     directory = args.protocol.parent / args.method
     directory.mkdir(exist_ok=False)
     record = {
@@ -316,6 +328,8 @@ def final_check(protocol, trial, directory, method):
 
 def collect(protocol_path, method):
     protocol = read(protocol_path)
+    if method == "dpf":
+        configure_factory(protocol["factory"])
     directory = protocol_path.parent / method
     record = read(directory / "run.json")
     root = Path(protocol["root"])
@@ -416,8 +430,8 @@ def main():
     init.add_argument(
         "--pricing", type=Path, default=REPO / "configs/experiments/local-pricing.json"
     )
-    init.add_argument("--max-cost-usd", type=float, required=True)
-    init.add_argument("--max-seconds", type=float, required=True)
+    init.add_argument("--max-cost-usd", type=float, help="Omit for no cost limit")
+    init.add_argument("--max-seconds", type=float, help="Omit for no translation time limit")
     run = commands.add_parser("run", help="explicitly starts paid translation")
     run.add_argument("protocol", type=Path)
     run.add_argument("--method", choices=("dpf", "codex"), required=True)
@@ -430,7 +444,7 @@ def main():
     args = parser.parse_args()
     if args.action == "prepare":
         args.root = args.root.resolve()
-        if args.max_cost_usd <= 0 or args.max_seconds <= 0:
+        if any(value is not None and value <= 0 for value in (args.max_cost_usd, args.max_seconds)):
             parser.error("Budgets must be positive")
         prepare(args)
     elif args.action == "run":
