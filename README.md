@@ -1,126 +1,154 @@
 # Driver Port Factory
 
-将 Linux C 驱动迁移到 Asterinas（星绽）Rust 内核的实验工作流。模型负责分析、实现和源码自检；控制器负责环境、进度、公开测试和运行记录。支持暂停续跑、逐工作包连续实现、按需知识检索及跨驱动经验积累。
+将 Linux C 驱动迁移到 Asterinas（星绽）Rust 内核的研究框架。模型从完整 Linux 源码中查找驱动及内核上下文，完成分析、语义适配、功能实现和源码自检；控制器管理进度、知识检索、构建、公开验收与实验记录。
 
-## 安装
+## 从哪里开始
 
-需要 Python 3.11+、Git、Codex CLI、Docker、`strace`；本项目已验证的 Asterinas 路线使用 x86_64、KVM 和容器内 OVMF。先配置 Codex 的模型服务和凭据，凭据不要提交到仓库。
+| 需求 | 使用入口 |
+| --- | --- |
+| 跑 Factory/Codex 对照，或只跑其中一种方法 | [driver-experiment-env](https://github.com/C2R-Driver/driver-experiment-env) 的 `scripts/experiment.py` |
+| 配置中转站、key、模型，安装或复用统一实验环境 | 同一实验入口；见[组员操作指南](https://github.com/C2R-Driver/driver-experiment-env/blob/main/docs/experiments/TEAM_RUNNER.zh-CN.md) |
+| 调试 Factory，手动启动或继续已有迁移 | 本仓库的 `scripts/run-experiment.sh` / `resume-experiment.sh` |
+| 查看架构、知识库或科研贡献 | [架构](docs/workflow/ARCHITECTURE.md)、[知识库](docs/knowledge/README.md)、[科研汇报](docs/research/FACTORY_RESEARCH_REPORT.zh-CN.md) |
+
+本仓库提供翻译框架；环境仓库提供方法间共享的输入、Docker/设备配置、公开测试、隔离启动和统计。组员跑论文实验时统一使用环境仓库入口，无需另写启动脚本。
+
+## 快速开始：跑一组实验
+
+需要 x86_64 Linux、Python 3.11.8+，以及可用的 Docker/KVM。下面按两个仓库放在同级目录示例；已有仓库直接复用。
 
 ```sh
-python3.11 -m venv .venv
-.venv/bin/python -m pip install -e '.[dev,codex]'
-codex --version
-docker info
-test -e /dev/kvm
+git clone https://github.com/C2R-Driver/driver-port-factory.git
+git clone https://github.com/C2R-Driver/driver-experiment-env.git
+cd driver-experiment-env
+
+# 创建本机配置，隐藏输入 key。
+python3.11 scripts/experiment.py init --ask-key
+# 编辑 .local/team.json：中转站、模型、Factory 路径、已有源码与 suite 路径。
+python3.11 scripts/experiment.py install
+python3.11 scripts/experiment.py doctor --host-only --driver virtio-rng
+python3.11 scripts/experiment.py prepare-env --driver virtio-rng
+
+# 只跑 Factory；默认不限制翻译费用或时长。
+python3.11 scripts/experiment.py run \
+  --driver virtio-rng --trial alice-rng-factory-01 --method factory
 ```
 
-Skill 随仓库放在 `skill/`，通常不需要另传路径。离线仓库和 Docker 镜像由操作者预先提供；容器内构建和启动，不依赖宿主 Rust 工具链。
+`install` 复用已有 Factory、虚拟环境、Codex CLI 和镜像。缺少系统依赖时，支持 Debian/Ubuntu 的 `install --system`；Python 3.11 应提前安装。首次 `prepare-env` 可能下载完整源码、准备公共资产并运行环境控制测试；已有发布环境直接复用。
 
-## 启动翻译
+默认配置为 `https://ai.wavepulse.live/v1`、`gpt-5.6-luna`、`medium`，可在 `.local/team.json` 修改。key 存在忽略的本地文件（权限 600），或通过 `C2R_API_KEY` 提供，不进入配置协议或 Git。中转站需支持 Codex 使用的 Responses API。实验固定 Codex CLI 0.160.1。
 
-下面以已提供固定公开测试的 evbug 为例。将镜像和本地仓库路径替换为本机实际配置。
+## 对照、监视与统计
+
+以下命令仍在 `driver-experiment-env` 执行：
 
 ```sh
+# 同一驱动的 Factory / 纯 Codex＋goal 对照，默认串行。
+python3.11 scripts/experiment.py run --driver virtio-rng --trial alice-rng-pair-01
+# 资源充足时，在上述命令后加 --parallel；仅 baseline 则加 --method codex。
+
+python3.11 scripts/experiment.py status --driver virtio-rng --trial alice-rng-pair-01
+python3.11 scripts/experiment.py export --driver virtio-rng --output results/team/native.csv
+python3.11 scripts/experiment.py export --driver evbug --output results/team/public.csv
+```
+
+六个任务为 `evbug`、`virtio-rng`、`virtio-blk`、`virtio-net`、`nvme-pci`、`ne2k-pci`。两种方法共享该任务冻结的 Linux/目标 commit、官方镜像、设备、模型、推理等级、费率和公开断言；各自工作区与日志独立。baseline 只使用通用工具和上游命令，不获得 Factory 自写的迁移/检查工具。
+
+`run` 才会调用付费模型。`prepare` 可提前生成输入和协议供审阅；`status`、`export` 读取已有记录。每次独立重复使用新 trial ID；已启动 trial 不覆盖、不自动续跑。串行或并行策略应在研究批次内保持一致。长任务可在 tmux 中运行。
+
+输出位于 `<suite>/comparisons/<trial>/<driver>/`，包括共同 `protocol.json`、各方法的 `run.json`、`result.json` 和日志。Factory 工作区位于 `<suite>/trials/dpf/<driver>/<trial>/run/`。使用本仓库监视器可查看该路径：
+
+```sh
+# 在 driver-port-factory 中执行；替换为实际 Factory run 路径。
+./scripts/watch.sh /path/to/suite/trials/dpf/virtio-rng/alice-rng-pair-01/run
+```
+
+左侧展示阶段，右侧展示模型活动。CSV 记录起止时间、总耗时、翻译与外部验收耗时、token、费用估计、编译/启动/初始化及公开测试成绩，失败样本也保留。导出按 suite 汇总；native/public 两套环境分别导出。私有评分另行执行，不反馈给模型修复，见[评分协议](https://github.com/C2R-Driver/driver-experiment-env/blob/main/docs/experiments/PARAMETER_VARIANT_SCORING.zh-CN.md)。
+
+## Factory 直接开发用法
+
+以下入口适合调试工作流和继续已有任务。论文对照使用上面的隔离启动器；直接启动不提供相同的宿主工作区隔离。
+
+```sh
+cd driver-port-factory
+python3.11 -m venv .venv
+.venv/bin/python -m pip install -e .
+./scripts/run-experiment.sh --help
+```
+
+需要已配置模型服务和凭据的 Codex CLI、Git、Docker、`strace`。目标构建和 QEMU 在配置的 Docker 内运行，无需给宿主另装 Rust 工具链。仓库自带 `skill/`，通常不需要另指定 Skill。
+
+使用已准备的 evbug suite、完整 Linux 仓库和空心目标，示例：
+
+```sh
+export DPF_NATIVE_SUITE=/path/to/public-suite
+export DPF_REPOSITORY_PINS=/path/to/repository-pins.json
 ./scripts/run-experiment.sh \
-  --workspace /path/to/experiments/evbug-01 \
+  --workspace /path/to/development/evbug-01 \
   --source-platform linux --target-platform asterinas \
   --driver-name evbug \
   --catalog configs/drivers/linux-evbug.catalog.json \
   --model gpt-5.6-luna \
-  --platform-image asterinas/dev:0.18.1-20260805-dpf-ovmf-bar-v1 \
+  --platform-image asterinas/dev:0.18.1-20260901 \
   --platform-accelerator kvm \
-  --local-source-repository /path/to/linux \
-  --local-target-repository /path/to/asterinas \
-  --local-qemu-repository /path/to/qemu \
-  --max-model-cost-usd 10
+  --local-source-repository /path/to/public-suite/seeds/evbug/source \
+  --local-target-repository /path/to/public-suite/seeds/evbug/target \
+  --local-qemu-repository /path/to/pinned-qemu
 ```
 
-**复现实验必须固定版本。** evbug 的较新 Linux 版本可能已移除此驱动，不能直接使用浮动 HEAD。使用原实验的 `repository-pins.json`，或按[仓库获取说明](docs/workflow/ACQUISITION.md)制作包含 source、target、qemu 三个角色、URL 和完整 commit 的文件，再设置：
+路径、pins 和镜像必须匹配实际 suite。pins 指定 source、target、qemu 的 URL 与完整 commit，格式见[获取说明](docs/workflow/ACQUISITION.md)。不要使用浮动 HEAD；较新 Linux 版本可能已移除 evbug。`--model` 只选择模型，推理强度来自 Codex 配置或 `--codex-bin` 包装器；统一实验入口会为两组冻结它们。
 
 ```sh
-export DPF_REPOSITORY_PINS=/path/to/repository-pins.json
+./scripts/status.sh /path/to/development/evbug-01
+./scripts/costs.py /path/to/development/evbug-01
+./scripts/transcript.sh /path/to/development/evbug-01 driver_implementation
+./scripts/resume-experiment.sh --workspace /path/to/development/evbug-01 --model gpt-5.6-luna
 ```
 
-模型推理强度在 Codex 配置或传入的 `--codex-bin` 包装器中设置；`--model` 只选择模型。费用上限在模型调用之间检查，单次长调用可能超额，金额是本地估算而非实扣账单。
+开发续跑保留已有实现；同一 workspace 只能有一个控制器。正式实验若人工续跑，必须单独记录干预、耗时与累计费用，不能当成新的独立样本。阶段按依赖推进，阶段编号不代表严格串行；`controller=STOPPED` 应结合结果判断是否完成。
 
-分析审阅和最终模型审阅默认关闭。若实验协议明确需要，可加 `--analysis-review --final-evidence-review`。审阅设置随新 workspace 冻结。
+## 工作流与知识库
 
-一个工作包可以包含完整的小驱动；路由里的注册、初始化、通知、清理不会被自动拆成多个实现回合。实现阶段在同一会话内读源码、写代码和修复。最后由控制器独立运行预置公开测试。
+联合分析形成来源行为、粗路径、目标适配与契约；控制器选取粗粒度工作包，工作者在连续会话内按需读源码、实现和检查。一个完整的小驱动可以只有一个工作包，注册/初始化/通知/清理不会自动拆成多个模型回合。账本中有阶段不等于必须进行一次模型调用。
 
-## 观察、续跑、查看结果
+模型负责语义自检，固定公开断言由我们预置，模型可适配被测接口。收尾针对同一个最终版本与 ISO 完整执行公开套件一次；已有完整最终批次直接读取，包括失败结果。临时路径或报告变化不触发复测。独立模型审阅默认关闭，可显式启用 `--analysis-review --final-evidence-review`。
 
-```sh
-./scripts/watch.sh /path/to/experiments/evbug-01
-./scripts/status.sh /path/to/experiments/evbug-01
-./scripts/costs.py /path/to/experiments/evbug-01
-./scripts/transcript.sh /path/to/experiments/evbug-01 driver_implementation
-./scripts/resume-experiment.sh --workspace /path/to/experiments/evbug-01 \
-  --model gpt-5.6-luna
-```
-
-监视窗口左侧显示阶段，右侧显示模型活动。`run-experiment.sh` 在前台运行，可放进 tmux；不同 workspace 可并行，同一 workspace 只允许一个控制器。
-
-阶段按依赖推进，编号不是严格串行顺序；例如预先准备环境后，08 可以先于07通过。`controller=STOPPED` 只表示当前没有控制器进程，需结合阶段状态和日志判断是已完成还是失败退出。
-
-每次运行的重要文件：
-
-| 位置 | 内容 |
-| --- | --- |
-| `work/target/` | 实现工作树 |
-| `.dpf/project.json` | 冻结请求与配置 |
-| `.dpf/run.sqlite3` | 阶段与事件记录 |
-| `.dpf/codex/` | 模型调用、输出和用量 |
-| `.dpf/experiments/` | 检查命令、输出和收据 |
-| `.dpf/public-qemu/` | 最终公开验收批次 |
-| `.dpf/cas/` | 内容寻址产物 |
-
-不要手工改数据库或 CAS。默认运行有15个账本阶段，并不意味着15次模型调用。收尾测试阶段由程序执行，正常通过时不再调用模型确认。已有固定套件按同一最终候选完整执行一次；公开 PASS 仅表示该测试范围通过。
-
-## 知识库
-
-知识库按当前问题检索，不要求每轮读全库。可选共享经验库：
+知识库保存可检索的原始材料、分析资料及有来源的迁移经验，为当前任务和后续驱动提供按需检索，而非要求每轮读全库。开发中可配置共享经验库：
 
 ```sh
 export DPF_SHARED_KB=/path/to/shared-driver-knowledge
-# 之后按上面的命令启动新实验
-.venv/bin/dpf knowledge learning /path/to/experiments/evbug-01
+# 设置后启动新的开发任务；查看任务学习记录：
+.venv/bin/dpf knowledge learning /path/to/development/evbug-01
 ```
 
-模型通过 `knowledge_learn(lesson, conditions, sources)` 提交有来源的经验，通过最终验收后发布。对照实验必须事先固定知识快照，避免后跑方法读到前一次候选或答案。详见[知识库文档](docs/knowledge/README.md)。
+模型通过 `knowledge_learn(lesson, conditions, sources)` 提交经验，通过最终验收后发布。跨驱动积累与知识库消融应固定资料来源、快照和实验顺序。当前统一对照为 `cold-external-kb`：保留任务内分析知识，关闭外部共享 KB；不能认为给环境变量就能改变该冻结实验条件。详见[知识库文档](docs/knowledge/README.md)。
 
-## 原实现移除实验与 Codex baseline
+## 结果位置与当前能力
 
-独立环境仓库：[C2R-Driver/driver-experiment-env](https://github.com/C2R-Driver/driver-experiment-env)。
-RNG、Block、Network、NVMe 的统一环境与原生测试入口见[原生驱动实验协议](docs/experiments/NATIVE_DRIVER_SUITE.zh-CN.md)。第五项 Vsock 因本机缺少 `/dev/vhost-vsock` 暂不启用。
+| Factory workspace 内路径 | 内容 |
+| --- | --- |
+| `.dpf/worktrees/`、`work/` | 获取的源码视图与可写目标；实际路径以 acquisition 记录为准 |
+| `.dpf/project.json`、`.dpf/run.sqlite3` | 配置、阶段和事件 |
+| `.dpf/codex/` | 提示词、模型输出、调用用量 |
+| `.dpf/experiments/`、`.dpf/public-qemu/` | 检查收据与最终公开批次 |
+| `.dpf/cas/` | 内容寻址产物 |
 
-该实验与上面的 evbug/NE2000 固定公开套件使用不同的、明确冻结的内核版本。不要混用旧镜像、旧工作树或曾翻译成功的候选。原始基线正向检查、可启动空心基线负向检查、DPF/Codex 输入副本和最终公共验收使用同一套方法无关工具。
+六项探索性 Factory/Codex 对照和参数变种私有评分已记录，见环境仓库的[科研数据表](https://github.com/C2R-Driver/driver-experiment-env/blob/main/results/paper-comparison-table.zh-CN.md)。四个 native 驱动已验证原始正向与空心负向控制；evbug/NE2000 使用原始目标中已缺失的驱动与固定公开套件。Vsock 因缺少所需宿主设备未纳入。
 
-正式对照入口见[Factory 与纯 Codex＋goal 比较说明](docs/experiments/FACTORY_CODEX_COMPARISON.zh-CN.md)。Factory 可以使用自己的知识库和迁移工具；baseline 只使用通用工具和上游命令，不提供我们的 build/check 或迁移工具。两组固定同一模型、环境、输入和断言；通过 Codex 原生 goal 接口启动 baseline，记录完整任务 token、本地费用、起止时间及总时长，导出 CSV。工作区和 Docker 挂载隔离已做本地检查，端到端模型实验尚未执行。
-
-evbug 和 NE2000 PCI 已加入环境仓库的补充对照任务，准备脚本与任务配置由环境仓库维护；见[补充实验说明](https://github.com/C2R-Driver/driver-experiment-env/blob/main/docs/experiments/PUBLIC_DRIVER_SUITE.zh-CN.md)。六项 baseline 共用同一个提示词模板。新增官方环境组合尚未运行验证，旧翻译 PASS 不能计入本次结果。
-
-## 当前验证范围
-
-- 已有 `pvpanic-pci`、`evbug`、`ne2k-pci` 的预置设备测试；模型适配接口，不修改断言。
-- 2026-10-03/04 的 luna-medium evbug 和 NE2000 运行均完成最终公开三项测试。NE2000 实现约2.5小时，仍有明显效率改进空间。
-- 其他驱动的 catalog 只描述输入身份，不代表已完成翻译或验收。
-- 原生移除实验的 RNG、Block、Network、NVMe 正负控制及 DPF 运行适配器均已验证；尚未运行该套件上的模型翻译。
-- 公开测试、自检和可选审阅不能替代独立私有评测，也不能证明所有硬件行为正确。
+这些结果有明确版本和设备边界，公开 PASS 不证明完整语义等价；参数变种评分也不等于覆盖新功能的独立盲评。统一入口完成了离线与本机隔离检测，全新机器安装流程仍需部署验证。
 
 ## 开发与文档
 
 ```sh
+.venv/bin/python -m pip install -e '.[dev]'
 .venv/bin/pytest
 ruff check src tests scripts
 ruff format --check src tests scripts
 ```
 
-测试默认离线，不启动付费模型。仓库存在历史全量检查债务；具体检查结果应如实记录，不能把局部通过写成全量通过。
+测试默认离线，不启动付费模型。仓库存在历史全量检查债务，局部通过不等于全量通过。
 
-- [科研汇报：架构优势与创新点](docs/research/FACTORY_RESEARCH_REPORT.zh-CN.md)
-- [文档导航](docs/README.md)
-- [架构](docs/workflow/ARCHITECTURE.md)与[阶段指南](docs/workflow/STAGE_GUIDE.md)
-- [平台环境](docs/platform/README.md)
-- [驱动 catalog](configs/README.md)
-- `src/driver_port_factory/data/prompt-packs/default/`：可审阅的模型提示词
-- `docs/history/`：过去的设计与优化记录；`docs/audits/`：原始审计证据
+- [文档导航](docs/README.md)、[阶段指南](docs/workflow/STAGE_GUIDE.md)、[平台环境](docs/platform/README.md)
+- [驱动 catalog](configs/README.md)、[实验文档](docs/experiments/README.md)
+- [科研汇报](docs/research/FACTORY_RESEARCH_REPORT.zh-CN.md)、[知识库](docs/knowledge/README.md)
+- `src/driver_port_factory/data/prompt-packs/default/`：模型提示词；`docs/history/`：历史设计
