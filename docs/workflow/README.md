@@ -5,6 +5,7 @@
 - [分析到执行的上下文交接](ANALYSIS_HANDOFF_POLICY.zh-CN.md)
 - [架构设计](ARCHITECTURE.md)
 - [逐行为实现：工作包与通用工具优化](BEHAVIOR_COST_TOOLS.zh-CN.md)
+- [工作包定义、划分标准与依赖协调（论文方法）](../research/WORK_PACKAGE_PLANNING.zh-CN.md)
 - [Benchmark 验收与开发工具](BENCHMARK_AND_DELIVERY_TOOLS.zh-CN.md)
 - [Codex Job 契约](CODEX_JOBS.md)
 - [阅读导航、变化驱动修复与按需探针](CONTEXT_FOCUS_AND_PROBES.zh-CN.md)
