@@ -3,6 +3,8 @@
 从[项目使用说明](../README.md)开始。按用途查阅：
 
 - [科研汇报](research/FACTORY_RESEARCH_REPORT.zh-CN.md)：核心机制、创新定位、与通用 agent 的比较及实验论证。
+- [合作方汇报：问题与三版演进](research/PROJECT_EVOLUTION_BRIEFING.zh-CN.md)：从翻译过程日志解释 Codex、v1、v2 的问题，以及当前 v3 的顶层设计和运行效果。
+- [Codex 翻译过程深入核对](research/CODEX_TRANSLATION_PROCESS_AUDIT.zh-CN.md)：八项具体过程问题，逐项核对日志、补丁、原定义和实际提示，并说明 V3 的处理与证据边界。
 - [工作包方法](research/WORK_PACKAGE_PLANNING.zh-CN.md)：完整划分过程、判断标准、依赖与修订协调，以及 FSE 论文表述。
 - [工作流与架构](workflow/README.md)：阶段职责、实现、交付、恢复。
 - [平台与验收](platform/README.md)：Docker、OVMF、构建、固定公开测试。

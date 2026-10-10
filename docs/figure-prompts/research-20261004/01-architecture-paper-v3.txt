@@ -1,0 +1,53 @@
+Create a polished, publication-quality systems research architecture figure titled "Driver Port Factory". It must look like an ACM software engineering paper framework figure, not a presentation slide, infographic poster, marketing diagram or dashboard. This is a detailed architecture with multiple connected mechanisms, not a simplified three-box flow. Use a compact wide landscape composition. Small title, narrow outside margins, aligned modules, clear groups and complete directional connections. Render every label sharply in English.
+
+VISUAL LANGUAGE
+Pure white background. Thin dark charcoal outlines, nearly square corners with very small radius. Restrained pale steel-blue, pale sage and pale lavender fills only behind major groups; internal boxes mostly white. No gradients, glossy effects, shadows, 3D cylinders, big colored badges, oversized headings or excessive empty space. Use professional sans-serif text, consistent type sizes and weights. Group titles bold but small. Thin black orthogonal data arrows. Muted blue knowledge arrows. Muted orange only for a specific repair return. Keep arrows outside text, route along whitespace, and connect their actual endpoints. Do NOT use bullet characters, middle dots, centered dots, dot-separated phrases, or dot lists ANYWHERE. Do not use decorative dots or ellipses. Separate multiple terms with line breaks or distinct boxes instead.
+
+ICONS
+Use exactly four small monochrome outline icons, subordinate to text: a file-stack icon beside complete source inputs, a small stacked-storage icon beside the knowledge store heading, a small neural-node icon beside the implementation worker, and a small monitor/terminal icon beside public execution. No icons on ordinary boxes. No brand logos. Icons identify special functions; do not substitute icons for labels or increase panel sizes for them.
+
+LAYOUT
+Top: shallow full-width input strip, heading "Fixed experiment inputs", four cells: "Complete Linux source", "Hollow target kernel", "Device and platform evidence", "Scope and public oracles". Add the file-stack icon to the first cell.
+Middle: three adjacent technical groups, approximately 31%, 39%, 26% of width, with narrow routing gaps. Group headings "A  Joint analysis", "B  Continuous implementation", "C  Public acceptance". Below these groups: a shallow full-width knowledge band. Bottom: a very shallow gray controller foundation band. No numbered circular badges.
+
+GROUP A
+Four compact nodes in a clear descending route:
+A1 "Source behavioral obligations"
+A2 "Target responsibility mapping" with small subtext "Driver / framework / caller"
+A3 "Coarse route and key premises"
+A4 "Accepted report and reference index" with small subtext "Contracts C, routes R, premises P, goals B"
+A1 -> A2 -> A3 -> A4.
+A small side node A5 "Definitions or focused probe" has a two-way dialogue with A3, using two separately directed arrows if easier. This represents investigation of a design-changing premise, not a mandatory probe for every task. Include tiny note "Probe only for a concrete gap".
+Input strip must connect to A1, NOT directly to implementation.
+
+GROUP B
+B1 "Select one complete work package"
+B2 "Implementation worker" with the small neural-node icon and four separate compact internal labels in a 2x2 grid: "Read", "Code", "Integrate", "Check". NO dot-separated action list.
+A4 -> B1, labeled "Required obligations". B1 -> B2.
+A small loop from B2 back to B1 labeled "Continue same goal and session".
+Below B2 two compact nodes B3 "Concrete counterevidence" -> B4 "Local route revision"; B2 -> B3 and B4 -> B1. Add small note below "Preserve unrelated progress" and another short note "Small driver: one package is allowed". No route-node-to-package automatic splitting.
+
+GROUP C
+C1 "Final source and artifact"
+C2 "Complete fixed public suite" with a small monitor icon
+C3 "Delivery and execution evidence"
+B2 -> C1 is labeled "Candidate". This arrow MUST originate from the worker, not from work-package selection.
+C1 -> C2 -> C3.
+C2 -> B2 orange return arrow labeled "Specific failed case", routed in the gap below the normal cross-panel candidate arrow, not through text.
+Small bottom note "Public observations are not full equivalence".
+
+KNOWLEDGE BAND
+Heading "Knowledge transfer" with small monochrome storage icon.
+Five compact cells arranged left to right: K1 "Pinned original evidence", K2 "Accepted analysis retrieval", K3 "Question-focused evidence packet", K4 "Shared experience snapshot", K5 "Reusable findings for future tasks".
+Internal edges: K1 -> K3, K2 -> K3, K4 -> K3. Lay out cells in two small rows if needed so these arrows are clear. Do not omit any cell.
+A4 -> K2 downward edge labeled "Retain findings".
+K3 -> B2 upward edge labeled "Retrieve for current question".
+K3 -> A3 upward edge labeled "Retrieve relevant evidence".
+A4 -> K5 and C3 -> K5 may use an outside shared routing line with label "Publish supported findings". Add a tiny note by K5 "Implementation lessons after acceptance". K5 has an outgoing arrow to a small boundary label "Next task", NOT back into the current K4 snapshot.
+Include a compact gray dashed-outline box "Planned: unified finding index" within the knowledge band, with one dashed line to K3. All existing components have solid outlines. Place a tiny legend "Dashed outline = planned integration".
+
+CONTROLLER FOUNDATION
+A thin full-width gray band with heading "Controller and execution tools". Four short labels separated by spacing or thin vertical rules, NEVER dots: "Version binding" | "Progress and recovery" | "Docker / QEMU" | "Execution receipts". This band is supporting infrastructure, not a next step: no data-flow arrow from knowledge down to this band.
+
+ACCURACY
+Keep all original architectural mechanisms: full-source inputs, source obligations, target route and critical premises, a single accepted report/index, one complete work package, read/code/integrate/check in a persistent session, failure return, same final candidate public suite, delivery evidence, analysis knowledge write-back, on-demand retrieval and controller ownership. Added detail clarifies these mechanisms without changing them. No invented benchmark results, mathematical correctness claims or mandatory reviewer. Prioritize accurate endpoints over artistic symmetry. All text must be legible with a consistent hierarchy. Dense but calm, like a professionally typeset research framework figure.

@@ -1,0 +1,28 @@
+Edit the supplied Driver Port Factory architecture figure. Use THIS IMAGE as the design basis. Preserve its detailed horizontal stage bands on the left, knowledge column on the right, top input strip and bottom controller strip. Keep all conceptual modules and the same overall information density. Do not replace it with three simple boxes. Improve it into a clean academic framework figure. Increase whitespace ONLY in routing channels, reduce heading sizes slightly, align boxes on a grid, use pale flat fills and crisp thin dark lines. No gradients, shadows or huge colored badges.
+
+Typography: remove every middle-dot or bullet-dot separator from all labels. Replace the "Read [dot] Code [dot] Integrate [dot] Check" line with four small adjacent cells labeled Read, Code, Integrate, Check, inside one Implementation worker box. Controller foundation terms use vertical rules or spacing instead of dots. All labels remain clear English.
+
+Add exactly FOUR small monochrome outline icons: document stack at Complete Linux tree, connected neural nodes beside Implementation worker, stacked storage beside Knowledge Transfer, terminal window beside Complete fixed test suite. Icons are small and functional. No logos or cartoon art.
+
+Correct the arrow topology. Every arrow must have its tip on the actual destination. Use only orthogonal routes in the whitespace. Important: remove the existing confusing blue crossings along the border between the left bands and knowledge column. Redraw these connections from scratch, using separate horizontal lanes. There must be no dangling lines and no arrows into mere panel borders.
+
+LEFT MAIN FLOW:
+Pinned inputs -> Source obligations.
+Source obligations -> Target responsibilities -> Coarse route -> Critical premises -> Definitions / focused probe -> One analysis report + C / R / P / B links. A small note makes focused probe optional when original definitions suffice.
+Analysis report -> Select one complete goal -> Implementation worker.
+Implementation worker -> Final source + artifact -> Complete fixed test suite -> Delivery + receipts.
+The candidate link MUST connect the worker box to Final source + artifact, not to the acceptance panel header. The acceptance arrows run left to right with arrowheads at each of the three boxes.
+Specific failure return: Complete fixed test suite -> Implementation worker. Route it OUTSIDE the main band on the far left margin, label Specific failed case, muted amber. It must NOT point into Concrete counterevidence or into the gap between source and test boxes.
+Within implementation: a small return arrow Worker -> Select labeled Continue same goal. Below it Worker -> Concrete counterevidence -> Local route revision -> Select. Keep the note Preserve unrelated progress. Route these locally without crossing their labels or the main candidate line. Keep the note Route steps do not force separate packages.
+
+RIGHT KNOWLEDGE FLOW:
+Analysis report -> Accepted analysis retrieval, labeled Retain findings. Do not end the arrow at the Knowledge Transfer panel border.
+Original evidence index -> Problem-focused evidence packet.
+Accepted analysis retrieval -> Problem-focused evidence packet.
+Shared experience: pinned snapshot -> Problem-focused evidence packet.
+Problem-focused evidence packet -> Implementation worker, labeled Retrieve as needed. Put its leftward connection in its own empty channel separate from the analysis-write arrow. Do not draw bidirectional read/write arrows.
+Keep Publish reusable findings -> Future tasks and the conditions/provenance text. Keep the distinction Analysis premises: evidence-backed; implementation lessons: after acceptance. Place the Planned: unified finding index box at the bottom with a DASHED outline and one dashed connection to Problem-focused evidence packet. All currently implemented boxes have solid outlines.
+
+Keep the bottom Controller & execution tools strip, with version binding, progress, Docker / QEMU and execution receipts. It is foundation, not a processing stage: no flow arrow enters it from the knowledge layer.
+
+Keep all current scope limitations and technical mechanisms. No fabricated statistics or correctness guarantees. Prioritize clear accurate dataflow over artistic symmetry. The requested result is a careful cleanup and correction of this specific detailed figure, not a new simplified design.

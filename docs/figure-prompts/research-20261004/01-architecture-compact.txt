@@ -1,0 +1,9 @@
+Create a clean academic software architecture diagram titled "Driver Port Factory". White background, pale blue and muted teal boxes, thin slate arrows, readable black sans-serif English labels. Flat 2D, calm and spacious, landscape.
+Three columns connected left to right:
+1. "Analysis": "Complete source code" -> "Behavioral requirements" -> "Target mapping and work plan".
+2. "Implementation": "Select one work package" -> "Read, code, integrate, check". A small feedback arrow within this column labeled "Continue".
+3. "Acceptance": "Final source and artifact" -> "Complete public tests" -> "Delivery and evidence".
+Below all three columns, a shared band labeled "Task knowledge: original evidence and accepted analysis". An arrow from Analysis into the band labeled "Store findings". An arrow from the band to Implementation labeled "Retrieve on demand".
+Bottom caption: "Controller manages versions, progress and execution records".
+Small note: "Unified finding index: planned integration".
+This is a conceptual method diagram, not a chart of measured results. No logos, decorative artwork or long paragraphs. Clear arrowheads, no line crossings, generous margins.
