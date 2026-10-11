@@ -18,6 +18,12 @@ def prepare(project, stage, context):
 
         value["analysis_entry"] = analysis_inputs(project)
     if stage.value == "target_platform_study":
+        from .source_scale import context as source_scale_context
+
+        if not value.get("checker_decision"):
+            scale = source_scale_context(project)
+            if scale:
+                value["large_source_planning"] = scale
         from ..knowledge.reuse import optional_context
 
         value["prior_experience"] = optional_context(
