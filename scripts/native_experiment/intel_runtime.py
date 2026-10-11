@@ -81,7 +81,7 @@ def execute(case, artifact, output):
     output.mkdir(parents=True, exist_ok=True)
     os.chdir(ROOT)
     driver = json.loads((ROOT / ".native-task.json").read_text())["driver"]
-    spec = json.loads(Path("/dpf-shared/public-tests/index.json").read_text())[case]
+    spec = json.loads(Path("/dpf-shared/public-tests/index.json").read_text())[driver + "/" + case]
     value = {
         "status": "FAIL",
         "boot_passed": False,
