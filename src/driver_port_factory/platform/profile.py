@@ -82,7 +82,9 @@ def container_argv(profile, worktree, name, command, *, build, cache_key, artifa
             worktree,
             name,
             command,
-            network=build or native["driver"] == "virtio-net",
+            network=build
+            or native["driver"] == "virtio-net"
+            or native["task"].get("network_required", False),
             artifact=artifact,
         )
     argv = [
