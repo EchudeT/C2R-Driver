@@ -124,7 +124,11 @@ or continue in the same session if unfinished. Keep later implementation details
 Use the existing B prose and contract links; no split-justification form, extra reviewer or report.
 
 Use short IDs as Markdown headings: `## R1`, `## B1`, `## C1`, `## P1`.
-Write ordinary prose under them. Each B section describes its complete implementation goal, including its cleanup;
+Write ordinary prose under them. Each B section describes its complete implementation goal, including
+its cleanup and applicable development case IDs from the prepared suite where available. Cases needing
+later capabilities belong to those later packages; the R path describes overall integration, not a
+whole-suite checklist for every B. Reuse the existing B/C prose for this association; no additional
+JSON field or test matrix is required. All prepared cases remain required at final acceptance;
 each C section states a source obligation and its existing test evidence or bounded source argument
 and validation limits. With a prepared suite, do not invent additional required tests. IDs identify
 sections so you need not repeat long titles. A `section` override is available for an existing heading;

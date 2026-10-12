@@ -181,7 +181,8 @@ def packet(project, stage):
             f"Complete only the selected work package {current['id']}: linked obligations, "
             "necessary "
             "framework adaptation, driver integration, error/cleanup paths and local checks. "
-            "Stop this round at behavior_done or behavior_continue."
+            "Keep implementing and diagnosing in this session until done or a necessary "
+            "handoff; an ordinary failed check is not a round boundary."
         )
     else:
         objective = (
@@ -216,8 +217,13 @@ def packet(project, stage):
         "needs them. Read/probe only a concrete prerequisite whose answer changes that behavior "
         "or its required oracle; stop investigating once it is resolved. Use the verified platform "
         "build/boot tools. Do not perform a blanket capability survey. "
-        "Submit operation behavior_done to finish only the selected behavior, or behavior_continue "
-        "to retain it. For the last package, run the required suite and include your short "
+        "Finish the selected behavior with behavior_done. Use behavior_continue only when "
+        "unfinished work actually needs a handoff, not after each failure or internal step. "
+        "If a concrete blocker prevents meaningful progress, use the existing blocked route "
+        "rather than repeatedly returning the same unresolved state. Development checks "
+        "follow the current B/C passages; overall route checks needing later capabilities "
+        "remain for later packages. For the last package, run the required suite and include "
+        "your short "
         "source self-check and remaining validation limits in the done note. The controller "
         "captures delivery through the existing checks directly; "
         "no separate report-writing turn. Implemented is not benchmark acceptance.",
@@ -302,4 +308,9 @@ def finish(project, stage, submission):
     next_packet = packet(project, stage)
     if submission.get("final_package_handoff") and next_packet["current"] is None:
         return None  # Continue through the ordinary implementation/acceptance validators.
-    return "Behavior progress recorded, not stage PASS. " + json.dumps(next_packet)
+    selected = next_packet["current"]
+    next_id = selected["id"] if selected else "final delivery"
+    return (
+        "Behavior progress recorded, not stage PASS. "
+        f"Current selection: {next_id}. The freshly supplied behavior_progress is authoritative."
+    )

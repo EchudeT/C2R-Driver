@@ -266,8 +266,10 @@ class SkillPromptComposer:
                 "completion": (
                     "Follow reference_material.behavior_progress. This scheduling boundary "
                     "takes precedence over the default continuous-task increment guidance. "
-                    "Work on the selected complete behavior only. Prefer driver_checks.progress "
-                    "with status done/continue and an optional short note; no report required. "
+                    "Work on the selected complete behavior continuously, including diagnosis "
+                    "and repair. Use driver_checks.progress done when it is complete; continue "
+                    "is for a necessary unfinished handoff, not an ordinary failed check. "
+                    "An optional short note suffices; no report required. "
                     "Alternatively submit the existing report with "
                     "decision=operation and operation=behavior_done or behavior_continue. "
                     "This advances progress, not acceptance. When no behavior remains, prepare "

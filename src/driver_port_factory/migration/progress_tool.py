@@ -11,8 +11,10 @@ from .experiment_ack import _job
 def tool():
     return {
         "name": "progress",
-        "description": "Finish this round: done marks only the selected behavior implemented; "
-        "continue retains it. Neither accepts delivery. Optional short note for a consequential "
+        "description": "Hand off the selected behavior: done marks it implemented; continue "
+        "retains unfinished work only when a handoff is necessary. Keep ordinary failed-check "
+        "diagnosis and repair in this session; do not hand back after each internal step. "
+        "Neither accepts delivery. Optional short note for a consequential "
         "decision or unresolved question; no report required. On the final work package, "
         "include relevant source self-check findings and validation limits in note. Existing "
         "controller checks handle delivery; no extra submission gate or review round. "

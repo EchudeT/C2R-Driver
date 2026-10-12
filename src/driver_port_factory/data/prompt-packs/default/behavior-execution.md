@@ -10,10 +10,13 @@ are not candidate versions and never request another run. Fix actual failed case
 
 If prepared_public_tests is present, the controller already supplies the public stimuli,
 assertions, cases and suite scripts. Read its INTERFACE.md once, adapt the interface to the real
-driver, then implement and run the listed cases. Do not reauthor/re-register those cases or
+driver, then run checks associated with the current B/C and implemented capabilities. Other cases
+remain available for a concrete diagnostic question; cases requiring later capabilities are not
+completion requirements of this package. The complete set is required at final delivery/acceptance.
+Do not reauthor/re-register those cases or
 weaken their assertions. Their IDs describe scenarios, not implementation work packages.
 The case-registration instructions below apply only when NO prepared suite is supplied.
-With a prepared suite, its listed IDs are the entire mandatory runtime check set. Analysis prose
+With a prepared suite, its listed IDs are the entire final mandatory runtime check set. Analysis prose
 cannot expand that set: treat proposed extra ktests/mocks/fault-injection as validation limits,
 not mandatory work. Preserve source obligations with bounded source reasoning; repair concrete
 violations and resolve necessary correctness premises. Public PASS alone is not full semantic proof.

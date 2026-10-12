@@ -70,6 +70,9 @@ def focused_context(stage, context):
     progress["passage_usage"] = (
         "text_ref resolves to passages below; read each distinct passage once. "
         "Only current is scheduled. Shared route/contracts do not add other objectives. "
+        "Shared route describes the overall integration, not a demand to implement later "
+        "packages or run their checks now. Use development case IDs associated with the "
+        "current B/C passages; the full suite belongs to final delivery and acceptance. "
         "Full analysis stays available through analysis_document."
     )
     # The selected route/obligations are already supplied; keep general report navigation.

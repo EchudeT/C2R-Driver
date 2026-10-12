@@ -75,8 +75,17 @@ def test_real_runner_keeps_one_behavior_per_round_then_runs_normal_implementatio
             "target_study_report",
         } <= packet["frozen_inputs"].keys()
         assert packet["workspace_paths"]["target_worktree"] == str(job.execution_root)
+        platform = json.loads(job.prompt.split("<job>")[1].split("</job>")[0])["instructions"][
+            "tool_runtime"
+        ]["platform_execution"]
+        if calls:
+            assert "source" in platform
+        else:
+            assert "case_interface" in platform
         progress = packet["behavior_progress"]
         instructions = json.loads(job.prompt.split("<job>")[1].split("</job>")[0])["instructions"]
+        feedback = packet.get("controller_execution", "")
+        assert "route_context" not in json.dumps(feedback)
         assert instructions["objective"] == progress["objective"]
         current = progress["current"]
         if calls:
@@ -119,7 +128,13 @@ def test_real_runner_keeps_one_behavior_per_round_then_runs_normal_implementatio
             pytest.fail("Final package must not require a separate delivery model call")
         return CodexResult(job.job_id, "", "same-worker")
 
-    with patch("driver_port_factory.codex.cli.CodexExecGateway.run", side_effect=work):
+    with (
+        patch("driver_port_factory.codex.cli.CodexExecGateway.run", side_effect=work),
+        patch(
+            "driver_port_factory.platform.worker.context",
+            return_value={"case_interface": "synthetic interface " * 100},
+        ),
+    ):
         runner(project)._implementation(project)
     assert calls == ["init", "init", "operation"]
     assert project.stage(S.DRIVER_IMPLEMENTATION).status is StageStatus.PASS

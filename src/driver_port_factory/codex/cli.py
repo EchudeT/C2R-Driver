@@ -264,6 +264,10 @@ def run_codex_stage(
     plan = reading_plan(stage_key, context)
     if plan:
         context["reading_plan"] = plan
+    from .execution_context import compact_material
+
+    context, material_inputs = compact_material(project, stage_key, context, known_inputs)
+    supplied_inputs.update(material_inputs)
     rendered = _render_prompt(
         project,
         stage_key,

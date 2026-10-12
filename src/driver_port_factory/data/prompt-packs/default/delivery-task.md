@@ -60,12 +60,14 @@ self-check model round is scheduled. Existing controller checks capture the deli
 receipt gate is added to done. Do not rerun an unchanged passing suite with fresh=true just to hand off. Progress remains separate
 from controller acceptance in stages 14/15.
 
-End the round with driver_checks.progress(status="done" or "continue", optional note). A short note
-is enough for a consequential decision or unresolved fact; no report or self-review checklist is
-required for each progress handoff. Done marks only the selected behavior implemented, never accepted.
-Continue retains it and the session. Existing CLI behavior_done/behavior_continue submissions remain
-supported. End the round after submission; the controller selects the next item. Preserve working
-code. For lengthy unfinished work use continue at a useful checkpoint rather than redoing analysis.
+Keep ordinary implementation failures, diagnosis and repair in the current session. Finish the
+selected behavior with driver_checks.progress(done, optional note); use continue only for a necessary
+unfinished handoff, not to report each failure or internal step. A short consequential note suffices;
+no report or self-review checklist is required. If a concrete blocker prevents meaningful progress,
+use the existing blocked route rather than repeat the same unresolved state. Done marks only the
+selected behavior implemented, never accepted; continue retains it and the session. Existing CLI
+submissions remain supported. After submission end the round and preserve code; the controller
+selects at most the next package.
 
 Prepare the required delivery files inside the last work package; the controller assembles the
 short progress notes as its delivery report. For unscheduled delivery or a concrete subsequent
