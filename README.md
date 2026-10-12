@@ -18,6 +18,10 @@
 验收。详见[分支调整说明](docs/workflow/ARCHITECTURE.md#当前实验分支的实现交付调整)。
 这些调整尚未经新版本真实实验验证，不代表已有费用或质量收益；历史实验仍保留原协议。
 
+`feature/network-diagnostics-20261012` 提供可选的 native 网络抓包及 QEMU trace 工具，
+保持原设备、测例与最终验收，尚未验证真实驱动诊断效果。
+见[网络诊断用法](docs/platform/NETWORK_DIAGNOSTICS.zh-CN.md)。
+
 ## 快速开始：跑一组实验
 
 需要 x86_64 Linux、Python 3.11.8+，以及可用的 Docker/KVM。下面按两个仓库放在同级目录示例；已有仓库直接复用。

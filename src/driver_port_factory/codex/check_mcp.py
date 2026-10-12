@@ -12,6 +12,10 @@ MAX_REQUEST = 65536
 
 
 def dispatch(project, job_id, name, arguments):
+    if name == "network_diagnostics":
+        from ..migration.network_diagnostics import run
+
+        return run(project, job_id, arguments)
     if name == "knowledge_learn":
         from ..knowledge.learn_tool import run
 
@@ -92,6 +96,13 @@ def respond(project, job_id, message):
         tools.extend(learning)
         if project is not None and stage is not None:
             tools.append(platform_tool())
+        if project is not None and stage == "driver_implementation":
+            from ..migration.network_diagnostics import tool as network_tool
+            from ..platform.native import binding
+
+            native = binding(project)
+            if native and native["task"].get("network_required"):
+                tools.append(network_tool())
         from ..migration.debugging import tool
 
         tools.append(tool())

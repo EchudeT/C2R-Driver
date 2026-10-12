@@ -1,5 +1,7 @@
 # 环境、构建与公开验收
 
+- [按需网络抓包与 QEMU trace](NETWORK_DIAGNOSTICS.zh-CN.md)
+
 - [07 / 08 的执行与资料复用优化](BOOTSTRAP_OPTIMIZATION.zh-CN.md)
 - [当前行为内的日志检查优化](BOOT_LOG_CHECKS.zh-CN.md)
 - [由操作者指定平台路线](CONFIGURED_PLATFORM_ROUTE.zh-CN.md)
