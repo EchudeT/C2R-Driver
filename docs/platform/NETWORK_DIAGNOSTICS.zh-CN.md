@@ -21,20 +21,11 @@ PCAP 使用 QEMU `filter-dump`，不依赖镜像安装 tcpdump。每帧最多保
 这次重放单独记为诊断，不发布最终 PASS、不更新开发检查的保留成绩。完成修复后仍走
 原公开验收。工具不是每包或每次失败的强制步骤。
 
-## Codex 的等价用法
+## Baseline 边界
 
-在相同 Docker/KVM/TAP 路线和原公开测例 QEMU 命令后追加：
-
-```sh
--object filter-dump,id=diag,netdev=net01,file=/root/asterinas/.dpf-output/packets.pcap,maxlen=256
--trace enable=e1000e_rx_written_to_guest
-```
-
-`net01` 必须替换成该冻结 profile 实际的 netdev ID；trace 名称来自镜像内固定 QEMU
-的 `-trace help`。QEMU stderr 保存设备 trace。在原 peer 执行后退出 QEMU，让 PCAP
-落盘。PCAP 可用有 tcpdump 的环境运行 `tcpdump -nn -e -r packets.pcap`，也可离线
-用 Wireshark 打开。官方镜像当前没有 tcpdump，不要求临时安装。两种方法取得同类
-诊断证据；baseline 仍只用标准命令，不获得 Factory 包装工具。
+诊断封装属于 Factory 方法。Codex 不获得这个工具、操作手册或专门的诊断提示词。
+两种方法保留相同镜像及 QEMU；Codex 可以自主发现和使用原生抓包/trace 能力。
+PCAP 可由操作者离线用 Wireshark 或 tcpdump 阅读。
 
 ## 验证状态
 
