@@ -16,11 +16,15 @@
 当前实验分支 `experiment/package-execution-focus-20261012` 调整当前工作包的开发检查范围、
 连续诊断与必要交回，并索引同会话未变化的长执行说明；保留 B/C/R/P、源码引用和完整最终
 验收。详见[分支调整说明](docs/workflow/ARCHITECTURE.md#当前实验分支的实现交付调整)。
-这些调整尚未经新版本真实实验验证，不代表已有费用或质量收益；历史实验仍保留原协议。
+本轮 Luna/Sol 六驱动第一遍已完成并记录，费用与成绩以环境仓库的冻结实验表为准；历史实验保留原协议。
 
-`feature/network-diagnostics-20261012` 提供可选的 native 网络抓包及 QEMU trace 工具，
-保持原设备、测例与最终验收，尚未验证真实驱动诊断效果。
+当前实验分支提供可选的 native 网络抓包及 QEMU trace 工具，保持原设备、测例与最终验收。
+Sol 冻结检查点支持旧任务的显式 netdev 绑定；Luna 保留原检查点，工具接入差异已记录。
 见[网络诊断用法](docs/platform/NETWORK_DIAGNOSTICS.zh-CN.md)。
+
+## 本轮冻结实验交接
+
+组员运行 Codex＋goal 请使用环境仓库的[冻结操作指南](https://github.com/C2R-Driver/driver-experiment-env/blob/main/docs/experiments/FROZEN_CODEX_RUN.zh-CN.md)。Factory 两个实际检查点为 `fse-20261013-luna`（`4114e32`）与 `fse-20261013-sol`（`a9c8245`）；main 保留原版本。环境仓库使用 `fse-20261013-runner` 标签；已校准的 native/public suite 继续复用，不能用后来统一目录的新环境替换。
 
 ## 快速开始：跑一组实验
 
