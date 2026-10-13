@@ -14,3 +14,6 @@ runs/
 .env
 auth.json
 *.vhdx
+
+# Windows download metadata
+*:Zone.Identifier
