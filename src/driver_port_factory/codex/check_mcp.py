@@ -97,11 +97,12 @@ def respond(project, job_id, message):
         if project is not None and stage is not None:
             tools.append(platform_tool())
         if project is not None and stage == "driver_implementation":
+            from ..migration.network_diagnostics import available
             from ..migration.network_diagnostics import tool as network_tool
             from ..platform.native import binding
 
             native = binding(project)
-            if native and native["task"].get("network_required"):
+            if native and available(native["task"]):
                 tools.append(network_tool())
         from ..migration.debugging import tool
 

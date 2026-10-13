@@ -10,7 +10,7 @@ from types import SimpleNamespace
 import pytest
 
 from driver_port_factory.core.models import WorkflowError
-from driver_port_factory.migration.network_diagnostics import request
+from driver_port_factory.migration.network_diagnostics import available, request
 
 SCRIPT = Path(__file__).parents[1] / "scripts/native_experiment/network_diagnostics.py"
 spec = importlib.util.spec_from_file_location("network_diagnostic_runner", SCRIPT)
@@ -74,6 +74,40 @@ def test_request_rejects_workload_changes_and_wildcard_traces():
     ):
         with pytest.raises(WorkflowError):
             request(profile, arguments)
+
+
+def test_legacy_explicit_netdev_exposes_tool_and_accepts_unchanged_workload(monkeypatch):
+    from driver_port_factory.codex import check_mcp
+    from driver_port_factory.knowledge import shared_binding
+    from driver_port_factory.platform import native
+
+    task = {
+        "qemu_model": "nic-model,netdev=peer,addr=5",
+        "tests": ["packet-exchange"],
+        "benchmarks": [],
+        "runtime_script": "public_runtime.py",
+    }
+    assert available(task)
+    assert request({"native": {"task": task}}, {"case": "packet-exchange"}) == {
+        "case": "packet-exchange",
+        "runtime": "public_runtime.py",
+        "trace_events": [],
+    }
+    project = SimpleNamespace(config=SimpleNamespace(behavior_scheduling=False))
+    monkeypatch.setattr(check_mcp, "_active_stages", lambda *args: ("driver_implementation", None))
+    monkeypatch.setattr(shared_binding, "project_binding", lambda *args: None)
+    monkeypatch.setattr(native, "binding", lambda *args: {"task": task})
+    names = {
+        t["name"] for t in check_mcp.respond(project, "job", {"method": "tools/list"})["tools"]
+    }
+    assert "network_diagnostics" in names
+    task["qemu_model"] = "nic-model-without-backend"
+    names = {
+        t["name"] for t in check_mcp.respond(project, "job", {"method": "tools/list"})["tools"]
+    }
+    assert "network_diagnostics" not in names
+    with pytest.raises(WorkflowError, match="configured native network route"):
+        request({"native": {"task": task}}, {"case": "packet-exchange"})
 
 
 def test_failed_workload_still_exports_diagnostics_and_restores_transport(tmp_path, monkeypatch):
