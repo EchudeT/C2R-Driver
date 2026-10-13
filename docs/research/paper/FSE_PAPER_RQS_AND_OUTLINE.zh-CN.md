@@ -270,13 +270,13 @@ v1、v2 的历史轨迹可以说明为什么选择这些消融；历史模型、
 
 ## 5. 现有证据入口
 
-- [主汇报：多案例问题与版本演进](PARTNER_VISIT_BRIEFING.zh-CN.md)。
-- [三项设计与实际例子](PARTNER_VISIT_V3_MECHANISMS_AND_QA.zh-CN.md)。
-- [测试语言、执行链与平台适配](PARTNER_VISIT_TESTING_AND_PLATFORM_GAPS.zh-CN.md)。
-- [内部证据：原始日志、全部尝试与归因](PARTNER_VISIT_EVIDENCE.zh-CN.md)。
-- [六驱动新版配对结果](../../../driver-experiment-env/results/gpt6-sol-medium-premise-six-comparison-20261011.zh-CN.md)：提供已有任务级观察，进一步统计需采用冻结版本的重复对照。
-- [igb 实际两包计划](../../../experiments/intel-suite-unified-20261012/trials/dpf/igb/intel-medium-size-advice-20261012-m2-igb/run/work/stage-work/target_platform_study/report.md)与[六项最终验收](../../../experiments/intel-suite-unified-20261012/trials/dpf/igb/intel-medium-size-advice-20261012-m2-igb/run/.dpf/public-qemu/7407a3ecd5bd40af830740008e3d6b7a/attempt.json)。
-- 现行实现：[联合分析提示](../../src/driver_port_factory/data/prompt-packs/default/analysis-task.md)、[连续实施提示](../../src/driver_port_factory/data/prompt-packs/default/behavior-job.md)、[工作包与依赖](../../src/driver_port_factory/migration/behavior.py)、[实施内修订](../../src/driver_port_factory/migration/route.py)。
+- [主汇报：多案例问题与版本演进](../briefings/PARTNER_VISIT_BRIEFING.zh-CN.md)。
+- [三项设计与实际例子](../briefings/PARTNER_VISIT_V3_MECHANISMS_AND_QA.zh-CN.md)。
+- [测试语言、执行链与平台适配](../briefings/PARTNER_VISIT_TESTING_AND_PLATFORM_GAPS.zh-CN.md)。
+- [内部证据：原始日志、全部尝试与归因](../briefings/PARTNER_VISIT_EVIDENCE.zh-CN.md)。
+- [六驱动新版配对结果](../../../../driver-experiment-env/results/gpt6-sol-medium-premise-six-comparison-20261011.zh-CN.md)：提供已有任务级观察，进一步统计需采用冻结版本的重复对照。
+- [igb 实际两包计划](../../../../experiments/intel-suite-unified-20261012/trials/dpf/igb/intel-medium-size-advice-20261012-m2-igb/run/work/stage-work/target_platform_study/report.md)与[六项最终验收](../../../../experiments/intel-suite-unified-20261012/trials/dpf/igb/intel-medium-size-advice-20261012-m2-igb/run/.dpf/public-qemu/7407a3ecd5bd40af830740008e3d6b7a/attempt.json)。
+- 现行实现：[联合分析提示](../../../src/driver_port_factory/data/prompt-packs/default/analysis-task.md)、[连续实施提示](../../../src/driver_port_factory/data/prompt-packs/default/behavior-job.md)、[工作包与依赖](../../../src/driver_port_factory/migration/behavior.py)、[实施内修订](../../../src/driver_port_factory/migration/route.py)。
 
 以上支持方法设计和已发生的案例。四项 RQ 的最终结论应由对应评价给出，写作时再据实际结果确定贡献表述。
 

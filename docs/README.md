@@ -1,9 +1,9 @@
 # 文档导航
 
-从[项目使用说明](../README.md)开始。按用途查阅：
+从[项目使用说明](../README.md)开始。按用途查阅。科研材料分层见[科研目录](research/README.md)：
 
-- [FSE 研究问题与章节设计](research/FSE_PAPER_RQS_AND_OUTLINE.zh-CN.md)：论文评价安排与投稿规划。
-- [合作方汇报主稿](research/PARTNER_VISIT_BRIEFING.zh-CN.md)：顶层问题、版本演进与方法设计；配套[过程证据](research/PARTNER_VISIT_EVIDENCE.zh-CN.md)、[机制问答](research/PARTNER_VISIT_V3_MECHANISMS_AND_QA.zh-CN.md)及[测试与平台边界](research/PARTNER_VISIT_TESTING_AND_PLATFORM_GAPS.zh-CN.md)。
+- [FSE 研究问题与章节设计](research/paper/FSE_PAPER_RQS_AND_OUTLINE.zh-CN.md)：论文评价安排与投稿规划。
+- [合作方汇报主稿](research/briefings/PARTNER_VISIT_BRIEFING.zh-CN.md)：顶层问题、版本演进与方法设计；配套[过程证据](research/briefings/PARTNER_VISIT_EVIDENCE.zh-CN.md)、[机制问答](research/briefings/PARTNER_VISIT_V3_MECHANISMS_AND_QA.zh-CN.md)及[测试与平台边界](research/briefings/PARTNER_VISIT_TESTING_AND_PLATFORM_GAPS.zh-CN.md)。
 - [科研汇报](research/FACTORY_RESEARCH_REPORT.zh-CN.md)：核心机制、创新定位、与通用 agent 的比较及实验论证。
 - [合作方汇报：问题与三版演进](research/PROJECT_EVOLUTION_BRIEFING.zh-CN.md)：从翻译过程日志解释 Codex、v1、v2 的问题，以及当前 v3 的顶层设计和运行效果。
 - [Codex 翻译过程深入核对](research/CODEX_TRANSLATION_PROCESS_AUDIT.zh-CN.md)：八项具体过程问题，逐项核对日志、补丁、原定义和实际提示，并说明 V3 的处理与证据边界。

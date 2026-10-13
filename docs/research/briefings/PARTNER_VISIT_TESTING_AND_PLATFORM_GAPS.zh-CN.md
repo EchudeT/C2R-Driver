@@ -159,11 +159,11 @@ C 回归程序按预期测试函数逐项解析：每个函数都必须实际产
 
 #### 例子 A：VirtIO Network——校准运行环境与功能判据
 
-保存的原始参考记录显示，三项网络场景全部通过；移除驱动后，内核仍可构建与启动，但三项场景均因实际网卡不可用而失败。这组控制说明，设备功能是测试成功所需的条件。[正向记录](../../../experiments/native-suite-current-20261006/operator/virtio-net/positive.json)、[负向记录](../../../experiments/native-suite-current-20261006/operator/virtio-net/negative.json)
+保存的原始参考记录显示，三项网络场景全部通过；移除驱动后，内核仍可构建与启动，但三项场景均因实际网卡不可用而失败。这组控制说明，设备功能是测试成功所需的条件。[正向记录](../../../../experiments/native-suite-current-20261006/operator/virtio-net/positive.json)、[负向记录](../../../../experiments/native-suite-current-20261006/operator/virtio-net/negative.json)
 
 #### 例子 B：igb——将多包进展汇合为整体交付
 
-单队列基础服务和双队列扩展分别完成后，控制器对同一最终候选执行六项公开场景，六项全部通过。最终批次中各项均为新执行记录，包内开发结果与整体验收分别保存。[实际记录](../../../experiments/intel-suite-unified-20261012/trials/dpf/igb/intel-medium-size-advice-20261012-m2-igb/run/.dpf/public-qemu/7407a3ecd5bd40af830740008e3d6b7a/attempt.json)
+单队列基础服务和双队列扩展分别完成后，控制器对同一最终候选执行六项公开场景，六项全部通过。最终批次中各项均为新执行记录，包内开发结果与整体验收分别保存。[实际记录](../../../../experiments/intel-suite-unified-20261012/trials/dpf/igb/intel-medium-size-advice-20261012-m2-igb/run/.dpf/public-qemu/7407a3ecd5bd40af830740008e3d6b7a/attempt.json)
 
 ### 4. 追加评价：封存候选上的输入变种
 
@@ -243,7 +243,7 @@ C 回归程序按预期测试函数逐项解析：每个函数都必须实际产
 
 实际迁移扩展了共享接收存储，增加适合 CPU 填充的路径，同时保留原 DMA 存储路径；缓冲区准备与分配时点随设备执行上下文一起安排。
 
-这项修改位于共享网络框架。v3 将设备收发、中断、缓冲区适配与恢复放在一个完整工作包内，相关事实同步进入方案，最终探测、收发和恢复三项通过。[实际候选](../../../experiments/public-suite-info-20261006/trials/dpf/ne2k-pci/gpt6-sol-medium-premise-ne2k-20261011-01/run/work/target/kernel/core/comps/network/src/buffer.rs)、[过程与验收](PARTNER_VISIT_EVIDENCE.zh-CN.md#v3)
+这项修改位于共享网络框架。v3 将设备收发、中断、缓冲区适配与恢复放在一个完整工作包内，相关事实同步进入方案，最终探测、收发和恢复三项通过。[实际候选](../../../../experiments/public-suite-info-20261006/trials/dpf/ne2k-pci/gpt6-sol-medium-premise-ne2k-20261011-01/run/work/target/kernel/core/comps/network/src/buffer.rs)、[过程与验收](PARTNER_VISIT_EVIDENCE.zh-CN.md#v3)
 
 #### 例子 B：igb——补齐真实协议栈对新网卡的接入
 
@@ -251,7 +251,7 @@ C 回归程序按预期测试函数逐项解析：每个函数都必须实际产
 
 实际迁移适配了网络接口初始化，使注册的 igb 设备进入真实 eth0。基础工作包同时拥有设备获取、收发、中断、资源回收、停止／重启与上层接入；后继工作包再实现双队列和 RSS。
 
-最终同一候选的六项场景全部通过，硬件队列与上层多流均有进展。这展示了新设备驱动与目标调用方适配共同形成完整服务。[实际规划](../../../experiments/intel-suite-unified-20261012/trials/dpf/igb/intel-medium-size-advice-20261012-m2-igb/run/work/stage-work/target_platform_study/report.md)、[实际接入](../../../experiments/intel-suite-unified-20261012/trials/dpf/igb/intel-medium-size-advice-20261012-m2-igb/run/work/target/kernel/core/src/net/iface/init.rs)
+最终同一候选的六项场景全部通过，硬件队列与上层多流均有进展。这展示了新设备驱动与目标调用方适配共同形成完整服务。[实际规划](../../../../experiments/intel-suite-unified-20261012/trials/dpf/igb/intel-medium-size-advice-20261012-m2-igb/run/work/stage-work/target_platform_study/report.md)、[实际接入](../../../../experiments/intel-suite-unified-20261012/trials/dpf/igb/intel-medium-size-advice-20261012-m2-igb/run/work/target/kernel/core/src/net/iface/init.rs)
 
 #### 例子 C：pvpanic——用目标原生机制承担源行为
 
@@ -263,7 +263,7 @@ C 回归程序按预期测试函数逐项解析：每个函数都必须实际产
 
 固定目标网络注册表没有设备撤销接口。实际迁移在停止时禁止收发、使设备和回调静止，并安全持有仍被注册表引用的设备状态；再次启动时恢复服务。
 
-固定恢复夹具实际检查重复停止与启动、停止后的收发状态及回调计数，并在恢复后完成帧交换。它展示了接口差异的另一种处理：利用目标生命周期机制安排责任，以行为条件检查新的实现方式。[固定恢复场景](../../../driver-experiment-env/src/driver_port_factory/data/public-tests/ne2k-pci/ne2k_public.rs)
+固定恢复夹具实际检查重复停止与启动、停止后的收发状态及回调计数，并在恢复后完成帧交换。它展示了接口差异的另一种处理：利用目标生命周期机制安排责任，以行为条件检查新的实现方式。[固定恢复场景](../../../../driver-experiment-env/src/driver_port_factory/data/public-tests/ne2k-pci/ne2k_public.rs)
 
 ### 4. 缺口处理如何体现 v3 的三个特点？
 
@@ -287,13 +287,13 @@ C 回归程序按预期测试函数逐项解析：每个函数都必须实际产
 
 | 论点 | 直接材料 |
 | --- | --- |
-| 原生测试来源、任务范围 | [任务配置](../../../driver-experiment-env/configs/experiments/native-drivers.json)、[测试打包实现](../../scripts/native_experiment/package_tests.py) |
-| 固定夹具的刺激与断言 | [evbug 夹具](../../../driver-experiment-env/src/driver_port_factory/data/public-tests/evbug/evbug_public.rs)、[evbug 判据](../../../driver-experiment-env/src/driver_port_factory/data/public-tests/evbug/cases.json)、[NE2000 夹具](../../../driver-experiment-env/src/driver_port_factory/data/public-tests/ne2k-pci/ne2k_public.rs)、[NE2000 判据](../../../driver-experiment-env/src/driver_port_factory/data/public-tests/ne2k-pci/cases.json) |
-| 原目标没有 evbug／NE2000 的输入构造 | [准备器](../../../driver-experiment-env/scripts/native_experiment/public_prepare.py)、[固定任务声明](../../../driver-experiment-env/configs/experiments/public-drivers.json) |
-| 原生参考与移除基线 | [驱动移除实现](../../scripts/native_experiment/hollow.py)、[控制执行实现](../../scripts/native_experiment/check.py)、[NVMe 正向记录](../../../experiments/native-suite-current-20261006/operator/nvme-pci/positive.json)、[NVMe 负向记录](../../../experiments/native-suite-current-20261006/operator/nvme-pci/negative.json) |
-| 函数级结果、固定判据、最终批次 | [原生判据解析](../../../driver-experiment-env/scripts/native_experiment/oracle.py)、[夹具冻结校验](../../src/driver_port_factory/platform/public_fixture.py)、[最终公开验收](../../src/driver_port_factory/migration/public_qemu.py) |
-| 封存候选与参数变种 | [确定性变种生成器](../../../driver-experiment-env/scripts/scoring/generate.py)、[封存校验与评分](../../../driver-experiment-env/scripts/scoring/score.py)、[参数规格](../../../driver-experiment-env/scoring/variants/parameter-variants.json) |
-| 配对任务与原始结果 | [RNG 冻结协议](../../../experiments/native-suite-current-20261006/comparisons/gpt6-sol-medium-premise-five-pair-20261011-01/virtio-rng/protocol.json)、[六驱动结果及来源](PARTNER_VISIT_EVIDENCE.zh-CN.md#results) |
-| 必要缺口与实施范围 | [联合分析要求](../../src/driver_port_factory/data/prompt-packs/default/analysis-task.md)、[完整工作包实施要求](../../src/driver_port_factory/data/prompt-packs/default/behavior-job.md)、[实验方固定功能边界](../../../driver-experiment-env/configs/experiments/behavior-scopes.json) |
+| 原生测试来源、任务范围 | [任务配置](../../../../driver-experiment-env/configs/experiments/native-drivers.json)、[测试打包实现](../../../scripts/native_experiment/package_tests.py) |
+| 固定夹具的刺激与断言 | [evbug 夹具](../../../../driver-experiment-env/src/driver_port_factory/data/public-tests/evbug/evbug_public.rs)、[evbug 判据](../../../../driver-experiment-env/src/driver_port_factory/data/public-tests/evbug/cases.json)、[NE2000 夹具](../../../../driver-experiment-env/src/driver_port_factory/data/public-tests/ne2k-pci/ne2k_public.rs)、[NE2000 判据](../../../../driver-experiment-env/src/driver_port_factory/data/public-tests/ne2k-pci/cases.json) |
+| 原目标没有 evbug／NE2000 的输入构造 | [准备器](../../../../driver-experiment-env/scripts/native_experiment/public_prepare.py)、[固定任务声明](../../../../driver-experiment-env/configs/experiments/public-drivers.json) |
+| 原生参考与移除基线 | [驱动移除实现](../../../scripts/native_experiment/hollow.py)、[控制执行实现](../../../scripts/native_experiment/check.py)、[NVMe 正向记录](../../../../experiments/native-suite-current-20261006/operator/nvme-pci/positive.json)、[NVMe 负向记录](../../../../experiments/native-suite-current-20261006/operator/nvme-pci/negative.json) |
+| 函数级结果、固定判据、最终批次 | [原生判据解析](../../../../driver-experiment-env/scripts/native_experiment/oracle.py)、[夹具冻结校验](../../../src/driver_port_factory/platform/public_fixture.py)、[最终公开验收](../../../src/driver_port_factory/migration/public_qemu.py) |
+| 封存候选与参数变种 | [确定性变种生成器](../../../../driver-experiment-env/scripts/scoring/generate.py)、[封存校验与评分](../../../../driver-experiment-env/scripts/scoring/score.py)、[参数规格](../../../../driver-experiment-env/scoring/variants/parameter-variants.json) |
+| 配对任务与原始结果 | [RNG 冻结协议](../../../../experiments/native-suite-current-20261006/comparisons/gpt6-sol-medium-premise-five-pair-20261011-01/virtio-rng/protocol.json)、[六驱动结果及来源](PARTNER_VISIT_EVIDENCE.zh-CN.md#results) |
+| 必要缺口与实施范围 | [联合分析要求](../../../src/driver_port_factory/data/prompt-packs/default/analysis-task.md)、[完整工作包实施要求](../../../src/driver_port_factory/data/prompt-packs/default/behavior-job.md)、[实验方固定功能边界](../../../../driver-experiment-env/configs/experiments/behavior-scopes.json) |
 
 论文使用的证据类别为：完整内核中的 QEMU 设备执行、真实输入框架中的合成刺激、源码与所有权论证，以及开发者追加输入变种。各类结果按其观察范围陈述，语义对齐作为方法目标由源依据、实现核对和执行证据共同支撑。
