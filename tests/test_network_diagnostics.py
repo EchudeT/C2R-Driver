@@ -110,6 +110,40 @@ def test_legacy_explicit_netdev_exposes_tool_and_accepts_unchanged_workload(monk
         request({"native": {"task": task}}, {"case": "packet-exchange"})
 
 
+def test_declared_network_family_exposes_and_accepts_diagnostics(monkeypatch):
+    from driver_port_factory.codex import check_mcp
+    from driver_port_factory.knowledge import shared_binding
+    from driver_port_factory.platform import native
+
+    # Frozen native tasks declare the device family without a backend in the model string.
+    task = {
+        "device_type": "Network",
+        "qemu_model": "model-with-runtime-selected-backend",
+        "tests": [],
+        "benchmarks": ["network-workload"],
+    }
+    project = SimpleNamespace(config=SimpleNamespace(behavior_scheduling=False))
+    monkeypatch.setattr(check_mcp, "_active_stages", lambda *args: ("driver_implementation", None))
+    monkeypatch.setattr(shared_binding, "project_binding", lambda *args: None)
+    monkeypatch.setattr(native, "binding", lambda *args: {"task": task})
+    names = {
+        t["name"] for t in check_mcp.respond(project, "job", {"method": "tools/list"})["tools"]
+    }
+    assert "network_diagnostics" in names
+    assert request({"native": {"task": task}}, {"case": "network-workload"}) == {
+        "case": "network-workload",
+        "runtime": "runtime.py",
+        "trace_events": [],
+    }
+    task["device_type"] = "Block"
+    names = {
+        t["name"] for t in check_mcp.respond(project, "job", {"method": "tools/list"})["tools"]
+    }
+    assert "network_diagnostics" not in names
+    with pytest.raises(WorkflowError, match="configured native network route"):
+        request({"native": {"task": task}}, {"case": "network-workload"})
+
+
 def test_failed_workload_still_exports_diagnostics_and_restores_transport(tmp_path, monkeypatch):
     class Guest:
         def __init__(self, argv, output, *args, **kwargs):

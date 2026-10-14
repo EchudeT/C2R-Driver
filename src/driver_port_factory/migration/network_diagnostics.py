@@ -10,11 +10,15 @@ from ..platform import activity, executor, native, service
 
 
 def available(task):
-    """Use the declared network capability or an explicit device/backend binding."""
+    """Use declared network capability, device family, or an explicit backend binding."""
     model = task.get("qemu_model", "")
-    return bool(task.get("network_required")) or (
-        isinstance(model, str)
-        and re.search(r"(?:^|,)netdev=[A-Za-z0-9_-]+(?:,|$)", model) is not None
+    return (
+        bool(task.get("network_required"))
+        or task.get("device_type") == "Network"
+        or (
+            isinstance(model, str)
+            and re.search(r"(?:^|,)netdev=[A-Za-z0-9_-]+(?:,|$)", model) is not None
+        )
     )
 
 
