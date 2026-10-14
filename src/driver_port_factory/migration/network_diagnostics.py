@@ -1,11 +1,25 @@
 """Optional network observation replay, outside public acceptance and its PASS cache."""
 
 import json
+import re
 import uuid
 from pathlib import Path
 
 from ..core.models import WorkflowError
 from ..platform import activity, executor, native, service
+
+
+def available(task):
+    """Use declared network capability, device family, or an explicit backend binding."""
+    model = task.get("qemu_model", "")
+    return (
+        bool(task.get("network_required"))
+        or task.get("device_type") == "Network"
+        or (
+            isinstance(model, str)
+            and re.search(r"(?:^|,)netdev=[A-Za-z0-9_-]+(?:,|$)", model) is not None
+        )
+    )
 
 
 def tool():
@@ -37,15 +51,13 @@ def request(profile, arguments):
     if not isinstance(arguments, dict) or set(arguments) - {"case", "trace_events", "netdev"}:
         raise WorkflowError("Use case, optional trace_events and netdev")
     config = profile.get("native")
-    if not config or not config["task"].get("network_required"):
+    if not config or not available(config["task"]):
         raise WorkflowError("Network diagnostics requires the configured native network route")
     name = arguments.get("case")
     native.validate_case(profile, {"native_case": name})
     if name == "boot":
         raise WorkflowError("Choose a driver workload, not baseline boot")
     events = arguments.get("trace_events", [])
-    import re
-
     if not isinstance(events, list) or any(
         not isinstance(e, str) or not re.fullmatch(r"[A-Za-z][A-Za-z0-9_]*", e) for e in events
     ):
