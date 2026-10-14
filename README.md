@@ -80,6 +80,9 @@ python3.11 scripts/experiment.py export --driver evbug --output results/team/pub
 
 ## Factory 直接开发用法
 
+托管构建、测试和诊断工具采用[直接调用](docs/platform/DIRECT_MANAGED_TOOLS.zh-CN.md)，
+避免外层 `exec` 提前返回导致模型反复等待；历史冻结实验仍使用各自检查点。
+
 以下入口适合调试工作流和继续已有任务。论文对照使用上面的隔离启动器；直接启动不提供相同的宿主工作区隔离。
 
 ```sh

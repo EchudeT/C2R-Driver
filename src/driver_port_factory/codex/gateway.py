@@ -107,6 +107,14 @@ class CodexExecGateway:
         # CARGO_HOME can hide installed cargo subcommands and discard warm caches.
         command.extend(relay_overrides())
         if job.checks_project is not None:
+            # Managed operations already await completion. Expose them directly so
+            # code mode cannot yield early and charge repeated model-side wait calls.
+            command.extend(
+                [
+                    "-c",
+                    'features.code_mode.direct_only_tool_namespaces=["mcp__driver_checks"]',
+                ]
+            )
             source_root = str(Path(__file__).resolve().parents[2])
             config = {
                 "command": sys.executable,
